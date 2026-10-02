@@ -8,7 +8,7 @@ metadata dump) or **not established**.
 
 | Fact | Value | Label |
 |---|---|---|
-| Game version | 1.4.1 (`%LOCALAPPDATA%Low\Eleventh Hour Games\Last Epoch\version.txt`) | measured |
+| Game version | 1.5.0.1 (the game's own `GameVersionManager` line in Player.log; `version.txt` in LocalLow still says 1.4.1 and is stale) | measured |
 | Steam build | 25663618 (app 899770), updated 2026-10-02 10:26 | measured |
 | Engine | Unity 6000.4.8f1, IL2CPP, x64 | measured (Player.log, MelonLoader's old log) |
 | Graphics | Direct3D 11.0, feature level 11.1 (RTX 4070 Laptop) | measured (Player.log) |
@@ -67,11 +67,59 @@ value, not only what the client shows. **static**, to be confirmed live.
 `EPOCH` followed by JSON. **measured**. `tools/le_session.py launch` copies the folder to
 `research-out/saves-backups/<time>/` before every session.
 
+## Round 1 (2026-10-02): the hook engine and the experience multiplier
+
+**Experience path (static).** A static call map (the `E8`/`E9` targets inside each
+method's code that land on another method's start) shows a kill's experience going
+`ExperienceGainedOnKill.GiveExp(ExperienceTracker)` → `ExperienceTracker.GainExpFromEnemyOrMote(long)`
+→ (echo-scene check, under-level penalty, `ActorScaler.GetXPMultiplierFromLevelChange`) →
+`GainExp(long,long,long)` → `LevelUp`, `PlayerActorSync.SendSyncExperience`,
+`LocalTreeData.ApplyAbilityXp`, `CharacterDataTracker.MarkCharacterDirty`. Quests and other
+direct sources come in through `GainExpDirect(long,bool)` → `GainExp`. The multiplier sits
+on `GainExpFromEnemyOrMote`, so kills and experience motes scale before the game's own
+level rules; its first instruction is `mov [rsp+20h], rbx`, exactly the 5 bytes a jump
+needs.
+
+**Measured in the game (1.5.0.1):**
+- Our hook engine installed on real game code without a crash: `CharacterSelect.OnEnable`,
+  `ExperienceTracker.Awake`, `ExperienceGainedOnKill.Start`,
+  `CommandLineManager.IsOnlyOfflineMode` (static) and, on demand,
+  `UnityEngine.EventSystems.EventSystem.Update` (the main-thread frame hook).
+- A command ran on the main thread through the frame hook (`charsel: selected index 0`),
+  and the hook was removed again after two idle seconds.
+- The gate reads **ONLINE** at the login and character screens (`_isOnlinePlay` is true
+  until offline play starts), and `xp 3` was refused there: "xp: refused: ONLINE play".
+- **GC handles are pointer-sized** in this IL2CPP: the first run kept them as `uint32`,
+  and freeing a truncated handle crashed the game inside a capture hook (stack:
+  GameAssembly ← EpochPact.Core ← il2cpp invoke). Fixed; every capture now runs inside
+  `Guarded()`.
+- **An attached thread blocks the quit:** with the command thread attached to IL2CPP the
+  game logged `Application.quitting...` and never exited. The thread now attaches only
+  while commands run; the game then closed through `WM_CLOSE` with exit code 0, with the
+  hooks in.
+- Returning true from `CommandLineManager.IsOnlyOfflineMode` did **not** skip the online
+  login (the game still authenticated and matched a region), so that test hook was removed.
+- **Blocked:** 1.5.0 asks for its new Terms of Service ("Version 1.5.0 is not accepted
+  locally"). Accepting them is the owner's decision, so no character was loaded and the
+  in-world check waits for that.
+
+**Measured without the game:** `hook_test.exe` 48/48 (decoder table; RIP-relative,
+short-jcc and call relocation; refusals; 300 installs and removals under a caller running
+billions of calls, no wrong result). `xp_test.exe` 24/24: the real `xp.cpp` and hook
+engine against a stand-in with `GainExpFromEnemyOrMote`'s convention and first
+instruction (x3 turns 1000 into 3000, tracker and MethodInfo untouched, online and
+unreadable gates refuse, x1 restores the original bytes).
+
+**Next live step:** with the terms accepted and an offline character in the world,
+`tools/live_xp_check.py` runs baseline x1, x3 and x1 again through `xpgain`, then the real
+kill path (`xpkill`, a spawned enemy's own `GiveExp`) when an enemy is around.
+
 ## Open questions for the next round
 
-1. Our own x64 hook engine: how IL2CPP prologues look in this build (the
-   `s_Il2CppMethodInitialized` check puts a RIP-relative compare and a conditional jump in
-   the first bytes), so the instruction decoder covers exactly what it meets.
-2. Which experience and gold paths a real kill takes (trace the candidates above once).
-3. Where `Spawner.numberToSpawn` is consumed, for monster density.
-4. Frame cost: a per-frame timer of our own, to hold every feature to a budget.
+1. The in-world experience check (`tools/live_xp_check.py`), once the 1.5.0 terms are
+   accepted: x1/x3/x1 through `xpgain`, then a spawned enemy's own `GiveExp`.
+2. When `GameplayEnvironment._isOnlinePlay` turns false in offline play (expected when an
+   offline character starts), read live.
+3. The gold path a real kill takes (`ItemDrop.SpawnGoldForActor` → pickup → `GoldTracker.modifyGold`).
+4. Where `Spawner.numberToSpawn` is consumed, for monster density.
+5. Frame cost: a per-frame timer of our own, to hold every feature to a budget.

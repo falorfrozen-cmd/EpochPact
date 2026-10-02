@@ -22,6 +22,8 @@ using Type = void;
     X(domain_get, Domain*, ())                                                            \
     X(domain_get_assemblies, const Assembly**, (const Domain*, size_t*))                  \
     X(thread_attach, void*, (Domain*))                                                    \
+    X(thread_current, void*, ())                                                          \
+    X(thread_detach, void, (void*))                                                       \
     X(assembly_get_image, const Image*, (const Assembly*))                                \
     X(image_get_name, const char*, (const Image*))                                        \
     X(image_get_class_count, size_t, (const Image*))                                      \
@@ -57,6 +59,10 @@ using Type = void;
     X(property_get_name, const char*, (const Property*))                                  \
     X(property_get_get_method, const Method*, (const Property*))                          \
     X(property_get_set_method, const Method*, (const Property*))                          \
+    X(class_get_field_from_name, const Field*, (const Class*, const char*))                 \
+    X(gchandle_new, uintptr_t, (void*, bool))                                             \
+    X(gchandle_get_target, void*, (uintptr_t))                                            \
+    X(gchandle_free, void, (uintptr_t))                                                   \
     X(free, void, (void*))
 
 struct Api {

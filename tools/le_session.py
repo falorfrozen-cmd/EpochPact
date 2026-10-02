@@ -6,6 +6,8 @@ r"""Install EpochPact into Last Epoch, run a game session, and close it cleanly.
     py -3 tools/le_session.py launch             # backs the saves up, starts the game through Steam
     py -3 tools/le_session.py wait-dump [--timeout 600]
     py -3 tools/le_session.py close [--timeout 60]
+    py -3 tools/le_session.py cmd <command ...> [--timeout 10]   # through <game>\EpochPact\ipc
+    py -3 tools/le_session.py restore-saves <backup folder>       # put a session's saves back
 
 Never overwrites a version.dll that is not EpochPact's, and refuses to install or
 uninstall while the game runs. The game is closed with WM_CLOSE to its window, the same
@@ -201,6 +203,62 @@ def cmd_close(args: argparse.Namespace) -> int:
     return 1
 
 
+def send(command: str, timeout: float = 10.0) -> str | None:
+    """Writes one command to cmd.txt and returns its reply from out.txt (None on timeout)."""
+    ipc = GAME / "EpochPact" / "ipc"
+    ipc.mkdir(parents=True, exist_ok=True)
+    out = ipc / "out.txt"
+    start = out.stat().st_size if out.exists() else 0
+    tmp = ipc / "cmd.tmp"
+    tmp.write_text(command + "\n", encoding="utf-8")
+    os.replace(tmp, ipc / "cmd.txt")
+    marker = f"> {command}\r\n"
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        time.sleep(0.15)
+        if not out.exists():
+            continue
+        with open(out, "rb") as f:
+            f.seek(start)
+            text = f.read().decode("utf-8", errors="replace")
+        at = text.find(marker)
+        if at < 0:
+            continue
+        body = text[at + len(marker):]
+        nxt = body.find("\r\n> ")
+        if nxt >= 0:
+            return body[:nxt].strip()
+        if body.endswith("\r\n"):
+            time.sleep(0.2)  # a multi-line reply is written in one append; settle once
+            with open(out, "rb") as f:
+                f.seek(start)
+                text = f.read().decode("utf-8", errors="replace")
+            return text[text.find(marker) + len(marker):].split("\r\n> ")[0].strip()
+    return None
+
+
+def cmd_cmd(args: argparse.Namespace) -> int:
+    reply = send(" ".join(args.words), args.timeout)
+    if reply is None:
+        print("no reply (is the game running with EpochPact?)")
+        return 1
+    print(reply)
+    return 0
+
+
+def cmd_restore_saves(args: argparse.Namespace) -> int:
+    if refuse_if_running():
+        return 2
+    src = Path(args.backup)
+    if not src.is_dir() or not any(src.iterdir()):
+        print(f"refused: {src} is not a saves backup")
+        return 2
+    shutil.rmtree(SAVES)
+    shutil.copytree(src, SAVES)
+    print(f"saves restored from {src}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -214,6 +272,13 @@ def main() -> int:
     c = sub.add_parser("close")
     c.add_argument("--timeout", type=float, default=60)
     c.set_defaults(fn=cmd_close)
+    k = sub.add_parser("cmd")
+    k.add_argument("words", nargs="+")
+    k.add_argument("--timeout", type=float, default=10)
+    k.set_defaults(fn=cmd_cmd)
+    r = sub.add_parser("restore-saves")
+    r.add_argument("backup")
+    r.set_defaults(fn=cmd_restore_saves)
     args = ap.parse_args()
     return args.fn(args)
 

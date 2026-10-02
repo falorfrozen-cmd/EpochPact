@@ -78,7 +78,7 @@ proves the effect with the game's own numbers, and its frame cost.
 | Round | Content |
 |---|---|
 | 0 | Research, loader, resolver, dump. **Done 2026-10-02.** |
-| 1 | Hook engine with tests; the offline gate; the first feature end to end, live-verified. |
+| 1 | Hook engine with tests; the offline gate; the first feature end to end, live-verified. **Built 2026-10-02**: engine (48/48), experience multiplier (24/24 without the game), gate and command channel checked in the game; the in-world check waits for the owner to accept the 1.5.0 terms. |
 | 2 | Command channel and panel; config and auto-apply. |
 | 3 | The rest of the first feature list, each measured. |
 | 4 | Installer, update path, release. |

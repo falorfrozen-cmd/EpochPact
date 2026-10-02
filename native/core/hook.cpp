@@ -1,0 +1,361 @@
+#include "hook.hpp"
+
+#include "x64_decode.hpp"
+
+#include <windows.h>
+#include <tlhelp32.h>
+
+#include <cstdarg>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <mutex>
+#include <vector>
+
+namespace ep::hook {
+
+namespace {
+
+constexpr size_t kPatch = 5;            // E9 rel32
+constexpr size_t kSlot = 160;           // trampoline (up to 128 bytes) + relay (14) per hook
+constexpr size_t kTrampolineMax = 128;
+constexpr intptr_t kReach = 0x7FF00000; // stay a little inside rel32's +-2 GB
+
+struct Block {
+    uint8_t* base;
+    size_t used;
+    size_t size;
+};
+
+struct Record {
+    uint8_t* target = nullptr;
+    uint8_t* trampoline = nullptr;
+    uint8_t* relay = nullptr;
+    uint8_t saved[32] = {};
+    size_t stolen = 0;
+    bool installed = false;
+};
+
+std::mutex g_lock;
+std::vector<Block> g_blocks;
+std::vector<Record> g_records;
+
+bool Near(const void* a, const void* b) {
+    const intptr_t d = reinterpret_cast<intptr_t>(a) - reinterpret_cast<intptr_t>(b);
+    return d > -kReach && d < kReach;
+}
+
+void Fail(std::string* why, const char* fmt, ...) {
+    if (!why) return;
+    char buf[256];
+    va_list args;
+    va_start(args, fmt);
+    std::vsnprintf(buf, sizeof buf, fmt, args);
+    va_end(args);
+    *why = buf;
+}
+
+// A kSlot-sized piece of executable memory within reach of `target`.
+uint8_t* AllocNear(const uint8_t* target) {
+    for (Block& b : g_blocks) {
+        if (b.used + kSlot <= b.size && Near(b.base, target) && Near(b.base + b.size, target)) {
+            uint8_t* p = b.base + b.used;
+            b.used += kSlot;
+            return p;
+        }
+    }
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    const uintptr_t gran = si.dwAllocationGranularity;
+    const uintptr_t lo = reinterpret_cast<uintptr_t>(si.lpMinimumApplicationAddress);
+    const uintptr_t hi = reinterpret_cast<uintptr_t>(si.lpMaximumApplicationAddress);
+    const uintptr_t origin = reinterpret_cast<uintptr_t>(target) & ~(gran - 1);
+    for (uintptr_t delta = gran; delta < static_cast<uintptr_t>(kReach) - gran; delta += gran) {
+        for (int dir = 0; dir < 2; ++dir) {
+            const uintptr_t addr = dir ? origin + delta : origin - delta;
+            if ((dir == 0 && origin < delta + lo) || addr < lo || addr + gran > hi) continue;
+            MEMORY_BASIC_INFORMATION mbi;
+            if (!VirtualQuery(reinterpret_cast<void*>(addr), &mbi, sizeof mbi) || mbi.State != MEM_FREE) continue;
+            void* p = VirtualAlloc(reinterpret_cast<void*>(addr), gran, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+            if (!p) continue;
+            g_blocks.push_back({static_cast<uint8_t*>(p), kSlot, gran});
+            return static_cast<uint8_t*>(p);
+        }
+    }
+    return nullptr;
+}
+
+void EmitAbsJmp(uint8_t*& out, const void* dest) {  // FF 25 00000000 <abs64>
+    *out++ = 0xFF;
+    *out++ = 0x25;
+    std::memset(out, 0, 4);
+    out += 4;
+    std::memcpy(out, &dest, 8);
+    out += 8;
+}
+
+bool Rel32(const uint8_t* next, const uint8_t* dest, int32_t* rel) {
+    const intptr_t d = dest - next;
+    if (d < INT32_MIN || d > INT32_MAX) return false;
+    *rel = static_cast<int32_t>(d);
+    return true;
+}
+
+// Copies the instructions that cover the first kPatch bytes of `target` into `tramp`,
+// moving every relative reference, and ends it with a jump back.
+bool BuildTrampoline(uint8_t* target, uint8_t* tramp, size_t* stolenOut, std::string* why) {
+    // Pass 1: how many bytes the patch takes over (needed to spot jumps into them).
+    size_t stolen = 0;
+    while (stolen < kPatch) {
+        x64::Insn in;
+        if (!x64::Decode(target + stolen, &in)) {
+            Fail(why, "cannot decode the instruction at +%zu (first byte 0x%02X)", stolen, target[stolen]);
+            return false;
+        }
+        if (in.kind == x64::Kind::Ret) {
+            Fail(why, "the function returns at +%zu, before the %zu bytes a jump needs", stolen, kPatch);
+            return false;
+        }
+        if ((in.kind == x64::Kind::JmpRel8 || in.kind == x64::Kind::JmpRel32) && stolen + in.len < kPatch) {
+            Fail(why, "an unconditional jump at +%zu ends the code before %zu bytes", stolen, kPatch);
+            return false;
+        }
+        stolen += in.len;
+    }
+    if (stolen > sizeof(Record::saved)) {
+        Fail(why, "%zu bytes to move is more than the engine keeps", stolen);
+        return false;
+    }
+
+    // Pass 2: rewrite into the trampoline.
+    uint8_t* out = tramp;
+    for (size_t at = 0; at < stolen;) {
+        x64::Insn in;
+        x64::Decode(target + at, &in);
+        const uint8_t* src = target + at;
+        const uint8_t* srcNext = src + in.len;
+        const uint8_t* dest = srcNext + in.rel;
+        const bool branch = in.kind == x64::Kind::JmpRel8 || in.kind == x64::Kind::JmpRel32 || in.kind == x64::Kind::JccRel8 ||
+                            in.kind == x64::Kind::JccRel32 || in.kind == x64::Kind::CallRel32;
+        if (branch && in.kind != x64::Kind::CallRel32 && dest >= target && dest < target + stolen) {
+            Fail(why, "a jump at +%zu lands inside the bytes the patch replaces", at);
+            return false;
+        }
+        int32_t rel = 0;
+        switch (in.kind) {
+            case x64::Kind::Plain: {
+                std::memcpy(out, src, in.len);
+                if (in.ripRelative) {
+                    int32_t disp;
+                    std::memcpy(&disp, src + in.dispOffset, 4);
+                    const uint8_t* abs = srcNext + disp;
+                    if (!Rel32(out + in.len, abs, &rel)) {
+                        Fail(why, "a RIP-relative operand at +%zu is out of reach from the trampoline", at);
+                        return false;
+                    }
+                    std::memcpy(out + in.dispOffset, &rel, 4);
+                }
+                out += in.len;
+                break;
+            }
+            case x64::Kind::JmpRel8:
+            case x64::Kind::JmpRel32:
+                if (Rel32(out + 5, dest, &rel)) {
+                    *out++ = 0xE9;
+                    std::memcpy(out, &rel, 4);
+                    out += 4;
+                } else {
+                    EmitAbsJmp(out, dest);
+                }
+                break;
+            case x64::Kind::JccRel8:
+            case x64::Kind::JccRel32:
+                if (Rel32(out + 6, dest, &rel)) {
+                    *out++ = 0x0F;
+                    *out++ = static_cast<uint8_t>(0x80 | in.condition);
+                    std::memcpy(out, &rel, 4);
+                    out += 4;
+                } else {  // inverted short jcc over an absolute jump
+                    *out++ = static_cast<uint8_t>(0x70 | (in.condition ^ 1));
+                    *out++ = 14;
+                    EmitAbsJmp(out, dest);
+                }
+                break;
+            case x64::Kind::CallRel32:
+                if (Rel32(out + 5, dest, &rel)) {
+                    *out++ = 0xE8;
+                    std::memcpy(out, &rel, 4);
+                    out += 4;
+                } else {  // call [rip+2]; jmp +8; dq dest
+                    const uint8_t seq[] = {0xFF, 0x15, 0x02, 0x00, 0x00, 0x00, 0xEB, 0x08};
+                    std::memcpy(out, seq, sizeof seq);
+                    out += sizeof seq;
+                    std::memcpy(out, &dest, 8);
+                    out += 8;
+                }
+                break;
+            default:
+                Fail(why, "unexpected instruction kind at +%zu", at);
+                return false;
+        }
+        at += in.len;
+        if (static_cast<size_t>(out - tramp) > kTrampolineMax - 14) {
+            Fail(why, "the trampoline would not fit");
+            return false;
+        }
+    }
+    int32_t back = 0;
+    if (Rel32(out + 5, target + stolen, &back)) {
+        *out++ = 0xE9;
+        std::memcpy(out, &back, 4);
+        out += 4;
+    } else {
+        EmitAbsJmp(out, target + stolen);
+    }
+    *stolenOut = stolen;
+    return true;
+}
+
+// Suspends every other thread of the process. Returns false (with all threads running
+// again) when one of them stands inside [lo, hi). Nothing here allocates once the first
+// thread is suspended: it might hold the heap lock.
+bool Freeze(std::vector<HANDLE>& held, const uint8_t* lo, const uint8_t* hi) {
+    std::vector<DWORD> ids;
+    ids.reserve(256);
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (snap == INVALID_HANDLE_VALUE) return false;
+    THREADENTRY32 te{sizeof te};
+    const DWORD pid = GetCurrentProcessId(), self = GetCurrentThreadId();
+    for (BOOL ok = Thread32First(snap, &te); ok; ok = Thread32Next(snap, &te))
+        if (te.th32OwnerProcessID == pid && te.th32ThreadID != self) ids.push_back(te.th32ThreadID);
+    CloseHandle(snap);
+
+    held.clear();
+    held.reserve(ids.size());
+    bool inside = false;
+    for (DWORD id : ids) {
+        HANDLE t = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, id);
+        if (!t) continue;
+        if (SuspendThread(t) == static_cast<DWORD>(-1)) {
+            CloseHandle(t);
+            continue;
+        }
+        held.push_back(t);
+        CONTEXT ctx{};
+        ctx.ContextFlags = CONTEXT_CONTROL;
+        if (GetThreadContext(t, &ctx)) {
+            const auto rip = reinterpret_cast<const uint8_t*>(ctx.Rip);
+            if (rip >= lo && rip < hi) inside = true;
+        }
+    }
+    if (!inside) return true;
+    for (HANDLE t : held) {
+        ResumeThread(t);
+        CloseHandle(t);
+    }
+    held.clear();
+    return false;
+}
+
+void Thaw(std::vector<HANDLE>& held) {
+    for (HANDLE t : held) {
+        ResumeThread(t);
+        CloseHandle(t);
+    }
+    held.clear();
+}
+
+// Writes `bytes` over `at` with the other threads held; retried while one of them is inside.
+bool WriteCode(uint8_t* at, const uint8_t* bytes, size_t n, std::string* why) {
+    std::vector<HANDLE> held;
+    for (int attempt = 0; attempt < 100; ++attempt) {
+        if (Freeze(held, at, at + n)) {
+            DWORD old = 0;
+            bool ok = VirtualProtect(at, n, PAGE_EXECUTE_READWRITE, &old) != 0;
+            if (ok) {
+                std::memcpy(at, bytes, n);
+                VirtualProtect(at, n, old, &old);
+                FlushInstructionCache(GetCurrentProcess(), at, n);
+            }
+            Thaw(held);
+            if (!ok) Fail(why, "VirtualProtect failed (error %lu)", GetLastError());
+            return ok;
+        }
+        Sleep(1);
+    }
+    Fail(why, "a thread stayed inside the patched bytes for 100 attempts");
+    return false;
+}
+
+Record* Find(void* target) {
+    for (Record& r : g_records)
+        if (r.target == target) return &r;
+    return nullptr;
+}
+
+}  // namespace
+
+bool Install(void* targetPtr, void* detour, void** original, std::string* why) {
+    std::lock_guard<std::mutex> hold(g_lock);
+    auto* target = static_cast<uint8_t*>(targetPtr);
+    if (!target || !detour) {
+        Fail(why, "null target or detour");
+        return false;
+    }
+    Record* rec = Find(target);
+    if (rec && rec->installed) {
+        Fail(why, "already installed");
+        return false;
+    }
+    if (!rec) {
+        uint8_t* slot = AllocNear(target);
+        if (!slot) {
+            Fail(why, "no free memory within 2 GB of the target");
+            return false;
+        }
+        Record fresh;
+        fresh.target = target;
+        fresh.trampoline = slot;
+        fresh.relay = slot + kTrampolineMax;
+        if (!BuildTrampoline(target, fresh.trampoline, &fresh.stolen, why)) return false;
+        std::memcpy(fresh.saved, target, fresh.stolen);
+        g_records.push_back(fresh);
+        rec = &g_records.back();
+    }
+    uint8_t* r = rec->relay;
+    EmitAbsJmp(r, detour);  // the relay may point at a new detour on a re-install
+
+    uint8_t patch[sizeof(Record::saved)];
+    std::memset(patch, 0xCC, rec->stolen);  // a jump into the middle of the old bytes should crash loudly
+    int32_t rel = 0;
+    if (!Rel32(target + kPatch, rec->relay, &rel)) {
+        Fail(why, "the relay is out of reach");
+        return false;
+    }
+    patch[0] = 0xE9;
+    std::memcpy(patch + 1, &rel, 4);
+    if (original) *original = rec->trampoline;
+    if (!WriteCode(target, patch, rec->stolen, why)) return false;
+    rec->installed = true;
+    return true;
+}
+
+bool Remove(void* target, std::string* why) {
+    std::lock_guard<std::mutex> hold(g_lock);
+    Record* rec = Find(target);
+    if (!rec || !rec->installed) {
+        Fail(why, "not installed");
+        return false;
+    }
+    if (!WriteCode(rec->target, rec->saved, rec->stolen, why)) return false;
+    rec->installed = false;
+    return true;
+}
+
+bool IsInstalled(void* target) {
+    std::lock_guard<std::mutex> hold(g_lock);
+    const Record* rec = Find(target);
+    return rec && rec->installed;
+}
+
+}  // namespace ep::hook
