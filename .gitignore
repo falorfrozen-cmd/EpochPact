@@ -1,0 +1,8 @@
+build/
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+__pycache__/
+/research-out/

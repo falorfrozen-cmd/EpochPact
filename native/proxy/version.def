@@ -1,0 +1,19 @@
+LIBRARY version
+EXPORTS
+    GetFileVersionInfoA=ep_GetFileVersionInfoA @1
+    GetFileVersionInfoByHandle=ep_GetFileVersionInfoByHandle @2
+    GetFileVersionInfoExA=ep_GetFileVersionInfoExA @3
+    GetFileVersionInfoExW=ep_GetFileVersionInfoExW @4
+    GetFileVersionInfoSizeA=ep_GetFileVersionInfoSizeA @5
+    GetFileVersionInfoSizeExA=ep_GetFileVersionInfoSizeExA @6
+    GetFileVersionInfoSizeExW=ep_GetFileVersionInfoSizeExW @7
+    GetFileVersionInfoSizeW=ep_GetFileVersionInfoSizeW @8
+    GetFileVersionInfoW=ep_GetFileVersionInfoW @9
+    VerFindFileA=ep_VerFindFileA @10
+    VerFindFileW=ep_VerFindFileW @11
+    VerInstallFileA=ep_VerInstallFileA @12
+    VerInstallFileW=ep_VerInstallFileW @13
+    VerLanguageNameA=KERNEL32.VerLanguageNameA @14
+    VerLanguageNameW=KERNEL32.VerLanguageNameW @15
+    VerQueryValueA=ep_VerQueryValueA @16
+    VerQueryValueW=ep_VerQueryValueW @17
