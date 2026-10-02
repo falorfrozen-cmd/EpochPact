@@ -1,6 +1,6 @@
 r"""Live check of the experience multiplier, on an offline character that is already in the world.
 
-    py -3 tools/live_xp_check.py [--out research-out/live-xp-<time>.txt]
+    py -3 tools/live_xp_check.py [--out research/live/live-xp-<time>.txt]
 
 Before running: the research build is installed (tools/le_session.py install), the game was
 started with tools/le_session.py launch (it backs the saves up), and an OFFLINE character

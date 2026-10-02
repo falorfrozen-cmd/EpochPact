@@ -6,3 +6,5 @@ build/
 *.lib
 __pycache__/
 /research-out/
+/research/game-data/
+/research/live/

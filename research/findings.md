@@ -42,7 +42,7 @@ were skipped (11 of them in `LE.dll`). The game was closed through its window
 (`WM_CLOSE`): exit code 0. Saves were backed up first and not touched.
 
 The dump (`dump.cs`, `methods.tsv`, `fields.tsv`) is the game's own metadata. It stays in
-`research-out/` and is never committed.
+`research/game-data/` and is never committed.
 
 ## Where the first features live (static)
 
@@ -65,7 +65,7 @@ value, not only what the client shows. **static**, to be confirmed live.
 `%USERPROFILE%\AppData\LocalLow\Eleventh Hour Games\Last Epoch\Saves`: offline characters
 `1CHARACTERSLOT_BETA_<n>`, stashes `STASH_*`, `Epoch_Local_Global_Data_Beta`; each file is
 `EPOCH` followed by JSON. **measured**. `tools/le_session.py launch` copies the folder to
-`research-out/saves-backups/<time>/` before every session.
+`research/live/saves-backups/<time>/` before every session.
 
 ## Round 1 (2026-10-02): the hook engine and the experience multiplier
 
@@ -113,6 +113,45 @@ unreadable gates refuse, x1 restores the original bytes).
 **Next live step:** with the terms accepted and an offline character in the world,
 `tools/live_xp_check.py` runs baseline x1, x3 and x1 again through `xpgain`, then the real
 kill path (`xpkill`, a spawned enemy's own `GiveExp`) when an enemy is around.
+
+## Round 2 (2026-10-02 evening): gold, item drops and density, played live
+
+**Where they hook (static, `research/tools/callers.py` and `callmap.py`):**
+- **Gold.** `GoldTracker.modifyGold(int)` has 15 callers. Only one of them is a pickup:
+  `GroundItemManager.pickupGold(GroundItemList, Actor, uint)`, reached from
+  `GoldPickupInteraction.PickUp()`. The rest are shops, stash tabs, respecs, monolith
+  rerolls and quest rewards. `gold` hooks both and scales `modifyGold` only while
+  `pickupGold` runs (a thread-local depth counter).
+- **Item drops.** The enemy-death routine (`ItemDrop.<DropItem>d__102.MoveNext`) calls
+  `getItemDropChance` and `getGoldDropChance`, waits (`UniTask.Delay`), then calls the static
+  `ItemDrop.DropItem(int level, Vector3 position, float itemDropChance, bool, float
+  itemMultiplier, BaseDropRates, bool, float goldMultiplier, float goldChance, float
+  craftingOnlyDropChance, DropFlags, Scene, bool causedByEnemyDeath, bool, bool
+  limitToOneGoldPile, GoldDropType, CorruptionOutcome forceCorrupt, float dropRadius)`.
+  Monolith objectives, arenas, nemesis and Woven echoes call it too. `drops` scales
+  `itemMultiplier` (the item count), not `itemDropChance` (a chance, capped at 100%). All
+  enums are int32, `Vector3` goes by address and `Scene` as an int.
+- **Density.** `Spawner.get_MinimumSpawnCount`/`get_MaximumSpawnCount` have no call sites
+  (inlined). The pack is rolled inside `Spawner.GenerateEntitiesInternal()` (`RngElement.Roll`,
+  `NextFloat`, then `new MonsterGenerator(...)`), called once per spawner from
+  `GenerateEntitiesAsync`. `density` scales `numberToSpawn` (offset found by name, +0x44)
+  for that call only and puts it back afterwards. Spawners of one (bosses, unique enemies)
+  are left alone.
+
+**Measured (offline character, zone level 1, the owner playing, 19:02-19:05):**
+- The gate turned to `offline play` when the owner entered offline play, and all four
+  features armed at once.
+- **Experience x10:** 27 gains boosted; the first was 3 → 30, the latest 15 → 150.
+- **Gold x10:** 10 pickups boosted; the first was 4 → 40.
+- **Item drops x10:** the first drop went `itemMultiplier 1 -> 10`. Only kills whose
+  chance roll succeeds reach `DropItem`, so this counts fewer than kills.
+- **Density x3:** 4 packs boosted; the first went `numberToSpawn 2 -> 6`.
+- Also seen: `GameplayEnvironment.IsServer` reads false in offline play (`[client only]`).
+  `ExperienceGainedOnKill.Start` never fired, so kills reach `GainExpFromEnemyOrMote`
+  without that component in 1.5.
+- One game error in the log, "EncounterPlacementData is null", came right after the game's
+  own warning that shrines need zone level 2 (the zone was level 1), during scene load. It
+  is the encounter system's own message, not one of these hooks.
 
 ## Open questions for the next round
 

@@ -1,7 +1,7 @@
 # EpochPact requirements (draft 1, 2026-10-02)
 
 ForgePact-style mods for Last Epoch: a native plugin in the game, a panel outside it, every
-line our own. Research behind each point: `docs/research.md`.
+line our own. Research behind each point: `research/findings.md`.
 
 ## 1. Ground rules (owner, 2026-10-02)
 

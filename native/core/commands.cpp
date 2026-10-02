@@ -2,6 +2,7 @@
 
 #include "common.hpp"
 #include "game.hpp"
+#include "loot.hpp"
 #include "mainthread.hpp"
 #include "version.hpp"
 #include "xp.hpp"
@@ -52,19 +53,22 @@ std::string Execute(const std::string& line) {
     const std::vector<std::string> args(parts.begin() + 1, parts.end());
 
     if (cmd == "status") {
-        std::string s = std::string("EpochPact ") + kVersion + "; gate: " + game::GateText() + "\n" + xp::Status() +
-                        "\nframe hook: " + (mainthread::HookInstalled() ? "in" : "out (idle)");
+        std::string s = std::string("EpochPact ") + kVersion + "; gate: " + game::GateText() + "\n" + xp::Status() + "\n" +
+                        loot::Status() + "\nframe hook: " + (mainthread::HookInstalled() ? "in" : "out (idle)");
 #ifdef EPOCHPACT_RESEARCH
         s += "\n" + research::Status();
 #endif
         return s;
     }
-    if (cmd == "xp") {
-        if (args.empty()) return xp::Status();
+    if (cmd == "xp" || cmd == "gold" || cmd == "drops" || cmd == "density") {
+        if (args.empty()) return cmd == "xp" ? xp::Status() : loot::Status();
         char* end = nullptr;
         const double m = std::strtod(args[0].c_str(), &end);
-        if (end == args[0].c_str() || *end) return "xp: refused: not a number: " + args[0];
-        return xp::Set(m);
+        if (end == args[0].c_str() || *end) return cmd + ": refused: not a number: " + args[0];
+        if (cmd == "xp") return xp::Set(m);
+        if (cmd == "gold") return loot::SetGold(m);
+        if (cmd == "drops") return loot::SetDrops(m);
+        return loot::SetDensity(m);
     }
 #ifdef EPOCHPACT_RESEARCH
     std::string reply;

@@ -9,6 +9,7 @@
 #include "common.hpp"
 #include "game.hpp"
 #include "il2cpp_api.hpp"
+#include "loot.hpp"
 #include "mainthread.hpp"
 #include "version.hpp"
 #include "xp.hpp"
@@ -87,6 +88,7 @@ DWORD WINAPI Worker(void*) {
 #endif
     mainthread::Init();
     xp::Init();
+    loot::Init();
     Log("ready: command channel at EpochPact\\ipc\\cmd.txt");
     // Detached until a command arrives: IL2CPP waits for attached threads when the game quits.
     if (void* self = a.thread_current()) a.thread_detach(self);

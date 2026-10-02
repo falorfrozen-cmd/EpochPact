@@ -26,7 +26,7 @@ link /nologo /DLL /OUT:"%OUT%\version.dll" /DEF:"%HERE%proxy\version.def" "%OUT%
 
 echo [2/3] core (EpochPact.Core.dll)
 rem EPOCHPACT_RESEARCH: the metadata dump, capture hooks and research commands (not for players).
-set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread xp commands research"
+set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread xp loot commands research"
 set "CORE_CPP="
 set "CORE_OBJ="
 for %%f in (%CORE_SRC%) do call set "CORE_CPP=%%CORE_CPP%% "%CORE%\%%f.cpp""

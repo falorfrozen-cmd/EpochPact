@@ -15,6 +15,7 @@ using namespace il2cpp;
 
 std::map<std::string, const Image*> g_images;  // "LE.dll" -> image
 const Field* g_isOnlinePlay = nullptr;          // EHG.Multiplayer.GameplayEnvironment._isOnlinePlay
+const Field* g_isServer = nullptr;              // EHG.Multiplayer.GameplayEnvironment.IsServer (diagnostics)
 MethodRef g_opImplicit;                         // UnityEngine.Object.op_Implicit(Object)
 std::mutex g_lock;
 
@@ -30,8 +31,10 @@ bool Init(Domain* domain) {
     }
     auto le = g_images.find("LE.dll");
     if (le != g_images.end())
-        if (const Class* env = a.class_from_name(le->second, "EHG.Multiplayer", "GameplayEnvironment"))
+        if (const Class* env = a.class_from_name(le->second, "EHG.Multiplayer", "GameplayEnvironment")) {
             g_isOnlinePlay = a.class_get_field_from_name(env, "_isOnlinePlay");
+            g_isServer = a.class_get_field_from_name(env, "IsServer");
+        }
     g_opImplicit = FindMethod("UnityEngine.CoreModule.dll", "UnityEngine", "Object", "op_Implicit", 1);
     Log("game: %zu images; online flag %s; Object.op_Implicit %s", g_images.size(), g_isOnlinePlay ? "found" : "MISSING",
         g_opImplicit ? "found" : "MISSING");
@@ -50,6 +53,16 @@ MethodRef FindMethod(const char* image, const char* ns, const char* cls, const c
     return ref;
 }
 
+size_t FieldOffset(const char* image, const char* ns, const char* cls, const char* field) {
+    auto it = g_images.find(image);
+    if (it == g_images.end()) return 0;
+    const Api& a = api();
+    const Class* k = a.class_from_name(it->second, ns, cls);
+    const Field* f = k ? a.class_get_field_from_name(k, field) : nullptr;
+    if (!f || (a.field_get_flags(f) & kFieldStatic)) return 0;
+    return a.field_get_offset(f);
+}
+
 bool IsOfflinePlay(bool* known) {
     if (!g_isOnlinePlay) {
         if (known) *known = false;
@@ -66,7 +79,13 @@ std::string GateText() {
     bool known = false;
     const bool offline = IsOfflinePlay(&known);
     if (!known) return "unknown (online/offline flag unreadable: everything stays off)";
-    return offline ? "offline play" : "ONLINE play (every feature refuses)";
+    std::string text = offline ? "offline play" : "ONLINE play (every feature refuses)";
+    if (g_isServer) {  // context for the live checks: offline play runs the game's server locally
+        unsigned long long raw = 0;
+        if (Guarded([&] { api().field_static_get_value(g_isServer, &raw); }, nullptr))
+            text += (raw & 0xFF) ? " [local server]" : " [client only]";
+    }
+    return text;
 }
 
 bool IsAlive(void* obj) {

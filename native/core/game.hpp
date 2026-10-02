@@ -23,6 +23,10 @@ bool Init(il2cpp::Domain* domain);
 // `image` like "LE.dll"; `ns` may be "" for the global namespace.
 MethodRef FindMethod(const char* image, const char* ns, const char* cls, const char* name, int args);
 
+// An instance field's offset inside its object, found by name; 0 when it is not there
+// (no instance field sits at 0: the object header comes first).
+size_t FieldOffset(const char* image, const char* ns, const char* cls, const char* field);
+
 // The offline gate. Online means the game is connected to Eleventh Hour Games' servers
 // (EHG.Multiplayer.GameplayEnvironment._isOnlinePlay). `known` is false when the field
 // could not be read, which every caller treats as "not offline".
