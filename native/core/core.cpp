@@ -9,8 +9,10 @@
 #include "common.hpp"
 #include "game.hpp"
 #include "il2cpp_api.hpp"
+#include "items.hpp"
 #include "loot.hpp"
 #include "mainthread.hpp"
+#include "player.hpp"
 #include "version.hpp"
 #include "xp.hpp"
 #ifdef EPOCHPACT_RESEARCH
@@ -87,8 +89,13 @@ DWORD WINAPI Worker(void*) {
     if (GetFileAttributesW((dumpDir + L"done.txt").c_str()) == INVALID_FILE_ATTRIBUTES) RunDump(domain, dumpDir);
 #endif
     mainthread::Init();
+#ifdef EPOCHPACT_RESEARCH
+    research::KeepTicking();
+#endif
     xp::Init();
     loot::Init();
+    items::Init();
+    player::Init();
     Log("ready: command channel at EpochPact\\ipc\\cmd.txt");
     // Detached until a command arrives: IL2CPP waits for attached threads when the game quits.
     if (void* self = a.thread_current()) a.thread_detach(self);

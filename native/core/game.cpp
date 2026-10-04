@@ -53,14 +53,30 @@ MethodRef FindMethod(const char* image, const char* ns, const char* cls, const c
     return ref;
 }
 
-size_t FieldOffset(const char* image, const char* ns, const char* cls, const char* field) {
+const Class* FindClass(const char* image, const char* ns, const char* cls) {
     auto it = g_images.find(image);
-    if (it == g_images.end()) return 0;
-    const Api& a = api();
-    const Class* k = a.class_from_name(it->second, ns, cls);
-    const Field* f = k ? a.class_get_field_from_name(k, field) : nullptr;
-    if (!f || (a.field_get_flags(f) & kFieldStatic)) return 0;
-    return a.field_get_offset(f);
+    if (it == g_images.end()) return nullptr;
+    return api().class_from_name(it->second, ns, cls);
+}
+
+size_t FieldOffset(const char* image, const char* ns, const char* cls, const char* field) {
+    const Class* k = FindClass(image, ns, cls);
+    const Field* f = k ? api().class_get_field_from_name(k, field) : nullptr;
+    if (!f || (api().field_get_flags(f) & kFieldStatic)) return 0;
+    return api().field_get_offset(f);
+}
+
+const Field* FindStaticField(const char* image, const char* ns, const char* cls, const char* field) {
+    const Class* k = FindClass(image, ns, cls);
+    const Field* f = k ? api().class_get_field_from_name(k, field) : nullptr;
+    if (!f || !(api().field_get_flags(f) & kFieldStatic)) return nullptr;
+    return f;
+}
+
+void* StaticObject(const Field* field) {
+    void* value = nullptr;
+    if (field) Guarded([&] { api().field_static_get_value(field, &value); }, nullptr);
+    return value;
 }
 
 bool IsOfflinePlay(bool* known) {

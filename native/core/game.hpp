@@ -23,9 +23,18 @@ bool Init(il2cpp::Domain* domain);
 // `image` like "LE.dll"; `ns` may be "" for the global namespace.
 MethodRef FindMethod(const char* image, const char* ns, const char* cls, const char* name, int args);
 
+// A class by name, for checks like "is this object a GroundItemLabel".
+const il2cpp::Class* FindClass(const char* image, const char* ns, const char* cls);
+
 // An instance field's offset inside its object, found by name; 0 when it is not there
 // (no instance field sits at 0: the object header comes first).
 size_t FieldOffset(const char* image, const char* ns, const char* cls, const char* field);
+
+// A static field, for reading a singleton or a global list through StaticObject.
+const il2cpp::Field* FindStaticField(const char* image, const char* ns, const char* cls, const char* field);
+
+// The object a static reference field points at, or null.
+void* StaticObject(const il2cpp::Field* field);
 
 // The offline gate. Online means the game is connected to Eleventh Hour Games' servers
 // (EHG.Multiplayer.GameplayEnvironment._isOnlinePlay). `known` is false when the field

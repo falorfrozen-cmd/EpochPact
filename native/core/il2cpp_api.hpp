@@ -60,6 +60,8 @@ using Type = void;
     X(property_get_get_method, const Method*, (const Property*))                          \
     X(property_get_set_method, const Method*, (const Property*))                          \
     X(class_get_field_from_name, const Field*, (const Class*, const char*))                 \
+    X(object_new, void*, (const Class*))                                                    \
+    X(object_get_class, const Class*, (void*))                                              \
     X(gchandle_new, uintptr_t, (void*, bool))                                             \
     X(gchandle_get_target, void*, (uintptr_t))                                            \
     X(gchandle_free, void, (uintptr_t))                                                   \

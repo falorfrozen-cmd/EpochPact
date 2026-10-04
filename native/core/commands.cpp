@@ -2,8 +2,10 @@
 
 #include "common.hpp"
 #include "game.hpp"
+#include "items.hpp"
 #include "loot.hpp"
 #include "mainthread.hpp"
+#include "player.hpp"
 #include "version.hpp"
 #include "xp.hpp"
 #ifdef EPOCHPACT_RESEARCH
@@ -54,21 +56,46 @@ std::string Execute(const std::string& line) {
 
     if (cmd == "status") {
         std::string s = std::string("EpochPact ") + kVersion + "; gate: " + game::GateText() + "\n" + xp::Status() + "\n" +
-                        loot::Status() + "\nframe hook: " + (mainthread::HookInstalled() ? "in" : "out (idle)");
+                        loot::Status() + "\n" + items::Status() + "\n" + player::Status() + "\nframe hook: " +
+                        (mainthread::HookInstalled() ? "in" : "out (idle)");
 #ifdef EPOCHPACT_RESEARCH
         s += "\n" + research::Status();
 #endif
         return s;
     }
-    if (cmd == "xp" || cmd == "gold" || cmd == "drops" || cmd == "density") {
-        if (args.empty()) return cmd == "xp" ? xp::Status() : loot::Status();
+    if (cmd == "xp" || cmd == "gold" || cmd == "drops" || cmd == "density" || cmd == "rarity" || cmd == "speed" ||
+        cmd == "cooldown") {
+        if (args.empty()) {
+            if (cmd == "xp") return xp::Status();
+            if (cmd == "rarity") return items::RarityStatus();
+            if (cmd == "speed" || cmd == "cooldown") return player::Status();
+            return loot::Status();
+        }
         char* end = nullptr;
         const double m = std::strtod(args[0].c_str(), &end);
         if (end == args[0].c_str() || *end) return cmd + ": refused: not a number: " + args[0];
         if (cmd == "xp") return xp::Set(m);
         if (cmd == "gold") return loot::SetGold(m);
         if (cmd == "drops") return loot::SetDrops(m);
-        return loot::SetDensity(m);
+        if (cmd == "density") return loot::SetDensity(m);
+        if (cmd == "rarity") return items::SetRarity(m);
+        if (cmd == "speed") return player::SetSpeed(m);
+        return player::SetCooldown(m);
+    }
+    if (cmd == "autopickup") {
+        if (args.empty()) return items::AutoPickupStatus();
+        char* end = nullptr;
+        const double on = std::strtod(args[0].c_str(), &end);
+        if (end == args[0].c_str() || *end) return "autopickup: refused: not a number: " + args[0];
+        return items::SetAuto(on);
+    }
+    if (cmd == "stat") {
+        if (args.empty()) return player::StatList();
+        if (args.size() == 1) return player::ReadStat(args[0]);
+        char* end = nullptr;
+        const double v = std::strtod(args[1].c_str(), &end);
+        if (end == args[1].c_str() || *end) return "stat: refused: not a number: " + args[1];
+        return player::SetStat(args[0], v);
     }
 #ifdef EPOCHPACT_RESEARCH
     std::string reply;
@@ -84,6 +111,9 @@ void Loop(il2cpp::Domain* domain) {
     const il2cpp::Api& a = il2cpp::api();
     for (;;) {
         mainthread::Housekeep();
+#ifdef EPOCHPACT_RESEARCH
+        research::Housekeep();
+#endif
         if (GetFileAttributesW(in.c_str()) != INVALID_FILE_ATTRIBUTES) {
             // Attached to IL2CPP only while commands run: the runtime waits for attached
             // threads when the game quits, and this loop never ends.

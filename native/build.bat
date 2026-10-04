@@ -26,13 +26,14 @@ link /nologo /DLL /OUT:"%OUT%\version.dll" /DEF:"%HERE%proxy\version.def" "%OUT%
 
 echo [2/3] core (EpochPact.Core.dll)
 rem EPOCHPACT_RESEARCH: the metadata dump, capture hooks and research commands (not for players).
-set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread xp loot commands research"
+ml64 /nologo /c /Fo"%OUT%\stat_thunk.obj" "%HERE%core\stat_thunk.asm" || exit /b 1
+set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread xp loot items player commands research"
 set "CORE_CPP="
 set "CORE_OBJ="
 for %%f in (%CORE_SRC%) do call set "CORE_CPP=%%CORE_CPP%% "%CORE%\%%f.cpp""
 for %%f in (%CORE_SRC%) do call set "CORE_OBJ=%%CORE_OBJ%% "%OUT%\%%f.obj""
 cl %CFLAGS% /EHa /DEPOCHPACT_RESEARCH /c /Fo"%OUT%\\" %CORE_CPP% || exit /b 1
-link /nologo /DLL /OUT:"%OUT%\EpochPact.Core.dll" %CORE_OBJ% kernel32.lib user32.lib psapi.lib || exit /b 1
+link /nologo /DLL /OUT:"%OUT%\EpochPact.Core.dll" %CORE_OBJ% "%OUT%\stat_thunk.obj" kernel32.lib user32.lib psapi.lib || exit /b 1
 
 echo [3/3] tests (hook_test.exe)
 ml64 /nologo /c /Fo"%OUT%\tests\test_targets.obj" "%HERE%tests\test_targets.asm" || exit /b 1

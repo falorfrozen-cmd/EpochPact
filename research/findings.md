@@ -153,12 +153,36 @@ kill path (`xpkill`, a spawned enemy's own `GiveExp`) when an enemy is around.
   own warning that shrines need zone level 2 (the zone was level 1), during scene load. It
   is the encounter system's own message, not one of these hooks.
 
-## Open questions for the next round
+## Round 3 (2026-10-02 late): item quality, auto-pickup, move speed and cooldowns
 
-1. The in-world experience check (`tools/live_xp_check.py`), once the 1.5.0 terms are
-   accepted: x1/x3/x1 through `xpgain`, then a spawned enemy's own `GiveExp`.
-2. When `GameplayEnvironment._isOnlinePlay` turns false in offline play (expected when an
-   offline character starts), read live.
-3. The gold path a real kill takes (`ItemDrop.SpawnGoldForActor` → pickup → `GoldTracker.modifyGold`).
-4. Where `Spawner.numberToSpawn` is consumed, for monster density.
-5. Frame cost: a per-frame timer of our own, to hold every feature to a budget.
+**Built (all four offline-only like the rest; x1 removes every hook):**
+
+| Command | Hook | Static notes |
+|---|---|---|
+| `rarity <1-10>` | static `GenerateItems.RollRarity(int ilvl, float uniqueAndSetDropRateMultiplier) -> byte` | The one rarity roll behind `RollBaseItem`; every item source (drops, shops, nemesis, gambling) goes through it. `GetRarity0To4FromRoll` shows the result is 0..4 (normal, magic, rare, exalted, unique/set). The multiplier upgrades one tier with chance (mult-1)/mult, capped at 4. |
+| `autopickup <0/1>` | `DistantItemPickupHandler.OnUpdateTick(float)` | Every 0.75 s it reads the static `ItemTooltipOrganizer.pickableGroundLabelList` (a `DList<PickupableGroundLabel>` → `List<T>` at +0x10, `T[]` at +0x10, count at +0x18, elements at +0x20) and calls `GroundItemLabel.requestPickup()` on each item label, and the same over `GroundItemManager.activeGoldPiles`/`activePotions`/`activeXPTomes`/`activeFavorTomes`/`activeAncientBones` with their own `PickUp()` methods. Class checks keep it from calling anything but the right label types; elements are snapshotted before the calls because pickup mutates the lists. |
+| `speed <1-5>` | `RPGCharacterController.UpdateMovement()` and `UnityEngine.AI.NavMeshAgent.set_speed(float)` | Disassembling `SpeedManager.updateSpeed` showed what it really does: it reads stat 9 through `Stats.GetStatValue` and writes `NavMeshAgent.set_speed`; `baseMovementSpeed` (+0x20) is just the agent's speed captured in `Init` for a one-time +% application. Scaling `baseMovementSpeed` therefore did nothing to the player (and could have touched monsters). The real movement reads `RPGCharacterController.walkSpeed` (0xBC), `moveSpeed` (0xC0) and `runSpeed` (0xC4) in `UpdateMovement`; the detour scales those three for the call only, so nothing compounds. Click-to-move uses the agent, so `set_speed` is scaled too — only when the agent belongs to the player (`PlayerFinder.getPlayerActor` → `Actor.navMeshAgent` +0xA8). |
+| `cooldown <1-10>` | `PlayerChargeManager.OnUpdateTick(float)`; `ChargeManager.getCooldown(int)` | `getCooldown` has only two call sites (`useCharges`, an AI fallback) and never fired for the player's live abilities, so the player's per-frame countdown is the real target: `PlayerChargeManager.OnUpdateTick` → `ChargeManager.OnUpdateTick(deltaTime)`. Scaling that deltaTime accelerates charges and cooldowns; `getCooldown` stays hooked to divide new cooldown lengths for the abilities that ask for it. |
+
+**Live measurements (offline character, the owner playing):**
+- **Rarity x10, 300 rolls at ilvl 1:** `0:212 1:53 2:32 3:0 4:0` before, `0:17 1:207 2:43 3:32 4:0` after. Magic-or-better went 28% → 94%, rare-or-better 10.6% → 25%.
+- **Auto-pickup:** 452 scans, 15 pickup calls while the owner killed monsters; the first vacuum scan saw empty lists (zone cleared), later scans collected the new drops. No game errors.
+- **The old features on the same session:** xp 25 gains boosted (last 3 → 30), gold 11 pickups (first 2 → 20), drops 2 (1 → 10 items), density 14 packs (first 2.6 → 7.8).
+- The wrong speed hook (see above) boosted 96 monster SpeedManagers without changing the player's speed; disassembly found why, and it was replaced before the click-to-move test.
+
+**New research commands:** `raritytest <n>` (calls `RollRarity` n times and prints the distribution), `speedread`, `statprobe` (dumps the player's Movespeed stat entries), `posread` (player world position through `Component.get_transform` → `Transform.get_position`, hidden struct return in rcx), `tab`, `offline`, `playoffline` (`LandingZonePanel.OnPlayOfflineClicked`, with the panel captured through `OnOnEnable`).
+**Research tool:** `research/tools/disasm.py` (capstone) disassembles a method by RVA — this is what found the real speed and cooldown paths.
+
+**Addendum (2026-10-03): the move-speed feature now writes the game's own Movespeed stat.**
+- The outputs-first implementation (agent speed + controller fields) worked but measured only 2.19x at x5: `WalkAnimationScaler.updateAnimationScale` computes the animation playback from `Stats.GetStatValue(SP=9)/baseMoveSpeed`, and the animation side did not follow. The owner could feel it ("not natural").
+- The stat itself is a plain object field: the player's `BaseStats` (path: `PlayerFinder.getPlayerActor` → `Actor.characterMutator` +0x108 → `CharacterMutator.myStats` +0x98) holds `Stats.stats`, a `List<Stats.Stat>` at +0x88 (inherited from `Stats`). A `Stats.Stat` keeps `property` (SP) at +0x10, `specialTag` +0x11, `tags` +0x14, `extraTag` +0x18, `addedValue` +0x1C and `increasedValue` +0x20. Writing `increasedValue` and setting `BaseStats.statsNeedToBeUpdatedNextFrame` (+0xD8) makes the whole pipeline (character sheet, animation, `SpeedManager` → `NavMeshAgent`, click-to-move) use the boosted stat. **Measured live: 0.1 → 1.1 (+100%), NavMeshAgent speed 5.49 → 10.53, owner confirms it feels natural.**
+- `increasedValue` is a **fraction** (0.1 = +10%), not a percentage; the first run wrote 100 (+10,000%) and the agent hit 509 u/s before it was corrected.
+- Dead end worth keeping: calling `BaseStats.ChangeStatModifier` (or the virtual the game's own Swiftness uses at class+0x2F8) crashed the game even when mirroring the register/stack layout read out of the disassembly. The thunk is kept in `native/core/stat_thunk.asm`; the field write needs no calls at all.
+- A fresh character has no Movespeed entry until something grants movement speed; the feature refuses with that message (it could be created with `il2cpp_object_new` later).
+
+**Open questions for the next round**
+
+1. Frame cost: a per-frame timer of our own, to hold every feature to a budget (nothing yet).
+2. Creating the Movespeed stat entry from nothing (`il2cpp_object_new` + the list's `Add`), for characters with no movement speed source yet.
+3. Legendary potential, affix tiers and Weaver's Will rolls (`GenerateItems.RollTier`, `initialiseRandomItemData`).
+4. Loot filter (`ItemFiltering.ItemFilterManager`) and crafting (`CraftingManager`).
