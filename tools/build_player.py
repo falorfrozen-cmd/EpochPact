@@ -1,8 +1,11 @@
 """Build a Python-independent Windows player EXE from verified player artifacts."""
 from pathlib import Path
+import argparse
 import hashlib
 import importlib.metadata
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
@@ -11,12 +14,28 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--layout', choices=('onefile', 'onedir'), default='onefile')
+    parser.add_argument('--output', type=Path, default=ROOT / 'dist')
+    parser.add_argument('--work', type=Path, default=ROOT / 'build/pyinstaller')
+    parser.add_argument('--stage', type=Path, default=ROOT / 'build/player-resources')
+    parser.add_argument('--loader', type=Path)
+    parser.add_argument('--version', help='Explicit candidate version; leaves published release metadata unchanged.')
+    args = parser.parse_args()
+    release = json.loads((ROOT / 'docs/nexus/release.json').read_text(encoding='utf-8'))
+    version = args.version or release['version']
+    if not re.fullmatch(r'[a-zA-Z0-9.-]+', version):
+        raise ValueError('Invalid version')
+    output = args.output.resolve()
+    # Review builds are immutable evidence and never replace an uploaded build.
+    if args.layout == 'onedir' and (output / 'EpochPact').exists():
+        raise ValueError('Choose an empty output folder; this bundle already exists.')
     from tools import le_session as le
     core, digest = le.build_artifact('player')
-    loader = le.BUILD / 'version.dll'
+    loader = args.loader.resolve(strict=True) if args.loader else le.BUILD / 'version.dll'
     if not le.is_ours(loader):
         raise ValueError('Missing or foreign loader. Build native/build.bat player first.')
-    stage = ROOT / 'build/player-resources'
+    stage = args.stage.resolve()
     (stage / 'ui/assets').mkdir(parents=True, exist_ok=True)
     for name in ('index.html', 'app.js', 'style.css', 'stat-model.js', 'session.js',
                  'collection-ui.js', 'collection.css', 'launcher.js', 'locale-en.json', 'supported-game-builds.json'):
@@ -47,19 +66,29 @@ def main():
                 if path.is_file():
                     notices.append(path.read_text(encoding='utf-8', errors='replace'))
     (stage / 'THIRD-PARTY-NOTICES.txt').write_text('\n'.join(notices), encoding='utf-8')
+    environment = os.environ.copy()
+    environment.update(EPOCHPACT_BUILD_STAGE=str(stage), EPOCHPACT_FREEZE_LAYOUT=args.layout)
     subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean',
-                    '--distpath', str(ROOT / 'dist'), '--workpath', str(ROOT / 'build/pyinstaller'),
-                    str(ROOT / 'EpochPact.spec')], cwd=ROOT, check=True)
-    exe = ROOT / 'dist/EpochPact.exe'
-    release = json.loads((ROOT / 'docs/nexus/release.json').read_text(encoding='utf-8'))
-    info = {'file': exe.name, 'bytes': exe.stat().st_size, 'version': release['version'],
+                    '--distpath', str(output), '--workpath', str(args.work.resolve()),
+                    str(ROOT / 'EpochPact.spec')], cwd=ROOT, env=environment, check=True)
+    bundle = output / 'EpochPact' if args.layout == 'onedir' else output
+    exe = bundle / 'EpochPact.exe'
+    info = {'file': exe.name, 'bytes': exe.stat().st_size, 'version': version, 'layout': args.layout,
             'sha256': hashlib.sha256(exe.read_bytes()).hexdigest(), 'nativePlayerSHA256': digest,
+            'loaderSHA256': hashlib.sha256(loader.read_bytes()).hexdigest(),
             'python': sys.version, 'gameVersion': catalog.get('gameVersion'),
             'containsResearchBuild': False, 'containsHistoricalSnapshots': False}
-    (ROOT / 'dist/build-info.json').write_text(json.dumps(info, indent=2) + '\n', encoding='utf-8')
-    shutil.copy2(ROOT / 'docs/player-quickstart.txt', ROOT / 'dist/START-HERE.txt')
-    shutil.copy2(stage / 'THIRD-PARTY-NOTICES.txt', ROOT / 'dist/THIRD-PARTY-NOTICES.txt')
-    print(json.dumps(info, indent=2))
+    if args.layout == 'onedir':
+        info['files'] = [{'path': file.relative_to(bundle).as_posix(), 'bytes': file.stat().st_size,
+                          'sha256': hashlib.sha256(file.read_bytes()).hexdigest()}
+                         for file in sorted(bundle.rglob('*')) if file.is_file()]
+    (bundle / 'build-info.json').write_text(json.dumps(info, indent=2) + '\n', encoding='utf-8')
+    # The onedir review package has its own README explaining the different layout.
+    if args.layout == 'onefile':
+        shutil.copy2(ROOT / 'docs/player-quickstart.txt', output / 'START-HERE.txt')
+        shutil.copy2(stage / 'THIRD-PARTY-NOTICES.txt', output / 'THIRD-PARTY-NOTICES.txt')
+    print(json.dumps({k: v for k, v in info.items() if k != 'files'} | {
+        'bundleFiles': len(info.get('files', []))}, indent=2))
 
 
 if __name__ == '__main__':

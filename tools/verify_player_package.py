@@ -49,21 +49,39 @@ def main():
     exe = args.exe.resolve(strict=True)
     checks = []
     archive = CArchiveReader(str(exe))
-    entries = {name.replace('\\', '/'): name for name in archive.toc}
+    onedir = (exe.parent / '_internal').is_dir()
+    if onedir:
+        resource_root = exe.parent / '_internal'
+        entries = {p.relative_to(resource_root).as_posix(): p for p in resource_root.rglob('*') if p.is_file()}
+        def extract(name):
+            return entries[name].read_bytes()
+        assert not any(n.lower().endswith(('.zip', '.7z', '.jar', '.tar.gz')) for n in entries), 'Nested archive'
+        assert not any(n.split('/')[0] in ('pip', 'setuptools', 'wheel', 'capstone', 'tests', 'research') for n in entries)
+        info = json.loads((exe.parent / 'build-info.json').read_text())
+        actual = {p.relative_to(exe.parent).as_posix(): p for p in exe.parent.rglob('*') if p.is_file()}
+        assert set(actual) == {x['path'] for x in info['files']} | {'build-info.json'}
+        for item in info['files']:
+            data = actual[item['path']].read_bytes()
+            assert len(data) == item['bytes'] and sha(data) == item['sha256'], item['path']
+        checks.append('folder bundle inventory matches every file hash; no nested archives or build tools')
+    else:
+        entries = {name.replace('\\', '/'): name for name in archive.toc}
+        def extract(name):
+            return archive.extract(entries[name])
     assert any(name.lower().startswith('python') and name.lower().endswith('.dll') for name in entries)
     native_files = {name for name in entries if name.startswith('native/')}
     assert native_files == {'native/build/version.dll', 'native/build/player/EpochPact.Core.dll',
                             'native/build/player/build-info.json'}, native_files
     assert not any(name.startswith(('research/', 'live/', 'docs/')) for name in entries)
-    catalog = json.loads(archive.extract(entries['ui/catalog.json']))
+    catalog = json.loads(extract('ui/catalog.json'))
     assert catalog['liveState'] == {} and catalog['currentValues'] == {}
-    core = archive.extract(entries['native/build/player/EpochPact.Core.dll'])
-    loader = archive.extract(entries['native/build/version.dll'])
-    metadata = json.loads(archive.extract(entries['native/build/player/build-info.json']))
+    core = extract('native/build/player/EpochPact.Core.dll')
+    loader = extract('native/build/version.dll')
+    metadata = json.loads(extract('native/build/player/build-info.json'))
     assert metadata['flavor'] == 'player' and metadata['sha256'] == sha(core)
     assert sha(exe.read_bytes()) == json.loads((exe.parent / 'build-info.json').read_text())['sha256']
-    assert archive.extract(entries['ui/launcher.js']) == (ROOT / 'ui/launcher.js').read_bytes()
-    checks.extend(['embedded Python runtime', 'verified player DLL only',
+    assert extract('ui/launcher.js') == (ROOT / 'ui/launcher.js').read_bytes()
+    checks.extend(['bundled Python runtime', 'verified player DLL only',
                    'no historical character snapshots', 'current launcher source in EXE'])
 
     with tempfile.TemporaryDirectory(prefix='EpochPact-package-check-') as directory:
@@ -71,6 +89,16 @@ def main():
         assert root.resolve().parent == Path(tempfile.gettempdir()).resolve()
         user = root / 'user-data'
         user.mkdir()
+        # The entire distributable layout must work after extraction into a path
+        # unrelated to the build machine, with no external Python on PATH.
+        portable = root / 'Extracted app ü'
+        portable.mkdir()
+        if onedir:
+            shutil.copytree(exe.parent, portable / 'EpochPact')
+            exe = portable / 'EpochPact/EpochPact.exe'
+        else:
+            shutil.copy2(exe, portable / exe.name)
+            exe = portable / exe.name
         custom = fixture(root, 'Custom install \u00fc', args.game_assembly)
         foreign = fixture(root, 'Other mod loader', args.game_assembly)
         unsupported = fixture(root, 'Unsupported game build', args.game_assembly)
@@ -176,6 +204,16 @@ def main():
             except HTTPError as error:
                 assert error.code == 403
             checks.append('installation API rejects missing session token')
+            for headers in ({'Host': 'untrusted.example', 'X-Epoch-Token': token},
+                            {'Origin': 'https://untrusted.example', 'X-Epoch-Token': token}):
+                req = Request(url + '/api/jobs', data=json.dumps({'type': 'launcher', 'action': 'install'}).encode(),
+                              headers={'Content-Type': 'application/json', **headers})
+                try:
+                    urlopen(req, timeout=3)
+                    raise AssertionError('Untrusted host / origin accepted')
+                except HTTPError as error:
+                    assert error.code == 403, error.code
+            checks.append('compiled API rejects foreign Host and Origin even with a valid session token')
             result = job({'type': 'launcher', 'action': 'select', 'args': {'executable': str(custom)}}, token)
             assert result['ok'] and result['launcher']['installed'], result
             result = job({'type': 'launcher', 'action': 'install'}, token)
@@ -227,7 +265,8 @@ def main():
         assert 'Traceback' not in log and ' ERROR ' not in log
         checks.append('compiled startup logs contain no exception')
 
-    report = {'file': str(exe), 'sha256': sha(exe.read_bytes()), 'bytes': exe.stat().st_size,
+    report = {'file': str(args.exe.resolve()), 'layout': 'onedir' if onedir else 'onefile',
+              'sha256': sha(args.exe.read_bytes()), 'bytes': args.exe.stat().st_size,
               'nativePlayerSHA256': sha(core), 'checks': checks, 'jobDurationsMs': durations,
               'scope': 'Final compiled EXE, isolated installer fixtures and HTTP interface; no interactive picker test, UAC approval or live gameplay test.'}
     args.report.parent.mkdir(parents=True, exist_ok=True)

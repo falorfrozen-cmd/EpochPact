@@ -104,13 +104,26 @@ kernel32.CloseHandle.argtypes = [wt.HANDLE]
 kernel32.CreateMutexW.restype = wt.HANDLE
 kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, wt.BOOL, wt.LPCWSTR]
 kernel32.ReleaseMutex.argtypes = [wt.HANDLE]
+kernel32.GetSystemDirectoryW.argtypes = [wt.LPWSTR, wt.UINT]
+kernel32.GetSystemDirectoryW.restype = wt.UINT
 WM_CLOSE = 0x0010
 SYNCHRONIZE = 0x00100000
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
 
+def system_tool(name: str) -> Path:
+    """Resolve a Windows utility without searching the application folder or PATH."""
+    if name not in ('tasklist.exe',):
+        raise ValueError('Unsupported system utility')
+    buffer = ctypes.create_unicode_buffer(32768)
+    length = kernel32.GetSystemDirectoryW(buffer, len(buffer))
+    if not length or length >= len(buffer):
+        raise OSError('Cannot resolve the Windows system directory')
+    return Path(buffer.value) / name
+
+
 def game_pids() -> list[int]:
-    out = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {EXE}", "/FO", "CSV", "/NH"],
+    out = subprocess.run([str(system_tool('tasklist.exe')), "/FI", f"IMAGENAME eq {EXE}", "/FO", "CSV", "/NH"],
                          capture_output=True, text=True, errors="replace",
                          creationflags=subprocess.CREATE_NO_WINDOW).stdout
     pids = []

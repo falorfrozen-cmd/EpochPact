@@ -18,21 +18,35 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def safe_archive_name(name):
+    reserved = {'CON', 'PRN', 'AUX', 'NUL'} | {f'{p}{i}' for p in ('COM', 'LPT') for i in range(1, 10)}
+    if not isinstance(name, str) or not name or '\\' in name or '\x00' in name:
+        raise ValueError('Unsafe archive path')
+    for part in name.split('/'):
+        if not part or part in ('.', '..') or ':' in part or part.endswith(('.', ' ')) \
+                or part.split('.')[0].upper() in reserved:
+            raise ValueError('Unsafe archive path: ' + name)
+    return name
+
+
 def verify_archive(path):
     with zipfile.ZipFile(path) as archive:
         names = archive.namelist()
-        if len(set(names)) != len(names) or any(i.flag_bits & 1 for i in archive.infolist()):
+        for name in names:
+            safe_archive_name(name)
+        if len({name.casefold() for name in names}) != len(names) or any(i.flag_bits & 1 for i in archive.infolist()):
             raise ValueError('Duplicate or encrypted entries')
         if archive.testzip() is not None:
             raise ValueError('ZIP CRC failure')
         manifest = json.loads(archive.read('runtime-manifest.json'))
+        manifest_names = [safe_archive_name(x['path']) for x in manifest['files']]
+        if len({n.casefold() for n in manifest_names}) != len(manifest_names):
+            raise ValueError('Duplicate manifest entries')
         expected = {x['path'] for x in manifest['files']} | {'runtime-manifest.json', 'SHA256SUMS.txt'}
         if set(names) != expected:
             raise ValueError('Archive contains unexpected or missing entries')
         for item in manifest['files']:
             name = item['path']
-            if name.startswith('/') or '..' in name.split('/') or '\\' in name:
-                raise ValueError('Unsafe archive path')
             data = archive.read(name)
             if len(data) != item['bytes'] or sha(data) != item['sha256']:
                 raise ValueError('Manifest mismatch: ' + name)

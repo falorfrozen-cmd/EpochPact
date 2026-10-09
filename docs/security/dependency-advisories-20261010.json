@@ -1,0 +1,140 @@
+{
+  "queriedAtUTC": "2026-10-09T23:20:06.167806+00:00",
+  "source": "https://api.osv.dev/v1/querybatch",
+  "scope": "Published vulnerability advisories for exact Python package versions; not a malware scan.",
+  "packages": [
+    {
+      "name": "altgraph",
+      "version": "0.17.5",
+      "advisories": []
+    },
+    {
+      "name": "blinker",
+      "version": "1.9.0",
+      "advisories": []
+    },
+    {
+      "name": "bottle",
+      "version": "0.13.4",
+      "advisories": []
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1",
+      "advisories": []
+    },
+    {
+      "name": "click",
+      "version": "8.5.0",
+      "advisories": []
+    },
+    {
+      "name": "clr_loader",
+      "version": "0.3.1",
+      "advisories": []
+    },
+    {
+      "name": "Flask",
+      "version": "3.1.2",
+      "advisories": [
+        {
+          "id": "GHSA-68rp-wp8r-4726",
+          "modified": "2026-09-10T03:49:54.354981Z"
+        },
+        {
+          "id": "PYSEC-2026-2151",
+          "modified": "2026-07-13T07:15:25.033843Z"
+        }
+      ]
+    },
+    {
+      "name": "itsdangerous",
+      "version": "2.2.0",
+      "advisories": []
+    },
+    {
+      "name": "Jinja2",
+      "version": "3.1.6",
+      "advisories": []
+    },
+    {
+      "name": "MarkupSafe",
+      "version": "3.0.4",
+      "advisories": []
+    },
+    {
+      "name": "packaging",
+      "version": "26.3",
+      "advisories": []
+    },
+    {
+      "name": "pefile",
+      "version": "2024.8.26",
+      "advisories": []
+    },
+    {
+      "name": "proxy_tools",
+      "version": "0.1.0",
+      "advisories": []
+    },
+    {
+      "name": "pycparser",
+      "version": "3.11",
+      "advisories": []
+    },
+    {
+      "name": "PyInstaller",
+      "version": "6.20.0",
+      "advisories": []
+    },
+    {
+      "name": "pyinstaller-hooks-contrib",
+      "version": "2026.8",
+      "advisories": []
+    },
+    {
+      "name": "pythonnet",
+      "version": "3.1.0",
+      "advisories": []
+    },
+    {
+      "name": "pywebview",
+      "version": "6.2.1",
+      "advisories": []
+    },
+    {
+      "name": "pywin32-ctypes",
+      "version": "0.2.3",
+      "advisories": []
+    },
+    {
+      "name": "setuptools",
+      "version": "84.0.0",
+      "advisories": []
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0",
+      "advisories": []
+    },
+    {
+      "name": "Werkzeug",
+      "version": "3.1.9",
+      "advisories": []
+    },
+    {
+      "name": "wheel",
+      "version": "0.45.1",
+      "advisories": [
+        {
+          "id": "GHSA-8rrh-rw8j-w5fx",
+          "modified": "2026-09-10T03:50:32.887502Z"
+        },
+        {
+          "id": "PYSEC-2026-2047",
+          "modified": "2026-07-07T17:47:43.451695Z"
+        }
+      ]
+    }
+  ]
+}

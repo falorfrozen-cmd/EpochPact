@@ -39,7 +39,10 @@ static DWORD WINAPI StartCore(void*) {
     if (GetFileAttributesW(probe) != INVALID_FILE_ATTRIBUTES) return 0;
 
     if (wcscat_s(path, L"EpochPact\\EpochPact.Core.dll")) return 0;
-    HMODULE core = LoadLibraryW(path);
+    // Resolve dependencies beside the explicit core DLL or in System32. Never
+    // search the current directory or PATH for DLLs supplied by another program.
+    HMODULE core = LoadLibraryExW(path, nullptr,
+        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
     if (!core) return 0;
     using StartFn = void (*)();
     if (auto start = reinterpret_cast<StartFn>(GetProcAddress(core, "EpochPact_Start"))) start();

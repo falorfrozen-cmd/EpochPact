@@ -1,0 +1,4974 @@
+{
+  "version": "0.1.1-alpha.2-review.1",
+  "game": "Last Epoch",
+  "author": "Falor",
+  "kind": "Manual-Review",
+  "securityStatus": "Review candidate; previous detections unexplained; no Nexus clearance",
+  "github": "https://github.com/falorfrozen-cmd/EpochPact",
+  "discord": "https://discord.gg/q6aexZZSAf",
+  "runtime": [
+    "EpochPactUI/EpochPact.exe",
+    "EpochPactUI/_internal/abc.pyc",
+    "EpochPactUI/_internal/api-ms-win-core-console-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-datetime-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-debug-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-errorhandling-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-fibers-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-fibers-l1-1-1.dll",
+    "EpochPactUI/_internal/api-ms-win-core-file-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-file-l1-2-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-file-l2-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-handle-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-heap-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-interlocked-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-kernel32-legacy-l1-1-1.dll",
+    "EpochPactUI/_internal/api-ms-win-core-libraryloader-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-localization-l1-2-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-memory-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-namedpipe-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-processenvironment-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-processthreads-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-processthreads-l1-1-1.dll",
+    "EpochPactUI/_internal/api-ms-win-core-profile-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-rtlsupport-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-string-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-synch-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-synch-l1-2-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-sysinfo-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-sysinfo-l1-2-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-timezone-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-core-util-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-crt-conio-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-crt-convert-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-crt-environment-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-crt-filesystem-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-crt-heap-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-crt-locale-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-crt-math-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-crt-process-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-crt-runtime-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-crt-stdio-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-crt-string-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-crt-time-l1-1-0.dll",
+    "EpochPactUI/_internal/api-ms-win-crt-utility-l1-1-0.dll",
+    "EpochPactUI/_internal/argparse.pyc",
+    "EpochPactUI/_internal/ast.pyc",
+    "EpochPactUI/_internal/base64.pyc",
+    "EpochPactUI/_internal/bdb.pyc",
+    "EpochPactUI/_internal/bisect.pyc",
+    "EpochPactUI/_internal/bottle.pyc",
+    "EpochPactUI/_internal/bz2.pyc",
+    "EpochPactUI/_internal/calendar.pyc",
+    "EpochPactUI/_internal/clr.pyc",
+    "EpochPactUI/_internal/cmd.pyc",
+    "EpochPactUI/_internal/code.pyc",
+    "EpochPactUI/_internal/codecs.pyc",
+    "EpochPactUI/_internal/codeop.pyc",
+    "EpochPactUI/_internal/configparser.pyc",
+    "EpochPactUI/_internal/contextlib.pyc",
+    "EpochPactUI/_internal/contextvars.pyc",
+    "EpochPactUI/_internal/copy.pyc",
+    "EpochPactUI/_internal/copyreg.pyc",
+    "EpochPactUI/_internal/csv.pyc",
+    "EpochPactUI/_internal/dataclasses.pyc",
+    "EpochPactUI/_internal/datetime.pyc",
+    "EpochPactUI/_internal/decimal.pyc",
+    "EpochPactUI/_internal/difflib.pyc",
+    "EpochPactUI/_internal/dis.pyc",
+    "EpochPactUI/_internal/enum.pyc",
+    "EpochPactUI/_internal/epochpact_ui.pyc",
+    "EpochPactUI/_internal/fnmatch.pyc",
+    "EpochPactUI/_internal/fractions.pyc",
+    "EpochPactUI/_internal/ftplib.pyc",
+    "EpochPactUI/_internal/functools.pyc",
+    "EpochPactUI/_internal/genericpath.pyc",
+    "EpochPactUI/_internal/getopt.pyc",
+    "EpochPactUI/_internal/getpass.pyc",
+    "EpochPactUI/_internal/gettext.pyc",
+    "EpochPactUI/_internal/glob.pyc",
+    "EpochPactUI/_internal/gzip.pyc",
+    "EpochPactUI/_internal/hashlib.pyc",
+    "EpochPactUI/_internal/heapq.pyc",
+    "EpochPactUI/_internal/hmac.pyc",
+    "EpochPactUI/_internal/inspect.pyc",
+    "EpochPactUI/_internal/io.pyc",
+    "EpochPactUI/_internal/ipaddress.pyc",
+    "EpochPactUI/_internal/keyword.pyc",
+    "EpochPactUI/_internal/libcrypto-3.dll",
+    "EpochPactUI/_internal/libffi-8.dll",
+    "EpochPactUI/_internal/libssl-3.dll",
+    "EpochPactUI/_internal/linecache.pyc",
+    "EpochPactUI/_internal/locale.pyc",
+    "EpochPactUI/_internal/lzma.pyc",
+    "EpochPactUI/_internal/mimetypes.pyc",
+    "EpochPactUI/_internal/netrc.pyc",
+    "EpochPactUI/_internal/ntpath.pyc",
+    "EpochPactUI/_internal/nturl2path.pyc",
+    "EpochPactUI/_internal/numbers.pyc",
+    "EpochPactUI/_internal/opcode.pyc",
+    "EpochPactUI/_internal/operator.pyc",
+    "EpochPactUI/_internal/os.pyc",
+    "EpochPactUI/_internal/pdb.pyc",
+    "EpochPactUI/_internal/pickle.pyc",
+    "EpochPactUI/_internal/pkgutil.pyc",
+    "EpochPactUI/_internal/platform.pyc",
+    "EpochPactUI/_internal/posixpath.pyc",
+    "EpochPactUI/_internal/pprint.pyc",
+    "EpochPactUI/_internal/pydoc.pyc",
+    "EpochPactUI/_internal/pyexpat.pyd",
+    "EpochPactUI/_internal/python313.dll",
+    "EpochPactUI/_internal/py_compile.pyc",
+    "EpochPactUI/_internal/queue.pyc",
+    "EpochPactUI/_internal/quopri.pyc",
+    "EpochPactUI/_internal/random.pyc",
+    "EpochPactUI/_internal/reprlib.pyc",
+    "EpochPactUI/_internal/rlcompleter.pyc",
+    "EpochPactUI/_internal/runpy.pyc",
+    "EpochPactUI/_internal/secrets.pyc",
+    "EpochPactUI/_internal/select.pyd",
+    "EpochPactUI/_internal/selectors.pyc",
+    "EpochPactUI/_internal/shlex.pyc",
+    "EpochPactUI/_internal/shutil.pyc",
+    "EpochPactUI/_internal/signal.pyc",
+    "EpochPactUI/_internal/smtplib.pyc",
+    "EpochPactUI/_internal/socket.pyc",
+    "EpochPactUI/_internal/socketserver.pyc",
+    "EpochPactUI/_internal/sre_compile.pyc",
+    "EpochPactUI/_internal/sre_constants.pyc",
+    "EpochPactUI/_internal/sre_parse.pyc",
+    "EpochPactUI/_internal/ssl.pyc",
+    "EpochPactUI/_internal/stat.pyc",
+    "EpochPactUI/_internal/statistics.pyc",
+    "EpochPactUI/_internal/string.pyc",
+    "EpochPactUI/_internal/stringprep.pyc",
+    "EpochPactUI/_internal/struct.pyc",
+    "EpochPactUI/_internal/subprocess.pyc",
+    "EpochPactUI/_internal/tarfile.pyc",
+    "EpochPactUI/_internal/tempfile.pyc",
+    "EpochPactUI/_internal/textwrap.pyc",
+    "EpochPactUI/_internal/threading.pyc",
+    "EpochPactUI/_internal/token.pyc",
+    "EpochPactUI/_internal/tokenize.pyc",
+    "EpochPactUI/_internal/traceback.pyc",
+    "EpochPactUI/_internal/tracemalloc.pyc",
+    "EpochPactUI/_internal/tty.pyc",
+    "EpochPactUI/_internal/types.pyc",
+    "EpochPactUI/_internal/typing.pyc",
+    "EpochPactUI/_internal/typing_extensions.pyc",
+    "EpochPactUI/_internal/ucrtbase.dll",
+    "EpochPactUI/_internal/unicodedata.pyd",
+    "EpochPactUI/_internal/uuid.pyc",
+    "EpochPactUI/_internal/VCRUNTIME140.dll",
+    "EpochPactUI/_internal/VCRUNTIME140_1.dll",
+    "EpochPactUI/_internal/warnings.pyc",
+    "EpochPactUI/_internal/weakref.pyc",
+    "EpochPactUI/_internal/webbrowser.pyc",
+    "EpochPactUI/_internal/zipimport.pyc",
+    "EpochPactUI/_internal/_aix_support.pyc",
+    "EpochPactUI/_internal/_asyncio.pyd",
+    "EpochPactUI/_internal/_bz2.pyd",
+    "EpochPactUI/_internal/_cffi_backend.cp313-win_amd64.pyd",
+    "EpochPactUI/_internal/_collections_abc.pyc",
+    "EpochPactUI/_internal/_colorize.pyc",
+    "EpochPactUI/_internal/_compat_pickle.pyc",
+    "EpochPactUI/_internal/_compression.pyc",
+    "EpochPactUI/_internal/_ctypes.pyd",
+    "EpochPactUI/_internal/_decimal.pyd",
+    "EpochPactUI/_internal/_elementtree.pyd",
+    "EpochPactUI/_internal/_hashlib.pyd",
+    "EpochPactUI/_internal/_ios_support.pyc",
+    "EpochPactUI/_internal/_lzma.pyd",
+    "EpochPactUI/_internal/_multiprocessing.pyd",
+    "EpochPactUI/_internal/_opcode_metadata.pyc",
+    "EpochPactUI/_internal/_overlapped.pyd",
+    "EpochPactUI/_internal/_pydatetime.pyc",
+    "EpochPactUI/_internal/_pydecimal.pyc",
+    "EpochPactUI/_internal/_py_abc.pyc",
+    "EpochPactUI/_internal/_queue.pyd",
+    "EpochPactUI/_internal/_socket.pyd",
+    "EpochPactUI/_internal/_ssl.pyd",
+    "EpochPactUI/_internal/_strptime.pyc",
+    "EpochPactUI/_internal/_threading_local.pyc",
+    "EpochPactUI/_internal/_uuid.pyd",
+    "EpochPactUI/_internal/_weakrefset.pyc",
+    "EpochPactUI/_internal/_wmi.pyd",
+    "EpochPactUI/_internal/__future__.pyc",
+    "EpochPactUI/_internal/asyncio/base_events.pyc",
+    "EpochPactUI/_internal/asyncio/base_futures.pyc",
+    "EpochPactUI/_internal/asyncio/base_subprocess.pyc",
+    "EpochPactUI/_internal/asyncio/base_tasks.pyc",
+    "EpochPactUI/_internal/asyncio/constants.pyc",
+    "EpochPactUI/_internal/asyncio/coroutines.pyc",
+    "EpochPactUI/_internal/asyncio/events.pyc",
+    "EpochPactUI/_internal/asyncio/exceptions.pyc",
+    "EpochPactUI/_internal/asyncio/format_helpers.pyc",
+    "EpochPactUI/_internal/asyncio/futures.pyc",
+    "EpochPactUI/_internal/asyncio/locks.pyc",
+    "EpochPactUI/_internal/asyncio/log.pyc",
+    "EpochPactUI/_internal/asyncio/mixins.pyc",
+    "EpochPactUI/_internal/asyncio/proactor_events.pyc",
+    "EpochPactUI/_internal/asyncio/protocols.pyc",
+    "EpochPactUI/_internal/asyncio/queues.pyc",
+    "EpochPactUI/_internal/asyncio/runners.pyc",
+    "EpochPactUI/_internal/asyncio/selector_events.pyc",
+    "EpochPactUI/_internal/asyncio/sslproto.pyc",
+    "EpochPactUI/_internal/asyncio/staggered.pyc",
+    "EpochPactUI/_internal/asyncio/streams.pyc",
+    "EpochPactUI/_internal/asyncio/subprocess.pyc",
+    "EpochPactUI/_internal/asyncio/taskgroups.pyc",
+    "EpochPactUI/_internal/asyncio/tasks.pyc",
+    "EpochPactUI/_internal/asyncio/threads.pyc",
+    "EpochPactUI/_internal/asyncio/timeouts.pyc",
+    "EpochPactUI/_internal/asyncio/transports.pyc",
+    "EpochPactUI/_internal/asyncio/trsock.pyc",
+    "EpochPactUI/_internal/asyncio/unix_events.pyc",
+    "EpochPactUI/_internal/asyncio/windows_events.pyc",
+    "EpochPactUI/_internal/asyncio/windows_utils.pyc",
+    "EpochPactUI/_internal/asyncio/__init__.pyc",
+    "EpochPactUI/_internal/blinker/base.pyc",
+    "EpochPactUI/_internal/blinker/_utilities.pyc",
+    "EpochPactUI/_internal/blinker/__init__.pyc",
+    "EpochPactUI/_internal/cffi/api.pyc",
+    "EpochPactUI/_internal/cffi/commontypes.pyc",
+    "EpochPactUI/_internal/cffi/cparser.pyc",
+    "EpochPactUI/_internal/cffi/error.pyc",
+    "EpochPactUI/_internal/cffi/lock.pyc",
+    "EpochPactUI/_internal/cffi/model.pyc",
+    "EpochPactUI/_internal/cffi/pkgconfig.pyc",
+    "EpochPactUI/_internal/cffi/verifier.pyc",
+    "EpochPactUI/_internal/cffi/__init__.pyc",
+    "EpochPactUI/_internal/click/core.pyc",
+    "EpochPactUI/_internal/click/decorators.pyc",
+    "EpochPactUI/_internal/click/exceptions.pyc",
+    "EpochPactUI/_internal/click/formatting.pyc",
+    "EpochPactUI/_internal/click/globals.pyc",
+    "EpochPactUI/_internal/click/parser.pyc",
+    "EpochPactUI/_internal/click/shell_completion.pyc",
+    "EpochPactUI/_internal/click/termui.pyc",
+    "EpochPactUI/_internal/click/testing.pyc",
+    "EpochPactUI/_internal/click/types.pyc",
+    "EpochPactUI/_internal/click/utils.pyc",
+    "EpochPactUI/_internal/click/_compat.pyc",
+    "EpochPactUI/_internal/click/_termui_impl.pyc",
+    "EpochPactUI/_internal/click/_textwrap.pyc",
+    "EpochPactUI/_internal/click/_utils.pyc",
+    "EpochPactUI/_internal/click/_winconsole.pyc",
+    "EpochPactUI/_internal/click/__init__.pyc",
+    "EpochPactUI/_internal/clr_loader/hostfxr.pyc",
+    "EpochPactUI/_internal/clr_loader/mono.pyc",
+    "EpochPactUI/_internal/clr_loader/netfx.pyc",
+    "EpochPactUI/_internal/clr_loader/types.pyc",
+    "EpochPactUI/_internal/clr_loader/__init__.pyc",
+    "EpochPactUI/_internal/collections/__init__.pyc",
+    "EpochPactUI/_internal/concurrent/__init__.pyc",
+    "EpochPactUI/_internal/ctypes/util.pyc",
+    "EpochPactUI/_internal/ctypes/wintypes.pyc",
+    "EpochPactUI/_internal/ctypes/_aix.pyc",
+    "EpochPactUI/_internal/ctypes/_endian.pyc",
+    "EpochPactUI/_internal/ctypes/__init__.pyc",
+    "EpochPactUI/_internal/email/base64mime.pyc",
+    "EpochPactUI/_internal/email/charset.pyc",
+    "EpochPactUI/_internal/email/contentmanager.pyc",
+    "EpochPactUI/_internal/email/encoders.pyc",
+    "EpochPactUI/_internal/email/errors.pyc",
+    "EpochPactUI/_internal/email/feedparser.pyc",
+    "EpochPactUI/_internal/email/generator.pyc",
+    "EpochPactUI/_internal/email/header.pyc",
+    "EpochPactUI/_internal/email/headerregistry.pyc",
+    "EpochPactUI/_internal/email/iterators.pyc",
+    "EpochPactUI/_internal/email/message.pyc",
+    "EpochPactUI/_internal/email/parser.pyc",
+    "EpochPactUI/_internal/email/policy.pyc",
+    "EpochPactUI/_internal/email/quoprimime.pyc",
+    "EpochPactUI/_internal/email/utils.pyc",
+    "EpochPactUI/_internal/email/_encoded_words.pyc",
+    "EpochPactUI/_internal/email/_header_value_parser.pyc",
+    "EpochPactUI/_internal/email/_parseaddr.pyc",
+    "EpochPactUI/_internal/email/_policybase.pyc",
+    "EpochPactUI/_internal/email/__init__.pyc",
+    "EpochPactUI/_internal/encodings/aliases.pyc",
+    "EpochPactUI/_internal/encodings/ascii.pyc",
+    "EpochPactUI/_internal/encodings/base64_codec.pyc",
+    "EpochPactUI/_internal/encodings/big5.pyc",
+    "EpochPactUI/_internal/encodings/big5hkscs.pyc",
+    "EpochPactUI/_internal/encodings/bz2_codec.pyc",
+    "EpochPactUI/_internal/encodings/charmap.pyc",
+    "EpochPactUI/_internal/encodings/cp037.pyc",
+    "EpochPactUI/_internal/encodings/cp1006.pyc",
+    "EpochPactUI/_internal/encodings/cp1026.pyc",
+    "EpochPactUI/_internal/encodings/cp1125.pyc",
+    "EpochPactUI/_internal/encodings/cp1140.pyc",
+    "EpochPactUI/_internal/encodings/cp1250.pyc",
+    "EpochPactUI/_internal/encodings/cp1251.pyc",
+    "EpochPactUI/_internal/encodings/cp1252.pyc",
+    "EpochPactUI/_internal/encodings/cp1253.pyc",
+    "EpochPactUI/_internal/encodings/cp1254.pyc",
+    "EpochPactUI/_internal/encodings/cp1255.pyc",
+    "EpochPactUI/_internal/encodings/cp1256.pyc",
+    "EpochPactUI/_internal/encodings/cp1257.pyc",
+    "EpochPactUI/_internal/encodings/cp1258.pyc",
+    "EpochPactUI/_internal/encodings/cp273.pyc",
+    "EpochPactUI/_internal/encodings/cp424.pyc",
+    "EpochPactUI/_internal/encodings/cp437.pyc",
+    "EpochPactUI/_internal/encodings/cp500.pyc",
+    "EpochPactUI/_internal/encodings/cp720.pyc",
+    "EpochPactUI/_internal/encodings/cp737.pyc",
+    "EpochPactUI/_internal/encodings/cp775.pyc",
+    "EpochPactUI/_internal/encodings/cp850.pyc",
+    "EpochPactUI/_internal/encodings/cp852.pyc",
+    "EpochPactUI/_internal/encodings/cp855.pyc",
+    "EpochPactUI/_internal/encodings/cp856.pyc",
+    "EpochPactUI/_internal/encodings/cp857.pyc",
+    "EpochPactUI/_internal/encodings/cp858.pyc",
+    "EpochPactUI/_internal/encodings/cp860.pyc",
+    "EpochPactUI/_internal/encodings/cp861.pyc",
+    "EpochPactUI/_internal/encodings/cp862.pyc",
+    "EpochPactUI/_internal/encodings/cp863.pyc",
+    "EpochPactUI/_internal/encodings/cp864.pyc",
+    "EpochPactUI/_internal/encodings/cp865.pyc",
+    "EpochPactUI/_internal/encodings/cp866.pyc",
+    "EpochPactUI/_internal/encodings/cp869.pyc",
+    "EpochPactUI/_internal/encodings/cp874.pyc",
+    "EpochPactUI/_internal/encodings/cp875.pyc",
+    "EpochPactUI/_internal/encodings/cp932.pyc",
+    "EpochPactUI/_internal/encodings/cp949.pyc",
+    "EpochPactUI/_internal/encodings/cp950.pyc",
+    "EpochPactUI/_internal/encodings/euc_jisx0213.pyc",
+    "EpochPactUI/_internal/encodings/euc_jis_2004.pyc",
+    "EpochPactUI/_internal/encodings/euc_jp.pyc",
+    "EpochPactUI/_internal/encodings/euc_kr.pyc",
+    "EpochPactUI/_internal/encodings/gb18030.pyc",
+    "EpochPactUI/_internal/encodings/gb2312.pyc",
+    "EpochPactUI/_internal/encodings/gbk.pyc",
+    "EpochPactUI/_internal/encodings/hex_codec.pyc",
+    "EpochPactUI/_internal/encodings/hp_roman8.pyc",
+    "EpochPactUI/_internal/encodings/hz.pyc",
+    "EpochPactUI/_internal/encodings/idna.pyc",
+    "EpochPactUI/_internal/encodings/iso2022_jp.pyc",
+    "EpochPactUI/_internal/encodings/iso2022_jp_1.pyc",
+    "EpochPactUI/_internal/encodings/iso2022_jp_2.pyc",
+    "EpochPactUI/_internal/encodings/iso2022_jp_2004.pyc",
+    "EpochPactUI/_internal/encodings/iso2022_jp_3.pyc",
+    "EpochPactUI/_internal/encodings/iso2022_jp_ext.pyc",
+    "EpochPactUI/_internal/encodings/iso2022_kr.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_1.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_10.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_11.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_13.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_14.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_15.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_16.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_2.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_3.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_4.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_5.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_6.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_7.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_8.pyc",
+    "EpochPactUI/_internal/encodings/iso8859_9.pyc",
+    "EpochPactUI/_internal/encodings/johab.pyc",
+    "EpochPactUI/_internal/encodings/koi8_r.pyc",
+    "EpochPactUI/_internal/encodings/koi8_t.pyc",
+    "EpochPactUI/_internal/encodings/koi8_u.pyc",
+    "EpochPactUI/_internal/encodings/kz1048.pyc",
+    "EpochPactUI/_internal/encodings/latin_1.pyc",
+    "EpochPactUI/_internal/encodings/mac_arabic.pyc",
+    "EpochPactUI/_internal/encodings/mac_croatian.pyc",
+    "EpochPactUI/_internal/encodings/mac_cyrillic.pyc",
+    "EpochPactUI/_internal/encodings/mac_farsi.pyc",
+    "EpochPactUI/_internal/encodings/mac_greek.pyc",
+    "EpochPactUI/_internal/encodings/mac_iceland.pyc",
+    "EpochPactUI/_internal/encodings/mac_latin2.pyc",
+    "EpochPactUI/_internal/encodings/mac_roman.pyc",
+    "EpochPactUI/_internal/encodings/mac_romanian.pyc",
+    "EpochPactUI/_internal/encodings/mac_turkish.pyc",
+    "EpochPactUI/_internal/encodings/mbcs.pyc",
+    "EpochPactUI/_internal/encodings/oem.pyc",
+    "EpochPactUI/_internal/encodings/palmos.pyc",
+    "EpochPactUI/_internal/encodings/ptcp154.pyc",
+    "EpochPactUI/_internal/encodings/punycode.pyc",
+    "EpochPactUI/_internal/encodings/quopri_codec.pyc",
+    "EpochPactUI/_internal/encodings/raw_unicode_escape.pyc",
+    "EpochPactUI/_internal/encodings/rot_13.pyc",
+    "EpochPactUI/_internal/encodings/shift_jis.pyc",
+    "EpochPactUI/_internal/encodings/shift_jisx0213.pyc",
+    "EpochPactUI/_internal/encodings/shift_jis_2004.pyc",
+    "EpochPactUI/_internal/encodings/tis_620.pyc",
+    "EpochPactUI/_internal/encodings/undefined.pyc",
+    "EpochPactUI/_internal/encodings/unicode_escape.pyc",
+    "EpochPactUI/_internal/encodings/utf_16.pyc",
+    "EpochPactUI/_internal/encodings/utf_16_be.pyc",
+    "EpochPactUI/_internal/encodings/utf_16_le.pyc",
+    "EpochPactUI/_internal/encodings/utf_32.pyc",
+    "EpochPactUI/_internal/encodings/utf_32_be.pyc",
+    "EpochPactUI/_internal/encodings/utf_32_le.pyc",
+    "EpochPactUI/_internal/encodings/utf_7.pyc",
+    "EpochPactUI/_internal/encodings/utf_8.pyc",
+    "EpochPactUI/_internal/encodings/utf_8_sig.pyc",
+    "EpochPactUI/_internal/encodings/uu_codec.pyc",
+    "EpochPactUI/_internal/encodings/zlib_codec.pyc",
+    "EpochPactUI/_internal/encodings/__init__.pyc",
+    "EpochPactUI/_internal/flask/app.pyc",
+    "EpochPactUI/_internal/flask/blueprints.pyc",
+    "EpochPactUI/_internal/flask/cli.pyc",
+    "EpochPactUI/_internal/flask/config.pyc",
+    "EpochPactUI/_internal/flask/ctx.pyc",
+    "EpochPactUI/_internal/flask/debughelpers.pyc",
+    "EpochPactUI/_internal/flask/globals.pyc",
+    "EpochPactUI/_internal/flask/helpers.pyc",
+    "EpochPactUI/_internal/flask/logging.pyc",
+    "EpochPactUI/_internal/flask/sessions.pyc",
+    "EpochPactUI/_internal/flask/signals.pyc",
+    "EpochPactUI/_internal/flask/templating.pyc",
+    "EpochPactUI/_internal/flask/testing.pyc",
+    "EpochPactUI/_internal/flask/typing.pyc",
+    "EpochPactUI/_internal/flask/wrappers.pyc",
+    "EpochPactUI/_internal/flask/__init__.pyc",
+    "EpochPactUI/_internal/html/entities.pyc",
+    "EpochPactUI/_internal/html/__init__.pyc",
+    "EpochPactUI/_internal/http/client.pyc",
+    "EpochPactUI/_internal/http/cookiejar.pyc",
+    "EpochPactUI/_internal/http/cookies.pyc",
+    "EpochPactUI/_internal/http/server.pyc",
+    "EpochPactUI/_internal/http/__init__.pyc",
+    "EpochPactUI/_internal/importlib/abc.pyc",
+    "EpochPactUI/_internal/importlib/machinery.pyc",
+    "EpochPactUI/_internal/importlib/readers.pyc",
+    "EpochPactUI/_internal/importlib/util.pyc",
+    "EpochPactUI/_internal/importlib/_abc.pyc",
+    "EpochPactUI/_internal/importlib/_bootstrap.pyc",
+    "EpochPactUI/_internal/importlib/_bootstrap_external.pyc",
+    "EpochPactUI/_internal/importlib/__init__.pyc",
+    "EpochPactUI/_internal/itsdangerous/encoding.pyc",
+    "EpochPactUI/_internal/itsdangerous/exc.pyc",
+    "EpochPactUI/_internal/itsdangerous/serializer.pyc",
+    "EpochPactUI/_internal/itsdangerous/signer.pyc",
+    "EpochPactUI/_internal/itsdangerous/timed.pyc",
+    "EpochPactUI/_internal/itsdangerous/url_safe.pyc",
+    "EpochPactUI/_internal/itsdangerous/_json.pyc",
+    "EpochPactUI/_internal/itsdangerous/__init__.pyc",
+    "EpochPactUI/_internal/jinja2/async_utils.pyc",
+    "EpochPactUI/_internal/jinja2/bccache.pyc",
+    "EpochPactUI/_internal/jinja2/compiler.pyc",
+    "EpochPactUI/_internal/jinja2/constants.pyc",
+    "EpochPactUI/_internal/jinja2/debug.pyc",
+    "EpochPactUI/_internal/jinja2/defaults.pyc",
+    "EpochPactUI/_internal/jinja2/environment.pyc",
+    "EpochPactUI/_internal/jinja2/exceptions.pyc",
+    "EpochPactUI/_internal/jinja2/ext.pyc",
+    "EpochPactUI/_internal/jinja2/filters.pyc",
+    "EpochPactUI/_internal/jinja2/idtracking.pyc",
+    "EpochPactUI/_internal/jinja2/lexer.pyc",
+    "EpochPactUI/_internal/jinja2/loaders.pyc",
+    "EpochPactUI/_internal/jinja2/nodes.pyc",
+    "EpochPactUI/_internal/jinja2/optimizer.pyc",
+    "EpochPactUI/_internal/jinja2/parser.pyc",
+    "EpochPactUI/_internal/jinja2/runtime.pyc",
+    "EpochPactUI/_internal/jinja2/sandbox.pyc",
+    "EpochPactUI/_internal/jinja2/tests.pyc",
+    "EpochPactUI/_internal/jinja2/utils.pyc",
+    "EpochPactUI/_internal/jinja2/visitor.pyc",
+    "EpochPactUI/_internal/jinja2/_identifier.pyc",
+    "EpochPactUI/_internal/jinja2/__init__.pyc",
+    "EpochPactUI/_internal/json/decoder.pyc",
+    "EpochPactUI/_internal/json/encoder.pyc",
+    "EpochPactUI/_internal/json/scanner.pyc",
+    "EpochPactUI/_internal/json/__init__.pyc",
+    "EpochPactUI/_internal/logging/handlers.pyc",
+    "EpochPactUI/_internal/logging/__init__.pyc",
+    "EpochPactUI/_internal/markupsafe/_native.pyc",
+    "EpochPactUI/_internal/markupsafe/_speedups.cp313-win_amd64.pyd",
+    "EpochPactUI/_internal/markupsafe/__init__.pyc",
+    "EpochPactUI/_internal/multiprocessing/connection.pyc",
+    "EpochPactUI/_internal/multiprocessing/context.pyc",
+    "EpochPactUI/_internal/multiprocessing/forkserver.pyc",
+    "EpochPactUI/_internal/multiprocessing/heap.pyc",
+    "EpochPactUI/_internal/multiprocessing/managers.pyc",
+    "EpochPactUI/_internal/multiprocessing/pool.pyc",
+    "EpochPactUI/_internal/multiprocessing/popen_fork.pyc",
+    "EpochPactUI/_internal/multiprocessing/popen_forkserver.pyc",
+    "EpochPactUI/_internal/multiprocessing/popen_spawn_posix.pyc",
+    "EpochPactUI/_internal/multiprocessing/popen_spawn_win32.pyc",
+    "EpochPactUI/_internal/multiprocessing/process.pyc",
+    "EpochPactUI/_internal/multiprocessing/queues.pyc",
+    "EpochPactUI/_internal/multiprocessing/reduction.pyc",
+    "EpochPactUI/_internal/multiprocessing/resource_sharer.pyc",
+    "EpochPactUI/_internal/multiprocessing/resource_tracker.pyc",
+    "EpochPactUI/_internal/multiprocessing/sharedctypes.pyc",
+    "EpochPactUI/_internal/multiprocessing/shared_memory.pyc",
+    "EpochPactUI/_internal/multiprocessing/spawn.pyc",
+    "EpochPactUI/_internal/multiprocessing/synchronize.pyc",
+    "EpochPactUI/_internal/multiprocessing/util.pyc",
+    "EpochPactUI/_internal/multiprocessing/__init__.pyc",
+    "EpochPactUI/_internal/pathlib/_abc.pyc",
+    "EpochPactUI/_internal/pathlib/_local.pyc",
+    "EpochPactUI/_internal/pathlib/__init__.pyc",
+    "EpochPactUI/_internal/proxy_tools/__init__.pyc",
+    "EpochPactUI/_internal/pycparser/ast_transforms.pyc",
+    "EpochPactUI/_internal/pycparser/c_ast.pyc",
+    "EpochPactUI/_internal/pycparser/c_lexer.pyc",
+    "EpochPactUI/_internal/pycparser/c_parser.pyc",
+    "EpochPactUI/_internal/pycparser/__init__.pyc",
+    "EpochPactUI/_internal/pydoc_data/topics.pyc",
+    "EpochPactUI/_internal/pydoc_data/__init__.pyc",
+    "EpochPactUI/_internal/pythonnet/__init__.pyc",
+    "EpochPactUI/_internal/re/_casefix.pyc",
+    "EpochPactUI/_internal/re/_compiler.pyc",
+    "EpochPactUI/_internal/re/_constants.pyc",
+    "EpochPactUI/_internal/re/_parser.pyc",
+    "EpochPactUI/_internal/re/__init__.pyc",
+    "EpochPactUI/_internal/sysconfig/__init__.pyc",
+    "EpochPactUI/_internal/tools/app_paths.pyc",
+    "EpochPactUI/_internal/tools/cof_backend.pyc",
+    "EpochPactUI/_internal/tools/collection_backend.pyc",
+    "EpochPactUI/_internal/tools/game_compatibility.pyc",
+    "EpochPactUI/_internal/tools/le_session.pyc",
+    "EpochPactUI/_internal/tools/monolith_backend.pyc",
+    "EpochPactUI/_internal/tools/player_setup.pyc",
+    "EpochPactUI/_internal/tools/progression_backend.pyc",
+    "EpochPactUI/_internal/tools/ui_bridge.pyc",
+    "EpochPactUI/_internal/tools/ui_language.pyc",
+    "EpochPactUI/_internal/urllib/error.pyc",
+    "EpochPactUI/_internal/urllib/parse.pyc",
+    "EpochPactUI/_internal/urllib/request.pyc",
+    "EpochPactUI/_internal/urllib/response.pyc",
+    "EpochPactUI/_internal/urllib/__init__.pyc",
+    "EpochPactUI/_internal/webview/errors.pyc",
+    "EpochPactUI/_internal/webview/event.pyc",
+    "EpochPactUI/_internal/webview/guilib.pyc",
+    "EpochPactUI/_internal/webview/http.pyc",
+    "EpochPactUI/_internal/webview/localization.pyc",
+    "EpochPactUI/_internal/webview/menu.pyc",
+    "EpochPactUI/_internal/webview/models.pyc",
+    "EpochPactUI/_internal/webview/screen.pyc",
+    "EpochPactUI/_internal/webview/state.pyc",
+    "EpochPactUI/_internal/webview/util.pyc",
+    "EpochPactUI/_internal/webview/window.pyc",
+    "EpochPactUI/_internal/webview/__init__.pyc",
+    "EpochPactUI/_internal/werkzeug/exceptions.pyc",
+    "EpochPactUI/_internal/werkzeug/formparser.pyc",
+    "EpochPactUI/_internal/werkzeug/http.pyc",
+    "EpochPactUI/_internal/werkzeug/local.pyc",
+    "EpochPactUI/_internal/werkzeug/security.pyc",
+    "EpochPactUI/_internal/werkzeug/serving.pyc",
+    "EpochPactUI/_internal/werkzeug/test.pyc",
+    "EpochPactUI/_internal/werkzeug/urls.pyc",
+    "EpochPactUI/_internal/werkzeug/user_agent.pyc",
+    "EpochPactUI/_internal/werkzeug/utils.pyc",
+    "EpochPactUI/_internal/werkzeug/wsgi.pyc",
+    "EpochPactUI/_internal/werkzeug/_internal.pyc",
+    "EpochPactUI/_internal/werkzeug/_reloader.pyc",
+    "EpochPactUI/_internal/werkzeug/__init__.pyc",
+    "EpochPactUI/_internal/wsgiref/handlers.pyc",
+    "EpochPactUI/_internal/wsgiref/headers.pyc",
+    "EpochPactUI/_internal/wsgiref/simple_server.pyc",
+    "EpochPactUI/_internal/wsgiref/types.pyc",
+    "EpochPactUI/_internal/wsgiref/util.pyc",
+    "EpochPactUI/_internal/wsgiref/__init__.pyc",
+    "EpochPactUI/_internal/xml/__init__.pyc",
+    "EpochPactUI/_internal/xmlrpc/client.pyc",
+    "EpochPactUI/_internal/xmlrpc/__init__.pyc",
+    "EpochPactUI/_internal/zipfile/__init__.pyc",
+    "EpochPactUI/_internal/_pyrepl/pager.pyc",
+    "EpochPactUI/_internal/_pyrepl/__init__.pyc",
+    "EpochPactUI/_internal/zipfile/_path/glob.pyc",
+    "EpochPactUI/_internal/zipfile/_path/__init__.pyc",
+    "EpochPactUI/_internal/xml/etree/cElementTree.pyc",
+    "EpochPactUI/_internal/xml/etree/ElementInclude.pyc",
+    "EpochPactUI/_internal/xml/etree/ElementPath.pyc",
+    "EpochPactUI/_internal/xml/etree/ElementTree.pyc",
+    "EpochPactUI/_internal/xml/etree/__init__.pyc",
+    "EpochPactUI/_internal/xml/parsers/expat.pyc",
+    "EpochPactUI/_internal/xml/parsers/__init__.pyc",
+    "EpochPactUI/_internal/xml/sax/expatreader.pyc",
+    "EpochPactUI/_internal/xml/sax/handler.pyc",
+    "EpochPactUI/_internal/xml/sax/saxutils.pyc",
+    "EpochPactUI/_internal/xml/sax/xmlreader.pyc",
+    "EpochPactUI/_internal/xml/sax/_exceptions.pyc",
+    "EpochPactUI/_internal/xml/sax/__init__.pyc",
+    "EpochPactUI/_internal/werkzeug/datastructures/accept.pyc",
+    "EpochPactUI/_internal/werkzeug/datastructures/auth.pyc",
+    "EpochPactUI/_internal/werkzeug/datastructures/cache_control.pyc",
+    "EpochPactUI/_internal/werkzeug/datastructures/csp.pyc",
+    "EpochPactUI/_internal/werkzeug/datastructures/etag.pyc",
+    "EpochPactUI/_internal/werkzeug/datastructures/file_storage.pyc",
+    "EpochPactUI/_internal/werkzeug/datastructures/headers.pyc",
+    "EpochPactUI/_internal/werkzeug/datastructures/mixins.pyc",
+    "EpochPactUI/_internal/werkzeug/datastructures/range.pyc",
+    "EpochPactUI/_internal/werkzeug/datastructures/structures.pyc",
+    "EpochPactUI/_internal/werkzeug/datastructures/__init__.pyc",
+    "EpochPactUI/_internal/werkzeug/debug/console.pyc",
+    "EpochPactUI/_internal/werkzeug/debug/repr.pyc",
+    "EpochPactUI/_internal/werkzeug/debug/tbtools.pyc",
+    "EpochPactUI/_internal/werkzeug/debug/__init__.pyc",
+    "EpochPactUI/_internal/werkzeug/middleware/shared_data.pyc",
+    "EpochPactUI/_internal/werkzeug/middleware/__init__.pyc",
+    "EpochPactUI/_internal/werkzeug/routing/converters.pyc",
+    "EpochPactUI/_internal/werkzeug/routing/exceptions.pyc",
+    "EpochPactUI/_internal/werkzeug/routing/map.pyc",
+    "EpochPactUI/_internal/werkzeug/routing/matcher.pyc",
+    "EpochPactUI/_internal/werkzeug/routing/rules.pyc",
+    "EpochPactUI/_internal/werkzeug/routing/__init__.pyc",
+    "EpochPactUI/_internal/werkzeug/sansio/http.pyc",
+    "EpochPactUI/_internal/werkzeug/sansio/multipart.pyc",
+    "EpochPactUI/_internal/werkzeug/sansio/request.pyc",
+    "EpochPactUI/_internal/werkzeug/sansio/response.pyc",
+    "EpochPactUI/_internal/werkzeug/sansio/utils.pyc",
+    "EpochPactUI/_internal/werkzeug/sansio/__init__.pyc",
+    "EpochPactUI/_internal/werkzeug/wrappers/request.pyc",
+    "EpochPactUI/_internal/werkzeug/wrappers/response.pyc",
+    "EpochPactUI/_internal/werkzeug/wrappers/__init__.pyc",
+    "EpochPactUI/_internal/webview/dom/classlist.pyc",
+    "EpochPactUI/_internal/webview/dom/dom.pyc",
+    "EpochPactUI/_internal/webview/dom/element.pyc",
+    "EpochPactUI/_internal/webview/dom/event.pyc",
+    "EpochPactUI/_internal/webview/dom/propsdict.pyc",
+    "EpochPactUI/_internal/webview/dom/__init__.pyc",
+    "EpochPactUI/_internal/webview/lib/Microsoft.Web.WebView2.Core.dll",
+    "EpochPactUI/_internal/webview/lib/Microsoft.Web.WebView2.WinForms.dll",
+    "EpochPactUI/_internal/webview/lib/WebBrowserInterop.x64.dll",
+    "EpochPactUI/_internal/webview/platforms/edgechromium.pyc",
+    "EpochPactUI/_internal/webview/platforms/mshtml.pyc",
+    "EpochPactUI/_internal/webview/platforms/win32.pyc",
+    "EpochPactUI/_internal/webview/platforms/winforms.pyc",
+    "EpochPactUI/_internal/webview/platforms/__init__.pyc",
+    "EpochPactUI/_internal/webview/lib/runtimes/win-x86/native/WebView2Loader.dll",
+    "EpochPactUI/_internal/webview/lib/runtimes/win-x64/native/WebView2Loader.dll",
+    "EpochPactUI/_internal/webview/lib/runtimes/win-arm64/native/WebView2Loader.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/Microsoft.Win32.Primitives.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/netstandard.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/Python.Runtime.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.AppContext.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Collections.Concurrent.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Collections.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Collections.NonGeneric.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Collections.Specialized.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.ComponentModel.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.ComponentModel.EventBasedAsync.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.ComponentModel.Primitives.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.ComponentModel.TypeConverter.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Console.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Data.Common.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.Contracts.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.Debug.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.FileVersionInfo.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.Process.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.StackTrace.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.TextWriterTraceListener.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.Tools.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.TraceSource.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.Tracing.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Drawing.Primitives.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Dynamic.Runtime.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Globalization.Calendars.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Globalization.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Globalization.Extensions.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.IO.Compression.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.IO.Compression.ZipFile.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.IO.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.IO.FileSystem.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.IO.FileSystem.DriveInfo.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.IO.FileSystem.Primitives.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.IO.FileSystem.Watcher.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.IO.IsolatedStorage.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.IO.MemoryMappedFiles.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.IO.Pipes.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.IO.UnmanagedMemoryStream.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Linq.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Linq.Expressions.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Linq.Parallel.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Linq.Queryable.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Net.Http.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Net.NameResolution.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Net.NetworkInformation.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Net.Ping.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Net.Primitives.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Net.Requests.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Net.Security.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Net.Sockets.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Net.WebHeaderCollection.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Net.WebSockets.Client.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Net.WebSockets.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.ObjectModel.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Reflection.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Reflection.Extensions.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Reflection.Primitives.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Resources.Reader.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Resources.ResourceManager.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Resources.Writer.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.CompilerServices.VisualC.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Extensions.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Handles.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.InteropServices.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.InteropServices.RuntimeInformation.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Numerics.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Serialization.Formatters.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Serialization.Json.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Serialization.Primitives.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Serialization.Xml.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Security.Claims.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Security.Cryptography.Algorithms.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Security.Cryptography.Csp.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Security.Cryptography.Encoding.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Security.Cryptography.Primitives.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Security.Cryptography.X509Certificates.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Security.Principal.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Security.SecureString.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Text.Encoding.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Text.Encoding.Extensions.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Text.RegularExpressions.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Threading.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Threading.Overlapped.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Threading.Tasks.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Threading.Tasks.Parallel.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Threading.Thread.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Threading.ThreadPool.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Threading.Timer.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.ValueTuple.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Xml.ReaderWriter.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Xml.XDocument.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Xml.XmlDocument.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Xml.XmlSerializer.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Xml.XPath.dll",
+    "EpochPactUI/_internal/pythonnet/runtime/System.Xml.XPath.XDocument.dll",
+    "EpochPactUI/_internal/native/build/version.dll",
+    "EpochPactUI/_internal/native/build/player/EpochPact.Core.dll",
+    "EpochPactUI/_internal/multiprocessing/dummy/connection.pyc",
+    "EpochPactUI/_internal/multiprocessing/dummy/__init__.pyc",
+    "EpochPactUI/_internal/importlib/metadata/_adapters.pyc",
+    "EpochPactUI/_internal/importlib/metadata/_collections.pyc",
+    "EpochPactUI/_internal/importlib/metadata/_functools.pyc",
+    "EpochPactUI/_internal/importlib/metadata/_itertools.pyc",
+    "EpochPactUI/_internal/importlib/metadata/_meta.pyc",
+    "EpochPactUI/_internal/importlib/metadata/_text.pyc",
+    "EpochPactUI/_internal/importlib/metadata/__init__.pyc",
+    "EpochPactUI/_internal/importlib/resources/abc.pyc",
+    "EpochPactUI/_internal/importlib/resources/readers.pyc",
+    "EpochPactUI/_internal/importlib/resources/_adapters.pyc",
+    "EpochPactUI/_internal/importlib/resources/_common.pyc",
+    "EpochPactUI/_internal/importlib/resources/_functional.pyc",
+    "EpochPactUI/_internal/importlib/resources/_itertools.pyc",
+    "EpochPactUI/_internal/importlib/resources/__init__.pyc",
+    "EpochPactUI/_internal/flask/json/provider.pyc",
+    "EpochPactUI/_internal/flask/json/tag.pyc",
+    "EpochPactUI/_internal/flask/json/__init__.pyc",
+    "EpochPactUI/_internal/flask/sansio/app.pyc",
+    "EpochPactUI/_internal/flask/sansio/blueprints.pyc",
+    "EpochPactUI/_internal/flask/sansio/scaffold.pyc",
+    "EpochPactUI/_internal/ctypes/macholib/dyld.pyc",
+    "EpochPactUI/_internal/ctypes/macholib/dylib.pyc",
+    "EpochPactUI/_internal/ctypes/macholib/framework.pyc",
+    "EpochPactUI/_internal/ctypes/macholib/__init__.pyc",
+    "EpochPactUI/_internal/concurrent/futures/process.pyc",
+    "EpochPactUI/_internal/concurrent/futures/thread.pyc",
+    "EpochPactUI/_internal/concurrent/futures/_base.pyc",
+    "EpochPactUI/_internal/concurrent/futures/__init__.pyc",
+    "EpochPactUI/_internal/clr_loader/ffi/hostfxr.pyc",
+    "EpochPactUI/_internal/clr_loader/ffi/mono.pyc",
+    "EpochPactUI/_internal/clr_loader/ffi/netfx.pyc",
+    "EpochPactUI/_internal/clr_loader/ffi/__init__.pyc",
+    "EpochPactUI/_internal/clr_loader/util/clr_error.pyc",
+    "EpochPactUI/_internal/clr_loader/util/coreclr_errors.pyc",
+    "EpochPactUI/_internal/clr_loader/util/find.pyc",
+    "EpochPactUI/_internal/clr_loader/util/hostfxr_errors.pyc",
+    "EpochPactUI/_internal/clr_loader/util/runtime_spec.pyc",
+    "EpochPactUI/_internal/clr_loader/util/__init__.pyc",
+    "EpochPactUI/_internal/clr_loader/ffi/dlls/amd64/ClrLoader.dll",
+    "EpochPactUI/_internal/clr_loader/ffi/dlls/x86/ClrLoader.dll",
+    "CopyToGame/version.dll",
+    "CopyToGame/EpochPact/EpochPact.Core.dll"
+  ],
+  "files": [
+    {
+      "path": "CopyToGame/EpochPact/EpochPact.Core.dll",
+      "bytes": 1163264,
+      "sha256": "6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f"
+    },
+    {
+      "path": "CopyToGame/version.dll",
+      "bytes": 108544,
+      "sha256": "bee68619c1869f7cb2b7c5e0cde123137e58c08fc8ec4f5fca237fb1c107370d"
+    },
+    {
+      "path": "DISTRIBUTION-PERMISSIONS.txt",
+      "bytes": 810,
+      "sha256": "f59f84270eb9fe93e85c107617f4b60f9515b06ae85dd58a53ed4307db56f2bd"
+    },
+    {
+      "path": "EpochPactUI/EpochPact.exe",
+      "bytes": 370889,
+      "sha256": "068bc76120b2a8d17c8d4f87a51f3ebaf6e2696829e80ec2d4492498c6590435"
+    },
+    {
+      "path": "EpochPactUI/_internal/THIRD-PARTY-NOTICES.txt",
+      "bytes": 71420,
+      "sha256": "0c0b36673c060ba254da37ef277131cb994fd70a486e42f7ac218bccdc29e0ba"
+    },
+    {
+      "path": "EpochPactUI/_internal/VCRUNTIME140.dll",
+      "bytes": 120400,
+      "sha256": "052ad6a20d375957e82aa6a3c441ea548d89be0981516ca7eb306e063d5027f4"
+    },
+    {
+      "path": "EpochPactUI/_internal/VCRUNTIME140_1.dll",
+      "bytes": 49776,
+      "sha256": "6a99bc0128e0c7d6cbbf615fcc26909565e17d4ca3451b97f8987f9c6acbc6c8"
+    },
+    {
+      "path": "EpochPactUI/_internal/__future__.pyc",
+      "bytes": 4706,
+      "sha256": "6aa0a17fb0f3dc3730a69e0533575c95cd16555bcf08fb594c3c89b3e268e097"
+    },
+    {
+      "path": "EpochPactUI/_internal/_aix_support.pyc",
+      "bytes": 4697,
+      "sha256": "a949bcda208a90c2b777ff0342ec7694910c68f21cc22714f8adf3a1b8289dc6"
+    },
+    {
+      "path": "EpochPactUI/_internal/_asyncio.pyd",
+      "bytes": 73048,
+      "sha256": "675587b1155c875ab27e24302d53f38e41febd3c080bc190c3e4ffbdb51fe76b"
+    },
+    {
+      "path": "EpochPactUI/_internal/_bz2.pyd",
+      "bytes": 86872,
+      "sha256": "b3dd7cea6d03342252834cebcc814af37d850b86d0627fa22b7f6990882f2f8b"
+    },
+    {
+      "path": "EpochPactUI/_internal/_cffi_backend.cp313-win_amd64.pyd",
+      "bytes": 180736,
+      "sha256": "21b7160d4a6da9590794fdb38718982060b5c92d56fb0e441fc8b62ee789be8d"
+    },
+    {
+      "path": "EpochPactUI/_internal/_collections_abc.pyc",
+      "bytes": 47039,
+      "sha256": "9fc181b6a610affa9accea5b25ba978c7d37291f4cfa9a127fb4f686fb7e2662"
+    },
+    {
+      "path": "EpochPactUI/_internal/_colorize.pyc",
+      "bytes": 3991,
+      "sha256": "a3151ba680b9435e2c8f52f7333ef8effb58ad9b0cb9e781c3ea892e564797d2"
+    },
+    {
+      "path": "EpochPactUI/_internal/_compat_pickle.pyc",
+      "bytes": 7182,
+      "sha256": "edbb468678f2f35dc82d90e548b4f2c50055eb103c3a6b04c650006252b36452"
+    },
+    {
+      "path": "EpochPactUI/_internal/_compression.pyc",
+      "bytes": 7797,
+      "sha256": "73207a14b2586d67f839aee6f4b332d694f5f61a3113c649f095dadfd5914852"
+    },
+    {
+      "path": "EpochPactUI/_internal/_ctypes.pyd",
+      "bytes": 133464,
+      "sha256": "dfa65498c77e71f038883337d2b5ffd92508489e79e6ee5e96ddec4ecf2a7fa1"
+    },
+    {
+      "path": "EpochPactUI/_internal/_decimal.pyd",
+      "bytes": 283480,
+      "sha256": "f55d81378a3261a7073fb71aee674152265b6f24ba6f375f9b939d5a117d8e6b"
+    },
+    {
+      "path": "EpochPactUI/_internal/_elementtree.pyd",
+      "bytes": 137048,
+      "sha256": "58339737dd818a6d0bac98403158677f2f7d54adc7c673b9a8a18c8b19ab11f6"
+    },
+    {
+      "path": "EpochPactUI/_internal/_hashlib.pyd",
+      "bytes": 69464,
+      "sha256": "1a3010b06c2fcd625dece3dd0883ca060e98b94adc062b06cb1a671cfc3b5caf"
+    },
+    {
+      "path": "EpochPactUI/_internal/_ios_support.pyc",
+      "bytes": 2696,
+      "sha256": "974d23f29e6e2a1e682d55e611973bb9342bce907610189a79b3603631d72737"
+    },
+    {
+      "path": "EpochPactUI/_internal/_lzma.pyd",
+      "bytes": 159576,
+      "sha256": "f20be6a9fee8fb5d53170c4bc24a39b48d3c0ccbe8e2000e60ff7d65b77c6ea1"
+    },
+    {
+      "path": "EpochPactUI/_internal/_multiprocessing.pyd",
+      "bytes": 38232,
+      "sha256": "6c4ca996eafc99aeb246d25b5a9499d01488b643dcdabee6b48137f179b3deef"
+    },
+    {
+      "path": "EpochPactUI/_internal/_opcode_metadata.pyc",
+      "bytes": 10658,
+      "sha256": "16a520af4ad3db9e0aacbb4d236b521362270561a1486376e6fc9096d4fa2b13"
+    },
+    {
+      "path": "EpochPactUI/_internal/_overlapped.pyd",
+      "bytes": 57688,
+      "sha256": "626675dc9fc5c74beb72cd278322a8313b68b22161e34473f8b951c238e72185"
+    },
+    {
+      "path": "EpochPactUI/_internal/_py_abc.pyc",
+      "bytes": 7172,
+      "sha256": "7f0db202b0c6d0562138f4d8bcb5e9a1241dc3f66f6035fb6db9f7b7747d8772"
+    },
+    {
+      "path": "EpochPactUI/_internal/_pydatetime.pyc",
+      "bytes": 95066,
+      "sha256": "930057b1ea271528d74f0d059b22a9b53e25e7a4d360d21831f227e01deb37c5"
+    },
+    {
+      "path": "EpochPactUI/_internal/_pydecimal.pyc",
+      "bytes": 218311,
+      "sha256": "ae9ed64194889d25ab4ec1883640210a3f8141ba8dc0f6b102e157eb15624313"
+    },
+    {
+      "path": "EpochPactUI/_internal/_pyrepl/__init__.pyc",
+      "bytes": 116,
+      "sha256": "34b72f288c47ba5a3ae87e495a8dec3ea317aeba24968104ce6231bef0ff14b9"
+    },
+    {
+      "path": "EpochPactUI/_internal/_pyrepl/pager.pyc",
+      "bytes": 9876,
+      "sha256": "a8852335fcc09d7f60d023de3109d48dae74c65ef78fe4ae56737d42d8984729"
+    },
+    {
+      "path": "EpochPactUI/_internal/_queue.pyd",
+      "bytes": 35160,
+      "sha256": "1e349a13913370369059a4ae5951157112b5eba53ed4389c18ffc5e00af1a037"
+    },
+    {
+      "path": "EpochPactUI/_internal/_socket.pyd",
+      "bytes": 86360,
+      "sha256": "127a39d2198f17dd9b573904fe7e4040c7c8718753e6c4edee2ff6c35f487fac"
+    },
+    {
+      "path": "EpochPactUI/_internal/_ssl.pyd",
+      "bytes": 182104,
+      "sha256": "faf716d309349dbd54efd7fb402bd42ed21a537614ac0da89ed92ba307ecbf15"
+    },
+    {
+      "path": "EpochPactUI/_internal/_strptime.pyc",
+      "bytes": 34457,
+      "sha256": "973236bdca2d9f1c46367f5488b7431e33ce1e2a685673685f1e40fc0102141f"
+    },
+    {
+      "path": "EpochPactUI/_internal/_threading_local.pyc",
+      "bytes": 5514,
+      "sha256": "29e52b3e184c708dcc992b53798f8a0f2ce9bf4ce88d1f629286348442db09d8"
+    },
+    {
+      "path": "EpochPactUI/_internal/_uuid.pyd",
+      "bytes": 27992,
+      "sha256": "6748c182df6181cff8691da72dbb81f4f7f446ac7482d5dfe671f2b5333aed5d"
+    },
+    {
+      "path": "EpochPactUI/_internal/_weakrefset.pyc",
+      "bytes": 12144,
+      "sha256": "04942bd980aece2c155245dbbe992dab7fab56200f7a9cd391c24092493cacad"
+    },
+    {
+      "path": "EpochPactUI/_internal/_wmi.pyd",
+      "bytes": 39768,
+      "sha256": "3be5e14e9a9dc49f099209dee98b9cb5e31ade3b0deab52277026bb14df5bdb6"
+    },
+    {
+      "path": "EpochPactUI/_internal/abc.pyc",
+      "bytes": 7915,
+      "sha256": "99b3b79161c2b850f93162e02635cfde25a63b16fd1a66413b8cc07b3935010b"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-console-l1-1-0.dll",
+      "bytes": 22872,
+      "sha256": "015bd08815c7b934a8952c3a7578e9ce59f21136e8a880d42bbd414bec2c6058"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-datetime-l1-1-0.dll",
+      "bytes": 22896,
+      "sha256": "5534812cdbdae94ba45cb216e5eb9af686b853948df54365103555abbbaf9d9a"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-debug-l1-1-0.dll",
+      "bytes": 22872,
+      "sha256": "837d2b1b2cd03e03fc6ccb050698b6b5763af17c201304872342a5eae9e0a2d2"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-errorhandling-l1-1-0.dll",
+      "bytes": 22872,
+      "sha256": "de43b165f568c276c00e95acd454e3092f352a18e95874595f4f4658c06d2ec7"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-fibers-l1-1-0.dll",
+      "bytes": 22872,
+      "sha256": "3cebc45bf479ad74cfabf2c6bfd4994d7ad639ed1221025981d19cedf9ce0416"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-fibers-l1-1-1.dll",
+      "bytes": 22872,
+      "sha256": "5ef70308bcca628ce6b0e2856b15b1c7ae340c3f9bbbc4c1071d8c191a34a5c3"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-file-l1-1-0.dll",
+      "bytes": 27008,
+      "sha256": "250ac829f2617bcac1c6e5b8c4f630462e20765863ba573526a3e11bbfb94a9a"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-file-l1-2-0.dll",
+      "bytes": 22888,
+      "sha256": "ae14079a114733f60ce87b92cba42acd8083c2cd67594e53bc37dc0b97a4b465"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-file-l2-1-0.dll",
+      "bytes": 22912,
+      "sha256": "914bf26a298713119477ea0a8e7bd43171b91344ebe24fb47ad77c49686e3d87"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-handle-l1-1-0.dll",
+      "bytes": 22896,
+      "sha256": "ab5489955e371b15f77906c08ec3c7affe2c7a46a08c514ca628768b4478974b"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-heap-l1-1-0.dll",
+      "bytes": 22872,
+      "sha256": "c70f9644d8377fa39c5b71f2e9734c1400d7598904fdeb772e8502099982dcb7"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-interlocked-l1-1-0.dll",
+      "bytes": 22888,
+      "sha256": "f8129710188e407bb0e6f46d30aeba277d67b947ece5fe09e883fde2323f3ae6"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-kernel32-legacy-l1-1-1.dll",
+      "bytes": 22888,
+      "sha256": "5200b16cb2ddc61cfc07373a9a84aa85a3ab50806ca96c879c883275832944c1"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-libraryloader-l1-1-0.dll",
+      "bytes": 22872,
+      "sha256": "48786fb88b001dcd1f63acea903d3ca9cc0b3060d5a325e3f2f3cbc3bfd53166"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-localization-l1-2-0.dll",
+      "bytes": 22872,
+      "sha256": "9ec3898f7eba91faa28b51616c211a2689e3a13aeef8de6e13cb674e49d689eb"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-memory-l1-1-0.dll",
+      "bytes": 22896,
+      "sha256": "3a6cbc524c99e1cd80d5368f5601402a37ad602528b1ab628093573ef638eb3b"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-namedpipe-l1-1-0.dll",
+      "bytes": 22888,
+      "sha256": "97145ef89c44949fcf0f04ac834a8bc7d687ef49ee73ae9fc32f3c11136b7201"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-processenvironment-l1-1-0.dll",
+      "bytes": 22872,
+      "sha256": "8bc7c10b1851aea644e9c9f381cdb935e091fee6b0be3d3aedc6fffaac96adb7"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-processthreads-l1-1-0.dll",
+      "bytes": 22912,
+      "sha256": "d8030b777617c71f0f94564607699dbf7561487d779db9756aed378c5675213f"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-processthreads-l1-1-1.dll",
+      "bytes": 22872,
+      "sha256": "f5e676713340f73a03a3d41a6ec9883b431da7d16c7f07bd0a920fb80e6c0753"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-profile-l1-1-0.dll",
+      "bytes": 22872,
+      "sha256": "f023d47e44d3eea6b0743580f57e8c6ba81e79d5ebfa7da26250076c647b980e"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-rtlsupport-l1-1-0.dll",
+      "bytes": 22888,
+      "sha256": "9746d8930704153578a628c010638a5f818ffe5a927e25591b108e256dc6afca"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-string-l1-1-0.dll",
+      "bytes": 22896,
+      "sha256": "7c53ae24c982d16ffd1bf7f918d115b11b7f30e57bc7feaa18cb9781e4abb926"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-synch-l1-1-0.dll",
+      "bytes": 22896,
+      "sha256": "56d9d62ca5dba79a6581b8d574a7d8b2a64a5ecb71e47dcf06ed0285708b1859"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-synch-l1-2-0.dll",
+      "bytes": 22888,
+      "sha256": "f6482bbec5612c39ecb4822787a333f2b7570f7a5f922a4059be41ba957bb372"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-sysinfo-l1-1-0.dll",
+      "bytes": 22896,
+      "sha256": "272d02765fdd3582618236c2d309abba069642f9bc1062ede069d0c144e17007"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-sysinfo-l1-2-0.dll",
+      "bytes": 22912,
+      "sha256": "8a0900788859d0eb51c2f48f50cc6ed376a120b518100fa20e11d7702ccde260"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-timezone-l1-1-0.dll",
+      "bytes": 22896,
+      "sha256": "ff35de6c03812b332e140f17dade25c5dd4775156da9eeb1eaae3fddd27236ec"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-core-util-l1-1-0.dll",
+      "bytes": 22896,
+      "sha256": "191ef3e98641a57296f19d572d8eb62489470ff1ef6030d136af170c2f835173"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-crt-conio-l1-1-0.dll",
+      "bytes": 22872,
+      "sha256": "54ee5ec719a051496ff60aa00dbeaa94b9a7d2cdac27fe9b7317f1a666b6a2aa"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-crt-convert-l1-1-0.dll",
+      "bytes": 26992,
+      "sha256": "8b94662429171019fcd63c70bbf2095a075170599704a5e7dcdbe3da13f3a429"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-crt-environment-l1-1-0.dll",
+      "bytes": 22912,
+      "sha256": "39e5929593709e8af3bc9e0a75ec1155778d6f4a247f4cdfc58928ad6db88434"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-crt-filesystem-l1-1-0.dll",
+      "bytes": 22872,
+      "sha256": "5a8ecebac32edf4e1f3c5c6c1c8ea1a1add6cda4f9c9cb26f752fb295bea6865"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-crt-heap-l1-1-0.dll",
+      "bytes": 22872,
+      "sha256": "c71080cbcb43bf1f8f3e391deb12a582eb0abefc80946f340675a2c616e4feb4"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-crt-locale-l1-1-0.dll",
+      "bytes": 22896,
+      "sha256": "6c68648e524187e03c4ad9aaa4a99113c6ee9f29fb39cc0ed93f951975138e63"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-crt-math-l1-1-0.dll",
+      "bytes": 31064,
+      "sha256": "d4fbcccbe29371cbce431e43b2eb4f7ba9a6f04a3d740a071f02457a505e9dc8"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-crt-process-l1-1-0.dll",
+      "bytes": 22896,
+      "sha256": "47c1935942e3ac0812e4dcf18c0e265e565f0194a3349111c299712f5565f7ac"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-crt-runtime-l1-1-0.dll",
+      "bytes": 26968,
+      "sha256": "72adc1b3677e0814d9c4ebf0964000e84bb2acf67336c8963061665e44f78029"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-crt-stdio-l1-1-0.dll",
+      "bytes": 26968,
+      "sha256": "900afc3989673c9bb1a687ed38c192f46db9e6ba6d11a668898a539e7fc23798"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-crt-string-l1-1-0.dll",
+      "bytes": 26968,
+      "sha256": "fcf12466cc12fd3b73611fc0763a5a1f9d44e90349513c34a0c83b0f36421793"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-crt-time-l1-1-0.dll",
+      "bytes": 22912,
+      "sha256": "886e57c4a6adb299b38f02945369f590a67da4e79a798359fc60aaa067212d7c"
+    },
+    {
+      "path": "EpochPactUI/_internal/api-ms-win-crt-utility-l1-1-0.dll",
+      "bytes": 22912,
+      "sha256": "5f8f26b216ade615b67a41f6fbbb910972fc6153315a65bb8f09912be50215b1"
+    },
+    {
+      "path": "EpochPactUI/_internal/argparse.pyc",
+      "bytes": 104516,
+      "sha256": "bd915eb47e29878341c33e8dc34e127b5f414549002e578ea6293041c00a4e9a"
+    },
+    {
+      "path": "EpochPactUI/_internal/ast.pyc",
+      "bytes": 103574,
+      "sha256": "85f4f25fb5f94a5383fcc5ad9b5196e2a21b9e923ed666fb8e6852b1e7c00540"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/__init__.pyc",
+      "bytes": 1439,
+      "sha256": "aa70b2902f822333833fdb57a1ff14b135b1ed0fe240c9895ab2d51672e09271"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/base_events.pyc",
+      "bytes": 89905,
+      "sha256": "a3c77d3a871804332f431acd664fbf8301f7126e9fc4b2723fcc62f28c312735"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/base_futures.pyc",
+      "bytes": 3104,
+      "sha256": "e155e9f9cd010edb8771f7c8160446779b64126a248237f1b36e08ca01e1aadf"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/base_subprocess.pyc",
+      "bytes": 17301,
+      "sha256": "8209848931e243d7215f5eae0d6eb7f18fbe287c1d7044759bee2b71b243c913"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/base_tasks.pyc",
+      "bytes": 4142,
+      "sha256": "a086d8e824a208ee7582cdf178324f19090961d146e5369e7677120b0ce2bf94"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/constants.pyc",
+      "bytes": 987,
+      "sha256": "4b75bf8bc1dc606789fec406f5e9d4f9a1b26542edf6f8d902ae082749af6543"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/coroutines.pyc",
+      "bytes": 3998,
+      "sha256": "3c22888b3425c3a1abbeaca2576cfafbff51666458909808099371e2b91578ed"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/events.pyc",
+      "bytes": 36975,
+      "sha256": "3fafb20674926c67f37485cb5a2fcf1351c22749591b838bb0e35cfbd0026139"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/exceptions.pyc",
+      "bytes": 3194,
+      "sha256": "f164e999d2d3de208ac0d0cbb15afd42ac687e1c014c5a375ef029117f420f71"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/format_helpers.pyc",
+      "bytes": 4194,
+      "sha256": "20cade0ded950606e7c8f1decec0d9d4110577ad81beb9efe99bf6a4e28df657"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/futures.pyc",
+      "bytes": 17361,
+      "sha256": "eef36c0f32cc1b8a10592389c89327b88907ff6aafc6920e2d2453084f7b0157"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/locks.pyc",
+      "bytes": 28283,
+      "sha256": "65998e7c2f16aa30f85292b432dab9ba24e384a44bdbbe60b77ebdbbe6930bb8"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/log.pyc",
+      "bytes": 259,
+      "sha256": "9326141dfe029773e470b1a8038ed2c228f61dd1986d25ac35df84c3ebb48b8e"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/mixins.pyc",
+      "bytes": 1078,
+      "sha256": "f9e1d9fa9ea01f80fb24a7541aa1536d1cc3644510ed65d0143ae41e879d307e"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/proactor_events.pyc",
+      "bytes": 46241,
+      "sha256": "0dfb5a06c0c425450d720341c52b404c08f7fff3797c85ce66c5ffb5039c172a"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/protocols.pyc",
+      "bytes": 8402,
+      "sha256": "24a0d8e45c2cf7044bcd1888487398ab275f6e5976e619da637c65176f5d3f9c"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/queues.pyc",
+      "bytes": 14773,
+      "sha256": "a72e4a6b84d81a21436c10b59946f66d1fd347eba751e7101063c0559879eed0"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/runners.pyc",
+      "bytes": 10106,
+      "sha256": "6542cd77e687244c90862b5a91df4a309e7c47e2b41aba7030c5109514c63645"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/selector_events.pyc",
+      "bytes": 64663,
+      "sha256": "f8584ad8fd4d66a2e47fd8b3d2532fc058f29b8ffe610ccefc76565b4250a5ae"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/sslproto.pyc",
+      "bytes": 41896,
+      "sha256": "1cca9769081db0cc07a1da63a65b56e177a863a5f48fb006d0b3470840f9383d"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/staggered.pyc",
+      "bytes": 6514,
+      "sha256": "9921bcebd9899d2b99ab6ed11a2964df132b4e8c39631bcdec18592a17e301b6"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/streams.pyc",
+      "bytes": 34299,
+      "sha256": "b78267ab055847477dc0287f7c8d0377c1bfed92ab5115b9c31a33f56666ab6a"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/subprocess.pyc",
+      "bytes": 12299,
+      "sha256": "55488a5623136a24889211e74181b712a26fe930f57aba4a718e514d88ba8245"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/taskgroups.pyc",
+      "bytes": 9191,
+      "sha256": "2c23d7e79ce7481f31e44286f4b5e052849febc971bc5c4c5943cfa12ed253c0"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/tasks.pyc",
+      "bytes": 43462,
+      "sha256": "2e07759e1a9ea7142001e9277b8d9b0d349189626b0c4879b9307805207e8308"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/threads.pyc",
+      "bytes": 1219,
+      "sha256": "19f31ac6823a7c54281eca9b3c7e4895259765157b07e49d1441ecd4fcf7dc1a"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/timeouts.pyc",
+      "bytes": 8715,
+      "sha256": "978046077003dfeb5be2d26129db5c13fe34d1fd41e43a20305231681249d76f"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/transports.pyc",
+      "bytes": 13749,
+      "sha256": "5c944f3b552600413886fa5dbed30e327f807acdb353bd15ca36427dab088604"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/trsock.pyc",
+      "bytes": 5140,
+      "sha256": "6cef20297e9d12fbb2ab55c4a2b3d89932c40c7ae223d241b7ca4ab9572c1787"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/unix_events.pyc",
+      "bytes": 70561,
+      "sha256": "0c336066e145a9d51828dd37a71b1328b965b878bd45d24069bb07064e5b9718"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/windows_events.pyc",
+      "bytes": 42345,
+      "sha256": "b53f9be32113e96bfe645d22aaf96ce9eb92aabd0d3fd6853f7d205f481a4cb3"
+    },
+    {
+      "path": "EpochPactUI/_internal/asyncio/windows_utils.pyc",
+      "bytes": 7437,
+      "sha256": "dc0f0966ad943e5efc1d9f0fb1f29a1cc5c73f97c385d1d9b1ca92610449572e"
+    },
+    {
+      "path": "EpochPactUI/_internal/base64.pyc",
+      "bytes": 25814,
+      "sha256": "d59a160c917fad63ce3a9a60e6d3f186c18bb7ce770a71e79965e643e0ca0f0a"
+    },
+    {
+      "path": "EpochPactUI/_internal/bdb.pyc",
+      "bytes": 40679,
+      "sha256": "782d61bf98de5189c72685b4eecdef961a85f88aa6c6fd9877b99d48f60992ca"
+    },
+    {
+      "path": "EpochPactUI/_internal/bisect.pyc",
+      "bytes": 3526,
+      "sha256": "aacc8eb16194ac25ea8600f3d2cc5428230e0ae03f0c73b700dfc69f9c03360e"
+    },
+    {
+      "path": "EpochPactUI/_internal/blinker/__init__.pyc",
+      "bytes": 428,
+      "sha256": "e9c96dd0a7d47576f8d61712febc10d735f512ad0564bab6230000cce1430e69"
+    },
+    {
+      "path": "EpochPactUI/_internal/blinker/_utilities.pyc",
+      "bytes": 2719,
+      "sha256": "f0567c2932278efbbecca1391ec385815ac68cfe815d3f7b35d2f09365c6f854"
+    },
+    {
+      "path": "EpochPactUI/_internal/blinker/base.pyc",
+      "bytes": 21231,
+      "sha256": "aad81041791b4609e319f3aabe71f364325acb442ef4996c52e06492daa198b5"
+    },
+    {
+      "path": "EpochPactUI/_internal/bottle.pyc",
+      "bytes": 252204,
+      "sha256": "5be3eb69b8300d3a8ecc00f3199eaab7a574296b02847120514d5a17b955cfcd"
+    },
+    {
+      "path": "EpochPactUI/_internal/bz2.pyc",
+      "bytes": 15182,
+      "sha256": "4e63da887235b9c81e466c70aef2274983b784785344b9c851d282a0d41835fd"
+    },
+    {
+      "path": "EpochPactUI/_internal/calendar.pyc",
+      "bytes": 39819,
+      "sha256": "66e7060548393112a724fd333edc2c6bf26ffd15e7577fea5b840f0bcc575952"
+    },
+    {
+      "path": "EpochPactUI/_internal/cffi/__init__.pyc",
+      "bytes": 481,
+      "sha256": "7efafa5eb56d16f661db529bcdd783ffe55b0b62a47f2973224c2ce40de3cb5d"
+    },
+    {
+      "path": "EpochPactUI/_internal/cffi/api.pyc",
+      "bytes": 49653,
+      "sha256": "d3fea8e85f12a2eabc06e370195c4fe9ee1e8239f6d42eebb5a714aefdf4a4fe"
+    },
+    {
+      "path": "EpochPactUI/_internal/cffi/commontypes.pyc",
+      "bytes": 3051,
+      "sha256": "7972928e54e230697985e00b8d83574c7d8e75b3b87494d2e072563430617730"
+    },
+    {
+      "path": "EpochPactUI/_internal/cffi/cparser.pyc",
+      "bytes": 48034,
+      "sha256": "130785bd31c787b18ced70e8941afb6e97a01241f0a55290b5102f4c4156e2cf"
+    },
+    {
+      "path": "EpochPactUI/_internal/cffi/error.pyc",
+      "bytes": 1964,
+      "sha256": "e1f27deff891352de0e1933996fb7269563973fb1add4d296531a9202904bb49"
+    },
+    {
+      "path": "EpochPactUI/_internal/cffi/lock.pyc",
+      "bytes": 459,
+      "sha256": "e8e0e54092f545f9215965c226750c0687eafeb11e9dde3eb2ff7db02be146ae"
+    },
+    {
+      "path": "EpochPactUI/_internal/cffi/model.pyc",
+      "bytes": 30925,
+      "sha256": "8f8eae7f023d3bdc64ae5843b07dfc79f57eec39bc687ff2ea37a68f354ac060"
+    },
+    {
+      "path": "EpochPactUI/_internal/cffi/pkgconfig.pyc",
+      "bytes": 6466,
+      "sha256": "d452c268f1b311759a328f6833c23ff9f552c175746b58f8bbd71061ef468f7d"
+    },
+    {
+      "path": "EpochPactUI/_internal/cffi/verifier.pyc",
+      "bytes": 16674,
+      "sha256": "eb59308823335efe9c18d5d2e3b9720bc6c6466d7cc2e6291112c483b3f12fea"
+    },
+    {
+      "path": "EpochPactUI/_internal/click-8.5.0.dist-info/INSTALLER",
+      "bytes": 4,
+      "sha256": "ceebae7b8927a3227e5303cf5e0f1f7b34bb542ad7250ac03fbcde36ec2f1508"
+    },
+    {
+      "path": "EpochPactUI/_internal/click-8.5.0.dist-info/METADATA",
+      "bytes": 2567,
+      "sha256": "e87bce0bd194de70dfb8e708e0a6b0483009f25611804eaf87bfeb63e6c20501"
+    },
+    {
+      "path": "EpochPactUI/_internal/click-8.5.0.dist-info/RECORD",
+      "bytes": 2619,
+      "sha256": "101ec7096b90ff8e449b54f10c387a7f6fb8de2849603c87a2099c28d2d975b5"
+    },
+    {
+      "path": "EpochPactUI/_internal/click-8.5.0.dist-info/REQUESTED",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "EpochPactUI/_internal/click-8.5.0.dist-info/WHEEL",
+      "bytes": 82,
+      "sha256": "1b68144734c4b66791f27add5d425f3620775585718a03d0f9b110ba3a4d88db"
+    },
+    {
+      "path": "EpochPactUI/_internal/click-8.5.0.dist-info/licenses/LICENSE.txt",
+      "bytes": 1475,
+      "sha256": "9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/__init__.pyc",
+      "bytes": 4528,
+      "sha256": "83b1527251ac55d3f175d7db0c837d5825de89a8210304f832a4763517772439"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/_compat.pyc",
+      "bytes": 23345,
+      "sha256": "c8e15257d79f766a4f2ef66fc2ff98f44dbec22fbecde24983a518cf1de448a8"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/_termui_impl.pyc",
+      "bytes": 37145,
+      "sha256": "0a3d5f124a14a6b3b42d380dc1c9793489b413ef0c48edb85f26147c3afe4cee"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/_textwrap.pyc",
+      "bytes": 7474,
+      "sha256": "d01acbd8f275a6343212e3cfac97bd011302f2d5c74545d23f8b7fdb2f6a5e10"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/_utils.pyc",
+      "bytes": 1404,
+      "sha256": "2292cd3724eba1368c05c969d810805e57146a2ae52fed801286ccdfe9d37aa6"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/_winconsole.pyc",
+      "bytes": 12202,
+      "sha256": "a3a38f6a3b81da67fdc9a8ed99c8b5982a3e19c66375a4a142bee4c807346d61"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/core.pyc",
+      "bytes": 148123,
+      "sha256": "cc95e51713958d2ba1da5a2d67b2997b920baf996253e571a6c6f6dbad6bbea6"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/decorators.pyc",
+      "bytes": 25160,
+      "sha256": "79896b26cc5dc2c18306a6a36e2578a0afc600c3d97a74c7be4e41179b238a3f"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/exceptions.pyc",
+      "bytes": 17463,
+      "sha256": "8b651fedf56a6de760d185df6410ea4076244fae18d9bfedf9da6f37cbdbe982"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/formatting.pyc",
+      "bytes": 14082,
+      "sha256": "b2a994c3f8b73745cf8dd2278f5e65f7b219fb02222b1cc0f73c5d1247533005"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/globals.pyc",
+      "bytes": 2883,
+      "sha256": "f9c27b49af276c866f6451aa17675a403efad735a193a94fa8b6283423dd6f16"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/parser.pyc",
+      "bytes": 20677,
+      "sha256": "c679fd451781706367d43f806f8c5e961f54705fa467bb66d734ed263c1e2a26"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/shell_completion.pyc",
+      "bytes": 28463,
+      "sha256": "ffeb47e1b539ca43bebf2e86df06acd151706b688aa92ea458ceb0dbcdb798bb"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/termui.pyc",
+      "bytes": 39181,
+      "sha256": "94cf87a7f9f918f3d8024f74500a1c2b72f1c1106af79800b784cff361139439"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/testing.pyc",
+      "bytes": 36170,
+      "sha256": "133781bf7ca6427a0fe24468b09bf32d32024c57a40549dd7849e0e5eb12c379"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/types.pyc",
+      "bytes": 59570,
+      "sha256": "e7eaf8bbd4de791eae43538c3b60785b927ab717ec04fef6f17fd7fec4f1fcd6"
+    },
+    {
+      "path": "EpochPactUI/_internal/click/utils.pyc",
+      "bytes": 26385,
+      "sha256": "58493c64c277ba5400cb6eb4f60e500c3565649b0fdf1adc187cc0086485f6e4"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr.pyc",
+      "bytes": 239,
+      "sha256": "e84e4bd4044cde4f7c545d21c9d7d92db45935f9c55f4cd7b75e9ddcc1765873"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/__init__.pyc",
+      "bytes": 7370,
+      "sha256": "e54c3b6c668d70dff2a0741346d530bc2ec637eb52af5456fa9eddcc00c8ecb2"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/ffi/__init__.pyc",
+      "bytes": 3987,
+      "sha256": "7a49c03841c842a6ae4f069d95a0d4589aa2b037bb5cf2fe7f4639658896cf61"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/ffi/dlls/amd64/ClrLoader.dll",
+      "bytes": 10752,
+      "sha256": "07f62bcb1b70320f221ffb2cfc5ce6133815195f3e7cdb8d833222506188c2ac"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/ffi/dlls/x86/ClrLoader.dll",
+      "bytes": 10752,
+      "sha256": "3128381d133f4ff746add70100cfef713ce2d78f2b12c02ec24ec453c5dfab0d"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/ffi/hostfxr.pyc",
+      "bytes": 3327,
+      "sha256": "1ab8a317b07e9de41296e9ce653f37495db7670f53f080d8b91d2a1cccf4856d"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/ffi/mono.pyc",
+      "bytes": 1751,
+      "sha256": "e43af155c3b5402a4c6f065173a1d062bbf28e391ff36daae417d28615a45a2b"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/ffi/netfx.pyc",
+      "bytes": 528,
+      "sha256": "82a46dc52a77f51b942ab52e987deb392bb7f8964a82258e7eea6d540c96affc"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/hostfxr.pyc",
+      "bytes": 9980,
+      "sha256": "b472e64db5c74a45e29bf21fd1c838e855ea9967768f36eda61cb40a9a00ceef"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/mono.pyc",
+      "bytes": 9656,
+      "sha256": "01c2db5d596721282541095d04de0b0fd02270616e81d02a38057291674f07c8"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/netfx.pyc",
+      "bytes": 3358,
+      "sha256": "1e7d888658954ddd3351d647ed6b17fedd5232eca65b54b4279f998aa01545bb"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/types.pyc",
+      "bytes": 7533,
+      "sha256": "44cb4d071dae7211424df08a6e9fbf268368175ae57d0953e61d3b8367fe62e3"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/util/__init__.pyc",
+      "bytes": 1401,
+      "sha256": "d221e653760228c01e5f48c69c18fc4acaf45cebd2a3779f0621e6a153ecbf6e"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/util/clr_error.pyc",
+      "bytes": 1612,
+      "sha256": "ad2e7fbbc9e419961cbdbd8c690a28104115cdb8ea2aab27f2c775f6a609acb2"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/util/coreclr_errors.pyc",
+      "bytes": 77110,
+      "sha256": "79fec4386881d25f25c598eb44b4d6bb20b15639afc6aaf55d8aa1290c932d90"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/util/find.pyc",
+      "bytes": 7766,
+      "sha256": "3f31210f7f0b62c6abaa386993d5708285f7c766824c01d907cf950aeefd3d54"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/util/hostfxr_errors.pyc",
+      "bytes": 2521,
+      "sha256": "81c610f76f96907b202e042922090bb69faec68ee154cc29d0049f45a3d709b6"
+    },
+    {
+      "path": "EpochPactUI/_internal/clr_loader/util/runtime_spec.pyc",
+      "bytes": 2525,
+      "sha256": "bb10edf9ab0d5b8d030352ac694723a07f44a79a06b91c5984be5f8a87246468"
+    },
+    {
+      "path": "EpochPactUI/_internal/cmd.pyc",
+      "bytes": 18953,
+      "sha256": "a3cbbe2c3a97fa8ad07b950c872cfe1b06ad4da2e12927421bb908adafcfcea5"
+    },
+    {
+      "path": "EpochPactUI/_internal/code.pyc",
+      "bytes": 15771,
+      "sha256": "490e52e1d3d67ab00050d6976c632aed4aaa928a65660353cdb6b25c1dfd1732"
+    },
+    {
+      "path": "EpochPactUI/_internal/codecs.pyc",
+      "bytes": 40872,
+      "sha256": "c8089a89ac013c775af14d3f50722dde3cd4c2264f614f9df829c9d2e9a14361"
+    },
+    {
+      "path": "EpochPactUI/_internal/codeop.pyc",
+      "bytes": 6620,
+      "sha256": "f27756a6145cbfd83e6d8f9b6e08a2bbb66a773d1cbf5ab4ba8587107a3360d5"
+    },
+    {
+      "path": "EpochPactUI/_internal/collections/__init__.pyc",
+      "bytes": 73693,
+      "sha256": "14c8a07fed0f43e8ff86bebe16e809757b3d4a2c54e7cf77f296f9e92f1894d9"
+    },
+    {
+      "path": "EpochPactUI/_internal/concurrent/__init__.pyc",
+      "bytes": 119,
+      "sha256": "7705a8c87072b51f48c67a4b6dc39115604fab267da46152fa3a37f27245cab8"
+    },
+    {
+      "path": "EpochPactUI/_internal/concurrent/futures/__init__.pyc",
+      "bytes": 1243,
+      "sha256": "abca7b327a8d4935f00b1df7c2313bd167d1b6a2bbf676a0222ecd59804a1b6d"
+    },
+    {
+      "path": "EpochPactUI/_internal/concurrent/futures/_base.pyc",
+      "bytes": 32020,
+      "sha256": "ac65046ef39ca6869adc713f8215d719d7fae6c90e27f6ada04c1283366466e0"
+    },
+    {
+      "path": "EpochPactUI/_internal/concurrent/futures/process.pyc",
+      "bytes": 35614,
+      "sha256": "de8d52823cad9f25976fd5c18c3ddfa6754ecf8fb4b2f41d8617a03c25799984"
+    },
+    {
+      "path": "EpochPactUI/_internal/concurrent/futures/thread.pyc",
+      "bytes": 10509,
+      "sha256": "5a039895bf4bfb3bec1ba633b34b814d6fe15eb0f027fede61fd585f3f7c17ab"
+    },
+    {
+      "path": "EpochPactUI/_internal/configparser.pyc",
+      "bytes": 69177,
+      "sha256": "a210a0c80edb14a6f4e4e35647d413cb847bcad2244f343d2754931f88f60c67"
+    },
+    {
+      "path": "EpochPactUI/_internal/contextlib.pyc",
+      "bytes": 30726,
+      "sha256": "b072b437cb3fd0e61bd036d57a91ef82102fda7d5ba82242ea655108ce3f6318"
+    },
+    {
+      "path": "EpochPactUI/_internal/contextvars.pyc",
+      "bytes": 241,
+      "sha256": "43d39c4c91ddbb082c6262dfc088624acfe828082790856207bb24c491427e61"
+    },
+    {
+      "path": "EpochPactUI/_internal/copy.pyc",
+      "bytes": 10612,
+      "sha256": "baae1be4677b578fd18acfade136ec21d3a6c7e2d62245a19729e992d4a604b0"
+    },
+    {
+      "path": "EpochPactUI/_internal/copyreg.pyc",
+      "bytes": 7525,
+      "sha256": "c9d3813d270dc1e684669ef2445ab4ebee099400e2b3f5b92cc185504c262928"
+    },
+    {
+      "path": "EpochPactUI/_internal/csv.pyc",
+      "bytes": 20673,
+      "sha256": "b85d711fead2ed22ce92370e2f372981bd9b78742e37b94348c8f39f457e84a5"
+    },
+    {
+      "path": "EpochPactUI/_internal/ctypes/__init__.pyc",
+      "bytes": 25272,
+      "sha256": "2f06e8859bd1e00105f6704cecd64c67aa7f5438cda2887fd054a4acd32c7049"
+    },
+    {
+      "path": "EpochPactUI/_internal/ctypes/_aix.pyc",
+      "bytes": 12266,
+      "sha256": "e3fe349a72dca06268cb0d5155995a30eb15862d0b383d4503331e66af2cc992"
+    },
+    {
+      "path": "EpochPactUI/_internal/ctypes/_endian.pyc",
+      "bytes": 3557,
+      "sha256": "f1ea67358fe9d7e2646e0b67d67b45cf9005bb78ecc52e98bd1bdddc72f310d3"
+    },
+    {
+      "path": "EpochPactUI/_internal/ctypes/macholib/__init__.pyc",
+      "bytes": 296,
+      "sha256": "a2c6aba943952e2e765cc54e7ed59c8482c11501a59aa00f509ff55d246541c6"
+    },
+    {
+      "path": "EpochPactUI/_internal/ctypes/macholib/dyld.pyc",
+      "bytes": 6809,
+      "sha256": "add423d65a9c3c517c9c6aa21eec763b5929bba831e5598ad602e6e15b27354f"
+    },
+    {
+      "path": "EpochPactUI/_internal/ctypes/macholib/dylib.pyc",
+      "bytes": 1203,
+      "sha256": "a2e3dcdd6db99cf1898b759cf1dc55dc40bbf847549045fdcf36a084be9f6db8"
+    },
+    {
+      "path": "EpochPactUI/_internal/ctypes/macholib/framework.pyc",
+      "bytes": 1333,
+      "sha256": "2a9eed9dd022d5ca5b697cc10849b3b3b922e1b767c3ba54c4bcdbddf3ec3027"
+    },
+    {
+      "path": "EpochPactUI/_internal/ctypes/util.pyc",
+      "bytes": 17234,
+      "sha256": "cb7898a58cb34889f10ea74bea105db53581488ff03753da74f5338bbf0b57f1"
+    },
+    {
+      "path": "EpochPactUI/_internal/ctypes/wintypes.pyc",
+      "bytes": 8685,
+      "sha256": "ddf3fd7f9ffbbf17a54148852e853ab6fec5bc324c41b5c2ac01da1aac7ce048"
+    },
+    {
+      "path": "EpochPactUI/_internal/dataclasses.pyc",
+      "bytes": 47875,
+      "sha256": "b299fa5cdb19d1b8bac712c9f61180f0aa445c5acce595b4ed28dbc29b46bd8a"
+    },
+    {
+      "path": "EpochPactUI/_internal/datetime.pyc",
+      "bytes": 391,
+      "sha256": "bef2db81870598b54682d78dd1fc421b256c486c874e83ff20c09bc18bcd4f9b"
+    },
+    {
+      "path": "EpochPactUI/_internal/decimal.pyc",
+      "bytes": 2982,
+      "sha256": "cd13ad3e8ad077859060e6f1bbdc4df4a999ee51aaba261114846d715716b564"
+    },
+    {
+      "path": "EpochPactUI/_internal/difflib.pyc",
+      "bytes": 72066,
+      "sha256": "d19850e522a7d86a7a5d79dc19b8fdb8302b09cd7209f6251506e946d1a6f51d"
+    },
+    {
+      "path": "EpochPactUI/_internal/dis.pyc",
+      "bytes": 47519,
+      "sha256": "e12c63dbe042ec2e52cb6b56784b0d283b87399b0f4b524e9b89596e76c01165"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/__init__.pyc",
+      "bytes": 1867,
+      "sha256": "801fe734b04c9507efb20c2df9353f51b0ceee1c8a99a193be5b978ba40850aa"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/_encoded_words.pyc",
+      "bytes": 8276,
+      "sha256": "9c55ee0ea1ce9c71975d25d99f994307b25db93fdfa629e26bb77b68aa8840bd"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/_header_value_parser.pyc",
+      "bytes": 137153,
+      "sha256": "fbad6e79d9b8d98c427c8c8adf21953b2eeff84d67404be4f2b39f45dde741e1"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/_parseaddr.pyc",
+      "bytes": 23570,
+      "sha256": "a2f044f4016705e520b3aeb35e10e60d44293c73c010d6a49a5449d300669b9e"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/_policybase.pyc",
+      "bytes": 18046,
+      "sha256": "4204da6c8a3ebe633cd1b03db37face03c5d546f8714e1dba2df07e8d07ebb2e"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/base64mime.pyc",
+      "bytes": 3954,
+      "sha256": "6496fa04d3780cdd7e0214df0aba0c7883317e5acc5169085e5fbe95086d3714"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/charset.pyc",
+      "bytes": 14879,
+      "sha256": "3f192faada7ca5bce5e3bf5a6df4b9f67b9540d813d98fe09a26df31e586a567"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/contentmanager.pyc",
+      "bytes": 12369,
+      "sha256": "59054fe1b9499e740b3f87348a9937a63275799c4667b01fc7698ea86116e1e7"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/encoders.pyc",
+      "bytes": 2045,
+      "sha256": "8b9e9b754d00201b893028ddc7cf74d6bc4e531dd5d2fe5149326a02923f29ab"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/errors.pyc",
+      "bytes": 7558,
+      "sha256": "91a050a2d84f9f958816b746aadf389a616d76167f01467ef10dae7614faa6fd"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/feedparser.pyc",
+      "bytes": 20553,
+      "sha256": "bb4809e3dfb3ad843f4eb1a9e295a03bf3d36d8d2408ccca3b9bf256cb1b5700"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/generator.pyc",
+      "bytes": 20628,
+      "sha256": "985902969d6afea2d2fe64ced16ca0707d8203ab98af055e24c6a24e9b3c043b"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/header.pyc",
+      "bytes": 24947,
+      "sha256": "00de30cebb59fa867e498aee077afc9e41f0daffe733b57ccb6899b273027338"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/headerregistry.pyc",
+      "bytes": 31546,
+      "sha256": "0072be3aba5348ada80b4f9fab9dbe295aa09127108d1fd65bd68a69092f1a25"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/iterators.pyc",
+      "bytes": 2796,
+      "sha256": "ce22e37013855306e89a0117c36da2ccd625231a457648d04b87b6ac6882eb8c"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/message.pyc",
+      "bytes": 51881,
+      "sha256": "ac140191752dc9a8c897af07c4845bcd314433b4a552bc3c39eabed59cd9af93"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/parser.pyc",
+      "bytes": 6557,
+      "sha256": "b6ff6d55f66619370f8a5adf82c6bc42a62f25813700ebf89ea77e364e69bbc2"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/policy.pyc",
+      "bytes": 11409,
+      "sha256": "dcf05bf8994bf4a8f549740a89bcc3b4cfc274321e29a7663572658e05acb16d"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/quoprimime.pyc",
+      "bytes": 9900,
+      "sha256": "3d10c05bdddd2abca86caeeb3ce5ec4deab845cb34569b4078d8b1e745154142"
+    },
+    {
+      "path": "EpochPactUI/_internal/email/utils.pyc",
+      "bytes": 16763,
+      "sha256": "3acca3c695f95e4eacc844c59c1a1ff8e8915f9a772498b73a1e50465b94250c"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/__init__.pyc",
+      "bytes": 5997,
+      "sha256": "f5cdbfde50bc18f235a41a9b51e1f843536976ae283bd83a98c4b274b363da31"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/aliases.pyc",
+      "bytes": 12365,
+      "sha256": "009f38fbdcbb37770cbd13dbfee35efbf74cc2e86f5aaaf12b4e82a93930d7be"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/ascii.pyc",
+      "bytes": 2695,
+      "sha256": "f62c91fc7ba31ddfae5e7e52394560758c6a0173f0a0b3bc82d7f2fd447b0c3a"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/base64_codec.pyc",
+      "bytes": 3179,
+      "sha256": "80e84e50d8ecc5fa5a7489f4a7591c78dabcbfadfac8ae353ef33599e59a54b2"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/big5.pyc",
+      "bytes": 2104,
+      "sha256": "555867c3b0c89d80ffd46245a47b6c9c37392877a3d61a6edbf145d0df4367c1"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/big5hkscs.pyc",
+      "bytes": 2114,
+      "sha256": "f7ab5ec629496662003088c84392c3ca978d9d0033539becef130f571a6ddb42"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/bz2_codec.pyc",
+      "bytes": 4546,
+      "sha256": "f5ddc4004ce6af91302e67438c2086952a05fd68b8a5a74845a6a1aa12184692"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/charmap.pyc",
+      "bytes": 4016,
+      "sha256": "3d463237951a6d8bb090bfde6a27d7bd1bcd0a4f60ae193d298a2e6ea9c32acb"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp037.pyc",
+      "bytes": 3269,
+      "sha256": "f2e4dc157b039951c43d45b6dd031c737ea6ece1cbf2eb451e0ac9102e031611"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp1006.pyc",
+      "bytes": 3345,
+      "sha256": "eba6c1bd7a4ccc2a21dbbb560a597aafcf62459aff09781cd6cdb00e0125219b"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp1026.pyc",
+      "bytes": 3273,
+      "sha256": "7c834f71bc771a44e5786920a0c118cfedde4f4ff92ad56b31427e83ba2bf048"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp1125.pyc",
+      "bytes": 13809,
+      "sha256": "b3283ffb9551270df4dcfbb3d4b9fcc9b9f25e0a85b0f4797f594b6871627439"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp1140.pyc",
+      "bytes": 3259,
+      "sha256": "ec83e6b332059487085b6b1f419611f1db58ff6ab07455e54380a388b5c9e5de"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp1250.pyc",
+      "bytes": 3296,
+      "sha256": "f35a435c084727710eb4240e63b9c471a421bfc3196ac4eef007edef7522b85c"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp1251.pyc",
+      "bytes": 3293,
+      "sha256": "dad17715877f3fecf911472872fa5dba2d9b370c355088e274e6d1132b066f70"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp1252.pyc",
+      "bytes": 3296,
+      "sha256": "6972956d79771d92be2af6c4b5cd71258cbff8941313b3a2d774b6ff0b6e4987"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp1253.pyc",
+      "bytes": 3309,
+      "sha256": "73e40d60dd58a08d845a25d00e2eb6bc75f774871bea4212effce024fb8d136a"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp1254.pyc",
+      "bytes": 3298,
+      "sha256": "57c91a9c707d53b7934722aa532297ef950695ad0fdc513214ab29372631e967"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp1255.pyc",
+      "bytes": 3317,
+      "sha256": "1c7de22df6ad271e74f9eba17ff7aaa05edf5e20c7c922d351e18885a060c036"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp1256.pyc",
+      "bytes": 3295,
+      "sha256": "cd717920d1dfdc00c325dd1f7001ebfc744afc1dd0cdc2ea0cb91c2782fd033c"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp1257.pyc",
+      "bytes": 3303,
+      "sha256": "dd95f45763239998774b6fbb6a8ed8dfa37c0307db4e8e783dae4c705805b1b3"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp1258.pyc",
+      "bytes": 3301,
+      "sha256": "dd170fcede9995d880cc25a9821ac5fa8cb7aca61223c326b0ea4e875d9902fb"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp273.pyc",
+      "bytes": 3255,
+      "sha256": "5cec3de27fe24f7f32e165bca416dde32094be6ba52cae93d619cbf54f762284"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp424.pyc",
+      "bytes": 3299,
+      "sha256": "a49dc41794f1d20757d9609aa76f1c276c2709f6dd6a090b05de9a5d160486df"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp437.pyc",
+      "bytes": 13442,
+      "sha256": "96f1955cce3e1b8421d439e6c89aab5c1713a1fce293d63baa7405cfbdd4e858"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp500.pyc",
+      "bytes": 3269,
+      "sha256": "cfcfe613d2f19a6e8c941353b26a7dc05930a708ebb5b518a722216116a63d7d"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp720.pyc",
+      "bytes": 3367,
+      "sha256": "8aeec4fbc36a2c8baa1aaf8ceb2121ca84a4bf9c54688f973573e090fc14d128"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp737.pyc",
+      "bytes": 13844,
+      "sha256": "c5e3cca5d2c5d85f676adf067dca19ae07fe8be8ad1d22c833f0030f0fb7f5f5"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp775.pyc",
+      "bytes": 13482,
+      "sha256": "e53d939e067b8efee932dd6ca09ca36bb90234f02eb6efb64bcdde9a4f7accb2"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp850.pyc",
+      "bytes": 13023,
+      "sha256": "5ae50d4d5d4e4af871e403535730103190cedd03985f8aec304280b24ad1668c"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp852.pyc",
+      "bytes": 13498,
+      "sha256": "c0b3a6072e9bbc4e739ac9dc0147a091e22a8adf73a4b0311556b4837e28a1b5"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp855.pyc",
+      "bytes": 13811,
+      "sha256": "616bc71fb6c3ccece53f163e30380ecd8810a2954d999cd1fe4859468856b037"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp856.pyc",
+      "bytes": 3331,
+      "sha256": "44b59d149debfdde2b8015c4627e7492454f889deb30310b7d1ccb5e33c7d9e7"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp857.pyc",
+      "bytes": 12824,
+      "sha256": "8adabeec806b6eb9467d535d9a356b6f06708b9e13b6277d0e04b8709d2cf330"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp858.pyc",
+      "bytes": 12993,
+      "sha256": "6a4d58dda71a6e9494526ae381f1f1ad624c17403de0d360e428fcdaa770aaf7"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp860.pyc",
+      "bytes": 13413,
+      "sha256": "051e64061bd2de0d53f0161bf079d40778fd6481716cd42b666bd51671165a41"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp861.pyc",
+      "bytes": 13438,
+      "sha256": "8bce5c359ed8465ea6b36da2e74c9ab6a60ac6c072d75fd8a08c96243c1a5b08"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp862.pyc",
+      "bytes": 13671,
+      "sha256": "d8d661f344c38fe29fc946c68aa9ad85232f4f90072072aeecca1661aa0fc745"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp863.pyc",
+      "bytes": 13434,
+      "sha256": "1706c2afc8b1f85e5f973d5fb3723f6395ceb503550a13ea63da10f1f6238477"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp864.pyc",
+      "bytes": 13479,
+      "sha256": "aa7244ed2ad4ab2e137b44abd221e7523d000d73c4fd433b9b77baad098bedc6"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp865.pyc",
+      "bytes": 13438,
+      "sha256": "aa5a2b6fd171367da22b81baf5b15e6e382a62404051022f070ffce3dfde1bb2"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp866.pyc",
+      "bytes": 13851,
+      "sha256": "bf3af38264a4113ee92589801d0956a152f2cf9f62c1751f53a71032b19756b2"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp869.pyc",
+      "bytes": 13381,
+      "sha256": "a2e6a2ac5b33ba6c02d23abebfc366f249adaa1fa9885f0ab4403741b43c6af5"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp874.pyc",
+      "bytes": 3397,
+      "sha256": "15699989c8c6027c16894aa5f58b08f64dc4e53fe3ac3be5ed1557463282058f"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp875.pyc",
+      "bytes": 3266,
+      "sha256": "2363dd41262277c793c7826f5c187b11f9be0b35c0797a2a325242bb6ca84eca"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp932.pyc",
+      "bytes": 2106,
+      "sha256": "20406a76e4a246f7cd438b2e047403a6acb402ebc8ba197826b759b900e383cc"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp949.pyc",
+      "bytes": 2106,
+      "sha256": "099cc5308d4a04be33a7145e7f432c92f8c4e2861d3c27aefc195595548efa8a"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/cp950.pyc",
+      "bytes": 2106,
+      "sha256": "630c041635e138ae5d8744ca7b5dd2437686364d00757269ab95b6ed95516add"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/euc_jis_2004.pyc",
+      "bytes": 2120,
+      "sha256": "c74300366510814f4e8ec5e0049ace7121536fa5a9cfe832ed8b908fc15eda64"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/euc_jisx0213.pyc",
+      "bytes": 2120,
+      "sha256": "ff77c2c8f3326b7a5092f29b103003edd26fd372f9889f6d42122f92c7d5542b"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/euc_jp.pyc",
+      "bytes": 2108,
+      "sha256": "5b151e9ad01dfcad9265f31d5851f548cea0538983541bbbc7cdc91164a019b7"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/euc_kr.pyc",
+      "bytes": 2108,
+      "sha256": "60e2de6b1479afac27798ddac155896dc9f340148d755535b187b98ef969252c"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/gb18030.pyc",
+      "bytes": 2110,
+      "sha256": "195b77d10b7729153eeffba469964dc77d40c7542fc0320e3f583796173ece80"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/gb2312.pyc",
+      "bytes": 2108,
+      "sha256": "6127a4801fef78a68b9704bef799a55f9e41008ca536f5dd14974d72ff9490ad"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/gbk.pyc",
+      "bytes": 2102,
+      "sha256": "4baf3e313880621af9387bd91b7b6f2725a648f8b674b95b35bfb063e842034a"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/hex_codec.pyc",
+      "bytes": 3166,
+      "sha256": "fcd915403314d6e9ebeead2920574528862d864cbba44135ef767b7f9162ed61"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/hp_roman8.pyc",
+      "bytes": 3454,
+      "sha256": "349ab33604a202447c1cbfda974b4b6476b5f11525e78b978fca22d57cc43854"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/hz.pyc",
+      "bytes": 2100,
+      "sha256": "88311fd1485006b58e1238831ef4f88599eeb909d3bcc1ea7631ea3654e13c7e"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/idna.pyc",
+      "bytes": 14475,
+      "sha256": "7bf754e78da8cb4c3bf55b7f3daea2abe5696f13f3bb6da8eab8cced91748f81"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso2022_jp.pyc",
+      "bytes": 2121,
+      "sha256": "529f30cd3485bc9f18dc4594e6688ec645c150912a8e482fba9008431b32e110"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso2022_jp_1.pyc",
+      "bytes": 2125,
+      "sha256": "8c95511d1a2ebc5da64906f779bd9d4046b3f7386a8a4495a4d7a68bbb4abd2c"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso2022_jp_2.pyc",
+      "bytes": 2125,
+      "sha256": "ca94155c64877e0c5fc0252c0028a6056824eba0614e8302f4c84a0cc4018141"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso2022_jp_2004.pyc",
+      "bytes": 2132,
+      "sha256": "b105fc9201e7549129466de2aabc7256723d4ef952b16994d0a75df86be5e6c6"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso2022_jp_3.pyc",
+      "bytes": 2125,
+      "sha256": "58e4be7e55fe0bafb3ea54b66acf69e9f8b01813449927ac763c77405cb3a228"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso2022_jp_ext.pyc",
+      "bytes": 2130,
+      "sha256": "a09fde8a2b0bc1e87b141330b1e7947e952f47549b7862cb0a127797321bbbbd"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso2022_kr.pyc",
+      "bytes": 2121,
+      "sha256": "234222195cf3fb0b0c10797fc9e5b152497d54398963fc6c60337a130284bc71"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_1.pyc",
+      "bytes": 3268,
+      "sha256": "65266b5315e375a96a60001883fdbe18ab84f6acfe3a4a694a9dea5f8514ee17"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_10.pyc",
+      "bytes": 3273,
+      "sha256": "7eff766e73fd968bbc8dab744a9c9f7489102ef5df2400d3d4aca1145168da15"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_11.pyc",
+      "bytes": 3367,
+      "sha256": "7771fc38d3b9ba2d8237b283d2514679cb63ae80c79d0b729a0145dd8b4cb0f4"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_13.pyc",
+      "bytes": 3276,
+      "sha256": "2722e49fcdd4e0277cda32a452885a3bb5b4befc259075443892e8c6f7a029e3"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_14.pyc",
+      "bytes": 3294,
+      "sha256": "21a9d0c45332d61131f4efbc3d499c806175b847e11603ecfcc8e6031d778410"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_15.pyc",
+      "bytes": 3273,
+      "sha256": "9398821cec89dad3d65f2a3738347624675d47df1b4f66e28e0e2f19bb1e2f02"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_16.pyc",
+      "bytes": 3275,
+      "sha256": "c0a5bdd2aeb469b29e9a63b751b99a1152e54c07372a1b6bca66466b3ead5e7c"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_2.pyc",
+      "bytes": 3268,
+      "sha256": "c2b4a532daf7c7063d0724104b34e5a8208ae3fd893bc0216c1be7220c9f4d59"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_3.pyc",
+      "bytes": 3275,
+      "sha256": "a796ffbe9d8c0097edba1a611fd26c8819de10edd30c73fc86475645de576515"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_4.pyc",
+      "bytes": 3268,
+      "sha256": "65cc1009104d997b98cef60bb3b76533ae7c6f3bf2612cefb95c20fca7168f74"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_5.pyc",
+      "bytes": 3269,
+      "sha256": "202bc2ad8209c8ac2898e06c655f0290e6404a90cbddac1d7403e07c92226203"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_6.pyc",
+      "bytes": 3313,
+      "sha256": "3e7b5714e5b0c866adf3a6f720fd90b059d0d77897eca36f264ba29d5fb82d6d"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_7.pyc",
+      "bytes": 3276,
+      "sha256": "b59986237bb9dbb0d39c334db8ceb9170e3144d8ec0a423f7c63ce004ee63506"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_8.pyc",
+      "bytes": 3307,
+      "sha256": "23ada0276a802bfcb32211bd5f51b72f9aa759fc3ef4dc651c62eeafd50be047"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/iso8859_9.pyc",
+      "bytes": 3268,
+      "sha256": "5f75ea96f0486c4b7b18a88750d593f591212b6ded88b3bdf7308d8af3f59fcd"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/johab.pyc",
+      "bytes": 2106,
+      "sha256": "0e8632432bc1787bfef9c799ddd11404268de5b9ea6f27344dbb037ed7fbdb9c"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/koi8_r.pyc",
+      "bytes": 3320,
+      "sha256": "6a510ddadee155615a995d7f9e8ea4afcf6ab50fbc5475b338ed168f183a11e0"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/koi8_t.pyc",
+      "bytes": 3231,
+      "sha256": "64613e1e4e71500c607b06d12af20394b219d2567d8d0385daf0d25657aa203b"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/koi8_u.pyc",
+      "bytes": 3306,
+      "sha256": "9529c11890ee6d115f16d01d5dffd64b817cf9182cdc3fc484921342e3a39b7c"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/kz1048.pyc",
+      "bytes": 3283,
+      "sha256": "694bdb0137550c5c8b59c24ea6d155313b2ca15851214a1f46aae96bb5d9bb15"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/latin_1.pyc",
+      "bytes": 2707,
+      "sha256": "f758a1f77a51f82825ec5137fcc24798c69d1f0d37392e481c6bf1c9de1d1312"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/mac_arabic.pyc",
+      "bytes": 13328,
+      "sha256": "8d77df0f63560b39ce0bce0e4417c4721eaf5af0da83772af678e10be34d7ef0"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/mac_croatian.pyc",
+      "bytes": 3315,
+      "sha256": "95552084901824bbe95cf7a42118a851de5035f8fd2bf2e345c7dda61bbe56db"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/mac_cyrillic.pyc",
+      "bytes": 3305,
+      "sha256": "ea0ac2aca9d0a915ff495ac684c9638588286f92aa4836169a1f109aae006f26"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/mac_farsi.pyc",
+      "bytes": 3249,
+      "sha256": "f6f2d38d94bd77f8a2990ec3f8dae83acab308d1dbe5bbd507ca61d0d302a6ae"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/mac_greek.pyc",
+      "bytes": 3289,
+      "sha256": "271c14cb2c784a4cd6540af9bbc2dc127b830967d7374df108a1e8346de394b9"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/mac_iceland.pyc",
+      "bytes": 3308,
+      "sha256": "a139f6aca640fd0c4d709ff6833e7a37eb22a7181c0b5e0a5988af572a700e00"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/mac_latin2.pyc",
+      "bytes": 3449,
+      "sha256": "70eb490c478a7941b2649bce7f7661351021697c1d194026ee854ee687a8afc9"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/mac_roman.pyc",
+      "bytes": 3306,
+      "sha256": "3c661f2b72e43a7a3d76d1b402694e0f61bf2fbf864e62b7c6f0d121885a791a"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/mac_romanian.pyc",
+      "bytes": 3316,
+      "sha256": "775563163fa9ae8a6127fc3ac3fd19c8f332eaf65f985db65d38b2b18fef380d"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/mac_turkish.pyc",
+      "bytes": 3309,
+      "sha256": "7b5faa74cc5096c2f55fff28bb292bce26c82abe63f7c477ec5df46c253a4894"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/mbcs.pyc",
+      "bytes": 2204,
+      "sha256": "cfd5820ff902f5123a22bd5eb25a685cf42061ba1c65c185e1ce2ab0ec9e2387"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/oem.pyc",
+      "bytes": 2017,
+      "sha256": "073bbeef88db3db0c2d5838b6f2bdf190933d6df21e7aeaa6cc7c682f0dcd0e5"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/palmos.pyc",
+      "bytes": 3297,
+      "sha256": "0d1d229086027d865e541ceb4274636341703ce05b7180b3b2be1854e54335d7"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/ptcp154.pyc",
+      "bytes": 3390,
+      "sha256": "b263601a72704fc85e8b98a45330eb09e2f871d65948d67eb07190415c0bfd93"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/punycode.pyc",
+      "bytes": 10117,
+      "sha256": "d52f45f289e05fb21fd3ebb62ea21cf655edaf097e6e123b7a567f52c02dce5f"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/quopri_codec.pyc",
+      "bytes": 3327,
+      "sha256": "ac776e1f459d21b084ba2e95762292bbdbf89ae39f4aedf5d1e833c111cb44e3"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/raw_unicode_escape.pyc",
+      "bytes": 2727,
+      "sha256": "9ecda163c208091c5d0d11746f75c2b889dcf45d0b08f99c21196ce3fec82136"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/rot_13.pyc",
+      "bytes": 4565,
+      "sha256": "6be5259bdd5a9e5af93413c62490b43b7a5bdb3bb683ce9b5f573f8e94cbe2a0"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/shift_jis.pyc",
+      "bytes": 2114,
+      "sha256": "e22ce80fc1ebd334ca64d4fa79f6d070fd7fdf1e192e0a92c0ac9e22a9ba6702"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/shift_jis_2004.pyc",
+      "bytes": 2125,
+      "sha256": "c41668c12503db1fc4cb12b069705a79f6019a8d4345063c02498b794df8d832"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/shift_jisx0213.pyc",
+      "bytes": 2125,
+      "sha256": "82c1f2902f8b765dbbee5816578f1d7471d1ca9744ba8dee41172fddc4788c45"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/tis_620.pyc",
+      "bytes": 3358,
+      "sha256": "f2ff6aef60b3f0f63bf747c110fb13bcd430734e17c93658248c267d15865e8f"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/undefined.pyc",
+      "bytes": 2700,
+      "sha256": "fb93efe8aa41fbbbaafc5c04f4bb82d9e6e4a3d5e56fb931d79fba2db324f2c5"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/unicode_escape.pyc",
+      "bytes": 2707,
+      "sha256": "6767d9e81299b537b57b43e8d1e0e85f43bab59f03ecb0a31d3aa786156fb3a3"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/utf_16.pyc",
+      "bytes": 7913,
+      "sha256": "36ea91db4bb93d6a6f90d573d380293869f273c7a8cad817ed8047f9a5415161"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/utf_16_be.pyc",
+      "bytes": 2284,
+      "sha256": "fec2b54ae12499ef90fd0a2d29ba86f9d4c240018ad97044ceacb41f148a17fb"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/utf_16_le.pyc",
+      "bytes": 2284,
+      "sha256": "91401aad91c342dd1bd349773ced67b334e7fa323df1a6da66c7c9112ccdad24"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/utf_32.pyc",
+      "bytes": 7807,
+      "sha256": "9e4a3f47dd311275604e19029619dfc7728b365ab64e92c9a59f4166de54445d"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/utf_32_be.pyc",
+      "bytes": 2178,
+      "sha256": "9ef54e12d7874e953fef7fa2183cb26e4d1a9be95382f4f6482f90b3e4eb4c0c"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/utf_32_le.pyc",
+      "bytes": 2178,
+      "sha256": "4c6429c49de07a5fff028eb858f0b845a03660caadeec3c8fb0aa7780cdacd31"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/utf_7.pyc",
+      "bytes": 2205,
+      "sha256": "fa466aeef4b17a590fb86cf24c3b5e0cc236b89f6a100ee108ec608598b58c3a"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/utf_8.pyc",
+      "bytes": 2264,
+      "sha256": "1f50a0c2c3d63a9054e3d831d4d8418258a4ce500aec3f0fd5317f8956b23b30"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/utf_8_sig.pyc",
+      "bytes": 6932,
+      "sha256": "fe3382be2ba27e2ee39035ec5b9b0deed328f685166c44cdcf70f2bd6162f5bb"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/uu_codec.pyc",
+      "bytes": 4856,
+      "sha256": "7060e9df49097edf754af70678614291319a0e859ff1585b965e29ee92fab51c"
+    },
+    {
+      "path": "EpochPactUI/_internal/encodings/zlib_codec.pyc",
+      "bytes": 4481,
+      "sha256": "95a056bec7732c02e8dcf8440b6cfddc4bf8eb7421e2bedfa29c448149c17a22"
+    },
+    {
+      "path": "EpochPactUI/_internal/enum.pyc",
+      "bytes": 85970,
+      "sha256": "d9c7b3e81093ead5fd7e845c1c090f01ff80bf8f172cf9f55b62c56ca0f182a4"
+    },
+    {
+      "path": "EpochPactUI/_internal/epochpact_ui.pyc",
+      "bytes": 19497,
+      "sha256": "7412b9e2ac8bbeee0111c95e29613cb49b89a6a55e27ccdf5a0d6a6c4322a9eb"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask-3.1.3.dist-info/INSTALLER",
+      "bytes": 4,
+      "sha256": "ceebae7b8927a3227e5303cf5e0f1f7b34bb542ad7250ac03fbcde36ec2f1508"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask-3.1.3.dist-info/METADATA",
+      "bytes": 3167,
+      "sha256": "aa6760ed6f545704474d70733e4a63a7f1481e376973edc896a13d02a7224c7c"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask-3.1.3.dist-info/RECORD",
+      "bytes": 3729,
+      "sha256": "7c0f48c9304efdc1fe1fd9d984265876a09301ce75fb5a2dc0b1a8c5e62f7b6e"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask-3.1.3.dist-info/REQUESTED",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask-3.1.3.dist-info/WHEEL",
+      "bytes": 82,
+      "sha256": "1b68144734c4b66791f27add5d425f3620775585718a03d0f9b110ba3a4d88db"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask-3.1.3.dist-info/entry_points.txt",
+      "bytes": 40,
+      "sha256": "6c13fb853392e5fcfdccbb42eec3e87c164094c904bc1c6eecaa92ea5e65bdce"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask-3.1.3.dist-info/licenses/LICENSE.txt",
+      "bytes": 1475,
+      "sha256": "489a8e1108509ed98a37bb983e11e0f7e1d31f0bd8f99a79c8448e7ff37d07ea"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/__init__.pyc",
+      "bytes": 2468,
+      "sha256": "e4ddc731bd58442d55edf7820e304f3e98330984a7233d6edcea976eb9cde763"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/app.pyc",
+      "bytes": 59031,
+      "sha256": "102b528b2764d71b841fc1f404660944193ed601fec5473c0115d0c9a155401a"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/blueprints.pyc",
+      "bytes": 4806,
+      "sha256": "776eefa3d94219504d7264763af04bc878cdff5d83ca4a0f0dfb501b2ee79164"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/cli.pyc",
+      "bytes": 43720,
+      "sha256": "1f117270a6768a971bd1f5356c940ec06adfc9b4ff533dc71665b6655e16122e"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/config.pyc",
+      "bytes": 15470,
+      "sha256": "9a79b3fcb90566deb6f8e9401ee91f377b2c5f50119b153683ff2139152d8d86"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/ctx.pyc",
+      "bytes": 20041,
+      "sha256": "7620546dc57a49dcfd958ac6d5cf0c436fc2bdd1b124552ffea11986a2565a05"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/debughelpers.pyc",
+      "bytes": 9381,
+      "sha256": "2157a0927cab6e33d54196c0f937b70d137fb4364a282b605d4280f82adeb5f5"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/globals.pyc",
+      "bytes": 1766,
+      "sha256": "c8829e8e13e1c89ff363b8db3ecd4911efd8b500c117aba2141946d840391c11"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/helpers.pyc",
+      "bytes": 24636,
+      "sha256": "d15654ce0ae71fdc8f769e79f68a4c24547b7d8721b98ee26774c4129976f766"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/json/__init__.pyc",
+      "bytes": 6342,
+      "sha256": "1a80958de245ae330e2790ef06ddc57d47f563d9af50c5696cf637dcf5d02f2e"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/json/provider.pyc",
+      "bytes": 9002,
+      "sha256": "67476a0811e06ccc88eb7ffc00174f15f9f84e701eda78611bc73d89ad0cdbe0"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/json/tag.pyc",
+      "bytes": 14231,
+      "sha256": "1122228553b025d4309f9e86fc91e50cc7d0307d74d902da969edf6f26517c0a"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/logging.pyc",
+      "bytes": 3242,
+      "sha256": "380b60c46ac49358927572496e4db4ba002847ae2f807e2752f5ada16737584f"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/sansio/app.pyc",
+      "bytes": 32155,
+      "sha256": "66964758dbda7d2354953a11e288b3ba5c3419f0deeff03ddda030dec1dc3599"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/sansio/blueprints.pyc",
+      "bytes": 30664,
+      "sha256": "d130adb0b314c0c33c9b05ccbcd3a50c7b877be9816e7ffe905db611c2029948"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/sansio/scaffold.pyc",
+      "bytes": 28773,
+      "sha256": "2ff5f7e88f93ccfa891b5ce52cdaac1761fe310f5f6a7b5775f4ea4e616383d9"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/sessions.pyc",
+      "bytes": 16045,
+      "sha256": "bc664035e7c7813928d98de1a985312a3282586874d8bad11dcf16d7815f0649"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/signals.pyc",
+      "bytes": 1149,
+      "sha256": "d0476f14fd889bef824c24ec67acad52aa7aa814f544266b851cfc1869b49956"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/templating.pyc",
+      "bytes": 9868,
+      "sha256": "5c4296b1886de7f32b5e5c1cb2e9ad58878c231421b252f90d21c579110eb14d"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/testing.pyc",
+      "bytes": 13591,
+      "sha256": "c8720c6f26d2bf2fee5fe5340859a94610e9bdcdbd7ba9dd2deb437a1c2b7641"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/typing.pyc",
+      "bytes": 4059,
+      "sha256": "3027bb82d5a238c140e79a243c7e63ffe0060f5a41e957a9d16e47e6e61b5983"
+    },
+    {
+      "path": "EpochPactUI/_internal/flask/wrappers.pyc",
+      "bytes": 9681,
+      "sha256": "6d88994df3b47739afa84cac4332b8af7749bbcb8266bfca8bcc7dac18606a3b"
+    },
+    {
+      "path": "EpochPactUI/_internal/fnmatch.pyc",
+      "bytes": 6784,
+      "sha256": "0faa349527836b5d26239b52d454e8db87ae4fde5680a7ac3622ad818541fa28"
+    },
+    {
+      "path": "EpochPactUI/_internal/fractions.pyc",
+      "bytes": 38445,
+      "sha256": "b72b4100ff6b5b0b32626bf57f468e29f6a93809f048dd7fe46d15cbb1b1e371"
+    },
+    {
+      "path": "EpochPactUI/_internal/ftplib.pyc",
+      "bytes": 42382,
+      "sha256": "dbafb87d5b3d1a5a78d0bc303c348ddb8f823bf29223f6d862e95d72648be838"
+    },
+    {
+      "path": "EpochPactUI/_internal/functools.pyc",
+      "bytes": 42504,
+      "sha256": "bc93aafffe942aadc8964e91091f1aea160e8400c7813a136d37ef118d6eb079"
+    },
+    {
+      "path": "EpochPactUI/_internal/genericpath.pyc",
+      "bytes": 7812,
+      "sha256": "b330127933deb7324f8291eaf7946c50bbdc6da5a7881aa0dc479b210d2b13b8"
+    },
+    {
+      "path": "EpochPactUI/_internal/getopt.pyc",
+      "bytes": 8440,
+      "sha256": "45325620bf3adcbf34e83333a8c167d57cffea1acceaf85c25a540eadcae5ce4"
+    },
+    {
+      "path": "EpochPactUI/_internal/getpass.pyc",
+      "bytes": 7291,
+      "sha256": "d6fd72b22f937752e162fc69b4cf47bae4a67b2e03b04aa45fa9115d66de5895"
+    },
+    {
+      "path": "EpochPactUI/_internal/gettext.pyc",
+      "bytes": 22546,
+      "sha256": "ba97560dee8bb875600a8306744d744e6dbc8c9e39ca4698ef857c29c3e09f90"
+    },
+    {
+      "path": "EpochPactUI/_internal/glob.pyc",
+      "bytes": 23666,
+      "sha256": "1912dc87e2ab120e00d26f3e455d2ef5faf432be667ab720f388b2c209d176ab"
+    },
+    {
+      "path": "EpochPactUI/_internal/gzip.pyc",
+      "bytes": 31992,
+      "sha256": "346b42233aee3826314055e94b5f18c4fdef42a658498126ea75f2ddd1244967"
+    },
+    {
+      "path": "EpochPactUI/_internal/hashlib.pyc",
+      "bytes": 8268,
+      "sha256": "b5efb33e8a83e3fc03931bcd36acf2f132ab58d52d503d31a2caea0b19cf3472"
+    },
+    {
+      "path": "EpochPactUI/_internal/heapq.pyc",
+      "bytes": 17924,
+      "sha256": "81d2a49295b9f523adeba81b6ebc97b43d5e24fc712aa19dab235739d1ba82eb"
+    },
+    {
+      "path": "EpochPactUI/_internal/hmac.pyc",
+      "bytes": 10686,
+      "sha256": "075325e03f379de341f2e6722b149cc5da18c086a899d5913db58408bf896406"
+    },
+    {
+      "path": "EpochPactUI/_internal/html/__init__.pyc",
+      "bytes": 4359,
+      "sha256": "16b10b76e1bb4fd5ae15b91c3ef04acc76ce7a15185f09067ff92075e3d8dfef"
+    },
+    {
+      "path": "EpochPactUI/_internal/html/entities.pyc",
+      "bytes": 97649,
+      "sha256": "b87adf8b7f0e8243e9da7012e98e02c59fddfb8b1858af785a0e924193eada9b"
+    },
+    {
+      "path": "EpochPactUI/_internal/http/__init__.pyc",
+      "bytes": 9607,
+      "sha256": "80c775500c8d5bd8065f81de9149e3315afd32600670a06675e0e0ba488cfda9"
+    },
+    {
+      "path": "EpochPactUI/_internal/http/client.pyc",
+      "bytes": 58070,
+      "sha256": "2cc4128ecb5ad9a273d8f7798c3033840822bbd2599a7b6d3a47b6a85395f528"
+    },
+    {
+      "path": "EpochPactUI/_internal/http/cookiejar.pyc",
+      "bytes": 82986,
+      "sha256": "d70cf0002d6ab0cbc56445ab721330febbdb1c7dbf8bb749339bd9a0a0f9df00"
+    },
+    {
+      "path": "EpochPactUI/_internal/http/cookies.pyc",
+      "bytes": 20977,
+      "sha256": "ababc0a3ca7fc80fe12c45491e064f35fcd7771bf5d50f1e8e3ce2b9bb9e0346"
+    },
+    {
+      "path": "EpochPactUI/_internal/http/server.pyc",
+      "bytes": 55951,
+      "sha256": "f18bc88d6ffa35349869d174c686d023e549f4ad92e5aede69d02806cea71c53"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/__init__.pyc",
+      "bytes": 4524,
+      "sha256": "24a5d04052c84c0475e5599f763f31e3df05ec8d20998601f6e552684af807ed"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/_abc.pyc",
+      "bytes": 1598,
+      "sha256": "fbcb92ec9b3b94bcfbccee263031f436ea0ebc4eed01086ef1c6e69f925c728b"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/_bootstrap.pyc",
+      "bytes": 56999,
+      "sha256": "7180656b2bd148454d76a1f5745bc097aae2a0dadcafc39a4decd3d627d877d3"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/_bootstrap_external.pyc",
+      "bytes": 65093,
+      "sha256": "7754053d668a3b2a2eefb2470da9faf06c71aa4a935eb277181d0fb39bd664db"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/abc.pyc",
+      "bytes": 10331,
+      "sha256": "5acb5e29160bdf09c2dc562a10e04c4e020617bd49812951c1f7a6ff8596a824"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/machinery.pyc",
+      "bytes": 1079,
+      "sha256": "cd64087cc51acca45e8a718029536b907846889fa7469276cb3f734e7be9960c"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/metadata/__init__.pyc",
+      "bytes": 52912,
+      "sha256": "834986fbe936f66aae3fee263d03d44b4ce149900e7da3add631d6a6b78be172"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/metadata/_adapters.pyc",
+      "bytes": 3861,
+      "sha256": "b4f000106aee0125955907673e960050bd23855ce7c4eecbef6c2318d0f275fa"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/metadata/_collections.pyc",
+      "bytes": 1904,
+      "sha256": "22004a58328838d1635d25f81bcd2196943b5bfd820fbdb35f3a6b7a21910daf"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/metadata/_functools.pyc",
+      "bytes": 3213,
+      "sha256": "ce4a0b5e0030117d6bcd355ca2ae80afd8848395af815fd6e92ee0fd2eb2c5a4"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/metadata/_itertools.pyc",
+      "bytes": 2254,
+      "sha256": "f71a570a3dc9c9648e14bb5cd6bf3fc8d8f8bda0702c37762c28b43cadaddb79"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/metadata/_meta.pyc",
+      "bytes": 3662,
+      "sha256": "afd4e4357a757f7a9661e7598195faa384c4e17d00bceb88d18e9d198f32e0a8"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/metadata/_text.pyc",
+      "bytes": 3749,
+      "sha256": "cef68315a5435812a5854306e4c1973f585ba48382ba27484710dff24e82d02c"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/readers.pyc",
+      "bytes": 442,
+      "sha256": "b9cb5c9c33fb64ccdf596fe374c0f30146225ce58e6542828640560e1e7031e8"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/resources/__init__.pyc",
+      "bytes": 796,
+      "sha256": "8c44f25ae40e3af6f7ee9e17bc69ceab7ffcc213b51dae51a4154608ea68c07f"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/resources/_adapters.pyc",
+      "bytes": 9759,
+      "sha256": "de374615812d2db555af998d57157c4955175502698e49e5b3bc5aba56364471"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/resources/_common.pyc",
+      "bytes": 8691,
+      "sha256": "35eb9ee56e63783685d5b9e37ac8a569695416f33e1ae7e212042dc6ba7fd58e"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/resources/_functional.pyc",
+      "bytes": 3479,
+      "sha256": "920e6afca21edbd59dac0d2172f46e9f47d2f779867c502c70ede6f90500cbd8"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/resources/_itertools.pyc",
+      "bytes": 1445,
+      "sha256": "b5fe8972fc6c2f997b558a2447b56c6fde79bb2deba3a0b66e6a97ded3dc73e5"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/resources/abc.pyc",
+      "bytes": 8790,
+      "sha256": "873d4e99593c813043188d307f2e7a8f020b3e1f9b8a628bb06f5fe2ff66a2dc"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/resources/readers.pyc",
+      "bytes": 12205,
+      "sha256": "c9a34f2ac203a9f84c4e10024c281a6b85e20e8048dd4c035bee7fd663bf4e7f"
+    },
+    {
+      "path": "EpochPactUI/_internal/importlib/util.pyc",
+      "bytes": 11842,
+      "sha256": "da7e248a68b936d9fc5b8eac20b76e9e65748650b83378735d9831c03807e0eb"
+    },
+    {
+      "path": "EpochPactUI/_internal/inspect.pyc",
+      "bytes": 136671,
+      "sha256": "14647ebee9d3ccb663f7b0c3f4ec1e3859a77417081b6f8b4463be9d9a5b8e1b"
+    },
+    {
+      "path": "EpochPactUI/_internal/io.pyc",
+      "bytes": 4255,
+      "sha256": "ce9fd1f9879a5f22d0228fac0ab76065cb1bf00f57b5b65e95c1f7e22aae6a03"
+    },
+    {
+      "path": "EpochPactUI/_internal/ipaddress.pyc",
+      "bytes": 92369,
+      "sha256": "47f3fb6e7dadc83e1708049974ad6cc9bb5e59c846306e9f1e713c31334a2d16"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous-2.2.0.dist-info/INSTALLER",
+      "bytes": 4,
+      "sha256": "ceebae7b8927a3227e5303cf5e0f1f7b34bb542ad7250ac03fbcde36ec2f1508"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous-2.2.0.dist-info/LICENSE.txt",
+      "bytes": 1475,
+      "sha256": "63af09891b6be8ad1a4252ed43af0f4efba7fc948e228367bed7f3c5ae0b09d7"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous-2.2.0.dist-info/METADATA",
+      "bytes": 1924,
+      "sha256": "d2b934fb56708a1b94e439f0255c0f5a8108e3258ec827b18a1dc9c991db9611"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous-2.2.0.dist-info/RECORD",
+      "bytes": 1642,
+      "sha256": "63b1643da1713c1c26f74d7047e220ba7dcdc63dfed2270698eefd2218298279"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous-2.2.0.dist-info/REQUESTED",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous-2.2.0.dist-info/WHEEL",
+      "bytes": 81,
+      "sha256": "1196c6921ec87b83e865f450f08d19b8ff5592537f4ef719e83484e546abe33e"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous/__init__.pyc",
+      "bytes": 1557,
+      "sha256": "6494cf62aff49cf932e3b671f2dfe7cae2e3888547c829bf168825dbbf5a1948"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous/_json.pyc",
+      "bytes": 1179,
+      "sha256": "d2bc349f640846fe7c9b92992df90df061eb6dd2d0e0c52fff95c2c3517926f4"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous/encoding.pyc",
+      "bytes": 2614,
+      "sha256": "0d8aa20dc40bc4bc602b7ebda0410da70d1f1955fc570707752f109e6cae0186"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous/exc.pyc",
+      "bytes": 3989,
+      "sha256": "d6ad4e3ebe33bbf640e1c80c1fb2f90f38a60b9c84ce087ba3f8a14a921d8cd9"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous/serializer.pyc",
+      "bytes": 15255,
+      "sha256": "f2646d44ad5194a634724cf424372ca1a081e8a9d6e3d7cf70bac7b9145753e3"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous/signer.pyc",
+      "bytes": 11191,
+      "sha256": "b1bb3133e7abd879c2d89cb56bc40ff42a8ce5dbcfbf64f121a1342e24d40dc6"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous/timed.pyc",
+      "bytes": 8550,
+      "sha256": "9051bdac3bbe9e01e07410ff746ee9706d19a45849eef95cbccedc23c6db37e0"
+    },
+    {
+      "path": "EpochPactUI/_internal/itsdangerous/url_safe.pyc",
+      "bytes": 3579,
+      "sha256": "f49e025d5f97940cae613e4eb7f377f6f64653cfd1e005242eda44f05cd8bbd8"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/__init__.pyc",
+      "bytes": 1584,
+      "sha256": "b0b45cdc6de34cf73392d3afc2d9036a29d2d27ab09c392279dafbdd70978c37"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/_identifier.pyc",
+      "bytes": 2063,
+      "sha256": "4af5baa5bafb694da28ad073bd43de5c724a0ee8f6d6631b22b327c6e4cbe18d"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/async_utils.pyc",
+      "bytes": 4996,
+      "sha256": "e55fc41bb794971b1fcc0742b12d5961f8e50093ba96fd9991daa38dd2a5bc98"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/bccache.pyc",
+      "bytes": 19316,
+      "sha256": "9485aa9437ce53c65d7f9a46587967114c22fe63ff37cd71c75a7b29cf89c826"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/compiler.pyc",
+      "bytes": 106025,
+      "sha256": "c60739a4537bf459822dfa4cff1c5fa3d8659606b254edfe254b9f78919dc857"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/constants.pyc",
+      "bytes": 1487,
+      "sha256": "925ae58878ecac14bfe36fb78b87beca107c3106ffcc3a58b8895697a08e7259"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/debug.pyc",
+      "bytes": 6508,
+      "sha256": "92854b5f4bc23ffb8ee2c86d7d875c314da5d38c74f14d03e0b756110f96376b"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/defaults.pyc",
+      "bytes": 1547,
+      "sha256": "e6456706f6ad9951fcad22c331e67a4be6addf54f06c266ae96619cbb8faf7ae"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/environment.pyc",
+      "bytes": 74904,
+      "sha256": "2b4a83e166225d7734da1e8c8dea13badf3a53c99a18223eb2958ffa11660bd8"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/exceptions.pyc",
+      "bytes": 7955,
+      "sha256": "48507a18aa8fd6a5d4456f89810affc6b8e75d2df6633b99e5aeacd784bca4b9"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/ext.pyc",
+      "bytes": 42112,
+      "sha256": "0e6c0d20c9cda9a766223c03a3d29ec2c89d2e991d3cafa19a7cb74ea04e2cc1"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/filters.pyc",
+      "bytes": 71642,
+      "sha256": "2319c8e5595e297e04dc7abc5f31f34e8c68d8cef9c2844750cee245191df438"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/idtracking.pyc",
+      "bytes": 19508,
+      "sha256": "7f0b02a042c47456ccdf9036b54cbbf1ddf7c721a0228b10c82e3a45407af59b"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/lexer.pyc",
+      "bytes": 32450,
+      "sha256": "0b21ac200c160df82b0dad8c4a408e576e698bb6089b9dc75bc0c219ffde9365"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/loaders.pyc",
+      "bytes": 32267,
+      "sha256": "97e9dd65b8ef5d9fa7d350f60425650a494201a94e2cd35f7cd17964f5af7c49"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/nodes.pyc",
+      "bytes": 59998,
+      "sha256": "2f2d8198d85f78d3750b7c79a9ce0c44f424bfc89c2a799eb6d2e014fc33dcf1"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/optimizer.pyc",
+      "bytes": 2711,
+      "sha256": "2cb94d8d5161e89e5f779a7063d6e015a67243885ea18ff7cc0036d599092254"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/parser.pyc",
+      "bytes": 61788,
+      "sha256": "7083e930a83be7747e63b427183950fda43a8af43488e7fd88a1d163a58b0d0c"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/runtime.pyc",
+      "bytes": 49010,
+      "sha256": "f8c37c61b8474bc4f44af7a62aef6bd9b00bc0ade4dee99a1b34f56d05a4b782"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/sandbox.pyc",
+      "bytes": 18167,
+      "sha256": "eae9c74a3dc19e95941adb63518092d41bbc2abd6208ed47581e857aab1731e6"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/tests.pyc",
+      "bytes": 8891,
+      "sha256": "bdb0a668d4133cd5791c686c17c0c58c3141b90ab2a6ee8812e6b6adc1b41143"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/utils.pyc",
+      "bytes": 34864,
+      "sha256": "db788150c9b168df830233c2d4dea9927da9aa24b37a7f27a8e8ceda9ff48a34"
+    },
+    {
+      "path": "EpochPactUI/_internal/jinja2/visitor.pyc",
+      "bytes": 5385,
+      "sha256": "9d2c8636ff4751e44ef1f69747ff7be6c50dc927b57a45e63fa686926a0aae9d"
+    },
+    {
+      "path": "EpochPactUI/_internal/json/__init__.pyc",
+      "bytes": 13490,
+      "sha256": "34a0ee131b6b7cef7917622661cb20399e2656130fce1a19e0cdfbb1c8465811"
+    },
+    {
+      "path": "EpochPactUI/_internal/json/decoder.pyc",
+      "bytes": 13802,
+      "sha256": "c0bdd7142470b2d5de09415af6e94717eca2dbbbd16aaa5c463a5de286559a00"
+    },
+    {
+      "path": "EpochPactUI/_internal/json/encoder.pyc",
+      "bytes": 15151,
+      "sha256": "6068933fd9fda10037ee9458bf963110c0ae0bf4c9984750498cc2006b3bd4d6"
+    },
+    {
+      "path": "EpochPactUI/_internal/json/scanner.pyc",
+      "bytes": 3343,
+      "sha256": "dac791ce4c2854234d005a940e08d490de92e04e71794a8abd07715a3fd6aea6"
+    },
+    {
+      "path": "EpochPactUI/_internal/keyword.pyc",
+      "bytes": 1021,
+      "sha256": "ecbdf6b3bc709322455174dde25147e3a081e8429ba1245e7d32d1f82e401b1d"
+    },
+    {
+      "path": "EpochPactUI/_internal/libcrypto-3.dll",
+      "bytes": 5231472,
+      "sha256": "ccfffddcd3defb8d899026298af9af43bc186130f8483d77e97c93233d5f27d7"
+    },
+    {
+      "path": "EpochPactUI/_internal/libffi-8.dll",
+      "bytes": 39696,
+      "sha256": "eff52743773eb550fcc6ce3efc37c85724502233b6b002a35496d828bd7b280a"
+    },
+    {
+      "path": "EpochPactUI/_internal/libssl-3.dll",
+      "bytes": 794992,
+      "sha256": "007142039f04d04e0ed607bda53de095e5bc6a8a10d26ecedde94ea7d2d7eefe"
+    },
+    {
+      "path": "EpochPactUI/_internal/linecache.pyc",
+      "bytes": 8528,
+      "sha256": "4eb071f955f817e78eca502af7d4d8444f4125f0ef7a197471174797430d005a"
+    },
+    {
+      "path": "EpochPactUI/_internal/locale.pyc",
+      "bytes": 58975,
+      "sha256": "eb89fd28684d15ca03178b204310ba9a75a1b5b1b7b4cd78a3ffcf286895cbbd"
+    },
+    {
+      "path": "EpochPactUI/_internal/logging/__init__.pyc",
+      "bytes": 94857,
+      "sha256": "576a349da30c0f895907571bd3a9e6f2fde6dfd366cf9119f209e507efc6a191"
+    },
+    {
+      "path": "EpochPactUI/_internal/logging/handlers.pyc",
+      "bytes": 65595,
+      "sha256": "7c32ddb3fa0f040ad908a7f386439c7d3d2f9abf39cdf9d9574a9a53501f80ea"
+    },
+    {
+      "path": "EpochPactUI/_internal/lzma.pyc",
+      "bytes": 15735,
+      "sha256": "b8d3244415702c9c4cc43e1c1cf573b09faef498b644be25ba3ad41c47500948"
+    },
+    {
+      "path": "EpochPactUI/_internal/markupsafe-3.0.4.dist-info/INSTALLER",
+      "bytes": 4,
+      "sha256": "ceebae7b8927a3227e5303cf5e0f1f7b34bb542ad7250ac03fbcde36ec2f1508"
+    },
+    {
+      "path": "EpochPactUI/_internal/markupsafe-3.0.4.dist-info/METADATA",
+      "bytes": 2764,
+      "sha256": "08fa79954ab288d778b0fee4f0e6c7dbc869e545a415747d1324622465d3b08d"
+    },
+    {
+      "path": "EpochPactUI/_internal/markupsafe-3.0.4.dist-info/RECORD",
+      "bytes": 1195,
+      "sha256": "b5b5a6caf0e66b839c2216d744f99dd17e29d710ca0940ef12bff0228f74f36c"
+    },
+    {
+      "path": "EpochPactUI/_internal/markupsafe-3.0.4.dist-info/REQUESTED",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "EpochPactUI/_internal/markupsafe-3.0.4.dist-info/WHEEL",
+      "bytes": 101,
+      "sha256": "d0b50da07c4bbdca70f5d6ffc745e8cc4e635bbdfefc63803bb7c30c9e17b784"
+    },
+    {
+      "path": "EpochPactUI/_internal/markupsafe-3.0.4.dist-info/licenses/LICENSE.txt",
+      "bytes": 1503,
+      "sha256": "4631ec0db5fd90a547e336817264c6798214338146f8ac94b4a57f96ee8c9ec4"
+    },
+    {
+      "path": "EpochPactUI/_internal/markupsafe-3.0.4.dist-info/top_level.txt",
+      "bytes": 11,
+      "sha256": "ab2d0f9637b9209bafb020637a32728430a310075c0cb2bfd9a81571ec7c67a5"
+    },
+    {
+      "path": "EpochPactUI/_internal/markupsafe/__init__.pyc",
+      "bytes": 21472,
+      "sha256": "e8ae32614ffa31046d77ee46bc1ae6b95e61728ab3569a481c48be5fdf245bce"
+    },
+    {
+      "path": "EpochPactUI/_internal/markupsafe/_native.pyc",
+      "bytes": 548,
+      "sha256": "c4a2e9af8d5a118f0973d610468dbbeba18c7f907f088822ae0ab34ef553ccd8"
+    },
+    {
+      "path": "EpochPactUI/_internal/markupsafe/_speedups.cp313-win_amd64.pyd",
+      "bytes": 11776,
+      "sha256": "bf15134d91924abcbd58664d7aa2a33549e31be7ff96d2397d9025737f6a7e26"
+    },
+    {
+      "path": "EpochPactUI/_internal/mimetypes.pyc",
+      "bytes": 24883,
+      "sha256": "8d11a07bdb9edc285778cf5ba3776da242f9240ea74357c56f5d52f4b562538d"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/__init__.pyc",
+      "bytes": 960,
+      "sha256": "46929c7356933989f813eacbe250a7f10e6af07a76c213e56682cac56f006f14"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/connection.pyc",
+      "bytes": 49411,
+      "sha256": "cffff21c933be138c443885da506752f6b2a1591350226a9a0a44fe930b6e8ea"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/context.pyc",
+      "bytes": 17283,
+      "sha256": "1599aa456d93826c7b9c6576db03edc8139b4f79fe8301d7d9e645862b7bf0be"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/dummy/__init__.pyc",
+      "bytes": 5749,
+      "sha256": "f863e883a9bd0d898a062701d6798a381b8431099c78ec909874af24aef615e6"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/dummy/connection.pyc",
+      "bytes": 3574,
+      "sha256": "24cb1566b9ebc4f53e57b9920b47a41ca7f14c4ffdc00a3ab767d43f2d4a7a99"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/forkserver.pyc",
+      "bytes": 15835,
+      "sha256": "71e884e34e60936791c440f303d60221d5b2846eb89587f4599fb84c0b4d34f0"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/heap.pyc",
+      "bytes": 13980,
+      "sha256": "f4cb4cfb036d023ca0ed5f4fd303d3dcd4de1610d0d3dbf7b7eda40da32b1705"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/managers.pyc",
+      "bytes": 69484,
+      "sha256": "d883141d41992bfaa38712973f2b8d4f6feb20771f3a33119cbcb5be240a5d35"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/pool.pyc",
+      "bytes": 44910,
+      "sha256": "364f250dd571d2528101f89241eb0206ad5db671c0a9c9e59aeb1bca97ae0d42"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/popen_fork.pyc",
+      "bytes": 4508,
+      "sha256": "bb44de3939ac75ed4920f6f926524fbe55e440ab9b1a47d4e7c383eab2fd23ce"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/popen_forkserver.pyc",
+      "bytes": 4087,
+      "sha256": "778464a56cdf38e64654ce796210d32b22e1b9e440747c65946bee376ae32e97"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/popen_spawn_posix.pyc",
+      "bytes": 4013,
+      "sha256": "ccbc7394d9c95b41cdbcb865248716149307cac4658178cb157d3b9d7ba9ebbc"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/popen_spawn_win32.pyc",
+      "bytes": 6397,
+      "sha256": "f97e4c3f7794b1ab0aa43aaa6d18541185689527d8ea7772f00c08d11e3c8f30"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/process.pyc",
+      "bytes": 17774,
+      "sha256": "fc5b77582c0d5094d14f96d271c002c29950c5c0b76f1519200e9a0a04ac4183"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/queues.pyc",
+      "bytes": 19022,
+      "sha256": "9b0db24a42989fc98f3791b538274537c44104111343a8a7cb8d2dd575c7e6da"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/reduction.pyc",
+      "bytes": 14108,
+      "sha256": "6e8ba4aee57a6dc87c56993a373c4eaeef21ff9a85ed1e1bbea9b10a38e0e744"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/resource_sharer.pyc",
+      "bytes": 9060,
+      "sha256": "38040236a35710ed51aa30af6172cb4f381b8dca56ede11e10b35c5ced6b2b5e"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/resource_tracker.pyc",
+      "bytes": 14013,
+      "sha256": "345cb7957f0a682d24e149c8b25d2e49f55e4615e6194619b71e74aae5d328eb"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/shared_memory.pyc",
+      "bytes": 24272,
+      "sha256": "73cb033749823b12735acf42c06bce725109abe3c96dd9432ceed7490be7734d"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/sharedctypes.pyc",
+      "bytes": 10889,
+      "sha256": "0de92aecacb80b7e30b3ba340216f37ce7004a51b330cc20cf0a5bcd38e16a4f"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/spawn.pyc",
+      "bytes": 11808,
+      "sha256": "ee1bb427e0c4c8bee39c97b2d186ff15f11ab7c78de62814b0f8d72213191282"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/synchronize.pyc",
+      "bytes": 21542,
+      "sha256": "68b3a86d687f2b6f88b41f37749d3c45a13a5ae8c82992510c1d9b0fac32698c"
+    },
+    {
+      "path": "EpochPactUI/_internal/multiprocessing/util.pyc",
+      "bytes": 20350,
+      "sha256": "5c60430d7f5e8f14082f0d8c8b65699dbdc4d45c4336448c7d216c449964837b"
+    },
+    {
+      "path": "EpochPactUI/_internal/native/build/player/EpochPact.Core.dll",
+      "bytes": 1163264,
+      "sha256": "6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f"
+    },
+    {
+      "path": "EpochPactUI/_internal/native/build/player/build-info.json",
+      "bytes": 100,
+      "sha256": "b7b5a183203734c9ee82fbf2b341fade1a5ce4413cba754f6c2e17147147b7a6"
+    },
+    {
+      "path": "EpochPactUI/_internal/native/build/version.dll",
+      "bytes": 108544,
+      "sha256": "bee68619c1869f7cb2b7c5e0cde123137e58c08fc8ec4f5fca237fb1c107370d"
+    },
+    {
+      "path": "EpochPactUI/_internal/netrc.pyc",
+      "bytes": 9302,
+      "sha256": "99cfcca754ec2d3005f278f904dca69d7d3f758483b4d157f524099b1250903e"
+    },
+    {
+      "path": "EpochPactUI/_internal/ntpath.pyc",
+      "bytes": 28453,
+      "sha256": "be777fc7ea951cf4a47454766b2c48253ba1ad9920c980e7b58041a48356e238"
+    },
+    {
+      "path": "EpochPactUI/_internal/nturl2path.pyc",
+      "bytes": 2717,
+      "sha256": "bb2df9a0aeab07bf950e924be591973a77e0e7d5ff7f70cd3664b0146677c790"
+    },
+    {
+      "path": "EpochPactUI/_internal/numbers.pyc",
+      "bytes": 14242,
+      "sha256": "4e341d6079199a5f0ad6287d0b17d5450c8f99683144211d4d88c8fd5681bf1e"
+    },
+    {
+      "path": "EpochPactUI/_internal/opcode.pyc",
+      "bytes": 4042,
+      "sha256": "0fd26396cd5eeb9273dc7ccda37c95e9c30ecf2c180ddf7414cbd72043ea5053"
+    },
+    {
+      "path": "EpochPactUI/_internal/operator.pyc",
+      "bytes": 17643,
+      "sha256": "7b38c5660e17c43e769e09f89815a9da8da15f643df836772590d8daec1b61f4"
+    },
+    {
+      "path": "EpochPactUI/_internal/os.pyc",
+      "bytes": 45992,
+      "sha256": "9595305130407fd0fb9a247812beb9ae0627e348294355e160f4b70b78e0bed3"
+    },
+    {
+      "path": "EpochPactUI/_internal/pathlib/__init__.pyc",
+      "bytes": 457,
+      "sha256": "ffc48c000a5a46c7408a1e4c65d5e5ea94545607e177468f6b386fc9cbbf74a9"
+    },
+    {
+      "path": "EpochPactUI/_internal/pathlib/_abc.pyc",
+      "bytes": 40164,
+      "sha256": "cb6095b0701f2c923b0a1574ed398bf22b7499d124e27c4e1d6bb55961012390"
+    },
+    {
+      "path": "EpochPactUI/_internal/pathlib/_local.pyc",
+      "bytes": 40955,
+      "sha256": "e52d7f14655ee75b6782046ee2bab8201f3b06af20d77e6c927b537473efcff0"
+    },
+    {
+      "path": "EpochPactUI/_internal/pdb.pyc",
+      "bytes": 106272,
+      "sha256": "364090eccee41a19b9ab1ddc5c916c988e2e3a0a9e449622c802030ff049cf31"
+    },
+    {
+      "path": "EpochPactUI/_internal/pickle.pyc",
+      "bytes": 78779,
+      "sha256": "60309eb0e6954f2eea49b2c6b6315b6f98997c8670d945b2b1d504554c577ac5"
+    },
+    {
+      "path": "EpochPactUI/_internal/pkgutil.pyc",
+      "bytes": 19939,
+      "sha256": "ae9c765fc4756d02111650ab0d742c79d86161405b22ecd432f0ec1195dd86de"
+    },
+    {
+      "path": "EpochPactUI/_internal/platform.pyc",
+      "bytes": 44645,
+      "sha256": "ff6254b2f412e3201bcd50565281bae56742c74c5779fdc60bb00ae506b82d95"
+    },
+    {
+      "path": "EpochPactUI/_internal/posixpath.pyc",
+      "bytes": 18082,
+      "sha256": "e543846e7d50c5af94898df00a9360b986db064c194c461e04196396ffba0483"
+    },
+    {
+      "path": "EpochPactUI/_internal/pprint.pyc",
+      "bytes": 29826,
+      "sha256": "66f405864cd9a1cf80b066601418b1d4227d5d86f51b700d4f0f681254fb88fd"
+    },
+    {
+      "path": "EpochPactUI/_internal/proxy_tools/__init__.pyc",
+      "bytes": 14012,
+      "sha256": "1040d94227be1e770257382133cb48f5b30d2ab5aaa28832e6ea6b299b8fe999"
+    },
+    {
+      "path": "EpochPactUI/_internal/py_compile.pyc",
+      "bytes": 10049,
+      "sha256": "58abf4f1a0175ab20f5e309aa33b3fd7e2d65aeff71d82e35bfc11f12e72a97f"
+    },
+    {
+      "path": "EpochPactUI/_internal/pycparser/__init__.pyc",
+      "bytes": 2722,
+      "sha256": "10ad64923d45f979bf190bd65328533a5a3e0763d7ddb9b154dd363f5bb00417"
+    },
+    {
+      "path": "EpochPactUI/_internal/pycparser/ast_transforms.pyc",
+      "bytes": 6260,
+      "sha256": "d3b70745c396ff3cf74931d6473f70ba0fde0b6b86a7f3d2d4ebe7d65efee09e"
+    },
+    {
+      "path": "EpochPactUI/_internal/pycparser/c_ast.pyc",
+      "bytes": 54926,
+      "sha256": "ca90b56718e8b577413d2f270e2263fcfc1826bc9142ef5be3f27fe9895170eb"
+    },
+    {
+      "path": "EpochPactUI/_internal/pycparser/c_lexer.pyc",
+      "bytes": 23282,
+      "sha256": "7474d45942cbf5d6673a2fbefb481bc007e3b7be08d52ab65b61cf280a977227"
+    },
+    {
+      "path": "EpochPactUI/_internal/pycparser/c_parser.pyc",
+      "bytes": 102752,
+      "sha256": "c194a5a491b3e0dc3e4b0af2cad507b03abe0cec11d27abb71b67f1391e5f0ad"
+    },
+    {
+      "path": "EpochPactUI/_internal/pydoc.pyc",
+      "bytes": 140104,
+      "sha256": "0b107a8f5503f031ea861be1b4dce8b23584185388c9921335b023c6138dd3b4"
+    },
+    {
+      "path": "EpochPactUI/_internal/pydoc_data/__init__.pyc",
+      "bytes": 119,
+      "sha256": "f9115d3fcc668b497f1aee4ea1d48c9d01d3f12947f2b1f3216571cabf0a6184"
+    },
+    {
+      "path": "EpochPactUI/_internal/pydoc_data/topics.pyc",
+      "bytes": 529771,
+      "sha256": "e826830045ea811fc99d1e1b86889f02ceeb6fa8dd6c69a2113d1e081e29defd"
+    },
+    {
+      "path": "EpochPactUI/_internal/pyexpat.pyd",
+      "bytes": 206168,
+      "sha256": "719dc29fee125f0d5026319da9a3001c130c84419db7ef7c5473fb496d56cfc2"
+    },
+    {
+      "path": "EpochPactUI/_internal/python313.dll",
+      "bytes": 6123864,
+      "sha256": "41ec4fc4e5bc8b207258590238f7f050b13fdfee84c4a7b1ecff6e945d031a10"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/__init__.pyc",
+      "bytes": 6716,
+      "sha256": "cd8b39b9367b7328edb9b7edeea4a11277e2b9594c9fc1f989bae1dbc4a3201d"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/Microsoft.Win32.Primitives.dll",
+      "bytes": 21216,
+      "sha256": "5eaa2e82a26b0b302280d08f54dc9da25165dd0e286be52440a271285d63f695"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/Python.Runtime.deps.json",
+      "bytes": 5977,
+      "sha256": "221cba5469377ae1455ab45932731ace29528b21a99f09ad478d10d8a3733897"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/Python.Runtime.dll",
+      "bytes": 445952,
+      "sha256": "648e6b415be8f45018af71f377aa3a97772799b353ac3a5e8612a99313de4907"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/Python.Runtime.xml",
+      "bytes": 187318,
+      "sha256": "375673d8a6874c4391ecb40baf30257ac864a5c6ed692fd2730ccba108a3027d"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.AppContext.dll",
+      "bytes": 21176,
+      "sha256": "9dc115ac4aadd6a94d87c7a8a3f61803cc25a3d73501d7534867df6b0d8a0d39"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Collections.Concurrent.dll",
+      "bytes": 21224,
+      "sha256": "cc62f3b867d50083c2932061f20662c698d2e1a741c4d2f9df1fd2d435e3ef3c"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Collections.NonGeneric.dll",
+      "bytes": 21224,
+      "sha256": "529943c0cdf24f57e94bf03fac5f40b94a638625027a02df79e1e8cb5d9bc696"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Collections.Specialized.dll",
+      "bytes": 21224,
+      "sha256": "938da38561da54793944e95e94b6e11cf83aacd667487297d428fbce1c06dc9c"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Collections.dll",
+      "bytes": 21696,
+      "sha256": "c2250e9e51b44d8ab8c5b892592766925f6580ee00b95026621d0afb037c2707"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.ComponentModel.EventBasedAsync.dll",
+      "bytes": 21768,
+      "sha256": "22108e32e0b6e42f5f52a4cb17b9b6fa3dfd547ecd9eef9c67226dbec54d23e5"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.ComponentModel.Primitives.dll",
+      "bytes": 21752,
+      "sha256": "bfcd867f71c887429dfe008d7ec5d1853d15b3932d4ce8991694293477b5be37"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.ComponentModel.TypeConverter.dll",
+      "bytes": 22784,
+      "sha256": "0dbb92ecd5dfa7fc258bc6deed4cecf1b37f895457fd06976496926abdb317bb"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.ComponentModel.dll",
+      "bytes": 21192,
+      "sha256": "5e61d755616cb10524f5f31e9b70c65a7fff8e30e25ce711ac8b354d657ab479"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Console.dll",
+      "bytes": 21160,
+      "sha256": "b537313413f80105f143cc144feeae2ac93f44747727de309a71d57d2650034a"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Data.Common.dll",
+      "bytes": 154448,
+      "sha256": "1c7bff6f16bb618648e699b723aeafe511515cd6aad699c25faae2a507e22811"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.Contracts.dll",
+      "bytes": 21736,
+      "sha256": "9c4ae61e0e8365762efe3d34c5595029f2c12e0079e6070720e2cef0882c84e5"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.Debug.dll",
+      "bytes": 21208,
+      "sha256": "55a30d92d163cf1807bea6dc13b4c13e70aebbb034dc77eaef4f4394730dcd8e"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.FileVersionInfo.dll",
+      "bytes": 21248,
+      "sha256": "7c25a74772e135257235640a0264ddc05235e14f3627896cfe735e9955155f83"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.Process.dll",
+      "bytes": 21728,
+      "sha256": "28b165cddb82a2507114394ae398995ef8a50c549214f8678aa66054f6927754"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.StackTrace.dll",
+      "bytes": 23936,
+      "sha256": "cae99f910874288afbf810968d13b79d755cd4b2006609ec036ea4934181cba5"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.TextWriterTraceListener.dll",
+      "bytes": 21280,
+      "sha256": "63eab38ee9f4dcd686c8e6a4f01e1e2a9bb91e52b20ab4dde0c28061e9261860"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.Tools.dll",
+      "bytes": 21208,
+      "sha256": "260c6250ef9b57dca99b4cecc533f9a34857b5a32b5351202f776163841200aa"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.TraceSource.dll",
+      "bytes": 21744,
+      "sha256": "c81a57d0634c462a6cf49844059e9b170f650ccdf0789519ffd4ae7d28e2718d"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Diagnostics.Tracing.dll",
+      "bytes": 31608,
+      "sha256": "b84b93be455cc7d14ec0c88ce08dafac7b6aac2e549c969e7126eb48c31f8b1c"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Drawing.Primitives.dll",
+      "bytes": 21208,
+      "sha256": "2805a18724a24034ad6acb315dac516e479cecc5f3753204052657e560932d5d"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Dynamic.Runtime.dll",
+      "bytes": 22224,
+      "sha256": "f600acc811720183c639cebe5618baf9c8135b85b9cbdc0758bc9b2dcc6dd7a9"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Globalization.Calendars.dll",
+      "bytes": 21744,
+      "sha256": "b56ffb65b842daae13f3020b0b04646db92f89801d2a2f89087d145a996d43f7"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Globalization.Extensions.dll",
+      "bytes": 25992,
+      "sha256": "c7e91bd148ed22ee1ff8ebd3e58b199a30af90aa37499bcf8da34409672f2ed9"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Globalization.dll",
+      "bytes": 21192,
+      "sha256": "56bd0c02c734abf4d7fd1ef2e8b6a9e4bf5e4bab4e606cd1023d63b02852fa61"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.IO.Compression.ZipFile.dll",
+      "bytes": 21224,
+      "sha256": "7720ee13405ea8a3c204703a181e67dc6d66835e9df263c09d04d8b48b41eb26"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.IO.Compression.dll",
+      "bytes": 110944,
+      "sha256": "da18d61bb6b7d35c56cb4f392fae0844cca73f72a043a08994beccb531ff3b77"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.IO.FileSystem.DriveInfo.dll",
+      "bytes": 21232,
+      "sha256": "984575c44cab17d46587af6cc8c22c409b79bec280fd771e6af93a0a0c20e5b0"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.IO.FileSystem.Primitives.dll",
+      "bytes": 21232,
+      "sha256": "5c84dd40d67c0e59906511d2b09da8e28c454b5979eb5fde74213f9d4bdbc564"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.IO.FileSystem.Watcher.dll",
+      "bytes": 21224,
+      "sha256": "c9e2562f1a1b86acdb6957cf916aced9c4f8b71ebb16dfa0050252146205ad37"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.IO.FileSystem.dll",
+      "bytes": 21192,
+      "sha256": "9a4595dbb128e2d8f373b3ac45478e7131f4d181b50ec821ec8cb88bd46bd5b8"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.IO.IsolatedStorage.dll",
+      "bytes": 21208,
+      "sha256": "0e80a2e256d16e487bc847d1857ed7cd088f176254ba2a385d675338b836b0fc"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.IO.MemoryMappedFiles.dll",
+      "bytes": 21216,
+      "sha256": "81b6527ac2d18782ac24ae463c11dd1d70ab1bc89f626b7347a592229b371a1d"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.IO.Pipes.dll",
+      "bytes": 21168,
+      "sha256": "80a229b2917fc3a5d941ff9745a6be0065028afdf9509300410d2721c71f1198"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.IO.UnmanagedMemoryStream.dll",
+      "bytes": 21232,
+      "sha256": "86f1f12e47f260985b08bb966598123578eb5e48bef9bb086f04e16e9d53bb32"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.IO.dll",
+      "bytes": 21144,
+      "sha256": "c191a43029edd4eb8eee003356f1fe79aa45071c25433a7a3589590e9089eed9"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Linq.Expressions.dll",
+      "bytes": 22224,
+      "sha256": "bf97f67165231c2a42b95f11d80337b082e2b2be54351da44c8a10c06194b369"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Linq.Parallel.dll",
+      "bytes": 21192,
+      "sha256": "30a49d16436e3a05569c99a0c2d21755c2fa323c5b925f9f21c10287cc97d9c9"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Linq.Queryable.dll",
+      "bytes": 21192,
+      "sha256": "719ac73bb261e0a13574f5a198126ccf40352264958defb555280d005134c704"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Linq.dll",
+      "bytes": 21152,
+      "sha256": "349c7fbe9ae2b78c2f90239bddfcea5b16a0faac1fe83553a816c50c3e9089b1"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Net.Http.dll",
+      "bytes": 198472,
+      "sha256": "b5d20736f84f335ef4c918a5ba41c3a0d7189397c71b166ccc6c342427a94ece"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Net.NameResolution.dll",
+      "bytes": 21208,
+      "sha256": "222bd77c5692c2961e8c3638f6511d6f7cbeb9e0977e2d5c3bca6739a5311f37"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Net.NetworkInformation.dll",
+      "bytes": 22248,
+      "sha256": "2e2d28a0802d8c8c08c0d422f48733ad8bf1dfae75f5682a4a3df8898e7e819f"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Net.Ping.dll",
+      "bytes": 21168,
+      "sha256": "4d97e8481b9a27042bb903245625735d82ff627c66797de619303c1e705d0d6a"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Net.Primitives.dll",
+      "bytes": 22216,
+      "sha256": "9a8ba725f8e953c933285065228a9409036f9137d03016b127ccea8a19452466"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Net.Requests.dll",
+      "bytes": 21184,
+      "sha256": "f2e74a3ec2dc753c9a48fa9a677775f949eb1e02fc1bb8bf38c39e8d2ab147eb"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Net.Security.dll",
+      "bytes": 21696,
+      "sha256": "d0d90152136a0acf340fb345098f2e5c718bb13f3b5a809d7be4d9948b8574d4"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Net.Sockets.dll",
+      "bytes": 30544,
+      "sha256": "694f4c61b6bae0aefac07a1e861c12c03cb6002f30091e4c8b05bb9c8ccf0d3d"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Net.WebHeaderCollection.dll",
+      "bytes": 21232,
+      "sha256": "69b48ff8e6f40b84cdddb95bcdbb34e1184a2e29cb4ccc0fc9f1a2493648ee37"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Net.WebSockets.Client.dll",
+      "bytes": 21224,
+      "sha256": "19766a20b62b038abc3e863f2d6e7b55fabee4d9cbcad3eb1d7bd3ebfe8d023a"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Net.WebSockets.dll",
+      "bytes": 21192,
+      "sha256": "99920ce34a01a0c07efd86d6e134bb401993515d001b7567a4116ad222993a63"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.ObjectModel.dll",
+      "bytes": 21696,
+      "sha256": "870ee1141cb61abfce44507e39bfdd734f2335e34d89ecfffb13838195a6b936"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Reflection.Extensions.dll",
+      "bytes": 21224,
+      "sha256": "3d2551d6458b84566025fddfe5dad479cab5785428efd6814860d36ad1811c9a"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Reflection.Primitives.dll",
+      "bytes": 21736,
+      "sha256": "0383dc02fdf0b5d4612d8caaad13d594cac1609c8240b73dfd6ea5803f5e17ea"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Reflection.dll",
+      "bytes": 22200,
+      "sha256": "63aaf632ee7f3bc852c4d71c742cf1d26f18f784f6c89113e056b2599ba8f514"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Resources.Reader.dll",
+      "bytes": 21200,
+      "sha256": "e3036362506d96c9c00ed6393a2afcacd9f2e71cd2a35c1d638a61e85d2fb040"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Resources.ResourceManager.dll",
+      "bytes": 21232,
+      "sha256": "62dce4679e33c079e11f41b096bc803b30b1d963a1ea79efa84187cebbc06afe"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Resources.Writer.dll",
+      "bytes": 21200,
+      "sha256": "daaabd07f1b94be19d72913360286e469f454886850afcc603506eaab03150e4"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.CompilerServices.VisualC.dll",
+      "bytes": 21784,
+      "sha256": "18a610b8bad43cf784cde4d4902a238f2281c2a677daae790cab55f6da915979"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Extensions.dll",
+      "bytes": 21720,
+      "sha256": "f9feb277f86241f55425182a26decf50a210675d4f040ec542af3fb3dd287de6"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Handles.dll",
+      "bytes": 21200,
+      "sha256": "7a81d2a001b543b2a55c9affc845a5df7edab1fd308c6979bbd982b1b826b57c"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.InteropServices.RuntimeInformation.dll",
+      "bytes": 28624,
+      "sha256": "76432f414458e93b54ceb02fc348e652a84744108102f3a83792d8a804040eb8"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.InteropServices.dll",
+      "bytes": 24296,
+      "sha256": "383a1f9dac655c6805c24d4a03bc5fbeb9abd1536de5510f5756259eefcb4871"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Numerics.dll",
+      "bytes": 21200,
+      "sha256": "16e7efd6c19b2e3e516ae1bc7b3175d0e22f1ad357701f229e353da348eee182"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Serialization.Formatters.dll",
+      "bytes": 21264,
+      "sha256": "c343f7bf08a4c97a90ba607a492c721533333173fa63f65f6e5de9ceee65fc16"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Serialization.Json.dll",
+      "bytes": 21240,
+      "sha256": "e8d531f0aaa674f794b7f43ec76e4e32ad93f3c136020cf4b6e3433832f9c0df"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Serialization.Primitives.dll",
+      "bytes": 27048,
+      "sha256": "575e26a455892f1fd77b730e6928f70b760e76094afe5bcb677d854daf869ac5"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.Serialization.Xml.dll",
+      "bytes": 24816,
+      "sha256": "557858e44a51a74646ad07a85cba56af1da13ad26ac2f74ee5d8c3e8a171c221"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Runtime.dll",
+      "bytes": 29360,
+      "sha256": "50ad612d4cf6113de26b2870da099c4817f59e64a2da98f05803b4a2e2304919"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Security.Claims.dll",
+      "bytes": 21200,
+      "sha256": "8270d1248950ee8aee5c2ac2e321df07e65c7a94004ae03c857deacd231a5542"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Security.Cryptography.Algorithms.dll",
+      "bytes": 47016,
+      "sha256": "967dddbfe7f1ceb933b5875d65c59cdb835bb063f287a361e8b35dd814a9b14d"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Security.Cryptography.Csp.dll",
+      "bytes": 21240,
+      "sha256": "566775f5502c3c1fa70acade145293df5d02c1a9f031820d429605e9b4584b44"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Security.Cryptography.Encoding.dll",
+      "bytes": 21256,
+      "sha256": "1f5c1abe1b2720680170388569354d8cda9d558b53aff7caf175ce0f7e3733e5"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Security.Cryptography.Primitives.dll",
+      "bytes": 21784,
+      "sha256": "b755d0b55a465d07c9dd3fc11822487d1e649b684aef91a4ce9b935b416a01b9"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Security.Cryptography.X509Certificates.dll",
+      "bytes": 22832,
+      "sha256": "3c8630acb43c12a6a317227ff2922056ecd991fe945464fdf7ea81f1293a479f"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Security.Principal.dll",
+      "bytes": 21208,
+      "sha256": "02416bc542be82002b8b81adbbbcdcc8d098104020d09b571dc674b5bc19a177"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Security.SecureString.dll",
+      "bytes": 22392,
+      "sha256": "18032d190d0d599823e59c8dd8b588909bef8888b8bf304723a138b61f1b911f"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Text.Encoding.Extensions.dll",
+      "bytes": 21232,
+      "sha256": "cbe29672cd2b6a0ea97b55f3844fbede3e591996f39c3aa1f829f2fa50551fa9"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Text.Encoding.dll",
+      "bytes": 21696,
+      "sha256": "0ab1f7f87b7c2afca57d394e4f4e262c82ba3209cb0a750cd66401fb33f21eca"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Text.RegularExpressions.dll",
+      "bytes": 21232,
+      "sha256": "c98a52bd017df01aea7b955e6f219537d391a62c2c2b976684da282f9cd7cacf"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Threading.Overlapped.dll",
+      "bytes": 37752,
+      "sha256": "f17ff442b77a6cfe9c118d2f8fae1ab6c814a0d4f35c5844996be84f3fcc8592"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Threading.Tasks.Parallel.dll",
+      "bytes": 21232,
+      "sha256": "3468e0c875db94a8f45d56ab76bbcc677b942ca51a23649ba3c5ad1b20e391f1"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Threading.Tasks.dll",
+      "bytes": 22224,
+      "sha256": "0110616dfe870b8bcf25df8f6ce38ef5aac39e728ddaa3420ea199f5a7e80a16"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Threading.Thread.dll",
+      "bytes": 21200,
+      "sha256": "9d4faea9892d4ecfabf61986687fc6cb30f5f51a6b62819b9571ff58e04c4dd5"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Threading.ThreadPool.dll",
+      "bytes": 21216,
+      "sha256": "3d9ebc81b1bd3234666c8ce403a5f17a726867c68ffa5de4ec8ee92599335658"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Threading.Timer.dll",
+      "bytes": 21200,
+      "sha256": "04b9235f64c9c846f8a767230714895da87c7ae2cd0105e9d14835ae46f0fed8"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Threading.dll",
+      "bytes": 22192,
+      "sha256": "4dc8d588ec63641c28422d648e8de5e2c030eb7afec2071a99dd3bd9a204557f"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.ValueTuple.dll",
+      "bytes": 79176,
+      "sha256": "efd8155cec6f3683b701fe94f555d225332d283126bb36b36d9a20ea9d7fc724"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Xml.ReaderWriter.dll",
+      "bytes": 21712,
+      "sha256": "5f560e1dd529bb2529d7052e04008449f58d0439c2bb43437d7b5d39f84f949f"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Xml.XDocument.dll",
+      "bytes": 21696,
+      "sha256": "4f6a14e4ba2a2b26b8b8433d5f82f75a96af5a4f036d9447373b07271493917b"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Xml.XPath.XDocument.dll",
+      "bytes": 22904,
+      "sha256": "b33d08149a756a401628d11bfddfeeaca1f03c0578395bb061dae44f8a12ce5d"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Xml.XPath.dll",
+      "bytes": 21176,
+      "sha256": "24daa1faee0478ba58febe8ee789eb88be0a14d350b57ad8b10690c55976b2e1"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Xml.XmlDocument.dll",
+      "bytes": 21712,
+      "sha256": "8957f0bcea6ab8a011a53ae62466505199f11a228f87f3809931d974f87078ce"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/System.Xml.XmlSerializer.dll",
+      "bytes": 21712,
+      "sha256": "21493f7f615a099e795f7fae7ecce6082414d1d427790bdf4b103623a3ab34eb"
+    },
+    {
+      "path": "EpochPactUI/_internal/pythonnet/runtime/netstandard.dll",
+      "bytes": 98616,
+      "sha256": "8be4a2270f8b2bea40f33f79869fdcca34e07bb764e63b81ded49d90d2b720dd"
+    },
+    {
+      "path": "EpochPactUI/_internal/queue.pyc",
+      "bytes": 17376,
+      "sha256": "7e93da5a19db6160314f527b4f98a3efb60f99341336c0d66476a0958efaca25"
+    },
+    {
+      "path": "EpochPactUI/_internal/quopri.pyc",
+      "bytes": 9542,
+      "sha256": "835312c0c52e645ffad32d22f744951241828a021b73d8a71e9cfa977cdbf263"
+    },
+    {
+      "path": "EpochPactUI/_internal/random.pyc",
+      "bytes": 35267,
+      "sha256": "558085b3178fc24b6d384d6b09cfbdc634a06d7b5934681b039bb264b313b447"
+    },
+    {
+      "path": "EpochPactUI/_internal/re/__init__.pyc",
+      "bytes": 19426,
+      "sha256": "9c0329fb306d5d7badab0136d37afcbcf8297417119969653be8736115664913"
+    },
+    {
+      "path": "EpochPactUI/_internal/re/_casefix.pyc",
+      "bytes": 1796,
+      "sha256": "2341be6cd0ea323998aaf507d3d649e3e927527bb737407f165457c092942955"
+    },
+    {
+      "path": "EpochPactUI/_internal/re/_compiler.pyc",
+      "bytes": 26845,
+      "sha256": "d0fe7c9e4cd138f863f0878ee56e50b509e3d94c9e529418f820751f49f5f623"
+    },
+    {
+      "path": "EpochPactUI/_internal/re/_constants.pyc",
+      "bytes": 5357,
+      "sha256": "33e3b104c8d2f797151431431951388f05f18dee78062ae23852a46f01abba39"
+    },
+    {
+      "path": "EpochPactUI/_internal/re/_parser.pyc",
+      "bytes": 43558,
+      "sha256": "230d20c3acba1a33ee457b7d90e5257fa0036c96f440bbdbd1bf3a3121a74187"
+    },
+    {
+      "path": "EpochPactUI/_internal/reprlib.pyc",
+      "bytes": 11209,
+      "sha256": "6eba3efa766578d3e404f010c42c77b75eb899b6c26b1a3ac29591ccd87f6685"
+    },
+    {
+      "path": "EpochPactUI/_internal/rlcompleter.pyc",
+      "bytes": 8550,
+      "sha256": "88bc871537dd77e629728ea2ee23b55a6b1f68a3f31b5b05fcb9e8a4373c5c2f"
+    },
+    {
+      "path": "EpochPactUI/_internal/runpy.pyc",
+      "bytes": 14384,
+      "sha256": "c057d0fa70d899a486510d6e4f0722b8576ee5a4de2cbf100a730b7b9e13c284"
+    },
+    {
+      "path": "EpochPactUI/_internal/secrets.pyc",
+      "bytes": 2486,
+      "sha256": "9121dc3cb39c4b664903c66fb5abd05c785f226500a192e2458bdba1c19f5f68"
+    },
+    {
+      "path": "EpochPactUI/_internal/select.pyd",
+      "bytes": 33112,
+      "sha256": "9cc1ef0264060099503592db57ee7d7c1f8d6bea689b2ed125919c7a30b7ab7f"
+    },
+    {
+      "path": "EpochPactUI/_internal/selectors.pyc",
+      "bytes": 26436,
+      "sha256": "e5b08fa6a8b6ba6acabcba04a6836335aefbd88fa500b2eba7bc29fb071e3677"
+    },
+    {
+      "path": "EpochPactUI/_internal/shlex.pyc",
+      "bytes": 14828,
+      "sha256": "dafe43bee61d0c513d7fb57bb0215f1515a352e7f1f48a18a3249b74ce386356"
+    },
+    {
+      "path": "EpochPactUI/_internal/shutil.pyc",
+      "bytes": 67417,
+      "sha256": "0e8e1956ea2ecb25000317b74bb622809cc6db6418cacc93f280a40440bc0bc9"
+    },
+    {
+      "path": "EpochPactUI/_internal/signal.pyc",
+      "bytes": 4525,
+      "sha256": "ebe16f53c10ad7309bfaa88e21835d5a2c5afad88b385e51c105a7692d43abfc"
+    },
+    {
+      "path": "EpochPactUI/_internal/smtplib.pyc",
+      "bytes": 47380,
+      "sha256": "6f54becb8d6868cde10e73ea324892f4aab5cfd2b031c53564b5175445db801d"
+    },
+    {
+      "path": "EpochPactUI/_internal/socket.pyc",
+      "bytes": 42287,
+      "sha256": "48d71859ad716a0064468b5bbe32817c97b4eb86aff5f4f1a1e085aa98fb0b12"
+    },
+    {
+      "path": "EpochPactUI/_internal/socketserver.pyc",
+      "bytes": 34749,
+      "sha256": "5a68359ebd1f9eae3b7c56eb1bc22e6d8f1eb931aab349581c991d382005bf9a"
+    },
+    {
+      "path": "EpochPactUI/_internal/sre_compile.pyc",
+      "bytes": 607,
+      "sha256": "793489120102350d6f5b6e3fd8c6e00c79a887b7ed56102b97dfb314629ae3c7"
+    },
+    {
+      "path": "EpochPactUI/_internal/sre_constants.pyc",
+      "bytes": 610,
+      "sha256": "21e0d37b4bd2f030ec081e92f27ef2ecbb593828e127ccebee333f9c47d2510b"
+    },
+    {
+      "path": "EpochPactUI/_internal/sre_parse.pyc",
+      "bytes": 603,
+      "sha256": "d9177bea4ad4b3edbc3d801cf3d554f7501d0e20bd16a27c3b2b35da90fcad96"
+    },
+    {
+      "path": "EpochPactUI/_internal/ssl.pyc",
+      "bytes": 65430,
+      "sha256": "eeb7eff23f115c1aecd556a143804c8c4a00484d2796a101335d2f67836f9705"
+    },
+    {
+      "path": "EpochPactUI/_internal/stat.pyc",
+      "bytes": 5525,
+      "sha256": "8c657222601f213080ff265e315d2768dada9078e150d82c65a3c6108e9c4237"
+    },
+    {
+      "path": "EpochPactUI/_internal/statistics.pyc",
+      "bytes": 71356,
+      "sha256": "1242928a1f9c0a4947b93e18fbb89364fa3521ab277b3a8603488a7ab6fff558"
+    },
+    {
+      "path": "EpochPactUI/_internal/string.pyc",
+      "bytes": 11674,
+      "sha256": "e3aa4452d6aaae04c2c8ba64e3266d24a058ac21777d16593706edfa61b4642d"
+    },
+    {
+      "path": "EpochPactUI/_internal/stringprep.pyc",
+      "bytes": 25270,
+      "sha256": "dc1258090175f72f531a5ba3061e69c274d0e90419ff545c15e4e5f4f3ce28ff"
+    },
+    {
+      "path": "EpochPactUI/_internal/struct.pyc",
+      "bytes": 305,
+      "sha256": "d14f4e2dfb8f96358d3b20cf2009e528841fb010cdd75fa4200cd1b3f76bb59a"
+    },
+    {
+      "path": "EpochPactUI/_internal/subprocess.pyc",
+      "bytes": 81946,
+      "sha256": "a1b14bd98c8587281eb8a78536fcfb91c5c2bd46a5d4e4a05ba3b0769c24c3ee"
+    },
+    {
+      "path": "EpochPactUI/_internal/sysconfig/__init__.pyc",
+      "bytes": 25063,
+      "sha256": "89553eec7041fde7e17131a702d34188ee06ec0d99205ca7e4abc0521b657b3b"
+    },
+    {
+      "path": "EpochPactUI/_internal/tarfile.pyc",
+      "bytes": 126001,
+      "sha256": "99bfb877046ef015c7b2f9a0c8f13cbe8ec4c1871409d1e07b6d2f783eee5428"
+    },
+    {
+      "path": "EpochPactUI/_internal/tempfile.pyc",
+      "bytes": 41025,
+      "sha256": "f70f22e282d8856b7ee7f12096b5dabc41ce33064768f0506e55da0301553130"
+    },
+    {
+      "path": "EpochPactUI/_internal/textwrap.pyc",
+      "bytes": 17956,
+      "sha256": "df70b838f7693b4e072187dae1a821d144f50fff5c58ef8efc3d010460964b9e"
+    },
+    {
+      "path": "EpochPactUI/_internal/threading.pyc",
+      "bytes": 63408,
+      "sha256": "8131a629ab4c3e1c1b23b6d336a46f4586b435a0d71cb564e8b1fde1a9ec9301"
+    },
+    {
+      "path": "EpochPactUI/_internal/token.pyc",
+      "bytes": 3553,
+      "sha256": "4b866eced5def56127de6d5ef41959e53c0dab5112c92fbc1a33256e26e26427"
+    },
+    {
+      "path": "EpochPactUI/_internal/tokenize.pyc",
+      "bytes": 25420,
+      "sha256": "d5ed11bc5ad4d79c0bcba30c6f7c62d97a055cec1e8ddffe0de7015433dff99d"
+    },
+    {
+      "path": "EpochPactUI/_internal/tools/app_paths.pyc",
+      "bytes": 1506,
+      "sha256": "87f2aca6c9407205dd4dba99f1070c5eadceeb2b1dcff4fcb0adccc6d51ae100"
+    },
+    {
+      "path": "EpochPactUI/_internal/tools/cof_backend.pyc",
+      "bytes": 8147,
+      "sha256": "d83a4fbbad3575b142147ea7ed584bd552002ee59a7a62dfe0ce2be9211a71e9"
+    },
+    {
+      "path": "EpochPactUI/_internal/tools/collection_backend.pyc",
+      "bytes": 6780,
+      "sha256": "fff3cced7c8ca6078556120e670ab146b994d6a501a9cee8529fe2ad147d9ab4"
+    },
+    {
+      "path": "EpochPactUI/_internal/tools/game_compatibility.pyc",
+      "bytes": 2663,
+      "sha256": "03ca4ed2725ef1037ff5032cabb3e12a16145704e460ed93b0198c960e86455f"
+    },
+    {
+      "path": "EpochPactUI/_internal/tools/le_session.pyc",
+      "bytes": 38589,
+      "sha256": "4e807987d0ec0fa1341a41e4d04b8b40d80975b2040e44012ea0342a1063709d"
+    },
+    {
+      "path": "EpochPactUI/_internal/tools/monolith_backend.pyc",
+      "bytes": 8447,
+      "sha256": "acddaf69902da5e2a2ab5b70ba6cae3e776e99147109681767b14ff301f8ec5d"
+    },
+    {
+      "path": "EpochPactUI/_internal/tools/player_setup.pyc",
+      "bytes": 19489,
+      "sha256": "3117847648af130fa3cb1872614e897c55ad12bac7f17d37a2a94c086f6e8252"
+    },
+    {
+      "path": "EpochPactUI/_internal/tools/progression_backend.pyc",
+      "bytes": 11723,
+      "sha256": "3cb62ed1af943d7e6f80b698f81aef82769b2db5c5735f22d8ba72decba9183d"
+    },
+    {
+      "path": "EpochPactUI/_internal/tools/ui_bridge.pyc",
+      "bytes": 47299,
+      "sha256": "7dd20108041aa1abf671756b1f980ac02bff3a4506326f6b971e258bf7843373"
+    },
+    {
+      "path": "EpochPactUI/_internal/tools/ui_language.pyc",
+      "bytes": 6553,
+      "sha256": "938dec0e34a99cb3c265bcd1d6c3cc4adbfdf1eedd4667c57e7479bb86e25261"
+    },
+    {
+      "path": "EpochPactUI/_internal/traceback.pyc",
+      "bytes": 72223,
+      "sha256": "f65d023c0579125943c668c732dde476d6a5fd8c21693da92369143c5738eb33"
+    },
+    {
+      "path": "EpochPactUI/_internal/tracemalloc.pyc",
+      "bytes": 27493,
+      "sha256": "56e534818efb2547bcb4f27997650d63cd3624d55ac8e5aa42d5d72b663e19ba"
+    },
+    {
+      "path": "EpochPactUI/_internal/tty.pyc",
+      "bytes": 2663,
+      "sha256": "fa7835ad1b4b326f1b8b1c12bb2762b49e0a0c8823914a25daf0dd9d2b6244e4"
+    },
+    {
+      "path": "EpochPactUI/_internal/types.pyc",
+      "bytes": 15503,
+      "sha256": "3207cd9de1a4807222c8730e20f290c5731b9be651d46268251ced1885dfdf30"
+    },
+    {
+      "path": "EpochPactUI/_internal/typing.pyc",
+      "bytes": 155037,
+      "sha256": "17a2e293041962ae9382d46c355e82a6e1bfcd71cd64006443d28d410978441b"
+    },
+    {
+      "path": "EpochPactUI/_internal/typing_extensions.pyc",
+      "bytes": 166167,
+      "sha256": "57d1b9332a9a908ff7cf7935c18a73a3827c47e873889f4069a5669689912f24"
+    },
+    {
+      "path": "EpochPactUI/_internal/ucrtbase.dll",
+      "bytes": 1362264,
+      "sha256": "3239227d27667ba20d10a880751924e5719de0078f9fce232d149d383f7681f6"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/app.js",
+      "bytes": 73834,
+      "sha256": "b47e23646d97655c6de95ca11bf2b7ebcbe10056586ad2e1f1c7e6e44bb6902b"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/assets/chronoforge-art.png",
+      "bytes": 2696570,
+      "sha256": "a3b7b7190284bb93f35365d5a7a6c01b53805956ae09df0950b51ef5fb26e27f"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/assets/chronoforge-reference.png",
+      "bytes": 2189439,
+      "sha256": "def954eee93d04f827bca57cb09184f025875393a8303a44ccb508b3646d4f26"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/assets/inter-OFL.txt",
+      "bytes": 4377,
+      "sha256": "5b9321a4298cfeb6b34354164a1c3afc3db114569984c502b9b35d988fd58c57"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/assets/inter.ttf",
+      "bytes": 876576,
+      "sha256": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/assets/monster-density.svg",
+      "bytes": 1449,
+      "sha256": "382ccd84e71c2817856f7bc5a7705684d22b1853a78d5d2b7cfea96fd0c9e1d5"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/assets/void-atlas-art.png",
+      "bytes": 3033912,
+      "sha256": "b61ad5b586144cc9b2b157785cbd99939caee99a70b6a345bd81f9ab140ecbbc"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/assets/void-atlas-reference.png",
+      "bytes": 2440455,
+      "sha256": "c7f30a5bccd33dcb00bf86d8fda4e353cf79d0675abe801b4fd0ed1273f74687"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/catalog.json",
+      "bytes": 321249,
+      "sha256": "ed59beb12bdb800e9d307f59a68c641a82e2518903a703e07c7f6a67524a6de5"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/collection-ui.js",
+      "bytes": 16558,
+      "sha256": "be2bb68379c00ddadb3a0b441ffbb0fbf3ee4ddd367eb0a3562b00ed1dc889c8"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/collection.css",
+      "bytes": 5193,
+      "sha256": "926786b1da42f34fbbd28cc78427cddb57cc2bbb7770119c3fd059e5a5b1462d"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/index.html",
+      "bytes": 5536,
+      "sha256": "d3ee6ca4d7e12de46326f011673c98600f5f9066872895ab4a794635895e63b6"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/launcher.js",
+      "bytes": 5239,
+      "sha256": "96efd1f812452690783eeaf9e9511324e6cc9b31bcc78a8b80541575bf2ba8a1"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/locale-en.json",
+      "bytes": 15237,
+      "sha256": "24f9abc3b05477a42051d7ef681d3a638ae3b04866fd74cecb96e61503dcd45c"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/session.js",
+      "bytes": 3121,
+      "sha256": "8c9c5d4b5d7115d02e921b6f27142394735bb80929285ac7e4e230ce4bb5bd0d"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/stat-model.js",
+      "bytes": 4929,
+      "sha256": "e7d32109dff605066515c0e1fd5cbe9416436d709fcd0d0d460fcc98883e2e1f"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/style.css",
+      "bytes": 26186,
+      "sha256": "33be9c924d1076f36925573ddf7e49aa88ff6cd61dbcf856e281ece15f2c0081"
+    },
+    {
+      "path": "EpochPactUI/_internal/ui/supported-game-builds.json",
+      "bytes": 291,
+      "sha256": "b7fd7d3ffa705c0a40a8de182e2d9cfe939670abe914ead1e687326cb01da232"
+    },
+    {
+      "path": "EpochPactUI/_internal/unicodedata.pyd",
+      "bytes": 712024,
+      "sha256": "1989628f16052f9123c5cf603e96490a75fde6228315457556f96a838bf9e904"
+    },
+    {
+      "path": "EpochPactUI/_internal/urllib/__init__.pyc",
+      "bytes": 115,
+      "sha256": "7f3650d12b1bea10b3698a1131b841e31f2b19d22b1a8298ee5deae0d6976a12"
+    },
+    {
+      "path": "EpochPactUI/_internal/urllib/error.pyc",
+      "bytes": 3728,
+      "sha256": "46eb743c3295125f805468d87d588e60f76af2d0d1a3bbb0c26d370d86595fa1"
+    },
+    {
+      "path": "EpochPactUI/_internal/urllib/parse.pyc",
+      "bytes": 50993,
+      "sha256": "a2e1e191c598cc890a5d419529fb0c09930f62d8792d030bc8a2dd8bc9adde88"
+    },
+    {
+      "path": "EpochPactUI/_internal/urllib/request.pyc",
+      "bytes": 116393,
+      "sha256": "3e4dc987be35d814bc9e39e70022eb9b67d382c7dad4c06fbca926b1548e8e53"
+    },
+    {
+      "path": "EpochPactUI/_internal/urllib/response.pyc",
+      "bytes": 4569,
+      "sha256": "5fceae319530ecf3762790e1f8f5e2c219f690273e2532237e31c74c90c261c1"
+    },
+    {
+      "path": "EpochPactUI/_internal/uuid.pyc",
+      "bytes": 32448,
+      "sha256": "e2fc90005c24093fe2f78137972cd5bd9a6b4d0477d68702e962ac13e3765965"
+    },
+    {
+      "path": "EpochPactUI/_internal/warnings.pyc",
+      "bytes": 29553,
+      "sha256": "119cd703012d620605e4233b5c9785103f4e731da06f1030f804ecde5d0bc406"
+    },
+    {
+      "path": "EpochPactUI/_internal/weakref.pyc",
+      "bytes": 31890,
+      "sha256": "ed314db5ecc17e2f35b870b79d1af49b9b0b1237e70675537d66bac57d5870c9"
+    },
+    {
+      "path": "EpochPactUI/_internal/webbrowser.pyc",
+      "bytes": 26925,
+      "sha256": "0629db1fdb355b6d05c4caf912b411a154a31449aab8a288b977e9adde0016fe"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/__init__.pyc",
+      "bytes": 21063,
+      "sha256": "3a261afd205b96d27c31ae6ba5128519c1a55701150070cf7cd00f6da986fe8f"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/dom/__init__.pyc",
+      "bytes": 2459,
+      "sha256": "7e7e3c9ebd0c5eb4be3713ff7e359b5cf7d751c0f242438ca9a6595834e9ed46"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/dom/classlist.pyc",
+      "bytes": 3441,
+      "sha256": "1403f8ec7213cc22904b35b5910b68f442136856835ce2e806b429a39996bbba"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/dom/dom.pyc",
+      "bytes": 4617,
+      "sha256": "ed03460ce4d6dd4337f1826333198797812a5ad4404f52f6aa40ad0220ad0de1"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/dom/element.pyc",
+      "bytes": 24067,
+      "sha256": "9987692e3e7150640c4b53bd5b45b43f40d56e0b89c8bddf1c852183b3820b42"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/dom/event.pyc",
+      "bytes": 2478,
+      "sha256": "101b0700bbb7c76b7fefceaae016c10db02e3d3d175cd37e17ad6857b6db2540"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/dom/propsdict.pyc",
+      "bytes": 10937,
+      "sha256": "aaf263efd10eeda74d654f194175c0d2be1d7ccc7704b3ed0d7b873669d1a3b9"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/errors.pyc",
+      "bytes": 533,
+      "sha256": "e4c9c2ced99a26b9ce68168b58046967361e9a189547651cf43b6802111f3dcd"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/event.pyc",
+      "bytes": 5000,
+      "sha256": "9366a4f0e054721a495f3ee616f7731ddbb0518a499d752d88b0bbf4c3e7525d"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/guilib.pyc",
+      "bytes": 5152,
+      "sha256": "ac8594ee7fc44e97c9ea7a910e10a4b3ea02a51ea4b4f4e3f26cd4f12acc78c7"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/http.pyc",
+      "bytes": 13696,
+      "sha256": "d27cc01d4e601525754babf27148452bcb4320dcc3ffd144101484d2e8b85685"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/js/api.js",
+      "bytes": 8612,
+      "sha256": "cb68b8bed427fa356aea26376e497552f55d91329c093c026a65230d074e2b27"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/js/customize.js",
+      "bytes": 4443,
+      "sha256": "ed14d0b594266dfe3834cc8565b44a8157420432aeef4f733ab505bd6ed89b8a"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/js/finish.js",
+      "bytes": 357,
+      "sha256": "751443083dd1d2b2ef4142692f25bc4f6e04f8de4d82c455c73473700f00c8cb"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/js/lib/dom_json.js",
+      "bytes": 26097,
+      "sha256": "70fae2a8a8ebc790dc616aa7976074cedd802275c173c90ad4bf3bd14163f9c4"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/js/lib/polyfill.js",
+      "bytes": 27434,
+      "sha256": "481a08f5337a770acf49b38c2f58dd0c95f92bf9dbd92bf82b596836ea343ab5"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/js/state.js",
+      "bytes": 1828,
+      "sha256": "68ee87ec01563cbcab77a57704a32f19b47436c9d5e254bfba9675a51c132075"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/lib/Microsoft.Web.WebView2.Core.dll",
+      "bytes": 649800,
+      "sha256": "8219a3135436c147f8eb02fb831e99596103eebc18b6d7b794ca93f4c67018a2"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/lib/Microsoft.Web.WebView2.WinForms.dll",
+      "bytes": 39016,
+      "sha256": "c48f8d729dc531288d2c53a6241effe7922ed1b947850b2442008a945c098c48"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/lib/WebBrowserInterop.x64.dll",
+      "bytes": 7168,
+      "sha256": "f6a646470f0e1058224a52e8e2e217501dca46939b30bfc9a5dd4dcdd43f088d"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/lib/runtimes/win-arm64/native/WebView2Loader.dll",
+      "bytes": 147016,
+      "sha256": "0937030efc718f3da77c5e0978fb5046e381d0bb7b01acaad31a535a1b588a33"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/lib/runtimes/win-x64/native/WebView2Loader.dll",
+      "bytes": 161864,
+      "sha256": "eb5335edeaa6f2122c044e82aab2351dc8c9b4e0fe5e578c71922fb61be285e7"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/lib/runtimes/win-x86/native/WebView2Loader.dll",
+      "bytes": 121928,
+      "sha256": "04814b2c59314c6452d61b821a4a3a5c5f8e8577b55b985f6a7a4b59f8907ec5"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/localization.pyc",
+      "bytes": 1273,
+      "sha256": "e45d779a72917348f3364cb3dea006c6cac6bb7c58b24a0032f24905b7449025"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/menu.pyc",
+      "bytes": 1449,
+      "sha256": "97248a7c204ed5762ee8b0158826bfb2b099ef8c890543b45197064690abcb1a"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/models.pyc",
+      "bytes": 1655,
+      "sha256": "9d91fa59c1a1a94751c7519b564280ecb268b9f57eec423e3ca9442f9a79c03a"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/platforms/__init__.pyc",
+      "bytes": 126,
+      "sha256": "f8edb1e47ee04ac2f688c35aaac78088e178e01f9bdc72f0f35bee0c65770826"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/platforms/edgechromium.pyc",
+      "bytes": 23149,
+      "sha256": "1bef1932b837640c1e67058195bc09336a281ef0aa2e980078a75568f29de0d7"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/platforms/mshtml.pyc",
+      "bytes": 14293,
+      "sha256": "455eca9f73ec9fa95a29ca3db2c2d54dd74fd45fe4678c044c04598719efda30"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/platforms/win32.pyc",
+      "bytes": 4080,
+      "sha256": "2afa677a69aecff0f48044350ee9e7d9a4718c327648c6a14d5936707a16bf60"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/platforms/winforms.pyc",
+      "bytes": 57412,
+      "sha256": "007ac34517e02d304469cf317e4d21d8c815c4a68421751a0d906af74589866a"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/py.typed",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/screen.pyc",
+      "bytes": 3015,
+      "sha256": "8da770a7ec0f70e56cab6a18a30ecf34591518bc6350d5b4afc41c3832dca2d5"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/state.pyc",
+      "bytes": 7441,
+      "sha256": "3f662a08c82f5e57307c0fea98bbbad510d2db0ef34dab5346a13829355f97b9"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/util.pyc",
+      "bytes": 27584,
+      "sha256": "34cb024699817bed490cdb2ffb98def1c666bbcd0f8a2dde12d969446ac0022a"
+    },
+    {
+      "path": "EpochPactUI/_internal/webview/window.pyc",
+      "bytes": 28177,
+      "sha256": "ab8526ec4f3ffe17dbc52182053fd9c50d60473ebaad34adf3d940c30b409e81"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug-3.1.9.dist-info/INSTALLER",
+      "bytes": 4,
+      "sha256": "ceebae7b8927a3227e5303cf5e0f1f7b34bb542ad7250ac03fbcde36ec2f1508"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug-3.1.9.dist-info/METADATA",
+      "bytes": 4054,
+      "sha256": "9f04352e946ecb0883fbf379994c1cacf6720a124acdd7fd59029a889f4eebba"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug-3.1.9.dist-info/RECORD",
+      "bytes": 8407,
+      "sha256": "31e95ca3335e50c0bdd3b976dacd458cd0935fde6c4bb9b2ba45fd1adf9cb784"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug-3.1.9.dist-info/REQUESTED",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug-3.1.9.dist-info/WHEEL",
+      "bytes": 81,
+      "sha256": "96a37c8d7b7f425a05386731f644adbd66ebca17c45e8236176cfe614466df9d"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug-3.1.9.dist-info/licenses/LICENSE.txt",
+      "bytes": 1475,
+      "sha256": "3b49dcee4105eb37bac10faf1be260408fe85d252b8e9df2e0979fc1e094437b"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/__init__.pyc",
+      "bytes": 271,
+      "sha256": "dca0610ea7c1265af3b92b468c9f50be76965435e4786d69f1564d1167253300"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/_internal.pyc",
+      "bytes": 9891,
+      "sha256": "89624d16726dfaba72822d58807317bb1d0f526ae4a336781481c6428c7abcf3"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/_reloader.pyc",
+      "bytes": 21359,
+      "sha256": "d25e1bc46378bae638f9a91e93a9280bf19ce2722ede76432ec110e65f0581d3"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/datastructures/__init__.pyc",
+      "bytes": 2342,
+      "sha256": "2c6c89cecd87110209c93bfd44201d4c0d3f8a5c32dd70c2b246f632055600ec"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/datastructures/accept.pyc",
+      "bytes": 15934,
+      "sha256": "2b2629f10dca3c1ae0021bd7ff8f28b272154fdc9380fb73a74e95328424dc35"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/datastructures/auth.pyc",
+      "bytes": 14555,
+      "sha256": "e101f16d1c016ad75257f76c483033833a4a1ff78a3d21baa99193ca9a3bb38a"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/datastructures/cache_control.pyc",
+      "bytes": 11849,
+      "sha256": "6f35fd52d28dd43ef245d7e82b724943e723c257702d10d329a07d6111677d04"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/datastructures/csp.pyc",
+      "bytes": 6111,
+      "sha256": "bd6cf49e07fccd097dbd26f121c97fe26cc955f0ff40f1e88ae8db206250fff1"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/datastructures/etag.pyc",
+      "bytes": 5541,
+      "sha256": "f2a2fda2adcd0306dff4ada7a185953289b4efab24f8f7b7f206fc33010e9b55"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/datastructures/file_storage.pyc",
+      "bytes": 8889,
+      "sha256": "e5feb8a555cfdcd1f9e8b222eda218733fd2a56ec808b6a297ad752d2a351fd4"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/datastructures/headers.pyc",
+      "bytes": 31202,
+      "sha256": "cec0d6513732349f856fceff120e9895284a1ec6bac7b94f3b32eabaa203779b"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/datastructures/mixins.pyc",
+      "bytes": 16711,
+      "sha256": "f827e6116bc5285a9af00da2eb37b7c1c3cadf24efb62455878cc5169de25364"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/datastructures/range.pyc",
+      "bytes": 10096,
+      "sha256": "4ad5427e320c89977c17031d9a0754c6e6192dd846262c0ddad51b3f70d6e614"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/datastructures/structures.pyc",
+      "bytes": 58228,
+      "sha256": "ef9e9ec44edd596c4111c71688d3ac16c9ebe9d82dcb669a93a1b37b83c0c82c"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/debug/__init__.pyc",
+      "bytes": 23775,
+      "sha256": "9461b82ba80f54851cb1cbb97582d07febded03de3a8e48059ed6b0387d791ff"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/debug/console.pyc",
+      "bytes": 11880,
+      "sha256": "36e7eceb40e179300cdb4aec58933de5687d95148dc7c4f064df7a11ff1bd864"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/debug/repr.pyc",
+      "bytes": 14071,
+      "sha256": "0261bf8b2e39a2b7ea8d972cee7540fa30c9c8bdfda23bac390f2706d3869e5f"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/debug/tbtools.pyc",
+      "bytes": 17358,
+      "sha256": "fded068cfb3dd723b1dcc843bdbbafc83d3136f76bf1e20d006fa3a23786b45e"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/exceptions.pyc",
+      "bytes": 34120,
+      "sha256": "4b134a40fac4627ee675185e4fd165a952cf8c3b0bbabf8a9057b145b4d0e30e"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/formparser.pyc",
+      "bytes": 17218,
+      "sha256": "b9cd80a953a3f6fb3867fa4ff9c2c5337ab350d49affccf4fdd698c480f6a4c9"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/http.pyc",
+      "bytes": 52191,
+      "sha256": "54f343511242244ac942bc3382bd0b6563792945b4bdb49c790c83c8ee1ca15f"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/local.pyc",
+      "bytes": 27838,
+      "sha256": "c20708bc623539e9a76298b0c8f8385aa14fca4271f5620a8530331838c98378"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/middleware/__init__.pyc",
+      "bytes": 128,
+      "sha256": "32d5faff7ac85a9c4fd32e8116df8d006cec0316facebbd2c77f7ca49d15c9d9"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/middleware/shared_data.pyc",
+      "bytes": 12711,
+      "sha256": "e43988f2609dc1045511ade5eba290bb8ab2aad0d330f88b58e0d29c90a9c41f"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/routing/__init__.pyc",
+      "bytes": 4601,
+      "sha256": "1420889e24115d18c7165e982d40ce911a06fbd40b199b1e0b502de7332faf2c"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/routing/converters.pyc",
+      "bytes": 11157,
+      "sha256": "8afe67a465c363b4357b1dc6162355ff062280c4e3a88733a200b6943625ad45"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/routing/exceptions.pyc",
+      "bytes": 8164,
+      "sha256": "279c68e31b2853a3c43385f2747fdbe5efe920c9be5a009218611b912cc09c9a"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/routing/map.pyc",
+      "bytes": 37766,
+      "sha256": "bfccc2e2ffd2e19dcc0ce0040c2c9e58abf243bf0b526e29a657f17cfa8cc0fa"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/routing/matcher.pyc",
+      "bytes": 8740,
+      "sha256": "5f113096ced2f88e16cddf0b222b2aa626a443fe263dcc12efc639938144df90"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/routing/rules.pyc",
+      "bytes": 39238,
+      "sha256": "67f7670e01fc757c2b6375142f8c0c62e24864720a8494aedd54fb6559034f84"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/sansio/__init__.pyc",
+      "bytes": 124,
+      "sha256": "349a4d009504804507d86a3aeb5e6390bb5cb996b357316c2511eabd8b0163d0"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/sansio/http.pyc",
+      "bytes": 5840,
+      "sha256": "f745e39c19a263525a199c5276082b21bfe7103ac5b6909eae88da4a9dfb48fa"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/sansio/multipart.pyc",
+      "bytes": 14862,
+      "sha256": "af93851970abf0f61fcad5da5b3df6f7372b771e8131819d2414f7c84c7e6ffe"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/sansio/request.pyc",
+      "bytes": 21288,
+      "sha256": "904674f8ef548d4d9296b67faa6d2638d95fc1c60437ea5712a0f21b93ace287"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/sansio/response.pyc",
+      "bytes": 30942,
+      "sha256": "43f6e930b01b61d64e93c64150c7ec439e47d229931259c51bd2a94abe3a58c2"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/sansio/utils.pyc",
+      "bytes": 8192,
+      "sha256": "80f0cef679b5e1f480412c16921900f403771a4822b6eccbed85e59d14a4eedb"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/security.pyc",
+      "bytes": 9329,
+      "sha256": "f994c4b3ecefe147397c5a8b4654a41c84325ef21e87f2c6628f270069f58d5f"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/serving.pyc",
+      "bytes": 46682,
+      "sha256": "8a36f0b79b59cc17cb79928c868b69460ce4d69b38ece681af9088ca6df132f8"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/test.pyc",
+      "bytes": 59150,
+      "sha256": "fcc5f339d3c537f68bf2a18f79a4f5e38eb7441df24fee7f911b0a733196d2fa"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/urls.pyc",
+      "bytes": 8253,
+      "sha256": "cf3a705e55acc1a8c56b9c3c7a3df781aba1fda64c40661779e22c0601dd4934"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/user_agent.pyc",
+      "bytes": 2110,
+      "sha256": "c55f7f4c8aafec2cf359cee5d00633984c768769e313836bd12f3f541e666bb4"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/utils.pyc",
+      "bytes": 27475,
+      "sha256": "fac32a2f5044c7eacc284581efc67aacc25e3fce0bf549b284e4523d99880ded"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/wrappers/__init__.pyc",
+      "bytes": 248,
+      "sha256": "7bd0bbe9ad4abb3dfc407e40e275caf25d2a3c81d89b9be78f4d1644b8f1601f"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/wrappers/request.pyc",
+      "bytes": 24928,
+      "sha256": "d029e946350e25e32dcfcd855704925431ce73cc0ab5ba3adebcaa66c34da9be"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/wrappers/response.pyc",
+      "bytes": 33590,
+      "sha256": "dee5a57cc7c92d7fa1cc5e0b3252e06afe15ded3a991b2a3e0460d3f0d7a06ca"
+    },
+    {
+      "path": "EpochPactUI/_internal/werkzeug/wsgi.pyc",
+      "bytes": 25774,
+      "sha256": "291a92d3da0f931841d3cfd5fe3a00f66ed05a0f44850235fd4827b5c7fcc2af"
+    },
+    {
+      "path": "EpochPactUI/_internal/wsgiref/__init__.pyc",
+      "bytes": 786,
+      "sha256": "2c457832ed532efe38340fccf95cadaa26f482665e9b8bab9dc7f1d699cd0de9"
+    },
+    {
+      "path": "EpochPactUI/_internal/wsgiref/handlers.pyc",
+      "bytes": 23703,
+      "sha256": "89fa13f1fcc34fef1180dd211555038ec1028b6e6eb043de86efe5c0fe968b94"
+    },
+    {
+      "path": "EpochPactUI/_internal/wsgiref/headers.pyc",
+      "bytes": 9435,
+      "sha256": "8f5db50f0892fef4f95444425280ccb63a624f78415c8ffb53fc076396518772"
+    },
+    {
+      "path": "EpochPactUI/_internal/wsgiref/simple_server.pyc",
+      "bytes": 8121,
+      "sha256": "ba9ce0a4f8061c9fc3d27159961ce1ebbaec1c4db6a4de32439577b37ff8a393"
+    },
+    {
+      "path": "EpochPactUI/_internal/wsgiref/types.pyc",
+      "bytes": 3878,
+      "sha256": "fdfe7d65f9e8e8db5599d3c7ca6c9fce259a8617e77a3a41ed15b76277e9ce94"
+    },
+    {
+      "path": "EpochPactUI/_internal/wsgiref/util.pyc",
+      "bytes": 6934,
+      "sha256": "48017a9e2e6f3e57446f300ce91853fcebc7fc6774b40e84c81d88305a5ec59f"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/__init__.pyc",
+      "bytes": 687,
+      "sha256": "3877f60a5a646f6aea002965c67043dfa11ee9c4ddef0264f2d8cc3946684d10"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/etree/ElementInclude.pyc",
+      "bytes": 4148,
+      "sha256": "0b391407a1a7848c00e9bb0c1aab7be9e2c46534e27e0f7469377ea9075d2637"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/etree/ElementPath.pyc",
+      "bytes": 15104,
+      "sha256": "6d20a0f66b27b93929f61c7d011e77a39d9f988c996270d414c5cdc97c56931c"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/etree/ElementTree.pyc",
+      "bytes": 83429,
+      "sha256": "ffa871df2a1bc05f0a942c497e84eb34ac2b13e1aa87ba061c82a6fa4a1c077e"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/etree/__init__.pyc",
+      "bytes": 118,
+      "sha256": "fc9314e32d8749d5de786f88183fb6cf23c4b7fcc564b4a4f5c644acba4bce9f"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/etree/cElementTree.pyc",
+      "bytes": 167,
+      "sha256": "6d90b7ab04c4955a4e3fd4a964620259152017b06528dfd9d3408da8e2190b66"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/parsers/__init__.pyc",
+      "bytes": 297,
+      "sha256": "bee88ac454c9104fe253e2b01fb5eb5a9c657db1955569dad53b184f83176357"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/parsers/expat.pyc",
+      "bytes": 396,
+      "sha256": "1c215bf9c1cc338508985f839eedb34a185ce9046ecf96fa9f04ec8b379d3374"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/sax/__init__.pyc",
+      "bytes": 3804,
+      "sha256": "f8f2a01c3783e0f81c66601f7ed64d1ef85a6d82e28b0e8dbcccf795a7510120"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/sax/_exceptions.pyc",
+      "bytes": 6248,
+      "sha256": "85ab402924e3527180e528a564c7b3564cb7cb6ac71e361e345f11080c6aaaa5"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/sax/expatreader.pyc",
+      "bytes": 21920,
+      "sha256": "18995ad8fd264eb9c41515d5f56f63e9556608a3965fac92418353b9d8cdaf23"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/sax/handler.pyc",
+      "bytes": 14162,
+      "sha256": "0bb85504f5d1ac30ce29c94aea1d62ed8b760c276ad743be2685796be679ad86"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/sax/saxutils.pyc",
+      "bytes": 19912,
+      "sha256": "c6d12228cf9cb9b40590c83d5ecab1bb381e7e59a02a3290495ee5e407d3fd82"
+    },
+    {
+      "path": "EpochPactUI/_internal/xml/sax/xmlreader.pyc",
+      "bytes": 19430,
+      "sha256": "aa6cdca751c13fc049f621c8083131054caacdc6ce3978da2ff5215ff7f554c5"
+    },
+    {
+      "path": "EpochPactUI/_internal/xmlrpc/__init__.pyc",
+      "bytes": 115,
+      "sha256": "c20618411b05d86cc412076814e937e381e620b256ecb70ad32de9e05ec66991"
+    },
+    {
+      "path": "EpochPactUI/_internal/xmlrpc/client.pyc",
+      "bytes": 52267,
+      "sha256": "a09e765a3c7c0e10cf8f1f5fa9d31754b8dda80766121238f18c28db2f345117"
+    },
+    {
+      "path": "EpochPactUI/_internal/zipfile/__init__.pyc",
+      "bytes": 104079,
+      "sha256": "14f9a7716e02f333e1e7fccc5e29ff2c67f3fe620573b2c3a9c6fa157fa62006"
+    },
+    {
+      "path": "EpochPactUI/_internal/zipfile/_path/__init__.pyc",
+      "bytes": 20186,
+      "sha256": "831968f5ca20a87756248611571cd14934d8d375d5a4c4a7cbd9b046cbc54d3c"
+    },
+    {
+      "path": "EpochPactUI/_internal/zipfile/_path/glob.pyc",
+      "bytes": 5366,
+      "sha256": "37c73126d40563f7c15c9bca5d0716e93fb7f39217997b684e16c4b8da7bc3f9"
+    },
+    {
+      "path": "EpochPactUI/_internal/zipimport.pyc",
+      "bytes": 26509,
+      "sha256": "0d615604f7a9921047eb663dee866fdf9b84b846a5db7ee46e4b30f4c6b1e380"
+    },
+    {
+      "path": "EpochPactUI/build-info.json",
+      "bytes": 146073,
+      "sha256": "08c78480e4e87e54f3d75e8c79e57be5b99597c71b4008c7806cb3065698613b"
+    },
+    {
+      "path": "INTER-OFL.txt",
+      "bytes": 4377,
+      "sha256": "5b9321a4298cfeb6b34354164a1c3afc3db114569984c502b9b35d988fd58c57"
+    },
+    {
+      "path": "README-MANUAL.md",
+      "bytes": 3729,
+      "sha256": "99d2800d41d7bfd87bd0641dc9e5dc3d591a7d210dbdf722c073ff7e6b86a602"
+    },
+    {
+      "path": "THIRD-PARTY-NOTICES.txt",
+      "bytes": 71420,
+      "sha256": "0c0b36673c060ba254da37ef277131cb994fd70a486e42f7ac218bccdc29e0ba"
+    },
+    {
+      "path": "supported-game-builds.json",
+      "bytes": 291,
+      "sha256": "b7fd7d3ffa705c0a40a8de182e2d9cfe939670abe914ead1e687326cb01da232"
+    }
+  ]
+}

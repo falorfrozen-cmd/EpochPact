@@ -6,6 +6,8 @@ rem   build\hook_test.exe         decoder and hook engine tests (run it after a 
 setlocal
 set "HERE=%~dp0"
 set "OUT=%HERE%build"
+rem An isolated loader-only build leaves the previously published core untouched.
+if "%~1"=="loader" if not "%~2"=="" set "OUT=%~f2"
 if not exist "%OUT%" mkdir "%OUT%"
 if not exist "%OUT%\tests" mkdir "%OUT%\tests"
 
@@ -37,6 +39,7 @@ echo [1/3] loader (version.dll)
 ml64 /nologo /c /Fo"%OUT%\version_thunks.obj" "%HERE%proxy\version_thunks.asm" || exit /b 1
 cl %CFLAGS% /EHsc /c /Fo"%OUT%\version_proxy.obj" "%HERE%proxy\version_proxy.cpp" || exit /b 1
 link /nologo /DLL /OUT:"%OUT%\version.dll" /DEF:"%HERE%proxy\version.def" "%OUT%\version_thunks.obj" "%OUT%\version_proxy.obj" kernel32.lib || exit /b 1
+if "%~1"=="loader" goto :done
 
 :core
 echo [2/3] core (EpochPact.Core.dll)

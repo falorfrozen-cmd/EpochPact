@@ -15,6 +15,29 @@ import subprocess
 from tools import le_session as le
 
 
+class SystemToolTests(unittest.TestCase):
+    def test_process_listing_never_searches_current_directory_or_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fake = Path(directory) / 'tasklist.exe'
+            fake.write_bytes(b'never execute this fixture')
+            with patch.dict(os.environ, {'PATH': directory}), \
+                 patch.object(le.subprocess, 'run') as run:
+                run.return_value.stdout = '"Last Epoch.exe","123","Console","1","100 K"\n'
+                self.assertEqual(le.game_pids(), [123])
+            chosen = Path(run.call_args.args[0][0])
+            self.assertTrue(chosen.is_absolute())
+            self.assertEqual(chosen.name, 'tasklist.exe')
+            self.assertNotEqual(chosen, fake)
+            self.assertTrue(chosen.is_file())
+
+    def test_failure_to_resolve_system_directory_does_not_fall_back_to_path(self):
+        with patch.object(le.kernel32, 'GetSystemDirectoryW', return_value=0), \
+             patch.object(le.subprocess, 'run') as run:
+            with self.assertRaises(OSError):
+                le.game_pids()
+            run.assert_not_called()
+
+
 def concurrent_sender(game, command, queue):
     le.GAME = Path(game)
     try:

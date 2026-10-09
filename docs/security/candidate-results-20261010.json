@@ -1,0 +1,137 @@
+{
+  "version": "0.1.1-alpha.2-review.1",
+  "status": "Local review candidate; no Nexus clearance; previous detections unexplained",
+  "archive": {
+    "file": "EpochPact-0.1.1-alpha.2-review.1-Manual-Review.zip",
+    "bytes": 26501914,
+    "sha256": "50faf9151bc1c95f80efb4e85f3fcb2a1bd3dad2af10a00b3e924a241907416c",
+    "entries": 840,
+    "version": "0.1.1-alpha.2-review.1",
+    "verified": true
+  },
+  "buildInputs": {
+    "packages": 23,
+    "comparedInstalledFiles": 1978,
+    "mismatches": 0,
+    "scope": "Official artifact identity and comparison with installed package files; not a malware verdict.",
+    "report": "fresh-environment-20261010.json"
+  },
+  "pythonTests": {
+    "passed": 153,
+    "scope": "Final source; isolated fixtures and mocks, not live gameplay"
+  },
+  "loader": {
+    "loaderSHA256": "bee68619c1869f7cb2b7c5e0cde123137e58c08fc8ec4f5fca237fb1c107370d",
+    "checks": [
+      "17 exports present; forwarded version API matches System32; core resolves dependency beside itself",
+      "missing trusted dependency fails closed; same-named DLL in current directory / PATH is not loaded",
+      "disabled marker prevents core initialization without breaking version forwarding"
+    ],
+    "scope": "Compiled benign fixtures only; no game launch, game hooks, saves or live gameplay validation."
+  },
+  "compiledApplication": {
+    "file": "dist/security-review/onedir-final/EpochPact/EpochPact.exe",
+    "layout": "onedir",
+    "sha256": "068bc76120b2a8d17c8d4f87a51f3ebaf6e2696829e80ec2d4492498c6590435",
+    "bytes": 370889,
+    "nativePlayerSHA256": "6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f",
+    "checks": [
+      "folder bundle inventory matches every file hash; no nested archives or build tools",
+      "bundled Python runtime",
+      "verified player DLL only",
+      "no historical character snapshots",
+      "current launcher source in EXE",
+      "compiled installer helper installs exact DLLs in custom Unicode folder without Python",
+      "compiled installer refuses another mod loader without changes",
+      "compiled installer refuses an unsupported game build before writing files",
+      "first launch performs no selection, installation or gameplay mutation",
+      "compiled interface serves scripts, font and both theme assets",
+      "installation API rejects missing session token",
+      "compiled API rejects foreign Host and Origin even with a valid session token",
+      "compiled HTTP selection and explicit installation succeed through the serial job queue",
+      "fixture game is never executed; no game IPC or save backups created",
+      "fresh EXE process remembers selected path and issues a new session token",
+      "compiled EXE rejects a legacy shared port and serves Game setup from its own backend",
+      "compiled startup logs contain no exception"
+    ],
+    "jobDurationsMs": [
+      248.0,
+      19.6,
+      380.8,
+      811.2
+    ],
+    "scope": "Final compiled EXE, isolated installer fixtures and HTTP interface; no interactive picker test, UAC approval or live gameplay test."
+  },
+  "desktopUI": {
+    "rendered": [
+      "Game setup",
+      "Overview"
+    ],
+    "normalCloseRequested": true,
+    "processEnded": true,
+    "exitCode": null,
+    "gameSelected": false,
+    "gameLaunched": false,
+    "startupException": false,
+    "evidence": [
+      "images/desktop-setup.png",
+      "images/desktop-overview.png"
+    ]
+  },
+  "defender": {
+    "scope": "Candidate build folder and review ZIP only; official custom scan without remediation to preserve investigation artifacts. Exclusions ignored; real-time protection unchanged.",
+    "target": "dist/security-review",
+    "startedUTC": "2026-10-09T23:33:33.7974330Z",
+    "completedUTC": "2026-10-09T23:33:47.4257799Z",
+    "exitCode": 0,
+    "before": {
+      "AMServiceEnabled": true,
+      "AntivirusEnabled": true,
+      "RealTimeProtectionEnabled": true,
+      "AntivirusSignatureVersion": "1.459.641.0"
+    },
+    "after": {
+      "AMServiceEnabled": true,
+      "AntivirusEnabled": true,
+      "RealTimeProtectionEnabled": true,
+      "AntivirusSignatureVersion": "1.459.641.0"
+    },
+    "output": "Scan starting...\r\nScan finished.\r\nScanning <project>\\dist\\security-review found no threats.\r\n"
+  },
+  "preservedOriginals": [
+    {
+      "path": "dist/nexus-final/EpochPact-0.1.1-alpha.1-Manual.zip",
+      "bytes": 27319195,
+      "sha256": "06f08a5479cdca0e03e3c3fa020b0973112e2d78ba4331c70bb473de1b6d73d0"
+    },
+    {
+      "path": "dist/nexus-final/EpochPact-0.1.1-alpha.1-App-Setup.zip",
+      "bytes": 26781900,
+      "sha256": "22014a3ffe9eb43cbad13bb80d809a8e60c0102d570fdd3a1480b942d46e1def"
+    },
+    {
+      "path": "dist/EpochPact.exe",
+      "bytes": 26956729,
+      "sha256": "75ef47123c8d5c94fb299a85d96a1524cab9c0e3a6cd0aea993dfe0b0585e68a"
+    },
+    {
+      "path": "native/build/version.dll",
+      "bytes": 108544,
+      "sha256": "cf9b4b319e63d32dbe22c16d52b1970fdfdaad3a0188e1d53add5e6ebc051a6c"
+    },
+    {
+      "path": "native/build/player/EpochPact.Core.dll",
+      "bytes": 1163264,
+      "sha256": "6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f"
+    }
+  ],
+  "freshMultiEngineScan": null,
+  "liveGameplayTest": null,
+  "unresolved": [
+    "Nexus quarantine and original detections",
+    "Original player-core Cynet detection",
+    "Previously observed full-game exit 0xC0000005",
+    "LoadLibrary in loader DllMain",
+    "Nexus download/hash comparison blocked by quarantine"
+  ]
+}
