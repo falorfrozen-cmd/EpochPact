@@ -146,6 +146,7 @@ class PlayerSetup:
         state = self.status(check_running=False)
         if not state['selected']:
             raise RuntimeError('Select Last Epoch.exe in Game setup first.')
+        le.require_supported_build(le.GAME)
         if not state['installed']:
             raise RuntimeError('Install or update the mod in Game setup first. Close the game before installing.')
         if state.get('disabled'):

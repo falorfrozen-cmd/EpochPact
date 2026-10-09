@@ -1,0 +1,13 @@
+EpochPact project code and artwork: copyright their respective authors.
+The repository has not granted an open-source redistribution license for the
+EpochPact-authored code or artwork. Public source access does not grant permission
+to reupload, modify for redistribution or use the project assets in another mod.
+Ask Falor before doing so. This statement does not restrict the separate licenses
+of third-party runtime components or the Inter font, reproduced in this package.
+
+The official player package is published by Falor for personal offline use.
+Do not redistribute Last Epoch game files, game metadata, player saves, or SDKs
+with this package. EpochPact is not an official Eleventh Hour Games product.
+
+Source: https://github.com/falorfrozen-cmd/EpochPact
+Author/support: https://discord.gg/q6aexZZSAf

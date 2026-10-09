@@ -5,7 +5,7 @@ from PyInstaller.utils.hooks import collect_data_files
 root = Path(SPECPATH)
 stage = root / 'build/player-resources'
 ui_files = ('index.html', 'app.js', 'style.css', 'stat-model.js', 'session.js',
-            'collection-ui.js', 'collection.css', 'launcher.js', 'locale-en.json', 'catalog.json')
+            'collection-ui.js', 'collection.css', 'launcher.js', 'locale-en.json', 'catalog.json', 'supported-game-builds.json')
 assets = ('chronoforge-art.png', 'chronoforge-reference.png', 'void-atlas-art.png',
           'void-atlas-reference.png', 'inter.ttf', 'inter-OFL.txt', 'monster-density.svg')
 datas = [(str(stage / 'ui' / name), 'ui') for name in ui_files]

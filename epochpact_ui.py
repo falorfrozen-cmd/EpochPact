@@ -220,6 +220,8 @@ def main():
     args = parser.parse_args()
     if getattr(sys, 'frozen', False) and args.preview:
         parser.error('Preview snapshots are not included in the player package. Use the source preview launcher.')
+    if getattr(sys, 'frozen', False) and args.developer:
+        parser.error('Developer diagnostics are not available in the player package. Use a source checkout.')
     bridge = UiBridge(preview=args.preview)
     setup = None if args.preview else PlayerSetup(bridge)
     app = create_app(bridge, developer=args.developer, setup=setup,

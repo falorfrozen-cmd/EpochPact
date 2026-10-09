@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 from pathlib import Path
 import socket
 import subprocess
@@ -29,11 +30,11 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def fixture(root, name):
+def fixture(root, name, assembly):
     folder = root / name
     folder.mkdir()
     (folder / 'Last Epoch.exe').write_bytes(b'MZ isolated non-runnable installer fixture')
-    (folder / 'GameAssembly.dll').touch()
+    shutil.copy2(assembly, folder / 'GameAssembly.dll')
     (folder / 'Last Epoch_Data').mkdir()
     return folder / 'Last Epoch.exe'
 
@@ -42,6 +43,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--exe', type=Path, default=ROOT / 'dist/EpochPact.exe')
     parser.add_argument('--report', type=Path, default=ROOT / 'research/live/player-package-20261009/verification.json')
+    parser.add_argument('--game-assembly', type=Path, required=True,
+                        help='Local verified game DLL used only in non-runnable fixtures; never packaged.')
     args = parser.parse_args()
     exe = args.exe.resolve(strict=True)
     checks = []
@@ -68,8 +71,10 @@ def main():
         assert root.resolve().parent == Path(tempfile.gettempdir()).resolve()
         user = root / 'user-data'
         user.mkdir()
-        custom = fixture(root, 'Custom install \u00fc')
-        foreign = fixture(root, 'Other mod loader')
+        custom = fixture(root, 'Custom install \u00fc', args.game_assembly)
+        foreign = fixture(root, 'Other mod loader', args.game_assembly)
+        unsupported = fixture(root, 'Unsupported game build', args.game_assembly)
+        (unsupported.parent / 'GameAssembly.dll').write_bytes(b'unsupported fixture')
         (foreign.parent / 'version.dll').write_bytes(b'foreign loader: preserve exactly')
         env = os.environ.copy()
         for key in ('PYTHONPATH', 'PYTHONHOME', 'VIRTUAL_ENV', 'EPOCHPACT_GAME_DIR'):
@@ -94,6 +99,11 @@ def main():
         assert (foreign.parent / 'version.dll').read_bytes() == before
         assert not (foreign.parent / 'EpochPact').exists()
         checks.append('compiled installer refuses another mod loader without changes')
+        code, result = helper(unsupported, 'setup-install-' + 'c' * 32 + '.json')
+        assert code != 0 and not result['ok'] and 'Unsupported' in result['error'], result
+        assert not (unsupported.parent / 'version.dll').exists()
+        assert not (unsupported.parent / 'EpochPact').exists()
+        checks.append('compiled installer refuses an unsupported game build before writing files')
 
         with socket.socket() as reservation:
             reservation.bind(('127.0.0.1', 0))

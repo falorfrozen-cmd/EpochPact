@@ -31,6 +31,7 @@ class SetupTests(unittest.TestCase):
         self.bridge = UiBridge()
         self.setup = PlayerSetup(self.bridge, config_path=self.root / 'preferences/settings.json')
         self.patches = [patch.object(le, 'GAME', le.GAME), patch.object(progression, 'BACKUPS', progression.BACKUPS),
+                        patch.object(le, 'require_supported_build', return_value={'gameVersion':'fixture'}),
                         patch.object(le, 'game_pids', return_value=[])]
         for p in self.patches:
             p.start(); self.addCleanup(p.stop)
@@ -125,7 +126,7 @@ class SetupTests(unittest.TestCase):
             with self.subTest(updating=updating):
                 if updating:
                     self.setup.install()
-                    (self.exe.parent / 'EpochPact/EpochPact.Core.dll').write_bytes(b'old player core')
+                    (self.exe.parent / 'EpochPact/EpochPact.Core.dll').write_bytes(b'old player core EpochPact_Start\x00')
                 paths = [self.exe.parent / 'version.dll', self.exe.parent / 'EpochPact/EpochPact.Core.dll',
                          self.exe.parent / 'EpochPact/installed-build.json']
                 before = {path: path.read_bytes() if path.exists() else None for path in paths}
@@ -142,7 +143,7 @@ class SetupTests(unittest.TestCase):
     def test_failed_recovery_keeps_previous_files_for_manual_recovery(self):
         self.setup.select(str(self.exe)); self.setup.install()
         core = self.exe.parent / 'EpochPact/EpochPact.Core.dll'
-        core.write_bytes(b'old player core')
+        core.write_bytes(b'old player core EpochPact_Start\x00')
         real_replace = le.os.replace
         def deny_publish_and_restore(source, destination):
             if Path(source).name in ('new-2', 'old-0'):
@@ -153,7 +154,7 @@ class SetupTests(unittest.TestCase):
                 self.setup.install()
         stages = list((self.exe.parent / 'EpochPact').glob('.install-*'))
         self.assertEqual(len(stages), 1)
-        self.assertEqual((stages[0] / 'old-0').read_bytes(), b'old player core')
+        self.assertEqual((stages[0] / 'old-0').read_bytes(), b'old player core EpochPact_Start\x00')
 
     def test_elevated_helper_uses_exact_selected_path_and_verifies_result(self):
         self.setup.select(str(self.exe))

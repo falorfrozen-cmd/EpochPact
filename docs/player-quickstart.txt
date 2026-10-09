@@ -24,7 +24,10 @@ The game path, theme, profiles and interface logs live under:
 Native logs and individual save-change backups remain in the game's EpochPact
 folder. Launch save backups use %LOCALAPPDATA%\EpochPact\backups\saves-backups.
 
-This package targets the currently verified Last Epoch 1.5.2 runtime.
+This package targets Steam Last Epoch 1.5.2.1 (Steam build 25816319).
+Unknown game builds are refused before player installation or modded launch.
+The retained full-feature audit was on 1.5.2; see the Nexus verification report
+for separate newer-build, installer and shutdown results.
 Offline characters only. Game updates may require a new EpochPact release.
 
 Alpha limitation: a UnityPlayer crash on full game exit has also been observed

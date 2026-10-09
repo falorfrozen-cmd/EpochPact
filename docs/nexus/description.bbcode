@@ -1,0 +1,70 @@
+[size=6][b]EpochPact — Your timeline. Your rules.[/b][/size]
+An external desktop toolkit for Last Epoch offline players, with Chronoforge and Void Atlas themes. Adjust your session, customize character bonuses and manage progression from one English interface.
+
+[b]Release: 0.1.1-alpha.1 | Author: Falor | Windows x64 | Offline only[/b]
+Supported installation: Steam Last Epoch [b]1.5.2.1, build 25816319[/b] (internal version 1.5.2.2). Other builds are not certified. The app verifies GameAssembly.dll before installation or modded launch. This is a public alpha with a known full-game-exit crash described below.
+
+[size=5][b]Features included[/b][/size]
+[list]
+[*][b]Progression and combat:[/b] enemy/mote XP and collected gold up to 100x; movement-speed and cooldown tuning. General session sliders apply automatically after an edit. Quest XP is not included in the enemy/mote multiplier.
+[*][b]Loot and pickup:[/b] item quantity up to 25x, rarity up to 10x, automatic pickup, loot-filter support, Unique LP thresholds and selected T7 affixes.
+[*][b]Character bonuses:[/b] 206 character-sheet mappings with search, flat bonuses or percentage increases, live reads and reset. Some game stats share one native key; the interface identifies this. More-mode settings are available only where supported.
+[*][b]Crafting workshop:[/b] Forging Potential costs, Glyph of Hope/Despair probabilities, shard/rune/glyph preservation and crafting level controls. Uses the selected item in the game's Forge; it does not invent items or grant materials on startup.
+[*][b]Campaign and waypoints:[/b] complete eligible main/side quests with their normal rewards, raise the character to at least level 55 and unlock 109 waypoint scenes. Completed quests do not pay out again.
+[*][b]Monolith control:[/b] Normal/Empowered unlocks, timeline selection, Corruption, Stability and Stability gain multipliers. Opening a timeline or focusing an existing Echo travels to Traveler's Rest first; refreshing data does not travel or start an Echo.
+[*][b]World and exploration:[/b] monster density up to 5x, including Monolith packs, zone-map reveal and browsing/focusing existing Echo rewards. The Navigator does not generate arbitrary new Echoes.
+[*][b]Circle of Fortune:[/b] rank, Favor, Reputation, prophecies, lenses and gain/reward/quality multipliers.
+[*][b]Unique Atlas and Stash Assistant:[/b] Unique/Set catalog, owned/missing/wishlist views, duplicate comparisons and actual affix/LP inspection. Protection reminders are informational; they do not lock items in-game.
+[*][b]Player setup and recovery:[/b] select any supported Steam library/custom game path, install the included runtime, launch offline, save setting profiles and use progression recovery backups.
+[/list]
+Weaver and Merchant's Guild management are [b]not implemented[/b]; informational faction details are not advertised as working management tools.
+
+[size=5][b]Requirements[/b][/size]
+[list]
+[*]A legitimate Steam installation of the exact supported Last Epoch build above.
+[*]Windows 10/11 x64, Microsoft Edge WebView2 Runtime and .NET Framework 4.8.
+[*]Both included runtime files: [b]version.dll[/b] and [b]EpochPact/EpochPact.Core.dll[/b].
+[/list]
+Python is bundled; no separate Python install is needed. No MelonLoader, BepInEx, development SDK or additional mod loader is required. [url=https://developer.microsoft.com/microsoft-edge/webview2/]Official WebView2 download[/url]. Online play is unsupported and native changes are gated to offline characters. Do not combine loaders that require the same version.dll.
+
+[size=5][b]Install — recommended manual ZIP (Main file)[/b][/size]
+1. Close the game and app. Back up offline saves and existing mod files. Check your game version and the supported-game-builds.json hash before copying; manual copying cannot enforce compatibility before game startup.
+2. Extract the ZIP to a normal writable folder. Copy [b]only the contents of CopyToGame[/b] into the folder containing Last Epoch.exe. Steam > Manage > Browse local files opens this folder.
+3. The game folder should contain version.dll and EpochPact/EpochPact.Core.dll. Never overwrite another mod's loader.
+4. Keep EpochPactUI/EpochPact.exe in a writable folder outside the game installation. Open it > Game setup > Browse > select Last Epoch.exe. The manually installed DLLs are detected; no additional Install mod action is needed.
+5. Press Launch offline and load an offline character.
+
+[b]Optional app setup:[/b] download the Optional App-Setup ZIP instead of the Main ZIP. Extract and run EpochPact.exe, choose Last Epoch.exe, close the game, press Install mod, then Launch offline. The EXE contains exactly the same player loader/core. If installation needs Windows administrator permission, use the explicit install-elevation action and approve Windows yourself. Do not run the entire interface as administrator by default.
+
+[b]Use Manual Download.[/b] These packages are not configured for a mod manager. The ZIP contains full README instructions, third-party notices, a runtime manifest and SHA256SUMS.txt. No game executables, GameAssembly.dll, game metadata, saves, development SDKs, tests or private logs are distributed.
+
+[size=5][b]Update, rollback and uninstall[/b][/size]
+Close both programs. Keep the previous UI EXE, version.dll and EpochPact.Core.dll outside the game folder, then replace all three with files from the same release. Preserve recovery backups and other mods. App updates retain previous native files under EpochPact/install-backups; follow that backup's README to restore them and use the matching old UI. Never mix versions.
+
+To uninstall, close both programs and remove only the EpochPact version.dll and EpochPact/EpochPact.Core.dll, plus your extracted UI folder if desired. Keep save-recovery backups. Do not delete another loader or the entire shared mod directory. Uninstall does not remove player saves; mod logs/backups/preferences may remain.
+
+[size=5][b]Controls and persistence[/b][/size]
+No required in-game hotkey: use the external sidebar. General session settings apply automatically; character bonuses use Apply/Reset. Permanent rewards, quest completion, balances and unlocks require their explicit action buttons. Opening the app never completes quests or grants rewards.
+
+Keep the game unpaused and let loading finish. If background execution is unavailable, return to the game; do not repeatedly click a timed-out save action. Closing EpochPact resets controls changed in that session to neutral defaults and removes its own actor bonuses, without closing the game. It does not restore a different tool's earlier non-default values. Permanent progression/rewards remain. Cleanup failure keeps the app open with an error. Profiles do not automatically replay save actions.
+
+[size=5][b]Verification and known issues — please read[/b][/size]
+[list]
+[*]Current 1.5.2.1 smoke test: the packaged EXE applied Intelligence +100%, confirmed [b]11 → 22[/b] in the native game getter, and successfully read Monolith, CoF, crafting, map and loot state. Normal EXE close reset Intelligence to 11 and XP from 2x to 1x while the game remained running.
+[*]The retained full-feature gameplay audit was on [b]1.5.2[/b]: 134 stat types/247 exact keys, 4,449 stat checks, Monolith selection flows and an actual completed Echo. It is not a full re-certification of every feature on 1.5.2.1.
+[*]Separate release checks: 142 Python tests, 74 JavaScript tests and 15 compiled-package checks passed. The unchanged native player code has 6,571 retained native assertions. Installer fixtures cover custom/Unicode paths, unsupported builds, foreign loaders, partial-failure recovery and update-backup restoration; real UAC interaction is not certified.
+[*]Actual game-folder manual copy/update/uninstall preserved the game EXE, GameAssembly.dll and all 54 original save files. Temporary test saves were archived and original bytes restored. These file-operation checks are separate from game loading.
+[*][b]Full game exit can still fail with 0xC0000005.[/b] On 1.5.2.1 one measured exit returned zero and a second returned 0xC0000005. Earlier tests also failed with EpochPact removed. The cause is not established; this is not a zero-crash release. Desktop-app close and full-game exit are separate outcomes.
+[*]Not every combat consumer, crafting path, mod combination or PC configuration has been verified. Unsupported game updates are refused by the app. Manual users must check compatibility before installing.
+[*]Unsigned EXE/DLL files may require a security review. Do not disable antivirus or assume a warning is a false positive. Report the exact file/hash and warning.
+[/list]
+[url=https://github.com/falorfrozen-cmd/EpochPact/blob/round1-xp-multiplier/docs/nexus/verification.md]Detailed release verification[/url].
+
+[size=5][b]Credits, AI disclosure and permissions[/b][/size]
+Created by Falor. Community-made; not affiliated with Eleventh Hour Games. AI-assisted code/UI and AI-generated background/promotional artwork are disclosed. Images labelled “actual interface” are captures of the running player app; promotional artwork is labelled separately and is not a gameplay screenshot.
+
+The [url=https://github.com/falorfrozen-cmd/EpochPact/tree/round1-xp-multiplier]release source branch[/url] contains the native core, loader, UI/backends and build scripts. It does not include the game's proprietary binaries/metadata or private test saves. Public source access does not automatically grant reupload/asset redistribution rights. See DISTRIBUTION-PERMISSIONS.txt, THIRD-PARTY-NOTICES.txt and INTER-OFL.txt for permissions and bundled runtime/font credits.
+
+[size=5][b]Support[/b][/size]
+[url=https://discord.gg/q6aexZZSAf]Discord support[/url] | [url=https://github.com/falorfrozen-cmd/EpochPact]GitHub source and releases[/url]
+Report EpochPact version, game version/Steam build, Windows version, installation method, exact action/error text, and whether the problem happened during gameplay, app close or full game exit. Include a screenshot if useful. Remove names/private paths from log extracts; do not post entire saves or private logs publicly.

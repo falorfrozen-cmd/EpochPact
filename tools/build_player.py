@@ -19,7 +19,7 @@ def main():
     stage = ROOT / 'build/player-resources'
     (stage / 'ui/assets').mkdir(parents=True, exist_ok=True)
     for name in ('index.html', 'app.js', 'style.css', 'stat-model.js', 'session.js',
-                 'collection-ui.js', 'collection.css', 'launcher.js', 'locale-en.json'):
+                 'collection-ui.js', 'collection.css', 'launcher.js', 'locale-en.json', 'supported-game-builds.json'):
         shutil.copy2(ROOT / 'ui' / name, stage / 'ui' / name)
     for name in ('chronoforge-art.png', 'chronoforge-reference.png', 'void-atlas-art.png',
                  'void-atlas-reference.png', 'inter.ttf', 'inter-OFL.txt', 'monster-density.svg'):
@@ -51,7 +51,8 @@ def main():
                     '--distpath', str(ROOT / 'dist'), '--workpath', str(ROOT / 'build/pyinstaller'),
                     str(ROOT / 'EpochPact.spec')], cwd=ROOT, check=True)
     exe = ROOT / 'dist/EpochPact.exe'
-    info = {'file': exe.name, 'bytes': exe.stat().st_size,
+    release = json.loads((ROOT / 'docs/nexus/release.json').read_text(encoding='utf-8'))
+    info = {'file': exe.name, 'bytes': exe.stat().st_size, 'version': release['version'],
             'sha256': hashlib.sha256(exe.read_bytes()).hexdigest(), 'nativePlayerSHA256': digest,
             'python': sys.version, 'gameVersion': catalog.get('gameVersion'),
             'containsResearchBuild': False, 'containsHistoricalSnapshots': False}

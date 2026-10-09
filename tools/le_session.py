@@ -35,8 +35,10 @@ from pathlib import Path
 
 try:
     from .app_paths import resource_root, runtime_root
+    from .game_compatibility import require_supported_build
 except ImportError:
     from app_paths import resource_root, runtime_root
+    from game_compatibility import require_supported_build
 
 EXE = "Last Epoch.exe"
 
@@ -141,6 +143,10 @@ def is_ours(dll: Path) -> bool:
     return dll.is_file() and MARK in dll.read_bytes()
 
 
+def is_ours_core(dll: Path) -> bool:
+    return dll.is_file() and b'EpochPact_Start\x00' in dll.read_bytes()
+
+
 def cmd_status(_: argparse.Namespace) -> int:
     loader = GAME / "version.dll"
     print(f"game running: {game_pids() or 'no'}")
@@ -175,6 +181,12 @@ def cmd_install(args: argparse.Namespace) -> int:
     if refuse_if_running():
         return 2
     flavor = getattr(args, 'flavor', 'player')
+    if flavor == 'player':
+        try:
+            require_supported_build(GAME)
+        except (OSError, ValueError) as exc:
+            print(f'refused: {exc}')
+            return 2
     loader = BUILD / 'version.dll'
     try:
         core_src, digest = build_artifact(flavor)
@@ -189,6 +201,13 @@ def cmd_install(args: argparse.Namespace) -> int:
         print("refused: the game folder has a version.dll that is not EpochPact's (another mod loader?)")
         return 2
     mod_dir = GAME / 'EpochPact'
+    old_core = mod_dir / 'EpochPact.Core.dll'
+    if ((mod_dir.exists() and _linked(mod_dir)) or
+        (target.exists() and _linked(target)) or
+        (old_core.exists() and (_linked(old_core) or not is_ours_core(old_core))) or
+        ((mod_dir / 'install-backups').exists() and _linked(mod_dir / 'install-backups'))):
+        print('refused: linked mod path or unrecognized core file; left alone')
+        return 2
     mod_dir.mkdir(exist_ok=True)
     record = {'flavor': flavor, 'sha256': digest, 'source': str(core_src), 'time': time.time()}
     # Prepare every file and its previous version before changing the installed
@@ -205,6 +224,19 @@ def cmd_install(args: argparse.Namespace) -> int:
         for index, destination in enumerate(destinations):
             if destination.exists():
                 shutil.copy2(destination, stage / f'old-{index}')
+        # Retain successful-update recovery files as well as the transactional
+        # rollback copies. This directory contains mod files only, never saves.
+        old_files = [(index, destination) for index, destination in enumerate(destinations)
+                     if (stage / f'old-{index}').exists()]
+        if old_files:
+            recovery = mod_dir / 'install-backups' / stage.name.removeprefix('.install-')
+            recovery.mkdir(parents=True)
+            for index, destination in old_files:
+                shutil.copy2(stage / f'old-{index}', recovery / destination.name)
+            (recovery / 'README.txt').write_text(
+                'Close Last Epoch first. To restore this previous mod installation, copy version.dll\n'
+                'to the game root, and EpochPact.Core.dll / installed-build.json to its EpochPact folder.\n'
+                'Only restore files present in this backup. Player saves are not included or changed.\n', encoding='utf-8')
         if refuse_if_running():
             return 2
         if target.exists() and not is_ours(target):
@@ -241,12 +273,17 @@ def cmd_uninstall(_: argparse.Namespace) -> int:
     if refuse_if_running():
         return 2
     target = GAME / "version.dll"
+    core = GAME / "EpochPact" / "EpochPact.Core.dll"
+    if ((core.parent.exists() and _linked(core.parent)) or
+        (target.exists() and _linked(target)) or
+        (core.exists() and (_linked(core) or not is_ours_core(core)))):
+        print('refused: linked mod path or unrecognized core file; left alone')
+        return 2
     if target.exists():
         if not is_ours(target):
             print("refused: version.dll is not EpochPact's; left alone")
             return 2
         target.unlink()
-    core = GAME / "EpochPact" / "EpochPact.Core.dll"
     if core.exists():
         core.unlink()
     print("uninstalled (logs and dumps in <game>\\EpochPact are kept)")
@@ -308,6 +345,7 @@ def cmd_launch(args: argparse.Namespace) -> int:
     if game_pids():
         print(f"already running: {game_pids()}")
         return 0
+    require_supported_build(GAME)
     dest = backup_saves()
     print(f"saves backed up: {dest}")
     if args.offline:
