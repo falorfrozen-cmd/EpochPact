@@ -185,11 +185,15 @@
     "reason": "This split UI/game-directory layout has no tested mod-manager installer; manual download/install only."
   },
   "securityReview": {
-    "status": "draft prepared; not sent",
+    "status": "sent to Nexus support; awaiting review",
     "draft": "quarantine-review-request.txt",
     "cause": "not established",
     "falsePositiveClaim": false,
-    "artifactsPreserved": true
+    "artifactsPreserved": true,
+    "sentAt": "2026-10-10T06:06:01+07:00",
+    "recipient": "support@nexusmods.com",
+    "sendVerified": "Gmail message carries SENT label; To and Subject matched the prepared request.",
+    "deliveryOrSupportResponseConfirmed": false
   },
   "shutdown": {
     "appClose": "passed: XP x2 to x1; Intelligence 22 to 11; game remained running",

@@ -4,7 +4,7 @@
 
 The page was published at https://www.nexusmods.com/lastepoch/mods/44 and showed "Great job! Your mod is live." The Main/Primary manual ZIP and Optional app ZIP are both quarantined. Page scan status is "Some suspicious files"; both ZIP reports show 4/67 findings. The EXE report shows 6/71, loader 2/71 and native core 1/66. Exact vendor names/signatures, file IDs and report dates are recorded in [publication.json](publication.json).
 
-The affected archives are preserved unchanged. The cause is not established; no false-positive claim is made. A concrete [security review request](quarantine-review-request.txt) is prepared but has not been sent. Download controls are unavailable, so downloading from Nexus and comparing the downloaded ZIP hash remains blocked. Report-hash equality does not replace that test. No archived-version warning was observed after publication.
+The affected archives are preserved unchanged. The cause is not established; no false-positive claim is made. The concrete [security review request](quarantine-review-request.txt) was sent to support@nexusmods.com on 2026-10-10 at 06:06 UTC+07:00. Gmail SENT status, recipient and subject were verified; Nexus acknowledgement or review approval has not been confirmed. Download controls are unavailable, so downloading from Nexus and comparing the downloaded ZIP hash remains blocked. Report-hash equality does not replace that test. No archived-version warning was observed after publication.
 
 The split manual UI/game-directory layout is not a tested mod-manager installation. The release instructions use manual installation or the optional app setup.
 
