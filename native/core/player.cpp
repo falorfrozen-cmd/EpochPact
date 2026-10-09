@@ -5,11 +5,13 @@
 #include "game.hpp"
 #include "hook.hpp"
 #include "mainthread.hpp"
+#include "stat_editor.hpp"
 
 #include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <limits>
 
 namespace ep::player {
 
@@ -17,22 +19,13 @@ namespace {
 
 using il2cpp::Method;
 
-// ---- speed: the game's own "increased movement speed" stat (SP.Movespeed = 9), written
-// straight into the player's Stats.Stat entry for it. No game function is called: the
-// entry's increasedValue field is a plain float, the flag that asks BaseStats to recompute
-// is a plain byte, and the whole stat pipeline (character sheet, WalkAnimationScaler's
-// animation speed, SpeedManager -> NavMeshAgent speed, click-to-move) then reads the
-// boosted value exactly as it reads any other movement speed modifier.
-//
-// Layouts from the metadata dump: Stats.stats (a List<Stats.Stat>, inherited by BaseStats)
-// at +0x88; Stats.Stat.property at +0x10, .specialTag +0x11, .tags +0x14, .extraTag +0x18,
-// .addedValue +0x1C, .increasedValue +0x20; BaseStats.statsNeedToBeUpdatedNextFrame +0xD8.
+// Speed uses a separate EpochPact Movespeed contribution through stat_editor.
+// The offsets below remain for the read-only movement/stat diagnostics.
 
-constexpr size_t kStatsListOffset = 0x88;
-constexpr size_t kStatProperty = 0x10, kStatSpecialTag = 0x11, kStatTags = 0x14, kStatExtraTag = 0x18;
-constexpr size_t kStatAdded = 0x1C;
-constexpr size_t kStatIncreased = 0x20;
-constexpr size_t kStatsNeedUpdate = 0xD8;
+size_t kStatsListOffset = 0;
+size_t kStatProperty = 0, kStatSpecialTag = 0, kStatTags = 0, kStatExtraTag = 0;
+size_t kStatAdded = 0, kStatIncreased = 0, kStatMoreValues = 0;
+size_t kStatsNeedUpdate = 0;
 constexpr size_t kListItems = 0x10, kListSize = 0x18;
 constexpr size_t kArrayLength = 0x18, kArrayFirst = 0x20;
 constexpr int kMaxStats = 512;
@@ -45,12 +38,42 @@ std::atomic<uint64_t> g_speedApplied{0}, g_speedRefused{0};
 size_t g_mutatorOffset = 0;  // Actor.characterMutator (+0x108)
 size_t g_myStatsOffset = 0;  // CharacterMutator.myStats (+0x98)
 game::MethodRef m_playerActor;
+game::MethodRef m_statCtor, m_updateStats;
+game::MethodRef m_gameObject, m_displayChildren;
+const il2cpp::Class* g_displayClass = nullptr;
+size_t g_displayProperty = 0, g_displayTags = 0, g_displayText = 0, g_displayType = 0;
+const il2cpp::Class* g_statClass = nullptr;
+const il2cpp::Field* g_sheetInstance = nullptr;
+size_t g_sheetStats = 0, g_textOffset = 0;
+const char* kResistanceFields[] = {"PhysicalRes", "LightningRes", "ColdRes", "FireRes", "VoidRes", "NecroticRes", "PoisonRes"};
+size_t g_resistanceOffsets[7] = {};
+bool g_layoutReady = false;
 
-// The found entry and the value it had before we ever touched it (only valid for the
-// BaseStats instance it was found on).
-void* g_statsPtr = nullptr;
-void* g_moveStat = nullptr;
-float g_moveStatBase = 0.0f;
+std::string LabelText(void* label) {
+    if (!label || !g_textOffset) return "<null>";
+    void* text = *reinterpret_cast<void**>(static_cast<char*>(label) + g_textOffset);
+    if (!text) return "<null>";
+    const int length = *reinterpret_cast<int*>(static_cast<char*>(text) + 0x10);
+    if (length < 0 || length > 4096) return "<invalid>";
+    const wchar_t* chars = reinterpret_cast<const wchar_t*>(static_cast<char*>(text) + 0x14);
+    const int n = WideCharToMultiByte(CP_UTF8, 0, chars, length, nullptr, 0, nullptr, nullptr);
+    std::string utf8(n, '\0');
+    if (n) WideCharToMultiByte(CP_UTF8, 0, chars, length, utf8.data(), n, nullptr, nullptr);
+    return utf8;
+}
+
+std::string OnMain(std::function<std::string()> fn) {
+    std::string reply, why;
+    if (!mainthread::Run([&] { reply = fn(); }, 3000, &why)) return "stat: refused: " + why;
+    return reply.empty() ? "stat: operation failed (guarded; see core.log)" : reply;
+}
+
+void Recalculate(void* stats) {
+    *reinterpret_cast<uint8_t*>(static_cast<char*>(stats) + kStatsNeedUpdate) = 1;
+    // This runs the game's calculation and its afterStatsUpdatedEvent, including
+    // CharacterSheet.UpdateSheet. Never call Unity/UI methods from the IPC thread.
+    reinterpret_cast<void (*)(void*, const Method*)>(m_updateStats.code)(stats, m_updateStats.info);
+}
 
 void* LocalPlayerActor() {
     if (!m_playerActor) return nullptr;
@@ -67,55 +90,9 @@ void* PlayerBaseStats() {
     return *reinterpret_cast<void* const*>(static_cast<char*>(mutator) + g_myStatsOffset);
 }
 
-// The (SP.Movespeed, tags 0) entry, or null when the character has none yet. Fills `base`
-// with the value the entry has right now.
-void* FindMoveStat(void* stats, float* base) {
-    void* list = *reinterpret_cast<void* const*>(static_cast<char*>(stats) + kStatsListOffset);
-    if (!list) return nullptr;
-    void* arr = *reinterpret_cast<void* const*>(static_cast<char*>(list) + kListItems);
-    int32_t size = *reinterpret_cast<int32_t*>(static_cast<char*>(list) + kListSize);
-    if (!arr || size <= 0 || size > 4096) return nullptr;
-    const int32_t length = *reinterpret_cast<int32_t*>(static_cast<char*>(arr) + kArrayLength);
-    if (size > length) size = length;
-    for (int32_t i = 0; i < size; ++i) {
-        void* stat = *reinterpret_cast<void* const*>(static_cast<char*>(arr) + kArrayFirst + 8 * i);
-        if (!stat) continue;
-        if (*reinterpret_cast<const uint8_t*>(static_cast<const char*>(stat) + kStatProperty) != kMovespeed) continue;
-        if (*reinterpret_cast<const uint8_t*>(static_cast<const char*>(stat) + kStatSpecialTag) != 0) continue;
-        if (*reinterpret_cast<const int32_t*>(static_cast<const char*>(stat) + kStatTags) != 0) continue;
-        if (*reinterpret_cast<const int32_t*>(static_cast<const char*>(stat) + kStatExtraTag) != 0) continue;
-        if (base) *base = *reinterpret_cast<const float*>(static_cast<const char*>(stat) + kStatIncreased);
-        return stat;
-    }
-    return nullptr;
-}
-
-// Runs on the game's main thread. Writes the wanted percentage into the entry (on top of
-// the value it had before we first touched it) and asks BaseStats to recompute.
-void ApplySpeedOnMain(double m) {
-    void* stats = PlayerBaseStats();
-    if (!stats) return;
-    if (stats != g_statsPtr) {  // new zone/actor: find the entry and remember its own value
-        g_statsPtr = stats;
-        g_moveStatBase = 0.0f;
-        g_moveStat = FindMoveStat(stats, &g_moveStatBase);
-        if (g_moveStat)
-            Log("speed: found the Movespeed stat entry (base increasedValue %.1f)", g_moveStatBase);
-        else
-            Log("speed: the player has no Movespeed stat entry yet");
-    }
-    if (!g_moveStat) return;
-    const double target = m - 1.0;  // the increased field is a fraction: 1.0 = +100%
-    *reinterpret_cast<float*>(static_cast<char*>(g_moveStat) + kStatIncreased) = static_cast<float>(g_moveStatBase + target);
-    *reinterpret_cast<uint8_t*>(static_cast<char*>(stats) + kStatsNeedUpdate) = 1;
-    g_speedPercent = target;
-    g_speedApplied.fetch_add(1);
-    Log("speed: Movespeed increasedValue %.2f -> %.2f (+%g%%, x%g)", g_moveStatBase, g_moveStatBase + target, target * 100.0, m);
-}
-
 // ---- generic stat command: research/stat-map.md's table in code. `increased` true means
 // the value is written as a fraction into increasedValue (1.0 = +100%); false writes the
-// flat addedValue (what "+75% fire resistance" items use).
+// flat addedValue (percentage stats use fractions too: fire 0.75 means 75%).
 
 struct StatDef {
     const char* name;
@@ -145,6 +122,7 @@ const StatDef kStatDefs[] = {
     {"glancing", 62, 0, false},        {"parry", 121, 0, false},         {"wardregen", 92, 0, false},
     {"warddecay", 119, 0, false},      {"healthleech", 51, 0, false},    {"freezerate", 67, 0, true},
     {"cooldownrecovery", 70, 0, true}, {"increasedleech", 102, 0, true},
+    {"reflect", 86, 0, false},        {"damagereflected", 86, 0, false},
     // offense
     {"critchance", 4, 0, true},        {"critmulti", 5, 0, true},        {"castspeed", 3, 0, true},
     {"attackspeed", 2, 0, true},       {"meleeattackspeed", 2, AT_Melee, true}, {"bowattackspeed", 2, AT_Bow, true},
@@ -168,68 +146,6 @@ const StatDef* FindStatDef(const std::string& name) {
     for (const StatDef& d : kStatDefs)
         if (name == d.name) return &d;
     return nullptr;
-}
-
-// The (sp, tags, no special/extra tag) entry, or null. Fills what it finds.
-void* FindStatEntry(void* stats, uint8_t sp, int32_t tags, float* added, float* increased) {
-    void* list = *reinterpret_cast<void* const*>(static_cast<char*>(stats) + kStatsListOffset);
-    if (!list) return nullptr;
-    void* arr = *reinterpret_cast<void* const*>(static_cast<char*>(list) + kListItems);
-    int32_t size = *reinterpret_cast<int32_t*>(static_cast<char*>(list) + kListSize);
-    if (!arr || size <= 0 || size > 4096) return nullptr;
-    const int32_t length = *reinterpret_cast<int32_t*>(static_cast<char*>(arr) + kArrayLength);
-    if (size > length) size = length;
-    for (int32_t i = 0; i < size; ++i) {
-        void* stat = *reinterpret_cast<void* const*>(static_cast<char*>(arr) + kArrayFirst + 8 * i);
-        if (!stat) continue;
-        if (*reinterpret_cast<const uint8_t*>(static_cast<const char*>(stat) + kStatProperty) != sp) continue;
-        if (*reinterpret_cast<const uint8_t*>(static_cast<const char*>(stat) + kStatSpecialTag) != 0) continue;
-        if (*reinterpret_cast<const int32_t*>(static_cast<const char*>(stat) + kStatTags) != tags) continue;
-        if (*reinterpret_cast<const int32_t*>(static_cast<const char*>(stat) + kStatExtraTag) != 0) continue;
-        if (added) *added = *reinterpret_cast<const float*>(static_cast<const char*>(stat) + kStatAdded);
-        if (increased) *increased = *reinterpret_cast<const float*>(static_cast<const char*>(stat) + kStatIncreased);
-        return stat;
-    }
-    return nullptr;
-}
-
-// Finds the entry or creates one with il2cpp_object_new and the list's own Add method.
-void* EnsureStatEntry(void* stats, const StatDef& def, bool* created) {
-    if (void* found = FindStatEntry(stats, def.sp, def.tags, nullptr, nullptr)) return found;
-    void* list = *reinterpret_cast<void* const*>(static_cast<char*>(stats) + kStatsListOffset);
-    if (!list) {
-        Log("stat: create SP=%u tags=%d: the stats list is null", static_cast<unsigned>(def.sp), def.tags);
-        return nullptr;
-    }
-    // The class of any existing entry is the exact instantiated Stats.Stat class.
-    const il2cpp::Class* statClass = nullptr;
-    void* arr = *reinterpret_cast<void* const*>(static_cast<char*>(list) + kListItems);
-    const int32_t size = *reinterpret_cast<int32_t*>(static_cast<char*>(list) + kListSize);
-    if (arr && size > 0) {
-        if (void* first = *reinterpret_cast<void* const*>(static_cast<char*>(arr) + kArrayFirst))
-            statClass = il2cpp::api().object_get_class(first);
-    }
-    if (!statClass) statClass = game::FindClass("LE.dll", "", "Stats.Stat");
-    if (!statClass) {
-        Log("stat: create SP=%u tags=%d: no Stats.Stat class", static_cast<unsigned>(def.sp), def.tags);
-        return nullptr;
-    }
-    void* obj = il2cpp::api().object_new(statClass);
-    if (!obj) {
-        Log("stat: create SP=%u: object_new returned null", static_cast<unsigned>(def.sp));
-        return nullptr;
-    }
-    *reinterpret_cast<uint8_t*>(static_cast<char*>(obj) + kStatProperty) = def.sp;
-    *reinterpret_cast<int32_t*>(static_cast<char*>(obj) + kStatTags) = def.tags;
-    const il2cpp::Class* listClass = il2cpp::api().object_get_class(list);
-    const il2cpp::Method* add = listClass ? il2cpp::api().class_get_method_from_name(listClass, "Add", 1) : nullptr;
-    Log("stat: create SP=%u tags=%d: class %p, object %p, listClass %p, Add %p", static_cast<unsigned>(def.sp), def.tags,
-        static_cast<const void*>(statClass), obj, static_cast<const void*>(listClass), static_cast<const void*>(add));
-    if (!add) return nullptr;
-    void* addCode = *reinterpret_cast<void* const*>(add);
-    reinterpret_cast<void (*)(void*, void*, const il2cpp::Method*)>(addCode)(list, obj, add);
-    if (created) *created = true;
-    return obj;
 }
 
 // ---- cooldown: PlayerChargeManager.OnUpdateTick(float deltaTime) drives the player's
@@ -277,6 +193,7 @@ feature::Hook h_getCooldown{"ChargeManager.getCooldown", {}, reinterpret_cast<vo
 }  // namespace
 
 bool Init() {
+    statedit::Init();
     g_cooldown.cmd = "cooldown";
     g_cooldown.max = 10;
     g_cooldown.hooks = {&h_chargeTick, &h_getCooldown};
@@ -284,6 +201,49 @@ bool Init() {
     m_playerActor = game::FindMethod("LE.dll", "", "PlayerFinder", "getPlayerActor", 0);
     g_mutatorOffset = game::FieldOffset("LE.dll", "", "Actor", "characterMutator");
     g_myStatsOffset = game::FieldOffset("LE.dll", "", "CharacterMutator", "myStats");
+    g_statClass = game::FindClass("LE.dll", "", "Stats.Stat");
+    m_statCtor = game::FindMethod("LE.dll", "", "Stats.Stat", ".ctor", 0);
+    m_updateStats = game::FindMethod("LE.dll", "", "BaseStats", "UpdateStatsInternal", 0);
+    kStatsListOffset = game::FieldOffset("LE.dll", "", "Stats", "stats");
+    kStatsNeedUpdate = game::FieldOffset("LE.dll", "", "BaseStats", "statsNeedToBeUpdatedNextFrame");
+    kStatProperty = game::FieldOffset("LE.dll", "", "Stats.Stat", "property");
+    kStatSpecialTag = game::FieldOffset("LE.dll", "", "Stats.Stat", "specialTag");
+    kStatTags = game::FieldOffset("LE.dll", "", "Stats.Stat", "tags");
+    kStatExtraTag = game::FieldOffset("LE.dll", "", "Stats.Stat", "extraTag");
+    kStatAdded = game::FieldOffset("LE.dll", "", "Stats.Stat", "addedValue");
+    kStatIncreased = game::FieldOffset("LE.dll", "", "Stats.Stat", "increasedValue");
+    kStatMoreValues = game::FieldOffset("LE.dll", "", "Stats.Stat", "moreValues");
+    g_layoutReady = m_playerActor && g_mutatorOffset && g_myStatsOffset && g_statClass && m_statCtor && m_updateStats &&
+        kStatsListOffset && kStatsNeedUpdate && kStatProperty && kStatSpecialTag && kStatTags && kStatExtraTag &&
+        kStatAdded && kStatIncreased && kStatMoreValues;
+    g_sheetInstance = game::FindStaticField("LE.dll", "", "CharacterSheet", "instance");
+    g_sheetStats = game::FieldOffset("LE.dll", "", "CharacterSheet", "characterStats");
+    g_textOffset = game::FieldOffset("Unity.TextMeshPro.dll", "TMPro", "TMP_Text", "m_text");
+    g_displayClass = game::FindClass("LE.dll", "", "CharacterStatDisplay");
+    m_gameObject = game::FindMethod("UnityEngine.CoreModule.dll", "UnityEngine", "Component", "get_gameObject", 0);
+    // Select the nongeneric overload by signature: the two-argument generic
+    // overload (bool, List<T>) has the same name and arity.
+    if (const il2cpp::Class* go = game::FindClass("UnityEngine.CoreModule.dll", "UnityEngine", "GameObject")) {
+        void* iter = nullptr;
+        const auto& a = il2cpp::api();
+        while (const Method* m = a.class_get_methods(go, &iter)) {
+            if (std::string(a.method_get_name(m)) != "GetComponentsInChildren" || a.method_get_param_count(m) != 2) continue;
+            char* type = a.type_get_name(a.method_get_param(m, 0));
+            const bool match = type && std::string(type) == "System.Type";
+            if (type) a.free(type);
+            if (match) { m_displayChildren = {m, *reinterpret_cast<void* const*>(m)}; break; }
+        }
+    }
+    g_displayProperty = game::FieldOffset("LE.dll", "", "CharacterStatDisplay", "property");
+    g_displayTags = game::FieldOffset("LE.dll", "", "CharacterStatDisplay", "tags");
+    g_displayType = game::FieldOffset("LE.dll", "", "CharacterStatDisplay", "displayType");
+    g_displayText = game::FieldOffset("LE.dll", "", "CharacterStatDisplay", "statText");
+    for (int i = 0; i < 7; ++i)
+        g_resistanceOffsets[i] = game::FieldOffset("LE.dll", "", "CharacterSheet", kResistanceFields[i]);
+    Log("stat: layout %s; constructor RVA 0x%llX, UpdateStatsInternal RVA 0x%llX",
+        g_layoutReady ? "resolved" : "MISSING (editor disabled)",
+        static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(m_statCtor.code) - il2cpp::api().base),
+        static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(m_updateStats.code) - il2cpp::api().base));
     h_chargeTick.ref = game::FindMethod("LE.dll", "", "PlayerChargeManager", "OnUpdateTick", 1);
     h_getCooldown.ref = game::FindMethod("LE.dll", "", "ChargeManager", "getCooldown", 1);
 
@@ -295,74 +255,15 @@ bool Init() {
 }
 
 std::string SetSpeed(double m) {
-    char buf[220];
-    if (!m_playerActor || !g_mutatorOffset || !g_myStatsOffset)
-        return "speed: refused: the movement stat path was not found in this game build";
-    if (!(m >= 1.0 && m <= kMaxSpeed)) {
-        std::snprintf(buf, sizeof buf, "speed: refused: the multiplier must be between 1 and %g", kMaxSpeed);
-        return buf;
-    }
-    if (m > 1.0 && !game::IsOfflinePlay()) {
-        g_speedRefused.fetch_add(1);
-        return "speed: refused: " + game::GateText();
-    }
-    // Pure managed-memory reads/writes (plus the list's Add for a missing entry): safe from
-    // the attached command thread, so these keep working even when the game window is not
-    // focused and the main thread is not ticking.
-    game::Guarded([&] { ApplySpeedOnMain(m); }, nullptr);
-    const double target = m - 1.0;
-    if (std::fabs(g_speedPercent.load() - target) > 0.001)
-        return "speed: refused: the player has no Movespeed stat entry yet (equip an item with movement speed or gain any movement buff once, "
-               "then retry)";
-    g_speedValue = m;
-    if (m == 1.0) return "speed -> x1 (Movespeed modifier removed)";
-    std::snprintf(buf, sizeof buf, "speed -> x%g (+%.0f%% increased movement speed, the game's own stat)", m, target * 100.0);
-    return buf;
+    if (!std::isfinite(m) || m < 1 || m > kMaxSpeed) return "speed: refused: multiplier must be between 1 and 5";
+    if (!game::IsOfflinePlay()) { ++g_speedRefused; return "speed: refused: " + game::GateText(); }
+    const std::string reply = statedit::Set({9, 0, 0, 0}, statedit::Mode::Increased, m - 1);
+    if (reply.rfind("EpochPact ", 0) != 0) return reply;
+    g_speedValue = m; g_speedPercent = m - 1; ++g_speedApplied;
+    return "speed -> x" + std::to_string(m) + "; " + reply;
 }
 
 std::string SetCooldown(double m) { return feature::Set(g_cooldown, m); }
-
-namespace {
-
-std::string ReadStatImpl(const std::string& name) {
-    const StatDef* def = FindStatDef(name);
-    if (!def) return "stat: unknown name (run `stat` without arguments for the list)";
-    void* stats = PlayerBaseStats();
-    if (!stats) return "stat: no player stats (enter a zone first)";
-    float added = 0.0f, increased = 0.0f;
-    void* entry = FindStatEntry(stats, def->sp, def->tags, &added, &increased);
-    char buf[220];
-    if (!entry) {
-        std::snprintf(buf, sizeof buf, "stat %s: no entry yet (SP=%u tags=%d); `stat %s <value>` creates one", name.c_str(),
-                      static_cast<unsigned>(def->sp), def->tags, name.c_str());
-        return buf;
-    }
-    std::snprintf(buf, sizeof buf, "stat %s: added %.2f, increased %.2f (+%.0f%%) (SP=%u tags=%d)", name.c_str(), added, increased,
-                  increased * 100.0, static_cast<unsigned>(def->sp), def->tags);
-    return buf;
-}
-
-std::string SetStatImpl(const std::string& name, double value) {
-    const StatDef* def = FindStatDef(name);
-    if (!def) return "stat: unknown name (run `stat` without arguments for the list)";
-    void* stats = PlayerBaseStats();
-    if (!stats) return "stat: no player stats (enter a zone first)";
-    bool created = false;
-    void* entry = EnsureStatEntry(stats, *def, &created);
-    if (!entry) return "stat: could not find or create the entry";
-    const float v = static_cast<float>(value);
-    if (def->increased)
-        *reinterpret_cast<float*>(static_cast<char*>(entry) + kStatIncreased) = v;
-    else
-        *reinterpret_cast<float*>(static_cast<char*>(entry) + kStatAdded) = v;
-    *reinterpret_cast<uint8_t*>(static_cast<char*>(stats) + kStatsNeedUpdate) = 1;
-    char buf[220];
-    std::snprintf(buf, sizeof buf, "stat %s -> %s %.2f (SP=%u tags=%d)%s", name.c_str(), def->increased ? "increased" : "added", v,
-                  static_cast<unsigned>(def->sp), def->tags, created ? " [new entry created]" : "");
-    return buf;
-}
-
-}  // namespace
 
 std::string StatList() {
     std::string out = "stat names:";
@@ -370,25 +271,45 @@ std::string StatList() {
         out += ' ';
         out += d.name;
     }
-    out += "\nusage: stat <name> [value]   (fire 75 -> +75 flat; bowattackspeed 3 -> +300% increased)";
+    out += "\nusage: stat <name> [raw value]   (fire 0.75 -> 75%; parry 0.5 -> 50%; reflect 10 -> 1000%; bowattackspeed 5 -> +500% increased)";
     return out;
 }
 
 std::string ReadStat(const std::string& name) {
-    std::string reply;
-    game::Guarded([&] { reply = ReadStatImpl(name); }, nullptr);
-    return reply.empty() ? std::string("stat: read failed (guarded)") : reply;
+    const StatDef* def = FindStatDef(name);
+    if (!def) return "stat: unknown name (run stat or statraw for the complete property list)";
+    return statedit::Read({def->sp, def->tags, 0, 0});
 }
 
 std::string SetStat(const std::string& name, double value) {
-    std::string reply;
-    game::Guarded([&] { reply = SetStatImpl(name, value); }, nullptr);
-    return reply.empty() ? std::string("stat: write failed (guarded)") : reply;
+    const StatDef* def = FindStatDef(name);
+    if (!def) return "stat: unknown name (run stat or statraw for the complete property list)";
+    return statedit::Set({def->sp, def->tags, 0, 0}, def->increased ? statedit::Mode::Increased : statedit::Mode::Added, value);
 }
+
+std::string SheetProbe() {
+    return OnMain([] {
+        void* sheet = game::StaticObject(g_sheetInstance);
+        if (!sheet || !g_sheetStats || !g_textOffset || !game::IsAlive(sheet)) return std::string("sheetread: sheet unavailable");
+        if (*reinterpret_cast<void**>(static_cast<char*>(sheet) + g_sheetStats) != PlayerBaseStats())
+            return std::string("sheetread: open the character sheet for the current player first");
+        std::string out = "sheetread:";
+        for (int i = 0; i < 7; ++i) {
+            if (!g_resistanceOffsets[i]) continue;
+            void* label = *reinterpret_cast<void**>(static_cast<char*>(sheet) + g_resistanceOffsets[i]);
+            out += std::string(" ") + kResistanceFields[i] + "=";
+            out += LabelText(label);
+        }
+        return out;
+    });
+}
+
+std::string SheetStats() { return statedit::Catalog(); }
 
 namespace {
 
 std::string StatScanImpl(int sp) {
+    if (!g_layoutReady) return "statscan: stat layout unavailable";
     void* stats = PlayerBaseStats();
     if (!stats) return "statscan: no player stats (enter a zone first)";
     char head[96];

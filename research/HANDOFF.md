@@ -1,5 +1,120 @@
 # EpochPact — handoff report (2026-10-04)
 
+> Latest CoF tuning update (2026-10-08): all six requested groups implemented,
+> compiled and installed. UI calls tools/cof_backend.py: charge_multiplier,
+> reward_multiplier, double_drop_chance(enemy/echo), exalted_multiplier,
+> t7_multiplier, lp_multiplier and lens_multiplier(celerity/charity/duplication).
+> See docs/cof.md. 42 final isolated feature checks, native CoF 48/48 and Python
+> 27/27 passed; tuning faults 0. Actual rewards 20→60 at x3, 40 guaranteed
+> Duplication, 120 combined with one consumed charge; normal echo 1→2 at 100%;
+> eligible LP coefficient 2→6, native ineligible baseline stays 1. Actual T7 loot
+> produced; Exalted/T7 independence and both shared-drop disable orders verified.
+> All temporary fields and hooks restored on disarm. The research echo probe
+> calls the normal next-echo reset; production keeps the one-claim guard intact.
+> Fresh backup 20261007-234638 only: all 54 owner files restored byte-for-byte,
+> 3 clone files archived. Falor running PID 40168, id 0/level 8/XP 1016/Z32;
+> rank 12/Favor 100168, slots/effects/lenses/rewards/items preserved (11 checks).
+> Favor x5 rearmed; Reputation x1, all new settings neutral. Final installed core
+> hash verified. Latest evidence: research/live/cof-tuning-20261007/owner-final.json
+> and checks.json; cof-tuning-test-manifest.json is restored=true. Older state
+> blocks below are historical; do not replace current owner progress with them.
+
+> Reputation gain update (2026-10-07): Separate `cofrepmult <1–100>` and
+> `cof_backend.reputation_multiplier(value)` implemented and installed. Existing
+> Favor API is `favor_multiplier` (`multiplier` remains a compatible alias).
+> Gained/spent Favor Reputation passes through the normal scoped CoF hook; rank
+> advancement, bonus events and maximum rank use the original method. Manual
+> Reputation gifts are excluded. Favor x5 + Rep x3 yielded 105 Favor / 630 Rep
+> versus baseline 21 / 42; spend 10 Favor yielded 20 vs 60 Rep without cost change.
+> 28 isolated live checks passed; faults 0. CoF native 25/25; Python 25/25 including
+> three tests for transient IPC out.txt locks without resending a mutation.
+> Full current saves were taken after Falor quit normally; 54 original files
+> restored byte-for-byte, three clone files archived. Manifest/evidence:
+> research/live/cof-repmult-test-manifest.json and cof-repmult-20261007/.
+> Historical pre-CoF snapshots must not replace current owner progress.
+> Falor reopened and verified id 0/level 8/XP 1016/Z32; rank 12/Favor 100168,
+> effects, slots, lenses and savedItems preserved. Running PID 25060, Favor x5
+> rearmed and Reputation x1. Installed core matches the final build by SHA-256.
+> Latest owner evidence: cof-repmult-20261007/owner-final.json.
+
+> Owner test update (2026-10-07): Falor id 0, level 8, Z32 is currently running
+> offline. The owner entered the character to perform the described CoF test.
+> Applied normal CoF join, rank 12, Favor 100000, all 12 lenses, four prophecy
+> rewards/lenses 100/0, 101/1, 110/2, 104/4; slot 0 has two charges, others zero.
+> Favor multiplier x5 active; initial telemetry zero gains/boosted/faults. Owner
+> screenshot confirmed the UI. Subsequent game read: Favor 100120; hook boosted
+> 15, last 1 -> 5, refused/faults 0; all four slots' partial charge advanced.
+> Actual prophecy reward production remains unverified. Saved items matched the live
+> pre-test snapshot. Full disk backup and validated rollback snapshot are in
+> research/live/cof-owner-20261007/actions.json. Keep this session running and
+> preserve subsequent owner gameplay; do not auto-restore historical test saves.
+> Weaver still read-only. This supersedes the closed-game/Falor-unmodified state
+> in the historical 2026-10-05 validation notes below.
+
+> Latest update (2026-10-05, round 8): CoF management is installed and tested; the
+> owner's UI can use tools/cof_backend.py. See docs/cof.md. Commands: cofread,
+> cofjoin, cofrank, coffavor, cofreputation, coflenses, cofpreview, cofprophecy,
+> cofcharges and coffavormult. Normal game APIs, loaded offline save identity,
+> live/disk snapshots and undo are used. Favor balance edits do not charge
+> prophecies; gain scaling does. Reputation is within the current rank. Available
+> rewards use GetAvailableRewardsForRank so obsolete lower-rank variants are not
+> shown as selectable. Rank lowering reconciles ToggleRanks in the decreasing
+> direction: the installed SetRank sorts toggle endpoints and leaves bonuses on.
+> 59 live checks passed on isolated EpCoFTest: 12 lenses, all four configurations,
+> charge cap/decrease, preview without mutation, invalid inputs, rank bonus/slot
+> removal, normal Reputation rank-up, actual GainFavor x1/x5 and wallet saturation.
+> Normal restart preserved rank/favor/slots/lenses/charges; pre-join snapshot undo
+> also survived reopening. Native CoF tests 16/16, combined Python tests 21/21;
+> existing XP/stat/density/Monolith checks passed with the full build. Natural combat
+> prophecy reward production and live MG switching were not tested this round.
+> The spider faction is The Woven (TheWeaver, id 3); research/weaver-1.5.md combines
+> official current sources and live data. Ten ranks provide 13 tree points;
+> Woven Echo completions can provide 40 more, total 53. Compatible with CoF/MG.
+> Weaver rank/Amber/tree were only read, not changed. All 54 original save files
+> were restored byte-for-byte; three test files archived, Falor not loaded/advanced.
+> Game closed normally; installed core matches the final build. Session bonuses
+> are not rearmed. No desktop automation, new UI or permanent profile storage.
+
+> Superseded update (2026-10-05, round 7): the Monolith backend is installed and tested.
+> Read docs/monolith.md, research/factions-1.5.md and GEMINI.md. New commands:
+> monolithread, monolithunlock, monolithselect, corruption, stability, stabilitymult,
+> sessionread and read-only factionread. The owner already designed the UI and
+> deferred permanent profiles there; this round adds the native/Python API only.
+> An isolated character verified all 20 normal/Empowered unlocks, separate run
+> values, panel selection, x5 positive gains, unchanged losses and game caps.
+> Normal close/reopen preserved all run values and unlocks; undo also survived
+> reopening. Checks: monolith 22/22, Python recovery/IPC 17/17, existing suites green.
+> All 54 original pre-test save files were restored byte-for-byte; three test
+> files were archived. Falor remains id 0, level 8. The game was closed at the
+> beginning and is closed now; session stat bonuses/density are not rearmed.
+> No faction membership, favor, rank or prophecy reward was changed. CoF/MG 1.5
+> research uses official current sources plus live rank/lens assets. No natural
+> echo was played in this round; AddStability was tested through the actual hook.
+> Normal loading helpers now reject ongoing transitions and Login preview actors.
+> No desktop input automation was used. This supersedes historical priorities below.
+
+> Superseded update (2026-10-05, round 6): campaign + minimum level 55 and all-waypoint
+> buttons are implemented. Read docs/progression.md and GEMINI.md first. The owner
+> chose normal quest rewards plus a minimum level of 55. A separate offline clone
+> verified 85 campaign records, 15 quest passives, 8 idol unlocks, 109 waypoint
+> scene keys, persistence/no duplicate rewards, and actual EoT -> MonolithHub
+> travel. Every action takes live + disk snapshots. Undo closes the game first;
+> recovery validation tests are 13/13. The final test cleanup restores original
+> Falor saves, then reapplies actor stat bonuses and density x3. This supersedes
+> the historical priority and incomplete progression state below.
+
+> Superseded state update (2026-10-05): read GEMINI.md and research/findings.md rounds
+> 4–5 before using the historical report below. The full-key stat editor now reaches
+> all 134 SP values and 206 character-sheet rows; the constructor/GC-root fix resolved
+> frozen resistance labels and equipment errors. Stat operations run on the main
+> thread. Density now has dedicated exclusions, bounded scaling and actual spawn
+> telemetry; the owner confirmed x3 working in combat, with completed 8/8 and 9/9
+> packs in the log. Tests: hook 48/48, XP 24/24, stat 33/33, density 37/37. Current
+> commands and limits are in docs/stat-editor.md and docs/monster-density.md. Use
+> background IPC/game APIs; no desktop input automation. Density resets after game
+> restart; stat bonuses apply to the current actor only. Load by verified offline
+> name/level using loadname, not the historical load <index> setter.
+
 Everything a new researcher (human or AI) needs to continue the Last Epoch modding work.
 The short operating manual is `GEMINI.md` in the repository root; the round-by-round detail
 is `research/findings.md`; the character-sheet stat map is `research/stat-map.md`. This file

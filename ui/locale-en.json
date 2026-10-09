@@ -1,0 +1,327 @@
+{
+  "language": "en",
+  "groups": {
+    "general": "General settings",
+    "loot": "Loot & Pickup",
+    "crafting": "Crafting",
+    "stats": "Character sheet / stats",
+    "campaign": "Campaign / waypoints",
+    "monolith": "Monolith / endgame",
+    "cof": "Circle of Fortune",
+    "factions": "Factions / Weaver information",
+    "session": "Connection / character",
+    "recovery": "Backups / recovery",
+    "atlas": "Unique Atlas",
+    "stash": "Stash Assistant"
+  },
+  "controls": {
+    "loot_read": [
+      "Smart pickup status / affix catalog",
+      "Read current selections, request counters and the runtime affix ID/name list."
+    ],
+    "loot_mode": [
+      "Pickup mode",
+      "All items, the current loot filter, Unique LP or wanted T7 quality, or crafting materials. Enable auto pickup separately."
+    ],
+    "loot_lp": [
+      "Minimum Unique LP",
+      "Quality mode accepts a Unique at this LP threshold, or an item with a wanted T7 affix."
+    ],
+    "loot_t7": [
+      "Pick up T7 items",
+      "Enable the wanted T7 condition in quality mode."
+    ],
+    "loot_filter": [
+      "Respect the loot filter in quality mode",
+      "Quality items must also pass the current filter. Filter mode always respects it."
+    ],
+    "loot_affixes": [
+      "Wanted T7 affixes",
+      "Choose up to 64 affixes from the live list; leave the selection empty to accept any T7 affix."
+    ],
+    "loot_category": [
+      "Pickup category",
+      "Choose crafting materials, gold, potions, XP tomes, Favor tomes or Ancient Bones independently."
+    ],
+    "loot_reset": [
+      "Reset pickup selections",
+      "Restore all/default selections. Auto pickup keeps its current on/off state."
+    ],
+    "craft_read": [
+      "Crafting preview / status",
+      "Read native forge eligibility, item FP and affixes, shard craft cost ranges and glyph chances. Exact RNG outcomes are unknown."
+    ],
+    "craft_runes": ["Preserve crafting runes", "Return only the rune actually consumed by a normal forge attempt. You still need a rune to start; other item rules remain."],
+    "craft_glyphs": ["Preserve crafting glyphs", "Return only the glyph actually consumed by a normal forge attempt. Does not add materials or override item eligibility."],
+    "craft_level": ["Ignore affix crafting level requirement", "Ignore the selected affix upgrade's level check in the local forge. Character level, equipment requirements and other forge rules remain unchanged."],
+    "craft_forge": ["Forge selected item once", "Select the item, shard or rune and optional glyph in the game's forge first. This button performs one eligible craft and creates a backup. It never repeats automatically."],
+    "map_reveal": ["Reveal zone map", "Show the full minimap and overlay. Switch off to restore normal fog of war. Exploration saves, monsters and quests remain unchanged."],
+    "map_read": ["Map display status", "Read whether the zone map is available, revealed and using active hooks."],
+    "craft_fp": [
+      "Forging Potential cost factor",
+      "0 is free, 1 is normal. Fractional loss rounds upward. Native crafting eligibility remains in effect."
+    ],
+    "craft_hope": [
+      "Glyph of Hope preservation chance",
+      "Choose 0-100 percent or reset to the native chance. Requires Basic Glyph of Hope."
+    ],
+    "craft_despair": [
+      "Glyph of Despair sealing chance",
+      "Choose 0-100 percent or reset to the native chance. Native eligibility and T1-T4 limits remain in effect."
+    ],
+    "craft_shards": [
+      "Preserve affix shards when crafting",
+      "Refund the one shard actually consumed by a normal craft. Rune and glyph preservation have separate switches."
+    ],
+    "craft_reset": [
+      "Reset crafting controls",
+      "Restore FP cost 1, native glyph chances, normal material consumption and affix level checks. Remove all crafting hooks."
+    ],
+    "xp": [
+      "Experience multiplier",
+      "Increases XP gained from enemies and experience motes. Quest rewards are unchanged."
+    ],
+    "gold": [
+      "Gold pickup multiplier",
+      "Multiplies gold gained from normal gold pickups."
+    ],
+    "drops": [
+      "Item drop quantity",
+      "Increases the number of items dropped by enemies. Circle of Fortune bonuses also apply."
+    ],
+    "density": [
+      "Monster density",
+      "Increases the average size of future eligible normal packs. Existing packs, bosses and special spawns are unchanged."
+    ],
+    "rarity": [
+      "Rarity upgrade multiplier",
+      "Each normal rarity roll has a (x-1)/x chance of moving up one tier. Exalted and T7 rolls have separate controls."
+    ],
+    "speed": [
+      "Movement speed",
+      "Adds increased movement speed equal to x-1. Shares the same contribution as the movement speed stat editor."
+    ],
+    "cooldown": [
+      "Cooldown / charge speed",
+      "Reduces cooldowns and speeds up normal charge regeneration."
+    ],
+    "autopickup": [
+      "Auto pickup",
+      "Collects nearby items, gold, potions, tomes and bones through the game's normal pickup actions. Checks every 0.75 seconds."
+    ],
+    "density_read": [
+      "Density diagnostics",
+      "Shows pack and generator counts, planned and observed spawns, and excluded groups."
+    ],
+    "sheet_catalog": [
+      "Read character sheet mappings",
+      "Reads all 206 verified mappings from the current character sheet. Requires an available sheet instance."
+    ],
+    "sheet_row": [
+      "Character sheet stat editor",
+      "Changes the EpochPact contribution to a mapped stat. Secondary modifiers use the same full stat key as their underlying property."
+    ],
+    "raw_stat": [
+      "Full-key stat editor",
+      "Edits 134 stat types using SP, tags, special and extra. Increased and More must be at least -1; zero is neutral. Some tag fields are indices."
+    ],
+    "stat_alias": [
+      "Named stats",
+      "Uses the catalog's verified stat names, contribution modes and units."
+    ],
+    "stat_reset": [
+      "Reset all mod stat contributions",
+      "Removes only contributions owned by EpochPact. Controls sharing the same stat key are updated together."
+    ],
+    "sheet_open": [
+      "Open / close character sheet",
+      "Toggles the game's normal character panel. This also changes its visible state."
+    ],
+    "resistance_labels": [
+      "Read resistance labels",
+      "Reads the seven resistance labels from the character panel. Closed or inactive panels may be unavailable or show stale values."
+    ],
+    "progress_read": [
+      "Quest / waypoint overview",
+      "Reads the loaded character's identity, level, XP, quest rewards, eligibility and actual waypoint scenes."
+    ],
+    "campaign_complete": [
+      "Complete main + side campaign · level 55 minimum",
+      "Completes unfinished eligible campaign quests with their normal rewards and raises the character to at least level 55. Unlocks End of Time, MonolithHub and M_Rest waypoints. Completed quests do not grant rewards again."
+    ],
+    "waypoints_unlock": [
+      "Unlock all waypoints",
+      "Unlocks actual waypoint scenes. Monolith timeline difficulty unlocks are a separate action."
+    ],
+    "monolith_read": [
+      "Monolith overview / current run",
+      "Reads all 10 timelines and 20 difficulties, their limits, unlocks, current runs and selected timeline."
+    ],
+    "monolith_unlock": [
+      "Unlock Normal + Empowered timelines",
+      "Unlocks every Normal and Empowered timeline. Already unlocked entries are skipped."
+    ],
+    "monolith_select": [
+      "Select timeline / difficulty",
+      "Selects the timeline and difficulty through the normal game panel. This explicit action travels to Traveler's Rest through its unlocked waypoint first. It does not start an Echo."
+    ],
+    "corruption": [
+      "Corruption",
+      "Sets the selected timeline and difficulty's absolute Corruption value. Limits are read from the current game assets."
+    ],
+    "stability": [
+      "Stability",
+      "Sets the selected timeline and difficulty's absolute Stability value. The upper limit is read from the current game assets."
+    ],
+    "stability_multiplier": [
+      "Stability gain multiplier",
+      "Multiplies positive natural Stability gains. Losses and manually set absolute values are unchanged."
+    ],
+    "cof_read": [
+      "Circle of Fortune overview",
+      "Reads rank, Favor, Reputation, prophecy slots, lenses, reward eligibility and active tuning."
+    ],
+    "cof_join": [
+      "Join Circle of Fortune",
+      "Joins Circle of Fortune. Leaving Merchant's Guild requires the separate switch option and ends that membership."
+    ],
+    "cof_rank": [
+      "CoF rank",
+      "Sets the rank and resets Reputation progress within that rank. Lowering rank can lock prophecy slots and remove bonuses."
+    ],
+    "cof_favor": [
+      "Favor balance",
+      "Sets the absolute Favor balance. Does not generate Reputation or prophecy progress."
+    ],
+    "cof_reputation_grant": [
+      "Add Reputation",
+      "Adds this amount to existing Reputation. This is not an absolute balance and does not use gain multipliers."
+    ],
+    "cof_lenses_unlock": [
+      "Unlock eligible lenses",
+      "Unlocks unpurchased lenses allowed by the current rank through the normal purchase path."
+    ],
+    "cofpreview": [
+      "Preview prophecy changes",
+      "Choose none to clear a reward or lens. Changing a reward resets charges. The same reward or lens cannot occupy both slots."
+    ],
+    "cofprophecy": [
+      "Choose prophecy reward / lens",
+      "Choose none to clear a reward or lens. Changing a reward resets charges. Preview lens changes before applying. The same reward or lens cannot occupy both slots."
+    ],
+    "cof_charges": [
+      "Completed prophecy charges",
+      "Sets 0–99 completed charges without immediately spawning items. Reducing charges also clears fractional progress."
+    ],
+    "cof_favor_multiplier": [
+      "Favor gain multiplier",
+      "Multiplies normal positive Favor gains. Naturally derived Reputation and prophecy progress still apply."
+    ],
+    "cof_reputation_multiplier": [
+      "Reputation gain multiplier",
+      "Multiplies Reputation from earning or spending Favor, excluding manual grants. Favor gains combine both gain multipliers."
+    ],
+    "cof_charge_multiplier": [
+      "Prophecy charge speed",
+      "Changes prophecy progress independently of Favor and Reputation balances. Does not raise Tyranny's spending cost."
+    ],
+    "cof_reward_multiplier": [
+      "Prophecy reward quantity",
+      "Multiplies the base reward quantity, capped at 250 per normal spawn. Combines with rank 12 and Duplication without consuming extra charges."
+    ],
+    "cof_exalted_multiplier": [
+      "Exalted roll multiplier",
+      "Scales the native coefficient, including rank 12's 1.5 bonus, and the actual Rare-to-Exalted chance. This is a multiplier, not a percentage."
+    ],
+    "cof_t7_multiplier": [
+      "T7 roll multiplier",
+      "Scales the native coefficient, including rank 12's 2 bonus. The game's level and tier requirements still apply. This is a multiplier, not a percentage."
+    ],
+    "cof_lp_multiplier": [
+      "Unique LP roll multiplier",
+      "Applies only to Uniques eligible for the native CoF bonus. LP stays within 0–4 and Weaver's Will exceptions still apply. Does not guarantee a specific LP count."
+    ],
+    "cof_double_enemy": [
+      "Enemy double-item chance (%)",
+      "Sets the chance directly from 0–100%. Zero disables this double chance; Default restores the normal rank bonus."
+    ],
+    "cof_double_echo": [
+      "Monolith double-item chance (%)",
+      "Sets the chance directly from 0–100%. Default restores the normal rank bonus. Normal Tomb, Gold and XP exceptions still apply."
+    ],
+    "cof_lens_celerity": [
+      "Celerity lens strength",
+      "Scales the extra 50% charge contribution: ×3 gives +150%, for a total ×2.5 charge rate."
+    ],
+    "cof_lens_charity": [
+      "Charity lens strength",
+      "Scales the other slot's extra 10% charge contribution: ×5 gives +50%."
+    ],
+    "cof_lens_duplication": [
+      "Duplication lens strength",
+      "Scales the 40% extra reward chance, capped at 100%."
+    ],
+    "factions_read": [
+      "CoF / MG / Knights / Weaver overview",
+      "Reads the four factions' rank assets and state. Weaver has up to 13 rank points + 40 echo points = 53. Merchant's Guild and Weaver management actions are not implemented."
+    ],
+    "session_read": [
+      "Connection / transition state",
+      "Reads the current game state and whether a transition is in progress."
+    ],
+    "status": [
+      "Mod settings / diagnostics",
+      "Reads the offline gate, active multipliers, counters and hook errors."
+    ],
+    "player_read": [
+      "Loaded character identity",
+      "Reads the name, level and offline status. The quest overview supplies the current save identity."
+    ],
+    "characters": [
+      "Offline characters",
+      "Reads the normal character selection panel."
+    ],
+    "play_offline": [
+      "Play Offline",
+      "Uses the normal Login panel after the current transition has finished."
+    ],
+    "load_character": [
+      "Load offline character",
+      "Opens a normal character tile. Enter the exact name without spaces and optionally the level. Refresh the loaded identity afterwards."
+    ],
+    "undo": [
+      "Restore operation backup",
+      "Validates the selected snapshot and loaded character, closes the game normally and restores the backup. Creates a recovery copy of the current save first."
+    ],
+    "atlas_read": [
+      "Unique Atlas",
+      "Find owned and missing Uniques and Sets; track your wishlist locally."
+    ],
+    "stash_read": [
+      "Stash Assistant",
+      "Compare owned copies, their LP and affixes. Local protection never changes an item."
+    ],
+    "echo_read": [
+      "Monolith Navigator",
+      "Search actual Echo rewards in the selected timeline. No Echoes are generated."
+    ],
+    "echo_focus": [
+      "Show in game",
+      "Focus a visible Echo in the normal game map without starting it. Opens from Traveler's Rest; an explicit action travels there through the normal unlocked waypoint first. It does not start an Echo."
+    ]
+  },
+  "researchOnly": {
+    "merchants_guild_management": [
+      "Merchant's Guild management",
+      "Information only. Management actions are not implemented."
+    ],
+    "weaver_rank_amber_tree": [
+      "Weaver rank / Amber / tree management",
+      "Rank and earned points can be read. Amber wallet, rank, node and Woven management actions are not implemented. Maximum: 13 rank points + 40 echo points = 53."
+    ],
+    "permanent_profiles": [
+      "Persistent mod profiles",
+      "Native mod settings are not saved as permanent profiles. UI profiles store drafts; loading a draft does not apply it to the game. Use Apply changes explicitly."
+    ]
+  }
+}

@@ -46,7 +46,7 @@ MethodRef FindMethod(const char* image, const char* ns, const char* cls, const c
     auto it = g_images.find(image);
     if (it == g_images.end()) return ref;
     const Api& a = api();
-    const Class* k = a.class_from_name(it->second, ns, cls);
+    const Class* k = FindClass(image, ns, cls);
     if (!k) return ref;
     ref.info = a.class_get_method_from_name(k, name, args);
     if (ref.info) ref.code = *reinterpret_cast<void* const*>(ref.info);  // MethodInfo keeps the code pointer first
@@ -56,7 +56,25 @@ MethodRef FindMethod(const char* image, const char* ns, const char* cls, const c
 const Class* FindClass(const char* image, const char* ns, const char* cls) {
     auto it = g_images.find(image);
     if (it == g_images.end()) return nullptr;
-    return api().class_from_name(it->second, ns, cls);
+    const Api& a = api();
+    if (const Class* k = a.class_from_name(it->second, ns, cls)) return k;
+    // IL2CPP class_from_name does not resolve C# nested names such as Stats.Stat.
+    const char* dot = std::strchr(cls, '.');
+    if (!dot) return nullptr;
+    const std::string outer(cls, dot);
+    const Class* parent = a.class_from_name(it->second, ns, outer.c_str());
+    while (parent && dot) {
+        const char* start = dot + 1;
+        dot = std::strchr(start, '.');
+        const std::string name = dot ? std::string(start, dot) : std::string(start);
+        const Class* match = nullptr;
+        void* iter = nullptr;
+        while (const Class* nested = a.class_get_nested_types(parent, &iter)) {
+            if (name == a.class_get_name(nested)) { match = nested; break; }
+        }
+        parent = match;
+    }
+    return parent;
 }
 
 size_t FieldOffset(const char* image, const char* ns, const char* cls, const char* field) {

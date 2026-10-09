@@ -1,0 +1,12 @@
+[
+  {
+    "key": "chronoforge-art",
+    "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Hero Siege\\source\\Last-Epoch-UI-Concepts\\2026-10-05\\01-chronoforge.png",
+    "prompt": "Use case: precise-object-edit. Image is the edit target. Create a clean 16:10 atmospheric background asset for the actual UI implemented from this concept. Preserve the distinctive Eterra-inspired floating jade temporal crystal inside the giant fractured bronze astrolabe and the realistic painterly ancient floating mossy temples from the TOP RIGHT HEADER of this reference. Expand that environment into the ENTIRE image. Remove ALL application UI: all logo/crest, all text/letters, sidebar, panels, controls, buttons, borders, all sliders. No UI elements or writing anywhere. Scene alone. Beautiful dark green and charcoal sanctuary, muted bronze ring, jade light, mist and cascading waterfalls, realistic fantasy landscape. No orange forge, no characters, no new props. Put the main crystal/astrolabe on the right, leave left half dark atmospheric mist and distant ruins with low contrast for text placed in code later. Crisp luxurious game environment, no cartoon/voxel aesthetic. Opaque background."
+  },
+  {
+    "key": "void-atlas-art",
+    "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Hero Siege\\source\\Last-Epoch-UI-Concepts\\2026-10-05\\02-void-atlas.png",
+    "prompt": "Use case: precise-object-edit. Image is the edit target. Create a clean atmospheric game environment asset for the actual Void Atlas themed interface. Preserve the DISTINCTIVE LEFT THIRD ART in this reference: a huge suspended ragged black monolith containing a violet temporal fissure and orbiting bronze rings, ruined floating temple islands, ornate ancient observatory at the bottom, purple fog and faint golden dusk. Expand this environment into the ENTIRE landscape 16:10 image. Remove ALL UI: all text, letters, logo/crest, top nav, panels, controls, buttons, borders, sliders. NO writing or UI anywhere. Paint one uninterrupted dramatic realistic high-fantasy landscape. Main monolith left of center, distant floating islands farther right. Preserve painterly realist materials, muted violet/slate palette and atmospheric perspective. No cartoon, no voxel, no cyberpunk, no characters, no fire. Opaque background."
+  }
+]

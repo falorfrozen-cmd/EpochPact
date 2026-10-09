@@ -4,6 +4,7 @@ r"""Install EpochPact into Last Epoch, run a game session, and close it cleanly.
     py -3 tools/le_session.py install            # build\ -> <game>\version.dll + <game>\EpochPact\
     py -3 tools/le_session.py uninstall
     py -3 tools/le_session.py launch             # backs the saves up, starts the game through Steam
+    py -3 tools/le_session.py launch --offline   # backs up, starts the installed game with --offline
     py -3 tools/le_session.py wait-dump [--timeout 600]
     py -3 tools/le_session.py close [--timeout 60]
     py -3 tools/le_session.py cmd <command ...> [--timeout 10]   # through <game>\EpochPact\ipc
@@ -20,6 +21,9 @@ import argparse
 import ctypes
 import ctypes.wintypes as wt
 import datetime as _dt
+import json
+import secrets
+import hashlib
 import os
 import shutil
 import subprocess
@@ -48,6 +52,9 @@ kernel32.OpenProcess.argtypes = [wt.DWORD, wt.BOOL, wt.DWORD]
 kernel32.WaitForSingleObject.argtypes = [wt.HANDLE, wt.DWORD]
 kernel32.GetExitCodeProcess.argtypes = [wt.HANDLE, ctypes.POINTER(wt.DWORD)]
 kernel32.CloseHandle.argtypes = [wt.HANDLE]
+kernel32.CreateMutexW.restype = wt.HANDLE
+kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, wt.BOOL, wt.LPCWSTR]
+kernel32.ReleaseMutex.argtypes = [wt.HANDLE]
 WM_CLOSE = 0x0010
 SYNCHRONIZE = 0x00100000
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
@@ -142,18 +149,21 @@ def cmd_uninstall(_: argparse.Namespace) -> int:
 def backup_saves() -> Path | None:
     if not SAVES.is_dir():
         return None
-    dest = OUT / "saves-backups" / _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    dest = OUT / "saves-backups" / (_dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f") + "-" + secrets.token_hex(4))
     shutil.copytree(SAVES, dest)
     return dest
 
 
-def cmd_launch(_: argparse.Namespace) -> int:
+def cmd_launch(args: argparse.Namespace) -> int:
     if game_pids():
         print(f"already running: {game_pids()}")
         return 0
     dest = backup_saves()
     print(f"saves backed up: {dest}")
-    os.startfile(f"steam://rungameid/{STEAM_APP}")
+    if args.offline:
+        os.startfile(str(GAME / EXE), arguments="--offline", cwd=str(GAME))
+    else:
+        os.startfile(f"steam://rungameid/{STEAM_APP}")
     for _ in range(240):
         pids = game_pids()
         if pids:
@@ -203,10 +213,79 @@ def cmd_close(args: argparse.Namespace) -> int:
     return 1
 
 
+def modern_ipc(ipc: Path) -> bool:
+    """A stale capability file from a stopped DLL is never trusted."""
+    try:
+        protocol = json.loads((ipc / "protocol.json").read_text(encoding="utf-8"))
+        if protocol.get("version") != 2 or type(protocol.get("pid")) is not int:
+            return False
+        handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, protocol["pid"])
+        if not handle:
+            return False
+        try:
+            code = wt.DWORD()
+            return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259
+        finally:
+            kernel32.CloseHandle(handle)
+    except (OSError, ValueError, TypeError):
+        return False
+
+
+def send_packet(ipc: Path, command: str, timeout: float) -> str | None:
+    nonce = secrets.token_hex(16)
+    tmp = ipc / "cmd.tmp"
+    tmp.write_text(f"@{nonce} {command}\n", encoding="utf-8")
+    deadline = time.monotonic() + timeout
+    # A failed atomic rename has not submitted the command. Retry publication
+    # with the SAME nonce; never publish it again once the rename succeeds.
+    while True:
+        try:
+            os.replace(tmp, ipc / "cmd.txt")
+            break
+        except PermissionError:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(.01)
+    while time.monotonic() < deadline:
+        try:
+            packet = json.loads((ipc / "reply.json").read_text(encoding="utf-8"))
+            if packet.get("nonce") == nonce and isinstance(packet.get("reply"), str):
+                return packet["reply"].strip()
+        except (OSError, ValueError):
+            pass  # Atomic publication or a transient Windows lock; never resend.
+        time.sleep(0.01)
+    return None
+
+
 def send(command: str, timeout: float = 10.0) -> str | None:
+    """Serialize request/reply pairs across all UI and CLI processes for this game."""
+    identity = hashlib.sha256(os.path.normcase(str((GAME / 'EpochPact/ipc').resolve())).encode()).hexdigest()
+    handle = kernel32.CreateMutexW(None, False, 'Local\\EpochPact.IPC.' + identity)
+    if not handle:
+        raise ctypes.WinError(ctypes.get_last_error())
+    start = time.monotonic()
+    acquired = False
+    try:
+        waited = kernel32.WaitForSingleObject(handle, max(0, int(timeout * 1000)))
+        if waited not in (0, 0x80):  # WAIT_OBJECT_0 / WAIT_ABANDONED: ownership acquired.
+            if waited == 0x102:
+                raise TimeoutError('The game connection is busy in another EpochPact process. This command was not submitted.')
+            raise ctypes.WinError(ctypes.get_last_error())
+        acquired = True
+        remaining = timeout - (time.monotonic() - start)
+        return _send_locked(command, remaining) if remaining > 0 else None
+    finally:
+        if acquired:
+            kernel32.ReleaseMutex(handle)
+        kernel32.CloseHandle(handle)
+
+
+def _send_locked(command: str, timeout: float) -> str | None:
     """Writes one command to cmd.txt and returns its reply from out.txt (None on timeout)."""
     ipc = GAME / "EpochPact" / "ipc"
     ipc.mkdir(parents=True, exist_ok=True)
+    if modern_ipc(ipc):
+        return send_packet(ipc, command, timeout)
     out = ipc / "out.txt"
     start = out.stat().st_size if out.exists() else 0
     tmp = ipc / "cmd.tmp"
@@ -218,9 +297,14 @@ def send(command: str, timeout: float = 10.0) -> str | None:
         time.sleep(0.15)
         if not out.exists():
             continue
-        with open(out, "rb") as f:
-            f.seek(start)
-            text = f.read().decode("utf-8", errors="replace")
+        try:
+            with open(out, "rb") as f:
+                f.seek(start)
+                text = f.read().decode("utf-8", errors="replace")
+        except PermissionError:
+            # The native append may briefly hold the file exclusively on Windows.
+            # Retry the read within the deadline; never resend a mutation.
+            continue
         at = text.find(marker)
         if at < 0:
             continue
@@ -230,9 +314,12 @@ def send(command: str, timeout: float = 10.0) -> str | None:
             return body[:nxt].strip()
         if body.endswith("\r\n"):
             time.sleep(0.2)  # a multi-line reply is written in one append; settle once
-            with open(out, "rb") as f:
-                f.seek(start)
-                text = f.read().decode("utf-8", errors="replace")
+            try:
+                with open(out, "rb") as f:
+                    f.seek(start)
+                    text = f.read().decode("utf-8", errors="replace")
+            except PermissionError:
+                continue
             return text[text.find(marker) + len(marker):].split("\r\n> ")[0].strip()
     return None
 
@@ -265,7 +352,9 @@ def main() -> int:
     sub.add_parser("status").set_defaults(fn=cmd_status)
     sub.add_parser("install").set_defaults(fn=cmd_install)
     sub.add_parser("uninstall").set_defaults(fn=cmd_uninstall)
-    sub.add_parser("launch").set_defaults(fn=cmd_launch)
+    launch = sub.add_parser("launch")
+    launch.add_argument("--offline", action="store_true", help="use the game's official --offline launch argument")
+    launch.set_defaults(fn=cmd_launch)
     w = sub.add_parser("wait-dump")
     w.add_argument("--timeout", type=float, default=600)
     w.set_defaults(fn=cmd_wait_dump)

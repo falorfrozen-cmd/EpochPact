@@ -1,0 +1,141 @@
+{
+  "date": "2026-10-08",
+  "result": "passed_with_live_game_limit",
+  "entrypoint": "epochpact_ui.py",
+  "catalog": {
+    "controls": 68,
+    "sheetRows": 206,
+    "properties": 134,
+    "statAliases": 72
+  },
+  "automated": {
+    "command": "py -3 -m unittest tools.test_loot_crafting_backend tools.test_ui_bridge tools.test_cof_backend tools.test_monolith_backend tools.test_progression_backend tools.test_le_session",
+    "tests": 50,
+    "passed": 50,
+    "gameAccess": "mocked",
+    "coverage": [
+      "68 control routes through existing APIs/native commands",
+      "all 206 sheet mappings and secondary keys",
+      "all 72 aliases and 134 properties",
+      "catalog numeric limits and invalid input",
+      "fraction aliases versus raw stats and direct CoF percentage",
+      "stale save identity",
+      "runtime empowered corruption bounds",
+      "prophecy preview before write",
+      "backup preservation on error",
+      "single worker ordering",
+      "no IPC during bootstrap",
+      "existing recovery and IPC file lock tests",
+      "complete English coverage for 68 controls, 8 groups and 3 informational features",
+      "English presentation leaves catalog parameters and native commands unchanged",
+      "backend errors translated without modifying character names or backup paths"
+    ]
+  },
+  "browser": {
+    "mode": "preview_without_game_access",
+    "viewports": [
+      {
+        "width": 1280,
+        "height": 720
+      },
+      {
+        "width": 720,
+        "height": 900
+      },
+      {
+        "width": 860,
+        "height": 650
+      }
+    ],
+    "passed": [
+      "Chronoforge appearance",
+      "Void Atlas appearance and theme switching",
+      "XP numeric draft apply through HTTP job and preview adapter",
+      "cancel draft restores applied value",
+      "alias allres 65 percent sends statraw added 0.65",
+      "stat key reset",
+      "raw Movespeed 100 percent increased sends 1 and updates speed control to x2",
+      "stat search across alias and raw categories",
+      "Monolith empowered minimum 100 from runtime snapshot",
+      "CoF options and current balances",
+      "CoF prophecy preview result",
+      "campaign confirmation cancelled without completing quest",
+      "MG and Weaver have informational display only",
+      "profile loads 21 settings as draft without apply",
+      "temporary test profile removed through UI",
+      "lower controls reachable by vertical scrolling at small viewport"
+    ]
+  },
+  "liveLaunch": {
+    "desktopWindow": "EpochPact",
+    "port": 17884,
+    "connectionLabel": "Offline · InGame",
+    "applyDisabled": true,
+    "browserConsoleErrors": 0
+  },
+  "evidence": [
+    "ui-evidence/chronoforge.jpg",
+    "ui-evidence/void-atlas.jpg",
+    "ui-evidence/stat-editor.jpg",
+    "ui-evidence/compact-cof.jpg",
+    "ui-evidence/live-launch.jpg"
+  ],
+  "limitations": [
+    "Real save/reward/Monolith/CoF mutations were not run. Initial integration used preview with the game closed; English verification also read an existing offline game connection.",
+    "Existing native DLL and backend game behavior were reused, not rebuilt by this UI integration.",
+    "Actor reconciliation is an explicit button for this UI session and the same character only."
+  ],
+  "sideEffects": {
+    "gameLaunched": false,
+    "pluginsInstalled": false,
+    "savesModified": false
+  },
+  "englishUi": {
+    "language": "en",
+    "themes": [
+      "chronoforge",
+      "void-atlas"
+    ],
+    "pages": [
+      "overview",
+      "general",
+      "stats",
+      "campaign",
+      "monolith",
+      "cof",
+      "factions",
+      "settings"
+    ],
+    "passed": [
+      "English navigation, descriptions, accessible names and notifications",
+      "English character editor retains Added, Increased and More",
+      "English campaign confirmation cancelled without mutation",
+      "required-field validation says Complete this field and clears on input",
+      "CoF English number format: 100,168",
+      "860x650 Void Atlas: no horizontal overflow; final CoF control above footer",
+      "no browser console errors"
+    ],
+    "evidence": [
+      "ui-evidence/chronoforge-en.jpg",
+      "ui-evidence/void-atlas-en.jpg",
+      "ui-evidence/stat-editor-en.jpg",
+      "ui-evidence/cof-en.jpg",
+      "ui-evidence/compact-cof-en.jpg",
+      "ui-evidence/live-launch-en.jpg"
+    ],
+    "liveConnection": {
+      "state": "InGame",
+      "offline": true,
+      "language": "en",
+      "mutationsRun": false
+    }
+  },
+  "latestAdditions": {
+    "date": "2026-10-08",
+    "controls": 68,
+    "added": 14,
+    "verification": "loot-crafting-verification.json",
+    "originalRecord": "Earlier UI coverage above is retained as historical evidence."
+  },
+  "statEditorUpdate": "stat-ui-verification.json"
+}

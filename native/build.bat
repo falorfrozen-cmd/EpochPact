@@ -18,22 +18,36 @@ call "%VSDIR%\VC\Auxiliary\Build\vcvars64.bat" >nul || exit /b 1
 
 set "CFLAGS=/nologo /O2 /MT /W4 /permissive- /std:c++20 /utf-8 /DNDEBUG /DUNICODE /D_UNICODE /DWIN32_LEAN_AND_MEAN"
 set "CORE=%HERE%core"
+rem Default/core keep the existing research workflow. Player builds exclude
+rem metadata dumps, capture trackers, test fixtures and research housekeeping.
+set "CORE_FLAGS=/DEPOCHPACT_RESEARCH"
+if "%~1"=="player" set "CORE_FLAGS="
+if "%~1"=="player-core" set "CORE_FLAGS="
+rem Isolated crafting fixtures only; never install general research trackers.
+if "%~1"=="test-core" set "CORE_FLAGS=/DEPOCHPACT_TESTING"
 
+if "%~1"=="core" goto :core
+if "%~1"=="player-core" goto :core
+if "%~1"=="test-core" goto :core
 echo [1/3] loader (version.dll)
 ml64 /nologo /c /Fo"%OUT%\version_thunks.obj" "%HERE%proxy\version_thunks.asm" || exit /b 1
 cl %CFLAGS% /EHsc /c /Fo"%OUT%\version_proxy.obj" "%HERE%proxy\version_proxy.cpp" || exit /b 1
 link /nologo /DLL /OUT:"%OUT%\version.dll" /DEF:"%HERE%proxy\version.def" "%OUT%\version_thunks.obj" "%OUT%\version_proxy.obj" kernel32.lib || exit /b 1
 
+:core
 echo [2/3] core (EpochPact.Core.dll)
 rem EPOCHPACT_RESEARCH: the metadata dump, capture hooks and research commands (not for players).
 ml64 /nologo /c /Fo"%OUT%\stat_thunk.obj" "%HERE%core\stat_thunk.asm" || exit /b 1
-set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread xp loot items player commands research"
+set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread xp loot density items smart_loot crafting map_view collection player stat_editor progression monolith factions cof cof_tuning commands research"
 set "CORE_CPP="
 set "CORE_OBJ="
 for %%f in (%CORE_SRC%) do call set "CORE_CPP=%%CORE_CPP%% "%CORE%\%%f.cpp""
 for %%f in (%CORE_SRC%) do call set "CORE_OBJ=%%CORE_OBJ%% "%OUT%\%%f.obj""
-cl %CFLAGS% /EHa /DEPOCHPACT_RESEARCH /c /Fo"%OUT%\\" %CORE_CPP% || exit /b 1
+cl %CFLAGS% /EHa %CORE_FLAGS% /c /Fo"%OUT%\\" %CORE_CPP% || exit /b 1
 link /nologo /DLL /OUT:"%OUT%\EpochPact.Core.dll" %CORE_OBJ% "%OUT%\stat_thunk.obj" kernel32.lib user32.lib psapi.lib || exit /b 1
+if "%~1"=="core" goto :done
+if "%~1"=="player-core" goto :done
+if "%~1"=="test-core" goto :done
 
 echo [3/3] tests (hook_test.exe)
 ml64 /nologo /c /Fo"%OUT%\tests\test_targets.obj" "%HERE%tests\test_targets.asm" || exit /b 1
@@ -44,5 +58,12 @@ ml64 /nologo /c /Fo"%OUT%\tests\xp_targets.obj" "%HERE%tests\xp_targets.asm" || 
 cl %CFLAGS% /EHa /c /Fo"%OUT%\tests\\" "%HERE%tests\xp_test.cpp" "%HERE%tests\fake_game.cpp" "%CORE%\xp.cpp" || exit /b 1
 link /nologo /OUT:"%OUT%\xp_test.exe" "%OUT%\tests\xp_test.obj" "%OUT%\tests\fake_game.obj" "%OUT%\tests\xp.obj" "%OUT%\tests\x64_decode.obj" "%OUT%\tests\hook.obj" "%OUT%\tests\xp_targets.obj" kernel32.lib || exit /b 1
 
-echo built: version.dll, EpochPact.Core.dll, hook_test.exe and xp_test.exe in %OUT%
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\stat_key_test.exe" "%HERE%tests\stat_key_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\density_test.exe" "%HERE%tests\density_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\monolith_test.exe" "%HERE%tests\monolith_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\cof_test.exe" "%HERE%tests\cof_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\loot_crafting_test.exe" "%HERE%tests\loot_crafting_test.cpp" || exit /b 1
+
+echo built: version.dll, EpochPact.Core.dll, hook_test.exe, xp_test.exe, stat_key_test.exe, density_test.exe, monolith_test.exe and cof_test.exe in %OUT%
+:done
 endlocal

@@ -14,6 +14,16 @@ player's `Stats.stats` list (`BaseStats` inherits it, +0x88 on the stats object)
 `extraTag` +0x18, `addedValue` +0x1C, `increasedValue` +0x20 (a **fraction**: 0.1 = +10%).
 That is how the `speed` command already writes Movement Speed.
 
+Implementation notes (2026-10-05): percentage-based **added** values are fractions too:
+resistance 0.65 = 65%, parry 0.5 = 50%, PercentReflect 10 = 1000%. Increased attack speed
+5 = +500%, not 5 attacks/sec. `object_new` alone does not initialise a Stats.Stat:
+run its parameterless constructor so `moreValues` is a valid List<float>, then insert
+on the game's main thread and run UpdateStatsInternal. Without the constructor,
+GetProtectionValue throws and aborts both sheet and equipment updates. The enum mapping
+is broader than the implemented named-command table; component-field and ailment lines
+still need dedicated support. Read the refreshed runtime dump in the game folder for
+current RVAs; this document's original 1.5.0.1 dump is a historical source.
+
 ## The SP enum (the master list, 134 values)
 
 | # | Member | # | Member | # | Member |
@@ -265,10 +275,27 @@ PlayerProperty/conditional handled by a mutator, marked as inferred where it mat
   "Damage for Melee per Mana Cost", "More Damage Taken without Frenzy", "Minion Power From
   Character Level", companion revive lines, haste/frenzy effect — **~8 lines**.
 
-## What this unlocks (next mods)
+## Full-key access (2026-10-05)
 
-Because a `Stats.Stat` entry is a plain object, the same write we use for `speed` can
-target **any** of these, as long as the character already has an entry for it (items,
-passives and buffs create them): a `stat <name> <value>` command, or a full stat editor,
-is now a table lookup away. Creating an entry from nothing needs `il2cpp_object_new` +
-the list's `Add` (see `research/findings.md`, open questions).
+`statraw <SP name/id> <tags> <specialTag> <extraTag> [added|increased|more <value>|reset]`
+reads and edits every enum property discovered from the running game (134 in this build).
+`sheetstats` reads the real display metadata instead of relying on the inferred table
+above; `sheetstat <row> [modifier] <mode> <value>` uses the complete key, automatically
+including the minion bit. PlayerProperty and AbilityProperty rows encode their property
+indices in tags. They do not require arbitrary component-field writes. Secondary
+modifier keys, exact matching, quotient/inverse, caps and attack-rate flags are cataloged.
+
+The editor allocates a separate, constructed, GC-rooted `Stats.Stat` with dontCollapse.
+It preserves equipment/buff aggregates and replaces only its own contribution. `statreset`
+removes the owned references. Constructor/list/recalculation/getter calls use
+`il2cpp_runtime_invoke` on the main thread with both offline checks.
+
+The static field-backed labels above were inferences. Prefer the live catalog:
+movement cooldown was observed as AbilityProperty tags=782; damage per melee mana cost
+as PlayerProperty tags=636; without-Frenzy damage taken as PlayerProperty tags=638;
+companion revive rows as PlayerProperty tags=126/127. General ordinary AT tag rules must
+not be applied to those property-index tags.
+
+See `docs/stat-editor.md` for commands, fractions, derived rows and session lifetime.
+`tools/stat_editor_live_check.py` records its evidence in research/live. Access and
+neutral restore tests are distinct from combat validation of every conditional effect.

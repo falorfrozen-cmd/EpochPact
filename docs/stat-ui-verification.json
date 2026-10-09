@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-08",
+  "result": "passed_ui_and_simulated_commands",
+  "catalog": {
+    "controls": 68,
+    "sheetRows": 206,
+    "statAliases": 72,
+    "properties": 134
+  },
+  "scope": "Character stat editor and browser. Existing native contracts and loot/crafting controls preserved.",
+  "automated": {
+    "pythonTests": 50,
+    "statPresentationTests": 7,
+    "passed": 57,
+    "nativeCalls": "mocked or preview; no game/save mutations",
+    "commands": [
+      "py -3 -m unittest tools.test_loot_crafting_backend tools.test_ui_bridge tools.test_cof_backend tools.test_monolith_backend tools.test_progression_backend tools.test_le_session",
+      "node --test tools/test_stat_model.cjs",
+      "node --check ui/app.js",
+      "node --check ui/stat-model.js"
+    ]
+  },
+  "browser": {
+    "mode": "isolated preview HTTP jobs and existing adapter",
+    "themes": [
+      "chronoforge",
+      "void-atlas"
+    ],
+    "viewports": [
+      {
+        "width": 1280,
+        "height": 720
+      },
+      {
+        "width": 860,
+        "height": 650
+      },
+      {
+        "width": 720,
+        "height": 900
+      }
+    ],
+    "passed": [
+      "Opening the stat editor reads current contribution without applying a bonus",
+      "Slider ArrowRight changes draft +25 to +26; explicit read still returns native contribution 0",
+      "Flat Guile +25 sends statraw 22 0 0 0 added 25",
+      "Increased Guile +25% sends increased 0.25; changing back retains flat +25",
+      "More +50% is under Advanced and sends more 0.5",
+      "Manual 5000 is valid while slider thumb stops at practical maximum 200",
+      "Increased -101% fails validation and retains the previous result",
+      "All Resistances +65 percentage points reads back added 0.65",
+      "Reset bonus clears all three contributions for the shared key",
+      "Favorites survive reload; temporary test favorite removed",
+      "Category filter, search and pagination preserve original catalog indices",
+      "Movement speed +100% updates general multiplier to x2",
+      "Changing raw Fire Resistance tags to 8192 changes unit to raw and sends statraw 13 8192 0 0 added 5",
+      "Blank advanced keys are rejected in English before submission",
+      "Both themes at minimum desktop size have visible Close and Apply buttons and no horizontal dialog overflow",
+      "720x900 modal controls fit and remain accessible",
+      "Preview and live console error/warning lists are empty"
+    ]
+  },
+  "liveLaunch": {
+    "window": "EpochPact",
+    "port": 17884,
+    "connection": "Game disconnected; Last Epoch is not running",
+    "gameMutationsTested": false,
+    "applyAndReset": "disabled when game is disconnected"
+  },
+  "evidence": [
+    "ui-evidence/stat-editor-simple-chronoforge.jpg",
+    "ui-evidence/stat-editor-simple-void.jpg",
+    "ui-evidence/stat-browser-chronoforge.jpg"
+  ],
+  "backup": ".ui-runtime/stat-ui-before-20261008-101047"
+}

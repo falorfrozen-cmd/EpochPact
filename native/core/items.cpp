@@ -4,6 +4,9 @@
 #include "feature.hpp"
 #include "game.hpp"
 #include "hook.hpp"
+#include "smart_loot.hpp"
+#include "managed.hpp"
+#include <memory>
 
 #include <atomic>
 #include <cstdint>
@@ -120,7 +123,7 @@ void PickAll() {
                     void* inner = *reinterpret_cast<void* const*>(static_cast<char*>(dlist) + kListItems);
                     labelCount = SnapshotList(inner, labels, kMaxPerScan, [&](void* label) {
                         ++labelSeen;
-                        return *reinterpret_cast<void* const*>(label) == g_groundItemLabel;
+                        return *reinterpret_cast<void* const*>(label) == g_groundItemLabel && smartloot::Accept(label);
                     });
                 }
             }
@@ -130,7 +133,7 @@ void PickAll() {
                     void** out[5] = {gold, potions, xp, favor, bones};
                     int* count[5] = {&goldCount, &potionCount, &xpCount, &favorCount, &boneCount};
                     for (int i = 0; i < 5; ++i) {
-                        if (!g_activeLists[i].pick || !g_activeLists[i].offset) continue;
+                        if (!smartloot::Category(i) || !g_activeLists[i].pick || !g_activeLists[i].offset) continue;
                         void* listObj = *reinterpret_cast<void* const*>(static_cast<char*>(mgr) + g_activeLists[i].offset);
                         *count[i] = SnapshotList(listObj, out[i], kMaxPerScan, [](void*) { return true; });
                     }
@@ -139,11 +142,18 @@ void PickAll() {
         },
         nullptr);
 
+    // Pickup mutates the manager lists. Root every snapshot before the first call
+    // and use runtime_invoke to catch managed pickup/inventory exceptions.
+    std::vector<std::unique_ptr<managed::Root>> roots;
+    if (!game::Guarded([&] {
+        const std::pair<void**,int> snapshots[]{{labels,labelCount},{gold,goldCount},{potions,potionCount},
+            {xp,xpCount},{favor,favorCount},{bones,boneCount}};
+        for (const auto& [list,count] : snapshots) for (int i=0;i<count;++i) roots.push_back(std::make_unique<managed::Root>(list[i]));
+    }, nullptr)) return;
     int calls = 0;
     if (m_requestPickup) {
         for (int i = 0; i < labelCount; ++i) {
-            reinterpret_cast<void (*)(void*, const Method*)>(m_requestPickup.code)(labels[i], m_requestPickup.info);
-            ++calls;
+            if (game::Guarded([&] { if(game::IsAlive(labels[i])) { managed::Invoke(m_requestPickup,labels[i]); ++calls; } },nullptr)) {}
         }
     }
     const struct {
@@ -158,8 +168,7 @@ void PickAll() {
     for (const auto& l : lists) {
         if (!l.pick->code) continue;
         for (int i = 0; i < l.count; ++i) {
-            reinterpret_cast<void (*)(void*, const Method*)>(l.pick->code)(l.list[i], l.pick->info);
-            ++calls;
+            game::Guarded([&] { if(game::IsAlive(l.list[i])) { managed::Invoke(*l.pick,l.list[i]); ++calls; } },nullptr);
         }
     }
 
@@ -180,6 +189,7 @@ void d_distantTick(void* self, float deltaTime, const Method* m) {
     unsigned long last = g_lastScan.load(std::memory_order_relaxed);
     if (now - last < 750) return;
     if (!g_lastScan.compare_exchange_strong(last, now, std::memory_order_relaxed)) return;
+    if (!smartloot::CanCollect()) return;
     g_scans.fetch_add(1, std::memory_order_relaxed);
     PickAll();
 }
@@ -246,7 +256,7 @@ std::string SetAuto(double on) {
             return "autopickup: off, but the hook stays: " + why;
         return "autopickup -> off (hook removed)";
     }
-    if (!game::IsOfflinePlay()) return "autopickup: refused: " + game::GateText();
+    if (!smartloot::CanCollect()) return "autopickup: refused: enter a loaded offline character first";
     if (!hook::IsInstalled(h_distantTick.ref.code)) {
         std::string why;
         if (!hook::Install(h_distantTick.ref.code, h_distantTick.detour, h_distantTick.original, &why)) {

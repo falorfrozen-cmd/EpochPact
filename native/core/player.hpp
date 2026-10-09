@@ -1,8 +1,7 @@
 // What the player's own body reads: how fast it moves and how fast abilities come back.
 //
-//   speed <1-5>       RPGCharacterController.walkSpeed/moveSpeed/runSpeed scaled while
-//                     UpdateMovement() turns input into velocity (the fields the rigidbody
-//                     movement actually reads, not the NavMeshAgent copy)
+//   speed <1-5>       separate Movespeed increased modifier via stat_editor;
+//                     equipment/buff sources remain intact
 //   cooldown <1-10>   PlayerChargeManager.OnUpdateTick's deltaTime scaled: the player's
 //                     charges and cooldowns count down that much faster, and
 //                     ChargeManager.getCooldown divides the length of new cooldowns
@@ -30,6 +29,9 @@ std::string StatProbe();
 std::string StatList();
 std::string ReadStat(const std::string& name);
 std::string SetStat(const std::string& name, double value);
+// Read the actual seven resistance TMP_Text labels on the game's main thread.
+std::string SheetProbe();
+std::string SheetStats();
 
 // Dumps every entry whose SP is `sp`, whatever its tags (research). Main thread only.
 std::string StatScan(int sp);

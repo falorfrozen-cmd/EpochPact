@@ -8,6 +8,18 @@ Working on this repository with an AI agent? Start with `GEMINI.md` (the agent h
 layout, build/test/live workflow, the current state and the traps) and
 `research/HANDOFF.md` (the full handoff report).
 
+Building the owner's UI? Start with [the complete UI catalog](docs/ui-catalog.md)
+and its machine-readable [ui/catalog.json](ui/catalog.json): all 72 implemented
+controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
+with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
+from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
+
+Latest [live verification report](docs/all-mods-current-verification.md): all 247
+stat keys on the final player DLL, real Monolith panel checks, a complete Echo
+combat/return/reward loop, interface recovery and exact save restoration. It
+identifies guarded test-driver evidence, retained earlier checks, observed crashes
+and coverage limits; it does not claim exhaustive gameplay or zero crashes.
+
 ## Features
 
 | Command | What it does |
@@ -16,12 +28,31 @@ layout, build/test/live workflow, the current state and the traps) and
 | `gold <1-100>` | Gold picked up from the ground times the number. Shops, respecs and quest rewards are untouched. |
 | `drops <1-25>` | The item count of every loot drop (enemy deaths, objectives, arenas, bosses) times the number. |
 | `density <1-5>` | Monsters per pack times the number, for packs rolled from then on. Single spawns (bosses, unique enemies) stay single. |
-| `rarity <1-10>` | Every rarity roll has a (mult-1)/mult chance to come out one tier better: normal → magic → rare → exalted → unique/set. |
+| `rarity <1-10>` | Each numeric rarity roll below grade 4 has a (mult-1)/mult chance to increase by one. Exalted/T7 tuning has separate controls; rarity enum IDs are cataloged by type. |
 | `speed <1-5>` | Movement speed: writes the game's own Movespeed stat (like an item or a buff), so the character sheet, the animation and the movement all scale together. |
 | `cooldown <1-10>` | Charges and cooldowns count down that many times faster. |
-| `autopickup <0/1>` | Every 0.75 s, asks the game to pick up all ground items, gold, potions, xp/favor tomes and ancient bones in the zone. |
+| `autopickup <0/1>` | Every 0.75 s, asks the game to pick up selected items and enabled gold, potion, tome and bone categories. |
+| `lootmode all\|filter\|quality\|materials` | Smart pickup using the native loot filter, Unique LP threshold or wanted T7 affixes; normal inventory capacity remains. |
+| `lootlp` / `loott7` / `lootaffixes` / `lootfilter` / `lootcategory` | Separate quality, affix and category selections; `lootread` lists actual affix IDs/names. |
+| `craftfp <0–1>` / `crafthope` / `craftdespair` `<0–100\|reset>` | Normal forge FP cost, Basic Hope preservation chance and eligible Despair sealing chance. |
+| `craftshards <0/1>` / `craftread` / `craftreset` | Preserve the shard actually consumed, read normal forge preview, or reset all crafting controls. Rune/glyph consumption remains normal. |
+| `coffavormult <1-100>` | CoF Favor gained times the number; normal prophecy charging and derived Reputation continue. |
+| `cofrepmult <1-100>` | CoF Reputation gained from gaining or spending Favor times the number; normal rank progression and cap remain. Manual grants are excluded. |
+| `cofchargemult` / `cofrewardmult` | Independent prophecy charge speed and normal reward item count; preserves wallet and charge consumption. |
+| `cofdouble enemy\|echo <0-100\|reset>` | Separate enemy/Monolith double-item probabilities; reset uses the game's normal rank bonus. |
+| `cofexaltedmult` / `coft7mult` / `coflpmult` | Separate CoF item-generation roll coefficients; normal item/level eligibility remains. |
+| `coflensmult celerity\|charity\|duplication <1-100>` | Separate lens extra-charge contributions and duplicate-reward chance. |
 | `xp`, `gold`, ... | Without a number: the multiplier, whether its hooks are in, and how many times it boosted or refused. |
 | `status` | Version, the online/offline gate, every feature's state. |
+
+Character-sheet editing, campaign/waypoint completion, Monolith management and CoF
+management also have native commands and Python APIs for the owner's UI:
+[stat editor](docs/stat-editor.md), [progression](docs/progression.md),
+[Monolith](docs/monolith.md), [Circle of Fortune](docs/cof.md),
+[smart pickup and crafting](docs/loot-crafting.md),
+[Unique Atlas, Stash Assistant and Monolith Navigator](docs/collection-navigator.md).
+Current faction research: [CoF / MG](research/factions-1.5.md) and
+[The Woven / Weaver](research/weaver-1.5.md).
 
 ## Layout
 

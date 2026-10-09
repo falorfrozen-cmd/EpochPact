@@ -6,13 +6,20 @@
 // capture hooks and write the metadata dump once per game build).
 
 #include "commands.hpp"
+#include "cof.hpp"
+#include "crafting.hpp"
+#include "map_view.hpp"
+#include "smart_loot.hpp"
 #include "common.hpp"
+#include "density.hpp"
 #include "game.hpp"
 #include "il2cpp_api.hpp"
 #include "items.hpp"
 #include "loot.hpp"
 #include "mainthread.hpp"
+#include "monolith.hpp"
 #include "player.hpp"
+#include "progression.hpp"
 #include "version.hpp"
 #include "xp.hpp"
 #ifdef EPOCHPACT_RESEARCH
@@ -89,13 +96,18 @@ DWORD WINAPI Worker(void*) {
     if (GetFileAttributesW((dumpDir + L"done.txt").c_str()) == INVALID_FILE_ATTRIBUTES) RunDump(domain, dumpDir);
 #endif
     mainthread::Init();
-#ifdef EPOCHPACT_RESEARCH
-    research::KeepTicking();
-#endif
+    mainthread::KeepTicking();
     xp::Init();
     loot::Init();
+    density::Init();
     items::Init();
+    smartloot::Init();
+    crafting::Init();
+    mapview::Init();
     player::Init();
+    progression::Init();
+    monolith::Init();
+    cof::Init();
     Log("ready: command channel at EpochPact\\ipc\\cmd.txt");
     // Detached until a command arrives: IL2CPP waits for attached threads when the game quits.
     if (void* self = a.thread_current()) a.thread_detach(self);
