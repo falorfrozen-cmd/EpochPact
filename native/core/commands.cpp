@@ -14,6 +14,7 @@
 #include "items.hpp"
 #include "loot.hpp"
 #include "mainthread.hpp"
+#include "lifecycle.hpp"
 #include "managed.hpp"
 #include "monolith.hpp"
 #include "player.hpp"
@@ -320,7 +321,7 @@ void Loop(il2cpp::Domain* domain) {
     files::Rotate(out, 1024 * 1024);
     Publish(dir + L"protocol.json", "{\"version\":2,\"pid\":" + std::to_string(GetCurrentProcessId()) + "}");
     const il2cpp::Api& a = il2cpp::api();
-    for (;;) {
+    while (!lifecycle::Stopping()) {
         mainthread::Housekeep();
 #ifdef EPOCHPACT_RESEARCH
         research::Housekeep();
@@ -331,6 +332,7 @@ void Loop(il2cpp::Domain* domain) {
             void* thread = a.thread_attach(domain);
             std::istringstream lines(ReadAndDelete(in));
             for (std::string line; std::getline(lines, line);) {
+                if (lifecycle::Stopping()) break;
                 if (!line.empty() && line.back() == '\r') line.pop_back();
                 if (line.find_first_not_of(" \t") == std::string::npos) continue;
                 std::string nonce;
@@ -349,7 +351,7 @@ void Loop(il2cpp::Domain* domain) {
             }
             if (thread) a.thread_detach(thread);
         }
-        Sleep(10);
+        if (!lifecycle::Stopping()) Sleep(10);
     }
 }
 

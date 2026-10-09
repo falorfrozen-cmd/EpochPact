@@ -1,0 +1,6 @@
+Mode: Built-in image_gen edit
+Input: C:\Users\falor\AppData\Local\Temp\codex-clipboard-b70f14ee-43b0-420f-a583-ae0e9d46281a.png
+Output: epochpact-discord-chronoforge-v2.png
+
+Use case: text-localization / precise localized text edit.
+Edit target: the attached EpochPact promotional poster. Make exactly ONE localized edit to the bottom emerald-and-gold slogan plaque: replace the complete text "ONE APP. NO PYTHON INSTALL. PLAY OFFLINE." with the exact text "ONE APP. PLAY OFFLINE." Center this shorter text beautifully within the existing plaque, matching the existing uppercase ivory/gold serif typography, font size, finish and baseline. Remove all references to Python. Preserve the entire rest of the poster exactly: same composition, aspect ratio, framing, logo, illustrations, ten feature cards, every feature title and description, footer system/version text, URL and creator credit. Keep all artwork and decorative plaque border unchanged. Do not redesign, recrop, reflow the cards, add text, or alter any other wording. Return the complete edited poster.

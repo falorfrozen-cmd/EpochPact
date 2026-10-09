@@ -48,6 +48,13 @@ int main() {
     const auto before = updates.load();
     for (int i = 0; i < 1000; ++i) Update(nullptr, nullptr);
     check(updates.load() == before + 1000, "idle frames still call original Update");
+    auto ending = std::async(std::launch::async, [&] { return ep::mainthread::Run([&] { steps = 999; }, 5000, nullptr); });
+    const auto deadline = GetTickCount64() + 1000;
+    while (ep::mainthread::Telemetry().find("\"pendingJobs\":1") == std::string::npos && GetTickCount64() < deadline) Sleep(1);
+    ep::mainthread::Stop();
+    check(ending.wait_for(std::chrono::milliseconds(200)) == std::future_status::ready && !ending.get(), "shutdown cancels pending job immediately");
+    Update(nullptr, nullptr); check(steps == 4, "shutdown mutation never executes");
+    check(!ep::mainthread::Run([] {}, 5000, nullptr), "shutdown rejects new work without waiting");
     std::cout << "mainthread: " << tests - failed << '/' << tests << " passed\n";
     return failed ? 1 : 0;
 }

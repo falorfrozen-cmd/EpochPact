@@ -10,6 +10,8 @@
 #include <string>
 
 namespace ep::mainthread {
+// Called before IL2CPP shutdown: cancel queued work and reject new jobs.
+void Stop();
 
 bool Init();
 

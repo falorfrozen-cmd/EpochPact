@@ -30,6 +30,7 @@ std::deque<Job> g_jobs;
 std::atomic<unsigned> g_pending{0};
 std::atomic<unsigned> g_installs{0};
 std::atomic<bool> g_installed{false};
+std::atomic<bool> g_stopping{false};
 game::MethodRef g_background;
 bool g_backgroundSet = false; // main thread only
 std::atomic<unsigned long long> g_steps{0}, g_maxMicros{0}, g_slowSteps{0};
@@ -80,6 +81,7 @@ void Detour(void* self, const il2cpp::Method* method) {
 
 bool EnsureHook(std::string* why) {
     std::lock_guard<std::mutex> hold(g_hookLock);
+    if (g_stopping) { if (why) *why = "the game is shutting down"; return false; }
     if (g_installed) return true;
     if (!hook::Install(g_update.code, reinterpret_cast<void*>(&Detour), reinterpret_cast<void**>(&g_orig), why)) return false;
     ++g_installs;
@@ -106,7 +108,7 @@ void KeepTicking() {
     // the game is still loading. This job owns no caller stack references.
     auto state = std::make_shared<std::atomic<int>>(0);
     auto progress = std::make_shared<std::atomic<DWORD>>(GetTickCount());
-    { std::lock_guard<std::mutex> hold(g_queueLock); g_jobs.push_back({[] { return true; }, state, progress}); ++g_pending; }
+    { std::lock_guard<std::mutex> hold(g_queueLock); if (g_stopping) return; g_jobs.push_back({[] { return true; }, state, progress}); ++g_pending; }
 
     std::string why;
     if (!EnsureHook(&why)) {
@@ -126,6 +128,7 @@ bool RunSteps(std::function<bool()> job, unsigned timeoutMs, std::string* why) {
     auto progress = std::make_shared<std::atomic<DWORD>>(GetTickCount());
     {
         std::lock_guard<std::mutex> hold(g_queueLock);
+        if (g_stopping) { if (why) *why = "the game is shutting down; no job was submitted"; return false; }
         g_jobs.push_back({std::move(job), state, progress}); ++g_pending;
     }
 
@@ -157,6 +160,13 @@ bool RunSteps(std::function<bool()> job, unsigned timeoutMs, std::string* why) {
 
 void Housekeep() {
     // The frame hook stays installed; its idle path takes no queue mutex.
+}
+
+void Stop() {
+    std::lock_guard<std::mutex> hold(g_queueLock);
+    g_stopping = true;
+    for (const auto& job : g_jobs) job.state->store(3);
+    g_jobs.clear(); g_pending = 0;
 }
 
 bool HookInstalled() { return g_installed; }

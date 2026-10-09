@@ -350,15 +350,20 @@ def cmd_close(args: argparse.Namespace) -> int:
     handle = kernel32.OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
     hwnd = game_window(pid)
     if not hwnd:
+        if handle: kernel32.CloseHandle(handle)
         print("no game window to close")
         return 1
     user32.PostMessageW(hwnd, WM_CLOSE, 0, 0)
     if handle and kernel32.WaitForSingleObject(handle, int(args.timeout * 1000)) == 0:
         code = wt.DWORD()
-        kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+        read_exit = kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
         kernel32.CloseHandle(handle)
+        if not read_exit:
+            print("closed, but the game's exit code could not be verified")
+            return 1
         print(f"closed: exit code {code.value} (0x{code.value:08X})")
-        return 0
+        return 0 if code.value == 0 else 1
+    if handle: kernel32.CloseHandle(handle)
     print(f"still running after {args.timeout} s")
     return 1
 

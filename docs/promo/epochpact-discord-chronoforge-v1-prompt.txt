@@ -1,0 +1,93 @@
+Tool: built-in image_gen.imagegen
+Reference composition: user's Minecraft Dungeons II ModLab Discord poster.
+Reference theme: ui/assets/chronoforge-reference.png.
+Feature copy checked against ui/catalog.json and the English UI / collection documentation on 2026-10-09.
+
+Use case: ads-marketing.
+Create a finished, premium Discord announcement poster for EPOCHPACT, a community-made Last Epoch OFFLINE mod toolkit. This is a polished feature infographic to post in Discord, NOT an app screenshot and NOT an interface with interactive controls.
+
+Reference image roles:
+Image 1 (Minecraft Dungeons II MODLAB announcement): reference ONLY for its excellent two-column, five-row feature-card composition, prominent brand header, illustrated card icons, and footer call-to-action. Do NOT copy its voxel art, Minecraft characters, blue blocks, Minecraft title, wording, hotkey, or feature claims.
+Image 2 (Chronoforge UI): the PRIMARY art direction reference. Closely match this approved EpochPact default theme: near-black green stone, antique brushed gold hairline borders and corner ornaments, jade / mint magical glow, ivory text, elegant engraved serif headings, readable clean sans-serif body text, time-themed emerald crystal suspended inside elaborate golden orbital rings, misty ruined Eterra architecture and atmospheric waterfalls. Use realistic fantasy item art, not cartoon or pixel art.
+
+Composition:
+One tall portrait poster, approximately 4:5 aspect ratio, high resolution. All edges and text fully inside safe margins. Header occupies the top 18%, 10 feature cards in two equal columns and five aligned rows occupy the middle 68%, concise footer occupies the bottom 14%. Clear straight-on layout; no perspective on the typography or card text. Each card has one distinct beautiful fantasy item icon on the left and its heading plus exactly three short text lines on the right, with consistent padding and equal readable typography. Keep backgrounds behind writing very dark and quiet. Card headings moderately sized so long headings fit. Large perfectly legible English copy, excellent contrast, no microtext. Ancient gold frame lines with restrained emerald glow, subtle texture; avoid excessive ornaments obstructing words. Luxurious and highly memorable, coordinated with the existing Chronoforge UI.
+
+Header illustration:
+Glowing emerald hourglass inside a golden astronomical ring near the EPOCHPACT wordmark, with the Eterra emerald time crystal / floating sanctuary in the background. Premium wordmark "EPOCHPACT" very large, in gold / ivory sculpted serif lettering. Small text above and slogan below.
+Header text EXACT:
+"LAST EPOCH · OFFLINE TOOLS"
+"EPOCHPACT"
+"Your timeline. Your rules."
+
+Feature cards EXACT wording, left-to-right row order:
+
+Row 1 left, icon ornate purple XP orb with gold coins:
+"PROGRESSION & COMBAT"
+"Enemy XP and gold up to 100x."
+"Movement speed and cooldown tuning."
+"Adjust settings while you play."
+
+Row 1 right, icon treasure chest with jade gem and legendary loot:
+"LOOT & PICKUP"
+"Item quantity up to 25x, rarity up to 10x."
+"Auto pickup with loot-filter support."
+"Choose LP thresholds and wanted T7 affixes."
+
+Row 2 left, icon ancient warrior helm and emerald stat rune:
+"CHARACTER BONUSES"
+"206 character-sheet mappings."
+"Flat bonuses or percentage increases."
+"Search, customize and reset your stats."
+
+Row 2 right, icon dark metal forge anvil, rune and luminous glyph:
+"CRAFTING WORKSHOP"
+"Tune Forging Potential costs."
+"Adjust Glyph of Hope and Despair."
+"Preserve shards, runes and glyphs."
+
+Row 3 left, icon rolled quest parchment and gold waypoint compass:
+"CAMPAIGN & WAYPOINTS"
+"Complete campaign quests with rewards."
+"Reach at least level 55."
+"Unlock 109 waypoints."
+
+Row 3 right, icon monumental emerald Monolith with orbital fragments:
+"MONOLITH CONTROL"
+"Unlock Normal and Empowered timelines."
+"Set Corruption and Stability."
+"Boost Stability gains."
+
+Row 4 left, icon mystical observatory lens, constellation and emerald prophecy star:
+"CIRCLE OF FORTUNE"
+"Manage rank, Favor and Reputation."
+"Customize prophecies and lenses."
+"Tune reward quantity and quality."
+
+Row 4 right, icon opened ancient map and ominous beast silhouettes:
+"WORLD & EXPLORATION"
+"Monster density up to 5x."
+"Reveal the zone map."
+"Search and focus existing Echo rewards."
+
+Row 5 left, icon ornate illuminated atlas with golden Unique sword:
+"UNIQUE ATLAS"
+"Browse the game's Unique and Set catalog."
+"See owned, missing and wishlisted items."
+"Compare LP, affix tiers and item locations."
+
+Row 5 right, icon organized dark wood stash chest with runic gear and parchment:
+"STASH ASSISTANT"
+"Compare duplicates and matching bases."
+"Inspect real modifier values and rolls."
+"Keep local protection reminders."
+
+Footer: a broad elegant framed emerald plaque, followed by two smaller readable lines.
+Footer text EXACT:
+"ONE APP. NO PYTHON INSTALL. PLAY OFFLINE."
+"WINDOWS x64 · LAST EPOCH 1.5.2 · OFFLINE ONLY"
+"github.com/falorfrozen-cmd/EpochPact"
+"Community-made · Created by Falor"
+
+Content constraints:
+Only these 10 features and exact copy. No "F10", installer claims, auto sell, infinity claims, guaranteed max LP / T7, new classes, Weaver management or Merchant's Guild management. The stash protection reminder is local, so never depict a promise of locking or safeguarding items in game. No official endorsement, no performance or crash-free guarantee, no small fake screenshot UI controls. Render every English word accurately. Do not add extra captions, invented feature names or watermarks. Complete coherent poster with beautiful distinct fantasy iconography and outstanding readability.

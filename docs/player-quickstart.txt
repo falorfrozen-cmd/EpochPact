@@ -10,6 +10,8 @@ EpochPact - Windows x64 / Last Epoch offline
 The Game setup entry near the top of the sidebar lets you choose or change the
 executable and update the player mod. The same panel is also in Settings.
 Opening EpochPact never completes quests, gives rewards, installs or launches.
+Closing the app restores the temporary settings and character bonuses changed
+in that session. Completed quests, rewards and saved progress are kept.
 Only the verified player DLL is included. Another loader's version.dll is never
 overwritten. If one is present, remove it through its own installation process.
 
@@ -24,3 +26,7 @@ folder. Launch save backups use %LOCALAPPDATA%\EpochPact\backups\saves-backups.
 
 This package targets the currently verified Last Epoch 1.5.2 runtime.
 Offline characters only. Game updates may require a new EpochPact release.
+
+Alpha limitation: a UnityPlayer crash on full game exit has also been observed
+with EpochPact completely removed. Closing EpochPact and restoring its temporary
+settings was verified separately; this release does not claim zero game crashes.

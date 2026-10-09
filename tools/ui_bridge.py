@@ -62,6 +62,7 @@ class UiBridge:
         self.actor = {}  # Only settings explicitly applied in THIS UI session.
         self.actor_owner = None
         self.cache = {}
+        self.temporary_resets = {}  # Explicit session writes only; never save actions.
         self.demo = copy.deepcopy(self.catalog["liveState"]) if preview else {}
         self.demo_values = {x["id"]: x["default"] for x in self.catalog["controls"]
                             if x["lifetime"] in ("session", "actor") and x["widget"] in ("number", "toggle")}
@@ -363,6 +364,9 @@ class UiBridge:
                         preview = cof.prophecy(save_id, args["slot"], args["reward"], args["lens"], preview=True)
                         if not preview.get("ok"):
                             return preview
+            if control["lifetime"] == "session" and operation != "read" and control.get("resetCommand"):
+                reset = control["resetCommand"].format(**args)
+                self.temporary_resets[(cid, args.get("category"))] = reset
             result = self._dispatch(cid, args, supplied, operation, save_id)
             if cid in ("craft_read", "craft_forge") and "preview" in result:
                 # Native forge data and the UI's simulation flag are separate.
@@ -377,6 +381,50 @@ class UiBridge:
             if result.get("ok") and control["widget"] == "read":
                 self.cache[cid] = result
             return self._remember(result, cid)
+
+    def restore_session(self):
+        """Release temporary contributions on an explicit desktop close.
+
+        Keep game-save changes and rewards. Never unload a DLL or close the game.
+        Commands use the existing serialized IPC and native reset implementations.
+        """
+        with progression._ipc_lock:
+            if self.preview or not (self.temporary_resets or self.actor):
+                return {"ok": True, "restored": 0}
+            if not le.game_pids():
+                self.temporary_resets.clear(); self.actor.clear()
+                return {"ok": True, "restored": 0, "gameClosed": True}
+            live = self._json("identityread")
+            if live.get("offline") is not True:
+                raise RuntimeError("Temporary settings could not be restored: load the offline character, then close EpochPact again.")
+            player = live["player"]
+            same_actor = self.actor_owner == (player["id"], player["name"])
+            restored = 0
+
+            def reset(command):
+                reply = self._send(command)
+                text = reply.get("text", "")
+                if text.startswith("{"):
+                    result = json.loads(text)
+                    if result.get("ok") is not True:
+                        raise RuntimeError(result.get("error", "The game rejected temporary setting cleanup."))
+
+            for marker, command in list(self.temporary_resets.items()):
+                if marker[0] != "speed" or same_actor:
+                    reset(command); restored += 1
+                del self.temporary_resets[marker]
+            if same_actor:
+                if "9:0:0:0" in self.actor:
+                    # Clear the speed control's own displayed factor as well as
+                    # its shared stat contribution; raw reset alone leaves the
+                    # legacy status meter reporting the old multiplier.
+                    reset("speed 1")
+                for identity, entry in list(self.actor.items()):
+                    reset(raw_command(entry["key"]) + " reset")
+                    del self.actor[identity]; restored += 1
+            else:
+                self.actor.clear()  # Do not reset a different loaded character.
+            return {"ok": True, "restored": restored}
 
     def _dispatch(self, cid, a, supplied, operation, save_id):
         control = self.controls[cid]

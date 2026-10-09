@@ -26,7 +26,8 @@ scoped evidence for these changed paths.
 
 ## Player installation
 
-Download the Windows package and open `EpochPact.exe`; no Python installation is
+Download [the Windows alpha package](https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.0-alpha.20261009)
+and open `EpochPact.exe`; no Python installation is
 needed. Choose `Last Epoch.exe` with **Browse** (the picker starts in Steam's folder,
 and other installations are supported). With the game closed, press **Install mod**,
 then **Launch offline**. The selected location is remembered and can be changed in
@@ -38,6 +39,11 @@ Windows 10/11 x64, Microsoft Edge WebView2 Runtime and .NET Framework 4.8 are
 required. See [the player quick start](docs/player-quickstart.txt).
 The [compiled package verification](docs/player-package-verification.md) records
 the artifact hash, completed checks and their scope.
+Closing the desktop app resets the temporary controls and character bonuses
+changed in that session, while completed quests, rewards and saved progress remain.
+The [shutdown verification](docs/shutdown-fix-2026-10-09.md) separates the confirmed
+desktop cleanup from a UnityPlayer crash observed on full game exit, including
+with EpochPact completely removed. This release remains an alpha.
 
 ## Features
 

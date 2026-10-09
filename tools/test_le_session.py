@@ -222,6 +222,37 @@ class BuildArtifactTests(unittest.TestCase):
                 with self.assertRaises(ValueError): le.build_artifact()
 
 
+class CloseResultTests(unittest.TestCase):
+    def close(self, *, exit_code=0, query_ok=True, wait_result=0, window=45):
+        def query(handle, destination):
+            destination._obj.value = exit_code
+            return query_ok
+        with patch.object(le, 'game_pids', return_value=[123]), \
+             patch.object(le, 'game_window', return_value=window), \
+             patch.object(le.kernel32, 'OpenProcess', return_value=17), \
+             patch.object(le.kernel32, 'WaitForSingleObject', return_value=wait_result), \
+             patch.object(le.kernel32, 'GetExitCodeProcess', side_effect=query), \
+             patch.object(le.kernel32, 'CloseHandle') as close_handle, \
+             patch.object(le.user32, 'PostMessageW') as posted:
+            result = le.cmd_close(le.argparse.Namespace(timeout=1))
+            close_handle.assert_called_once_with(17)
+            self.assertEqual(posted.call_count, 1 if window else 0)
+            return result
+
+    def test_normal_exit_succeeds_but_access_violation_fails(self):
+        self.assertEqual(self.close(), 0)
+        self.assertEqual(self.close(exit_code=0xC0000005), 1)
+
+    def test_unreadable_exit_code_is_not_reported_as_success(self):
+        self.assertEqual(self.close(query_ok=False), 1)
+
+    def test_timeout_closes_process_handle_and_fails(self):
+        self.assertEqual(self.close(wait_result=258), 1)
+
+    def test_missing_window_closes_process_handle_and_fails(self):
+        self.assertEqual(self.close(window=0), 1)
+
+
 class ReplyFileLockTests(unittest.TestCase):
     def exercise(self, denied_reads, *, timeout=False):
         with tempfile.TemporaryDirectory() as directory:

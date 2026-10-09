@@ -26,6 +26,7 @@ from tools.player_setup import PlayerSetup, DesktopDialogs
 def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
     bridge = bridge or UiBridge()
     app = Flask(__name__, static_folder=None)
+    close_state = {"closing": False, "closed": False, "future": None}
     app.config["MAX_CONTENT_LENGTH"] = 128 * 1024
     token = secrets.token_urlsafe(32)
     worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="epochpact-ipc")
@@ -116,6 +117,8 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
 
     @app.post("/api/jobs")
     def submit():
+        if close_state["closing"]:
+            return jsonify(ok=False, error="EpochPact is restoring temporary settings before closing."), 503
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict) or payload.get("type") not in ("connection", "control", "reconcile", "launcher"):
             return jsonify(ok=False, error="Invalid request."), 400
@@ -125,6 +128,8 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
         if payload["type"] == "control" and payload.get("id") not in bridge.controls:
             return jsonify(ok=False, error="Invalid control."), 400
         with jobs_lock:
+            if close_state["closing"]:
+                return jsonify(ok=False, error="EpochPact is restoring temporary settings before closing."), 503
             if sum(not f.done() for f in jobs.values()) >= 16:
                 return jsonify(ok=False, error="The operation queue is full."), 429
             while len(jobs) >= 128:
@@ -148,6 +153,29 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
     def favicon():
         return "", 204
 
+    def close_session():
+        with jobs_lock:
+            if close_state["closed"]:
+                return {"ok": True, "restored": 0}
+            if not close_state["closing"]:
+                close_state["closing"] = True
+                # Accepted actions complete before cleanup; no abandoned writes.
+                close_state["future"] = worker.submit(bridge.restore_session)
+            future = close_state["future"]
+        try:
+            result = future.result()
+            if not result.get("ok"):
+                raise RuntimeError(result.get("error", "Temporary settings could not be restored."))
+            close_state["closed"] = True
+            if journal:
+                journal.info(json.dumps({"request": {"type": "close"}, "result": result}, ensure_ascii=False))
+            return result
+        except Exception:
+            close_state["closing"] = False
+            close_state["future"] = None
+            raise
+
+    app.extensions["epoch_close_session"] = close_session
     return app
 
 
@@ -212,10 +240,25 @@ def main():
         try:
             dialogs = DesktopDialogs()
             dialogs._window = webview.create_window("EpochPact", url, js_api=dialogs, width=1500, height=1000, min_size=(860, 650), maximized=True, background_color="#091310")
+            def closing():
+                try:
+                    if setup and (bridge.temporary_resets or bridge.actor):
+                        setup.return_to_game()
+                    app.extensions["epoch_close_session"]()
+                    return True
+                except Exception:
+                    app.logger.exception("Temporary settings could not be restored on close")
+                    import ctypes
+                    ctypes.windll.user32.MessageBoxW(None,
+                        "EpochPact could not restore temporary settings. Return to the game and let it finish loading, then try closing EpochPact again. The game has not been closed.",
+                        "EpochPact", 0x10)
+                    return False
+            dialogs._window.events.closing += closing
             webview.start(gui='edgechromium', private_mode=False, storage_path=str(user_root() / 'webview'))
         finally:
             server.shutdown()
-            app.extensions["epoch_worker"].shutdown(wait=False, cancel_futures=True)
+            app.extensions["epoch_worker"].shutdown(wait=True, cancel_futures=False)
+            server.server_close()
 
 
 if __name__ == "__main__":

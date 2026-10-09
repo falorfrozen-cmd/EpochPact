@@ -42,7 +42,7 @@ link /nologo /DLL /OUT:"%OUT%\version.dll" /DEF:"%HERE%proxy\version.def" "%OUT%
 echo [2/3] core (EpochPact.Core.dll)
 rem EPOCHPACT_RESEARCH: the metadata dump, capture hooks and research commands (not for players).
 ml64 /nologo /c /Fo"%OUT%\stat_thunk.obj" "%HERE%core\stat_thunk.asm" || exit /b 1
-set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread xp loot density items smart_loot crafting map_view collection player stat_editor progression monolith factions cof cof_tuning commands research"
+set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread lifecycle xp loot density items smart_loot crafting map_view collection player stat_editor progression monolith factions cof cof_tuning commands research"
 set "CORE_CPP="
 set "CORE_OBJ="
 for %%f in (%CORE_SRC%) do call set "CORE_CPP=%%CORE_CPP%% "%CORE%\%%f.cpp""
@@ -71,6 +71,9 @@ cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\loot_crafting_test.exe" "%HERE%te
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\review_test.exe" "%HERE%tests\review_test.cpp" || exit /b 1
 cl %CFLAGS% /EHa /c /Fo"%OUT%\tests\\" "%HERE%tests\mainthread_test.cpp" "%CORE%\mainthread.cpp" || exit /b 1
 link /nologo /OUT:"%OUT%\mainthread_test.exe" "%OUT%\tests\mainthread_test.obj" "%OUT%\tests\mainthread.obj" "%OUT%\tests\x64_decode.obj" "%OUT%\tests\hook.obj" kernel32.lib || exit /b 1
+
+cl %CFLAGS% /EHa /c /Fo"%OUT%\tests\\" "%HERE%tests\lifecycle_test.cpp" "%CORE%\lifecycle.cpp" || exit /b 1
+link /nologo /OUT:"%OUT%\lifecycle_test.exe" "%OUT%\tests\lifecycle_test.obj" "%OUT%\tests\lifecycle.obj" "%OUT%\tests\mainthread.obj" "%OUT%\tests\x64_decode.obj" "%OUT%\tests\hook.obj" kernel32.lib || exit /b 1
 
 echo built: version.dll, EpochPact.Core.dll, hook_test.exe, xp_test.exe, stat_key_test.exe, density_test.exe, monolith_test.exe and cof_test.exe in %OUT%
 :done

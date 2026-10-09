@@ -60,6 +60,7 @@ native\build\cof_test.exe      # 48/48
 native\build\loot_crafting_test.exe # 6260/6260
 native\build\review_test.exe # worker transaction, retention, IPC claim and cooldown regression
 native\build\mainthread_test.exe # actual queue/hook code against synthetic Unity Update
+native\build\lifecycle_test.exe # real shutdown detour cancels pending jobs and waits for worker exit
 py -3 -m unittest tools.test_progression_backend tools.test_monolith_backend tools.test_cof_backend tools.test_le_session -v # 27 recovery/IPC tests
 py -3 -m unittest tools.test_loot_crafting_backend tools.test_ui_bridge -v # IPC validation + catalog/UI integration
 ```
@@ -423,3 +424,26 @@ All 54 owner/shared save files were restored and hash-verified after isolated
 tests. The owner's character was already level 55 before this repair; do not
 restore a historical level-8 fixture over it. The fixture helpers are local tests,
 not player watchers. No save action may run automatically on UI open.
+
+## 2026-10-09 desktop close and runtime lifetime
+
+Desktop closing drains the existing single-worker queue, rejects new actions and
+resets only the temporary controls and actor contributions explicitly attempted
+in that UI session. It uses catalog reset commands (neutral defaults), rather
+than restoring pre-existing settings from another session. Save actions and rewards
+are retained. If native cleanup refuses, the window stays open and reports the
+failure; it never unloads the DLL or closes the game. A changed loaded character
+is never reset through another character's owned stat keys.
+
+The native lifecycle guard is installed at il2cpp_shutdown before feature
+initialization. It signals stopping, cancels pending main-thread jobs, waits for
+the command worker to detach/finish, then calls the original shutdown. A worker
+exception is contained and logged. Player initialization refuses without the
+guard. These shutdown/frame hooks protect lifetime even with gameplay mods off.
+
+See docs/shutdown-fix-2026-10-09.md and the final packaging report for evidence and
+limits. Closing the panel was live-verified without a game crash. Full game exit
+still produced a UnityPlayer access violation in a session with the loader and
+core completely removed; do not claim that all game exit crashes are solved.
+le_session close now fails on a nonzero or unreadable exit code and releases its
+process handle on every tested branch.

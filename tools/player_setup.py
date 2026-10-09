@@ -102,6 +102,7 @@ class PlayerSetup:
         self.bridge.actor.clear()
         self.bridge.actor_owner = None
         self.bridge.history.clear()
+        self.bridge.temporary_resets.clear()
 
     def select(self, value):
         path = validate_executable(value)
@@ -176,6 +177,23 @@ class PlayerSetup:
         if code:
             raise RuntimeError('Last Epoch did not start. Open it manually in offline mode and refresh the connection.')
         return {'ok': True, 'launcher': self.status(), 'message': 'Last Epoch is running. Load an offline character.'}
+
+    def return_to_game(self):
+        """Closing the panel returns focus so Unity can process the reset jobs."""
+        if not self.executable:
+            return
+        for pid in le.game_pids():
+            hwnd = le.game_window(pid)
+            if hwnd:
+                # Called on the foreground UI thread; no input injection or
+                # AttachThreadInput, and never start/close a game here.
+                api = le.user32
+                api.IsIconic.argtypes = [wt.HWND]; api.IsIconic.restype = wt.BOOL
+                api.ShowWindow.argtypes = [wt.HWND, ctypes.c_int]; api.ShowWindow.restype = wt.BOOL
+                api.SetForegroundWindow.argtypes = [wt.HWND]; api.SetForegroundWindow.restype = wt.BOOL
+                if api.IsIconic(hwnd): api.ShowWindow(hwnd, 9)
+                api.SetForegroundWindow(hwnd)
+                return
 
     def elevated_install(self):
         if not self.status()['selected']:

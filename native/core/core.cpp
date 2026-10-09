@@ -2,8 +2,8 @@
 //
 // Waits until the game is up (its window exists and IL2CPP lists its assemblies), attaches
 // to the runtime, finds what the features need by name, then serves the command channel.
-// Nothing is hooked until a feature is switched on (research builds also install their
-// capture hooks and write the metadata dump once per game build).
+// Runtime shutdown and frame-dispatch hooks protect worker lifetime. Gameplay
+// hooks are installed only for enabled features (research builds also capture).
 
 #include "commands.hpp"
 #include "cof.hpp"
@@ -17,6 +17,7 @@
 #include "items.hpp"
 #include "loot.hpp"
 #include "mainthread.hpp"
+#include "lifecycle.hpp"
 #include "monolith.hpp"
 #include "player.hpp"
 #include "progression.hpp"
@@ -52,30 +53,35 @@ BOOL CALLBACK FindGameWindow(HWND w, LPARAM p) {
 template <typename F>
 bool WaitFor(F ready, DWORD limitMs, DWORD stepMs) {
     for (DWORD waited = 0; waited <= limitMs; waited += stepMs) {
+        if (ep::lifecycle::Stopping()) return false;
         if (ready()) return true;
         Sleep(stepMs);
     }
     return false;
 }
 
-DWORD WINAPI Worker(void*) {
+void WorkerBody() {
     using namespace ep;
-    if (!InitPaths()) return 0;
+    if (!InitPaths()) return;
     Log("EpochPact core %s loaded (pid %lu)", kVersion, GetCurrentProcessId());
 
     WindowSearch search{GetCurrentProcessId(), nullptr};
     if (!WaitFor([&] { EnumWindows(FindGameWindow, reinterpret_cast<LPARAM>(&search)); return search.found != nullptr; },
                  600000, 100)) {
         Log("the game window never appeared; stopping");
-        return 0;
+        return;
     }
 
     const char* missing = nullptr;
     if (!WaitFor([&] { return il2cpp::Resolve(&missing); }, 60000, 100)) {
         Log("IL2CPP API not available: %s missing; stopping", missing ? missing : "?");
-        return 0;
+        return;
     }
     const il2cpp::Api& a = il2cpp::api();
+    if (!lifecycle::Init(reinterpret_cast<void*>(GetProcAddress(reinterpret_cast<HMODULE>(a.base), "il2cpp_shutdown")))) {
+        Log("runtime shutdown guard unavailable; stopping before feature initialization");
+        return;
+    }
     il2cpp::Domain* domain = nullptr;
     size_t count = 0;
     if (!WaitFor([&] {
@@ -84,7 +90,7 @@ DWORD WINAPI Worker(void*) {
             return domain && count > 0;
         }, 120000, 100)) {
         Log("IL2CPP lists no assemblies; stopping");
-        return 0;
+        return;
     }
     a.thread_attach(domain);
     Log("attached to the IL2CPP domain: %zu assemblies (GameAssembly.dll at 0x%llX)", count, static_cast<unsigned long long>(a.base));
@@ -112,6 +118,17 @@ DWORD WINAPI Worker(void*) {
     // Detached until a command arrives: IL2CPP waits for attached threads when the game quits.
     if (void* self = a.thread_current()) a.thread_detach(self);
     commands::Loop(domain);
+}
+
+DWORD WINAPI Worker(void*) {
+    // A managed/native exception must never escape our Windows thread entry.
+    std::string why;
+    if (!ep::game::Guarded([] { WorkerBody(); }, &why)) ep::Log("command worker stopped after exception: %s", why.c_str());
+    const auto& a = ep::il2cpp::api();
+    if (a.thread_current && a.thread_detach) ep::game::Guarded([&] {
+        if (void* self = a.thread_current()) a.thread_detach(self);
+    }, nullptr);
+    ep::lifecycle::WorkerFinished();
     return 0;
 }
 
