@@ -53,8 +53,10 @@ def _json(path: Path) -> dict:
     return data
 
 
-def validate_backup(path: Path, *, backup_root: Path = BACKUPS, saves: Path = le_session.SAVES) -> dict:
+def validate_backup(path: Path, *, backup_root: Path | None = None, saves: Path | None = None) -> dict:
     """Validate every recovery input before touching the active saves."""
+    backup_root = BACKUPS if backup_root is None else backup_root
+    saves = le_session.SAVES if saves is None else saves
     if path.is_symlink():
         raise ValueError("Yedek bir sembolik bağlantı olamaz.")
     path = path.resolve(strict=True)
@@ -96,8 +98,10 @@ def validate_backup(path: Path, *, backup_root: Path = BACKUPS, saves: Path = le
     return {"manifest": manifest, "character": character, "stash": stash, "global": global_data, "files": files}
 
 
-def restore_files(path: Path, *, backup_root: Path = BACKUPS, saves: Path = le_session.SAVES) -> dict:
+def restore_files(path: Path, *, backup_root: Path | None = None, saves: Path | None = None) -> dict:
     """Only with the game closed. Keep a recovery backup of the state being replaced."""
+    backup_root = BACKUPS if backup_root is None else backup_root
+    saves = le_session.SAVES if saves is None else saves
     if le_session.game_pids():
         raise RuntimeError("Geri alma için oyun kapalı olmalı.")
     bundle = validate_backup(path, backup_root=backup_root, saves=saves)

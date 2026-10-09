@@ -15,8 +15,9 @@ from pathlib import Path
 from . import cof_backend as cof, monolith_backend as mono, collection_backend as collection
 from . import progression_backend as progression, le_session as le
 from .ui_language import english_exception
+from .app_paths import resource_root
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = resource_root()
 
 
 def load_catalog():

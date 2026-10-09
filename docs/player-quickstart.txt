@@ -1,0 +1,26 @@
+EpochPact - Windows x64 / Last Epoch offline
+
+1. Open EpochPact.exe. Python and separate mod loaders are not required.
+2. Press Browse and select Last Epoch.exe. The picker starts in Steam's folder;
+   you may select an installation on any other drive. Your choice is remembered.
+3. Close Last Epoch and press Install mod. If Windows needs administrator rights,
+   press Install as administrator and approve Windows' permission prompt.
+4. Press Launch offline, load an offline character, then use EpochPact's controls.
+
+The Game setup entry near the top of the sidebar lets you choose or change the
+executable and update the player mod. The same panel is also in Settings.
+Opening EpochPact never completes quests, gives rewards, installs or launches.
+Only the verified player DLL is included. Another loader's version.dll is never
+overwritten. If one is present, remove it through its own installation process.
+
+Windows 10/11 x64 with Microsoft Edge WebView2 Runtime and .NET Framework 4.8
+is required. These are Windows components; Python is bundled inside the EXE.
+If WebView2 is absent: https://developer.microsoft.com/microsoft-edge/webview2/
+
+The game path, theme, profiles and interface logs live under:
+%LOCALAPPDATA%\EpochPact
+Native logs and individual save-change backups remain in the game's EpochPact
+folder. Launch save backups use %LOCALAPPDATA%\EpochPact\backups\saves-backups.
+
+This package targets the currently verified Last Epoch 1.5.2 runtime.
+Offline characters only. Game updates may require a new EpochPact release.

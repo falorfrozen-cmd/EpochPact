@@ -5,6 +5,7 @@ const clean = s => String(s ?? "").replace(/<[^>]*>/g, "");
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const pages = {
  overview: ["Overview", "◈", "Your timeline. Your rules.", "Shape your journey, your loot and your character."],
+ game_setup: ["Game setup", "⌁", "Connect your game.", "Choose Last Epoch.exe, install the player mod and launch offline."],
  general: ["General settings", "⚙", "Your journey. Your rules.", "Experience, loot, enemies and everyday conveniences."],
  loot: ["Loot & Pickup", "▣", "Keep what matters.", "Automatic collection, loot filters and crafting material pickup."],
  crafting: ["Crafting", "⚒", "Make every craft count.", "Forge your selected item, preserve materials and customize crafting costs."],
@@ -105,7 +106,7 @@ function invalidateLive(){
 const transport=window.EpochSession.create({fetch:(...args)=>fetch(...args),sleep,warn:message=>notify(message),
  isReadOnly:payload=>payload.type==="connection"||payload.type==="control"&&
   (payload.operation==="read"||["read","preview"].includes(controlById(payload.id)?.widget)),
- onSessionChanged:boot=>{catalog=boot.catalog;token=boot.token;preview=boot.preview;developer=boot.developer===true;invalidateLive();}
+ onSessionChanged:boot=>{catalog=boot.catalog;token=boot.token;preview=boot.preview;developer=boot.developer===true;window.EpochLauncher?.update(boot.launcher);invalidateLive();}
 });
 let statsTab = "sheet", statsQuery = "", statsPage = 0, activeStat = null;
 let statsCategory = "All", statsFavoritesOnly = false, statFavorites = new Set();
@@ -186,6 +187,7 @@ function eligible(control) {
  return true;
 }
 function updateDisabled() {
+ window.EpochLauncher?.disable();
  document.documentElement.dataset.uiMode=developer?"developer":"player";
  document.querySelectorAll('[data-developer-only]').forEach(el=>el.hidden=!developer);
  $("#reconcile").hidden=!developer;
@@ -205,8 +207,8 @@ function updateDisabled() {
   const hint=button.closest("form")?.querySelector("[data-action-reason]");
   if(hint){hint.textContent=reason;hint.hidden=!reason||busy;}
  });
- const autoPage=["general","overview"].includes(page),manualDirty=[...dirty].filter(id=>!autoManaged(id));
- $("#apply-draft").hidden=autoPage;$("#reset-draft").hidden=autoPage;
+ const autoPage=["general","overview"].includes(page),setupPage=page==="game_setup",manualDirty=[...dirty].filter(id=>!autoManaged(id));
+ $("#apply-draft").hidden=autoPage||setupPage;$("#reset-draft").hidden=autoPage||setupPage;
  $("#apply-draft").disabled=busy||!manualDirty.length||!connected.connected||(!preview&&!connected.offline);
  $("#reconcile").disabled=busy||!Object.keys(actorValues).length||(!preview&&!connected.offline);
  $("#refresh-connection").disabled=busy;
@@ -215,7 +217,7 @@ function updateDisabled() {
   const id=input.dataset.settingNumber||input.dataset.settingRange||input.dataset.settingToggle||input.dataset.settingReset||input.dataset.settingId,c=controlById(id);
   input.disabled=automaticSetting(c)?!eligible(c)||busy&&!autoRunning:busy;
  });
- $("#draft-label").innerHTML=(busy?"Working…":autoErrors.size?"A setting needs attention":autoPending.size?"Applying changes…":autoPage?"Changes apply automatically":manualDirty.length?`${manualDirty.length} settings in draft`:"Ready")+"<span>"+(preview?"Preview; no changes to the game.":"Save actions use their own buttons.")+"</span>";
+ $("#draft-label").innerHTML=(busy?"Working…":setupPage?"Game setup":autoErrors.size?"A setting needs attention":autoPending.size?"Applying changes…":autoPage?"Changes apply automatically":manualDirty.length?`${manualDirty.length} settings in draft`:"Ready")+"<span>"+(preview?"Preview; no changes to the game.":setupPage?"Choose your executable, then use the setup buttons.":"Save actions use their own buttons.")+"</span>";
  document.querySelectorAll("#stat-dialog button:not(#stat-close), #stat-dialog input, #stat-dialog select").forEach(b=>b.disabled=busy);
  const statAllowed=activeStat&&eligible(controlById(activeStat.tab==="aliases"?"stat_alias":activeStat.tab==="sheet"?"sheet_row":"raw_stat"));
  for(const id of ["stat-apply","stat-reset","stat-read"])$("#"+id).disabled=busy||!statAllowed;
@@ -228,6 +230,8 @@ async function runTask(payload,{show=false,title="Operation result",silent=false
  if(busy)return null;busy=true;let errorBackup=false;updateDisabled();
  try{
   const result=await job(payload);
+  if(result.launcher)window.EpochLauncher?.update(result.launcher);
+  if(result.requiresElevation)window.EpochLauncher?.failure(result);
   if(result.history)history=result.history;
   if(result.actorValues){actorValues=result.actorValues;syncSpeed();}
   if(!result.ok){errorBackup=!!result.backup;if(result.backup&&developer)resultDialog(result,"Operation error / backup",payload);throw new Error(result.error||result.text||"The action was rejected.");}
@@ -318,6 +322,8 @@ function renderPage(){
  navigation();const p=pages[page];$("#breadcrumb").textContent="EpochPact / "+p[0];$("#page-title").textContent=p[2];$("#page-subtitle").textContent=p[3];
  if(page==="overview"){
   content.innerHTML=`<div class="summary-grid"><div class="summary"><strong>${catalog.controls.filter(playerControl).length}</strong><span>Available tools</span></div><div class="summary"><strong>${catalog.counts.sheetRows}</strong><span>Character bonuses</span></div><div class="summary"><strong>${catalog.counts.timelines}</strong><span>Monolith timelines</span></div><div class="summary"><strong>${catalog.counts.statAliases}</strong><span>Common stats</span></div></div>`+settingPanel("Quick controls",["xp","speed","drops","gold"].map(controlById))+`<section class="panel"><h2>Explore your workshop</h2><div class="control-grid">${["stats","loot","crafting","campaign","monolith","cof"].map(id=>`<button data-go="${id}" class="settings-card"><h3>${pages[id][1]} ${pages[id][0]}</h3><p class="muted">${pages[id][3]}</p></button>`).join("")}</div></section>`;
+ }else if(page==="game_setup"){
+  content.innerHTML='';
  }else if(page==="general"){
   content.innerHTML=settingPanel("General game settings",catalog.controls.filter(c=>c.group==="general"&&["number","toggle"].includes(c.widget)&&!c.id.startsWith("loot_")&&!c.id.startsWith("craft_")&&!c.id.startsWith("map_")))+
    settingPanel("Map visibility",[controlById("map_reveal")])+(developer?`<details class="panel"><summary>Map and density diagnostics</summary>${["map_read","density_read"].map(id=>actionCard(controlById(id))).join("")}</details>`:"");
@@ -340,6 +346,7 @@ function renderPage(){
   content.innerHTML=`<section class="panel"><div class="section-head"><h2>Factions</h2><button data-refresh="factions_read" data-control-id="factions_read">Refresh live</button></div><div class="note">Merchant’s Guild and Weaver management actions are not implemented. This section reads information only.</div><div class="control-grid">${factions.map(f=>`<article class="control-card"><h3>${esc(f.name)}</h3><span class="badge">Information only</span><p class="muted">${f.member?"Member":"Not a member"} · Rank ${f.rank} · Favor ${f.favor} · Reputation ${f.reputation}</p>${f.weaverPoints?`<p>Weaver points: ${f.weaverPoints.earned} / ${f.weaverPoints.maxTotal} (${f.weaverPoints.maxRank} rank + ${f.weaverPoints.maxEchoes} echo)</p>`:""}<details><summary>Rank rewards</summary>${f.ranks.map(r=>`<p><b>${r.index+1} · ${esc(r.title)}</b><br>${esc(clean(r.description))}</p>`).join("")}</details></article>`).join("")||'<p class="empty">Live faction information has not been read yet.</p>'}</div>${developer?`<details><summary>Management features in development</summary>${catalog.researchOnly.map(r=>`<p><b>${esc(r.label)}</b><br>${esc(r.details||r.availability)}</p>`).join("")}</details>`:""}</section>`;
  }else renderSettings();
  if(page==="monolith"){content.insertAdjacentHTML("beforeend",navigatorPanel());renderEchoResults();}
+ window.EpochLauncher?.mount(page);
  updateDisabled();
 }
 function questTable(){
@@ -696,6 +703,7 @@ async function init(){
  try{
   const r=await fetch("/api/bootstrap");if(!r.ok)throw new Error("Could not load the catalog.");const boot=await r.json();
   catalog=boot.catalog;token=boot.token;preview=boot.preview;developer=boot.developer===true;transport.setSession(boot);
+  window.EpochLauncher?.init(boot.launcher,{run:runTask,isBusy:()=>busy,changed:async(reset=true)=>{if(reset){invalidateLive();dirty.clear();monoDrafts={};}await refreshConnection();}});
   try{const saved=JSON.parse(localStorage.getItem("epochpact.stat-favorites.v1")||"[]");if(Array.isArray(saved))statFavorites=new Set(saved.filter(x=>typeof x==="string"));}catch{}
   profileKey="epochpact.profiles."+(preview?"preview":"live");
   for(const c of catalog.controls)if(["session","actor"].includes(c.lifetime)&&["number","toggle"].includes(c.widget))values[c.id]=appliedValues[c.id]=c.default;
@@ -706,4 +714,4 @@ async function init(){
 void init();
 // Returning from the game refreshes its identity without a permanent polling
 // watcher. Opening the UI never submits campaign or reward mutations.
-window.addEventListener("focus",()=>{if(catalog&&!busy)void refreshConnection(true,true,{preservePage:true});});
+window.addEventListener("focus",()=>{if(catalog&&!busy&&!window.EpochLauncher?.browsing())void refreshConnection(true,true,{preservePage:true});});

@@ -24,6 +24,21 @@ and coverage limits; it does not claim exhaustive gameplay or zero crashes.
 frame dispatch, cooldown ownership, game discovery and build selection. See its
 scoped evidence for these changed paths.
 
+## Player installation
+
+Download the Windows package and open `EpochPact.exe`; no Python installation is
+needed. Choose `Last Epoch.exe` with **Browse** (the picker starts in Steam's folder,
+and other installations are supported). With the game closed, press **Install mod**,
+then **Launch offline**. The selected location is remembered and can be changed in
+the sidebar's **Game setup** entry (also available in Settings). Installation and
+launch are explicit actions. An occupied interface port uses another local port
+with this executable's own backend; an older server is never reused.
+
+Windows 10/11 x64, Microsoft Edge WebView2 Runtime and .NET Framework 4.8 are
+required. See [the player quick start](docs/player-quickstart.txt).
+The [compiled package verification](docs/player-package-verification.md) records
+the artifact hash, completed checks and their scope.
+
 ## Features
 
 | Command | What it does |
@@ -75,6 +90,12 @@ Current faction research: [CoF / MG](research/factions-1.5.md) and
   `docs/requirements.md` what we build and the rules it keeps.
 
 ## Build and test
+
+To package the player UI after building the native player artifact, install
+`requirements-build.txt` into an isolated Python environment and run
+`python -m tools.build_player`. The output is `dist/EpochPact.exe` with a quick
+start, dependency notices and SHA256 build record. Python is bundled; the package
+excludes research builds and historical character snapshots.
 
 ```
 native\build.bat player     # player core, loader and tests

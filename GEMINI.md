@@ -37,6 +37,17 @@ This file is the operating manual for an AI agent picking the project up (Gemini
 
 ## Build and test
 
+The player distribution uses `epochpact_desktop.py` → `EpochPact.spec`.
+Install `requirements-build.txt` into an isolated environment, then run
+`python -m tools.build_player` and `python -m tools.verify_player_package`.
+The EXE contains the Python runtime, UI and verified player DLL only; no research
+build or historical snapshots. `tools/app_paths.py` separates frozen resources
+from `%LOCALAPPDATA%\EpochPact` data. `tools/player_setup.py` explicitly selects
+the user's EXE and reuses `le_session` install/launch; opening the UI never installs
+or launches. The pywebview JS API must keep its window as private `_window` because
+public window attributes cause recursive .NET reflection. See
+`docs/player-package-verification.md` for current packaging coverage and limits.
+
 ```
 native\build.bat player     # verified player artifact, loader and tests
 native\build.bat            # research artifact, loader and tests

@@ -33,6 +33,11 @@ import sys
 import time
 from pathlib import Path
 
+try:
+    from .app_paths import resource_root, runtime_root
+except ImportError:
+    from app_paths import resource_root, runtime_root
+
 EXE = "Last Epoch.exe"
 
 
@@ -76,9 +81,9 @@ def resolve_game_dir(env=None, steam_root=None) -> Path:
 
 GAME = resolve_game_dir()
 SAVES = Path(os.environ["USERPROFILE"]) / "AppData" / "LocalLow" / "Eleventh Hour Games" / "Last Epoch" / "Saves"
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = resource_root()
 BUILD = ROOT / "native" / "build"
-OUT = ROOT / "research" / "live"
+OUT = runtime_root() / ('backups' if getattr(sys, 'frozen', False) else 'research/live')
 STEAM_APP = 899770
 MARK = "EpochPact\\EpochPact.Core.dll".encode("utf-16-le")  # only EpochPact's loader carries this
 
@@ -104,7 +109,8 @@ PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
 def game_pids() -> list[int]:
     out = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {EXE}", "/FO", "CSV", "/NH"],
-                         capture_output=True, text=True, errors="replace").stdout
+                         capture_output=True, text=True, errors="replace",
+                         creationflags=subprocess.CREATE_NO_WINDOW).stdout
     pids = []
     for line in out.splitlines():
         parts = [p.strip('"') for p in line.split('","')]
@@ -182,11 +188,51 @@ def cmd_install(args: argparse.Namespace) -> int:
     if target.exists() and not is_ours(target):
         print("refused: the game folder has a version.dll that is not EpochPact's (another mod loader?)")
         return 2
-    (GAME / "EpochPact").mkdir(exist_ok=True)
-    shutil.copy2(loader, target)
-    shutil.copy2(core_src, GAME / "EpochPact" / "EpochPact.Core.dll")
+    mod_dir = GAME / 'EpochPact'
+    mod_dir.mkdir(exist_ok=True)
     record = {'flavor': flavor, 'sha256': digest, 'source': str(core_src), 'time': time.time()}
-    (GAME / 'EpochPact' / 'installed-build.json').write_text(json.dumps(record) + '\n', encoding='utf-8')
+    # Prepare every file and its previous version before changing the installed
+    # mod. Publish the loader last; a denied copy must not leave mixed versions.
+    stage = mod_dir / ('.install-' + secrets.token_hex(16))
+    stage.mkdir()
+    destinations = [mod_dir / 'EpochPact.Core.dll', mod_dir / 'installed-build.json', target]
+    committed = []
+    preserve_stage = False
+    try:
+        shutil.copy2(core_src, stage / 'new-0')
+        (stage / 'new-1').write_text(json.dumps(record) + '\n', encoding='utf-8')
+        shutil.copy2(loader, stage / 'new-2')
+        for index, destination in enumerate(destinations):
+            if destination.exists():
+                shutil.copy2(destination, stage / f'old-{index}')
+        if refuse_if_running():
+            return 2
+        if target.exists() and not is_ours(target):
+            print('refused: another loader appeared during installation; left alone')
+            return 2
+        for index, destination in enumerate(destinations):
+            os.replace(stage / f'new-{index}', destination)
+            committed.append((index, destination))
+    except OSError as original:
+        failures = []
+        for index, destination in reversed(committed):
+            try:
+                previous = stage / f'old-{index}'
+                if previous.exists():
+                    os.replace(previous, destination)
+                else:
+                    destination.unlink(missing_ok=True)
+            except OSError as exc:
+                failures.append(str(exc))
+        if failures:
+            preserve_stage = True
+            raise RuntimeError(f'Installation failed and recovery could not finish. Close the game and reinstall. Previous files are kept in {stage}.') from original
+        raise
+    finally:
+        if not preserve_stage:
+            for file in stage.iterdir():
+                file.unlink()
+            stage.rmdir()
     print(f"installed: {flavor}, SHA256 {digest}: {target} and {GAME / 'EpochPact' / 'EpochPact.Core.dll'}")
     return 0
 

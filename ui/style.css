@@ -39,3 +39,12 @@ dialog.stat-editor{max-width:740px;padding:0;scrollbar-color:var(--gold) var(--p
 .result-summary dd { margin: 0; overflow-wrap: anywhere; }
 [data-developer-only][hidden] { display: none !important; }
 #result-text .readout { max-height: 65vh; overflow: auto; }
+/* Game setup uses the existing themes and fits smaller windows. */
+.game-path-row{display:flex;gap:10px;align-items:center;margin-top:8px}
+.game-path-row input{flex:1;min-width:0}
+.game-path-row button{white-space:nowrap}
+.game-setup .actions{flex-wrap:wrap}
+.setup-dialog{width:min(850px,95vw);max-height:90vh;overflow:auto}
+.setup-dialog .panel{margin-bottom:14px}
+.setup-feedback:empty{display:none}
+@media(max-width:1000px){.game-path-row{flex-wrap:wrap}.game-path-row input{flex-basis:100%}}

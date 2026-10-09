@@ -2,22 +2,28 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import logging
 from logging.handlers import RotatingFileHandler
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 import secrets
+import socket
 import threading
 from urllib.parse import urlparse
 import webbrowser
+import sys
 
 from flask import Flask, jsonify, request, send_from_directory
 from tools.ui_bridge import ROOT, UiBridge
 from tools.ui_language import english_exception, english_result
+from tools.app_paths import runtime_root, user_root
+from tools.player_setup import PlayerSetup, DesktopDialogs
 
 
-def create_app(bridge=None, *, developer=False, operation_log=None):
+def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
     bridge = bridge or UiBridge()
     app = Flask(__name__, static_folder=None)
     app.config["MAX_CONTENT_LENGTH"] = 128 * 1024
@@ -61,7 +67,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None):
 
     @app.get("/ui/<path:path>")
     def assets(path):
-        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css"):
+        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js"):
             return send_from_directory(ROOT / "ui", path)
         if path.startswith("assets/"):
             return send_from_directory(ROOT / "ui/assets", path.removeprefix("assets/"))
@@ -69,18 +75,34 @@ def create_app(bridge=None, *, developer=False, operation_log=None):
 
     @app.get("/api/bootstrap")
     def bootstrap():
-        return jsonify(app_id="epochpact-ui-v1", preview=bridge.preview, developer=developer, token=token, catalog=bridge.public_catalog())
+        return jsonify(app_id="epochpact-ui-v1", setup_version=1 if setup else 0, preview=bridge.preview, developer=developer,
+                       token=token, catalog=bridge.public_catalog(), launcher=setup.status() if setup else None)
 
-    def perform(payload):
+    def perform(payload, revision):
         try:
-            if payload["type"] == "connection":
-                result = bridge.connection()
-                # Recovery is useful player information. A Settings-first
-                # startup must not wait for a save action to show this history.
-                result = {**result, "history": bridge.available_history()}
+            if setup and revision != setup.revision:
+                raise RuntimeError('The game location changed. Refresh before trying this action again.')
+            if payload["type"] == "launcher":
+                result = setup.execute(payload['action'], payload.get('args', {}))
+            elif payload["type"] == "connection":
+                launcher = setup.status() if setup else None
+                if setup and not launcher['installed']:
+                    result = {'ok': True, 'connected': False, 'offline': False, 'launcher': launcher,
+                              'error': 'Select the game and install the mod in Game setup.', 'preview': False, 'history': []}
+                else:
+                    result = bridge.connection()
+                    # Recovery is useful player information. A Settings-first
+                    # startup must not wait for a save action to show this history.
+                    result = {**result, "history": bridge.available_history()}
+                    if setup:
+                        result['launcher'] = launcher
             elif payload["type"] == "reconcile":
+                if setup:
+                    setup.require_ready()
                 result = bridge.reconcile()
             else:
+                if setup:
+                    setup.require_ready()
                 result = bridge.execute(payload["id"], payload.get("args", {}), payload.get("operation", "set"))
             result = english_result(result)
         except Exception as exc:
@@ -95,8 +117,11 @@ def create_app(bridge=None, *, developer=False, operation_log=None):
     @app.post("/api/jobs")
     def submit():
         payload = request.get_json(silent=True)
-        if not isinstance(payload, dict) or payload.get("type") not in ("connection", "control", "reconcile"):
+        if not isinstance(payload, dict) or payload.get("type") not in ("connection", "control", "reconcile", "launcher"):
             return jsonify(ok=False, error="Invalid request."), 400
+        if payload['type'] == 'launcher' and (setup is None or payload.get('action') not in ('status', 'select', 'install', 'elevated_install', 'launch') or
+                                              not isinstance(payload.get('args', {}), dict)):
+            return jsonify(ok=False, error="Invalid game setup action."), 400
         if payload["type"] == "control" and payload.get("id") not in bridge.controls:
             return jsonify(ok=False, error="Invalid control."), 400
         with jobs_lock:
@@ -108,7 +133,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None):
                     return jsonify(ok=False, error="The operation queue is full."), 429
                 jobs.pop(oldest)
             job_id = secrets.token_hex(12)
-            jobs[job_id] = worker.submit(perform, payload)
+            jobs[job_id] = worker.submit(perform, payload, setup.revision if setup else 0)
         return jsonify(ok=True, job=job_id), 202
 
     @app.get("/api/jobs/<job_id>")
@@ -126,6 +151,37 @@ def create_app(bridge=None, *, developer=False, operation_log=None):
     return app
 
 
+def interface_server(app, port):
+    """Keep this launch on its own backend, even if an older UI owns the port."""
+    from werkzeug.serving import ThreadedWSGIServer
+    class ExclusiveInterfaceServer(ThreadedWSGIServer):
+        allow_reuse_address = False
+        allow_reuse_port = False
+
+        def server_bind(self):
+            # SO_REUSEADDR on Windows can bind two listeners to the same port,
+            # sending this UI's requests to the old backend nondeterministically.
+            if sys.platform == 'win32':
+                self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+            super().server_bind()
+    # A fixed adjacent fallback preserves the WebView origin across launches
+    # while a legacy development server is still running. Port zero is last.
+    candidates = [port] + ([p for p in range(port + 1, min(port + 5, 65536))] + [0] if port else [])
+    for candidate in candidates:
+        try:
+            # Werkzeug prints bind errors before raising SystemExit. A windowed
+            # EXE has no stderr, so capture that output rather than crashing.
+            with contextlib.redirect_stderr(io.StringIO()):
+                server = ExclusiveInterfaceServer('127.0.0.1', candidate, app)
+        except (OSError, SystemExit):
+            if candidate == candidates[-1]:
+                raise RuntimeError('EpochPact could not open a local interface port.')
+            continue
+        if server.server_port != port and port:
+            app.logger.info('Interface port %s is occupied; using %s with this launch\'s own backend.', port, server.server_port)
+        return server
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--preview", action="store_true", help="No game access; catalog snapshot is clearly marked.")
@@ -134,36 +190,14 @@ def main():
     parser.add_argument("--developer", action="store_true", help="Show technical diagnostics; hidden in the normal player interface.")
     parser.add_argument("--port", type=int, default=17884)
     args = parser.parse_args()
-    url = f"http://127.0.0.1:{args.port}"
-    app = create_app(UiBridge(preview=args.preview), developer=args.developer,
-                     operation_log=None if args.preview else ROOT / "live/ui/operations.log")
-    from werkzeug.serving import make_server
-    try:
-        server = make_server("127.0.0.1", args.port, app, threaded=True)
-    except (OSError, SystemExit):
-        app.extensions['epoch_worker'].shutdown(wait=False, cancel_futures=True)
-        if handler := app.extensions.get('epoch_journal_handler'):
-            handler.close()
-            logging.getLogger(f"epochpact.operations.{id(app)}").removeHandler(handler)
-        # Only reuse this application's matching mode, never another local service.
-        import json
-        from urllib.request import urlopen
-        try:
-            with urlopen(url + "/api/bootstrap", timeout=3) as reply:
-                existing = json.load(reply)
-            if existing.get("app_id") != "epochpact-ui-v1" or existing.get("preview") != args.preview or existing.get("developer", False) != args.developer:
-                raise RuntimeError("The port is in use by another application or a different preview mode.")
-        except Exception as exc:
-            raise RuntimeError("The interface port is in use. Choose another --port.") from exc
-        if args.no_open:
-            return
-        if args.browser:
-            webbrowser.open(url)
-        else:
-            import webview
-            webview.create_window("EpochPact", url, width=1500, height=1000, min_size=(860, 650), maximized=True, background_color="#091310")
-            webview.start()
-        return
+    if getattr(sys, 'frozen', False) and args.preview:
+        parser.error('Preview snapshots are not included in the player package. Use the source preview launcher.')
+    bridge = UiBridge(preview=args.preview)
+    setup = None if args.preview else PlayerSetup(bridge)
+    app = create_app(bridge, developer=args.developer, setup=setup,
+                     operation_log=None if args.preview else runtime_root() / "live/ui/operations.log")
+    server = interface_server(app, args.port)
+    url = f"http://127.0.0.1:{server.server_port}"
     print(f"EpochPact {'PREVIEW' if args.preview else 'LIVE'}: {url}", flush=True)
     if args.no_open:
         server.serve_forever()
@@ -176,8 +210,9 @@ def main():
     else:
         import webview
         try:
-            webview.create_window("EpochPact", url, width=1500, height=1000, min_size=(860, 650), maximized=True, background_color="#091310")
-            webview.start()
+            dialogs = DesktopDialogs()
+            dialogs._window = webview.create_window("EpochPact", url, js_api=dialogs, width=1500, height=1000, min_size=(860, 650), maximized=True, background_color="#091310")
+            webview.start(gui='edgechromium', private_mode=False, storage_path=str(user_root() / 'webview'))
         finally:
             server.shutdown()
             app.extensions["epoch_worker"].shutdown(wait=False, cancel_futures=True)

@@ -1,11 +1,22 @@
 # EpochPact arayüzü
 
-`EpochPact.cmd` gerçek oyun bağlantısıyla masaüstü penceresini açar.
+Oyuncu dağıtımında `EpochPact.exe` Python kurulumu istemeden masaüstü penceresini açar.
+İlk açılışta Browse ile `Last Epoch.exe` seçilir; seçim penceresi Steam klasöründen
+başlar, başka disk ve klasörler seçilebilir. Yol `%LOCALAPPDATA%\EpochPact\settings.json`
+dosyasında saklanır. Sol menünün üstündeki Game setup bölümünden değiştirilebilir;
+Settings sayfasında da aynı panel bulunur.
+Oyun kapalıyken Install mod, ardından Launch offline düğmesi kullanılır.
+Kurulum mevcut backend ile yalnız doğrulanmış oyuncu DLL'sini yükler; başka bir
+modun `version.dll` dosyasını değiştirmez. Kopyalama başarısızsa önceki dosyalar
+geri konur. Windows izin istiyorsa Install as administrator açıkça seçilir.
+Windows 10/11 x64, WebView2 ve .NET Framework 4.8 gerekir.
+
+Kaynak koddan `EpochPact.cmd` gerçek oyun bağlantısıyla masaüstü penceresini açar.
 `EpochPact-Preview.cmd` oyuna erişmeden tasarım ve formları gösterir.
 İlk kurulumda Python 3 ve `py -3 -m pip install -r requirements-ui.txt` gerekir.
 Mevcut Last Epoch native eklentisi ve `tools/le_session.py` içindeki oyun yolu kullanılır.
-Arayüz eklenti kurmaz veya oyunu başlatmaz. Açılışta yalnız canlı durum okunur;
-ayarlar ve kayıt işlemleri kullanıcı etkileşimi olmadan uygulanmaz.
+Kurulum ve oyun açılışı yalnız kendi düğmelerine basıldığında çalışır.
+Açılışta ayarlar ve kayıt işlemleri kullanıcı etkileşimi olmadan uygulanmaz.
 
 Tarayıcı kullanımı: `py -3 epochpact_ui.py --browser`.
 Yalnız sunucu: `py -3 epochpact_ui.py --no-open`.
