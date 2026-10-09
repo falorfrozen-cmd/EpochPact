@@ -10,6 +10,7 @@ import datetime
 import multiprocessing
 import threading
 import time
+import subprocess
 
 from tools import le_session as le
 
@@ -64,6 +65,48 @@ class ProcessSerializationTests(unittest.TestCase):
 
 
 class BackupTests(unittest.TestCase):
+    def test_retention_keeps_twenty_managed_and_preserves_legacy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'legacy').mkdir()
+            for i in range(25):
+                path = root / str(i); path.mkdir()
+                marker = path / '.epochpact-retention'; marker.write_text('1\n')
+                os.utime(marker, ns=((i + 1) * 1_000_000_000, (i + 1) * 1_000_000_000))
+            le.prune_session_backups(root, keep=20, newest=root / '24')
+            self.assertEqual(len(list(root.iterdir())), 21)
+            self.assertTrue((root / 'legacy').is_dir())
+            self.assertFalse((root / '4').exists())
+            self.assertTrue((root / '5').exists())
+
+    def test_junction_and_its_target_are_never_pruned(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'backups'; root.mkdir()
+            outside = Path(directory) / 'owner'; outside.mkdir()
+            (outside / '.epochpact-retention').write_text('1\n')
+            (outside / 'save').write_text('protected')
+            link = root / 'link'
+            subprocess.run(['cmd', '/c', 'mklink', '/J', str(link), str(outside)], check=True, capture_output=True)
+            try:
+                newest = root / 'new'; newest.mkdir()
+                (newest / '.epochpact-retention').write_text('1\n')
+                le.prune_session_backups(root, keep=1, newest=newest)
+                self.assertTrue(link.exists())
+                self.assertEqual((outside / 'save').read_text(), 'protected')
+                with self.assertRaises(ValueError):
+                    le.prune_session_backups(link, keep=1, newest=outside)
+            finally:
+                link.rmdir()
+
+    def test_cleanup_failure_does_not_discard_successful_backup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); saves = root / 'saves'; saves.mkdir()
+            (saves / 'character').write_text('save')
+            with patch.object(le, 'SAVES', saves), patch.object(le, 'OUT', root / 'out'), \
+                 patch.object(le, 'prune_session_backups', side_effect=PermissionError('indexer')):
+                backup = le.backup_saves()
+            self.assertEqual((backup / 'character').read_text(), 'save')
+
     def test_two_launch_backups_in_one_clock_tick_preserve_both_copies(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -127,6 +170,56 @@ class PacketTests(unittest.TestCase):
             (ipc / 'protocol.json').write_text('{"version":2,"pid":123}')
             with patch.object(le.kernel32, 'OpenProcess', return_value=0):
                 self.assertFalse(le.modern_ipc(ipc))
+
+
+class GameLocationTests(unittest.TestCase):
+    def test_explicit_path_takes_precedence_and_invalid_path_refuses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory); (path / le.EXE).touch()
+            self.assertEqual(le.resolve_game_dir({'EPOCHPACT_GAME_DIR': str(path)}), path.resolve())
+            with self.assertRaises(FileNotFoundError):
+                le.resolve_game_dir({'EPOCHPACT_GAME_DIR': str(path / 'missing')})
+
+    def test_current_and_legacy_steam_library_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); steam = root / 'Steam'; (steam / 'steamapps').mkdir(parents=True)
+            library = root / 'Other disk'; game = library / 'steamapps/common/Last Epoch'; game.mkdir(parents=True)
+            (game / le.EXE).touch()
+            escaped = str(library).replace('\\', '\\\\')
+            for vdf in ('"libraryfolders" { "1" { "path" "' + escaped + '" } }',
+                        '"libraryfolders" { "1" "' + escaped + '" }'):
+                (steam / 'steamapps/libraryfolders.vdf').write_text(vdf)
+                self.assertEqual(le.resolve_game_dir({}, steam), game.resolve())
+
+    def test_default_library_works_without_vdf(self):
+        with tempfile.TemporaryDirectory() as directory:
+            game = Path(directory) / 'steamapps/common/Last Epoch'; game.mkdir(parents=True)
+            (game / le.EXE).touch()
+            self.assertEqual(le.resolve_game_dir({}, directory), game.resolve())
+
+    def test_malformed_library_file_does_not_break_default_library_detection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            steam = Path(directory); game = steam / 'steamapps/common/Last Epoch'; game.mkdir(parents=True)
+            (game / le.EXE).touch()
+            (steam / 'steamapps/libraryfolders.vdf').write_bytes(b'\xff\xfeinvalid')
+            self.assertEqual(le.resolve_game_dir({}, steam), game.resolve())
+
+
+class BuildArtifactTests(unittest.TestCase):
+    def test_player_install_cannot_select_research_or_tampered_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            build = Path(directory); player = build / 'player'; player.mkdir()
+            core = player / 'EpochPact.Core.dll'; core.write_bytes(b'player')
+            (build / 'EpochPact.Core.dll').write_bytes(b'research')
+            metadata = player / 'build-info.json'
+            metadata.write_text(json.dumps({'flavor': 'player', 'sha256': le.hashlib.sha256(b'player').hexdigest()}))
+            with patch.object(le, 'BUILD', build):
+                self.assertEqual(le.build_artifact()[0], core)
+                core.write_bytes(b'tampered')
+                with self.assertRaises(ValueError): le.build_artifact()
+                core.write_bytes(b'player')
+                metadata.write_text(json.dumps({'flavor': 'research', 'sha256': le.hashlib.sha256(b'player').hexdigest()}))
+                with self.assertRaises(ValueError): le.build_artifact()
 
 
 class ReplyFileLockTests(unittest.TestCase):

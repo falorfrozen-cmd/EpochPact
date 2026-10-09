@@ -14,7 +14,9 @@ struct SnapshotData {
 };
 SnapshotData CaptureSnapshotCurrent(const std::string& expectedId, const char* operation);
 std::string WriteCapturedSnapshot(const SnapshotData& snapshot);
-// Called on the game main thread by other progression features.
-std::string SnapshotCurrent(const std::string& expectedId, const char* operation);
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+// Isolated crafting fixture setup only; excluded from every player build.
+std::string SnapshotFixtureCurrent(const std::string& expectedId, const char* operation);
+#endif
 void SaveCurrent(const std::string& expectedId);
 }

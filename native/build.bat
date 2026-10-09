@@ -21,10 +21,14 @@ set "CORE=%HERE%core"
 rem Default/core keep the existing research workflow. Player builds exclude
 rem metadata dumps, capture trackers, test fixtures and research housekeeping.
 set "CORE_FLAGS=/DEPOCHPACT_RESEARCH"
+set "FLAVOR=research"
 if "%~1"=="player" set "CORE_FLAGS="
 if "%~1"=="player-core" set "CORE_FLAGS="
+if "%~1"=="player" set "FLAVOR=player"
+if "%~1"=="player-core" set "FLAVOR=player"
 rem Isolated crafting fixtures only; never install general research trackers.
 if "%~1"=="test-core" set "CORE_FLAGS=/DEPOCHPACT_TESTING"
+if "%~1"=="test-core" set "FLAVOR=test"
 
 if "%~1"=="core" goto :core
 if "%~1"=="player-core" goto :core
@@ -45,6 +49,7 @@ for %%f in (%CORE_SRC%) do call set "CORE_CPP=%%CORE_CPP%% "%CORE%\%%f.cpp""
 for %%f in (%CORE_SRC%) do call set "CORE_OBJ=%%CORE_OBJ%% "%OUT%\%%f.obj""
 cl %CFLAGS% /EHa %CORE_FLAGS% /c /Fo"%OUT%\\" %CORE_CPP% || exit /b 1
 link /nologo /DLL /OUT:"%OUT%\EpochPact.Core.dll" %CORE_OBJ% "%OUT%\stat_thunk.obj" kernel32.lib user32.lib psapi.lib || exit /b 1
+py -3 "%HERE%..\tools\stamp_build.py" %FLAVOR% || exit /b 1
 if "%~1"=="core" goto :done
 if "%~1"=="player-core" goto :done
 if "%~1"=="test-core" goto :done
@@ -63,6 +68,9 @@ cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\density_test.exe" "%HERE%tests\de
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\monolith_test.exe" "%HERE%tests\monolith_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\cof_test.exe" "%HERE%tests\cof_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\loot_crafting_test.exe" "%HERE%tests\loot_crafting_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\review_test.exe" "%HERE%tests\review_test.cpp" || exit /b 1
+cl %CFLAGS% /EHa /c /Fo"%OUT%\tests\\" "%HERE%tests\mainthread_test.cpp" "%CORE%\mainthread.cpp" || exit /b 1
+link /nologo /OUT:"%OUT%\mainthread_test.exe" "%OUT%\tests\mainthread_test.obj" "%OUT%\tests\mainthread.obj" "%OUT%\tests\x64_decode.obj" "%OUT%\tests\hook.obj" kernel32.lib || exit /b 1
 
 echo built: version.dll, EpochPact.Core.dll, hook_test.exe, xp_test.exe, stat_key_test.exe, density_test.exe, monolith_test.exe and cof_test.exe in %OUT%
 :done

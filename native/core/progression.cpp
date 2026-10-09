@@ -1,4 +1,5 @@
 #include "progression.hpp"
+#include "file_safety.hpp"
 #include "common.hpp"
 #include "game.hpp"
 #include "mainthread.hpp"
@@ -412,11 +413,13 @@ std::string WriteSnapshot(const SnapshotData& snapshot) {
     const auto manifest = "{\"format\":1,\"operation\":" + Json(snapshot.operation) + ",\"player\":" + Json(snapshot.name) +
         ",\"id\":" + Json(snapshot.id) + ",\"stashId\":" + Json(snapshot.stashId) + ",\"saveDirectory\":" +
         Json(PathText(source)) + ",\"before\":" + snapshot.rewards + "}";
+    Write(backup / L".epochpact-retention", "1\n");
     Write(backup / L"manifest.json", manifest); // Commit marker: mutations start only after every snapshot succeeded.
     Log("progression: %s backup ready for %s (id %s): %s", snapshot.operation.c_str(), snapshot.name.c_str(), snapshot.id.c_str(), PathText(backup).c_str());
+    try { files::Prune(backup.parent_path(), 30, backup); }
+    catch (const std::exception& e) { Log("backup retention deferred: %s", e.what()); }
     return PathText(backup);
 }
-std::string Snapshot(const Player& player, const char* operation) { return WriteSnapshot(Capture(player, operation)); }
 void Save(const Player& player) {
     void* args[]{player.quests}; Invoke(m_saveQuests, player.data, args);
     bool immediate = true; void* dirty[]{&immediate}; Invoke(m_dirty, player.tracker, dirty);
@@ -690,10 +693,14 @@ SnapshotData CaptureSnapshotCurrent(const std::string& expectedId, const char* o
     const auto player=Current(); CheckId(player,expectedId); return Capture(player,operation);
 }
 std::string WriteCapturedSnapshot(const SnapshotData& snapshot) { return WriteSnapshot(snapshot); }
-std::string SnapshotCurrent(const std::string& expectedId, const char* operation) {
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+std::string SnapshotFixtureCurrent(const std::string& expectedId, const char* operation) {
     const auto player = Current(); CheckId(player, expectedId);
-    return Snapshot(player, operation);
+    if (player.name != "EpCraftTest") throw std::runtime_error("fixture snapshot requires isolated EpCraftTest");
+    return WriteSnapshot(Capture(player, operation));
 }
+#endif
+
 void SaveCurrent(const std::string& expectedId) {
     const auto player = Current(); CheckId(player, expectedId); Save(player);
 }

@@ -239,13 +239,20 @@ class UiBridge:
         return {**reply, "sharedKey": key_id(key), "mode": mode, "rawValue": value,
                 "actorValues": copy.deepcopy(self.actor)}
 
+    def available_history(self):
+        boundary = progression.BACKUPS.resolve()
+        self.history = [item for item in self.history if
+                        Path(item['backup']).resolve().parent != boundary or
+                        (Path(item['backup']) / 'manifest.json').is_file()]
+        return [dict(item) for item in self.history]
+
     def _remember(self, result, cid):
         backup = result.get("backup")
         if backup:
             self.history.append({"id": len(self.history), "control": cid, "backup": backup,
                                  "time": time.time(), "ok": result.get("ok", False)})
         self.history = self.history[-100:]
-        return {**result, "history": list(self.history), "actorValues": copy.deepcopy(self.actor)}
+        return {**result, "history": self.available_history(), "actorValues": copy.deepcopy(self.actor)}
 
     def _actor_identity(self):
         player = self._json("identityread")["player"]
@@ -294,7 +301,7 @@ class UiBridge:
                 if f"{state}_and_not_transitioning" in req and (session.get("state") != state or session.get("transitioning") is not False):
                     raise RuntimeError(f"Wait for the transition to finish on the {state} screen before using this action.")
             if cid == "undo":
-                if args["backup"] not in [x["backup"] for x in self.history]:
+                if args["backup"] not in [x["backup"] for x in self.available_history()]:
                     raise ValueError("Choose a backup from this interface's operation history.")
                 return progression.undo(Path(args["backup"]))
             save_id = None

@@ -3,6 +3,8 @@
 #include "managed.hpp"
 #include "cof_rules.hpp"
 #include "progression.hpp"
+#include "mutation_transaction.hpp"
+#include <memory>
 #include "hook.hpp"
 #include <atomic>
 #include <limits>
@@ -95,13 +97,40 @@ void Save(const Context& c) {
     bool sync = false; void* args[]{&sync}; Invoke(Method(c.faction, "SaveAndSync", 1), c.faction, args);
     progression::SaveCurrent(c.id);
 }
-template<class Work> std::string Mutation(const Context& c, const char* action, Work work) {
-    void* args[]{c.faction}; Invoke(Method(c.provider, "SaveFaction", 1), c.provider, args);
-    const auto backup = progression::SnapshotCurrent(c.id, action);
-    std::string details, why;
-    const bool ok = game::Guarded([&] { details = work(); Save(c); }, &why);
-    if (!ok) return "{\"ok\":false,\"backup\":" + Json(backup) + ",\"error\":" + Json(why) + "}";
-    return "{\"ok\":true,\"backup\":" + Json(backup) + ",\"cof\":" + State(c) + details + "}";
+std::string Slots(const Context& c);
+template<class Work> std::string Mutation(const std::string& id, const char* action, Work work) {
+    Context before{};
+    progression::SnapshotData snapshot;
+    std::string factionStamp;
+    std::vector<std::unique_ptr<Root>> roots;
+    auto sync = [](const Context& c) { void* args[]{c.faction}; Invoke(Method(c.provider, "SaveFaction", 1), c.provider, args); };
+    return transaction::Execute(Run, [&] {
+        const auto c = Edit(id, false);
+        if (id.empty()) throw std::runtime_error("offline save id required");
+        const auto early = work(c, false);
+        if (!early.empty()) return early;
+        before = c;
+        factionStamp = State(c) + Slots(c);
+        for (void* object : {c.actor, c.provider, c.faction, c.data}) roots.push_back(std::make_unique<Root>(object));
+        sync(c);
+        snapshot = progression::CaptureSnapshotCurrent(id, action);
+        return std::string();
+    }, [&] { return progression::WriteCapturedSnapshot(snapshot); }, [&] {
+        const auto c = Edit(id, false);
+        if (c.actor != before.actor ||
+                c.provider != before.provider ||
+                c.faction != before.faction ||
+                c.data != before.data || c.name != before.name)
+            throw std::runtime_error("character or game context changed during backup; action cancelled");
+        // Compare the state this operation edits. SaveFaction itself updates
+        // serialized tracking data, so comparing the entire character JSON
+        // would reject valid requests even when the faction has not changed.
+        if (State(c) + Slots(c) != factionStamp)
+            throw std::runtime_error("faction state changed during backup; refresh and try again");
+        const auto details = work(c, true);
+        Save(c);
+        return "{\"ok\":true,\"cof\":" + State(c) + details + "}";
+    }, Json);
 }
 void* ProphecyData() { return Invoke(Resolve("ProphecyData", "get_Data", 0)); }
 void* Reward(int id) {
@@ -283,25 +312,27 @@ std::string Read() {
     });
 }
 std::string Join(const std::string& id, bool replace) {
-    return Run([=] {
-        const auto c = Edit(id, false); if (Member(c.faction)) return std::string("{\"ok\":true,\"changed\":false}");
+    return Mutation(id, "cofjoin", [=](const Context& c, bool apply) mutable -> std::string {
+         if (Member(c.faction)) return std::string("{\"ok\":true,\"changed\":false}");
         void* merchant = GetFaction(c.provider, 1);
         if (Member(merchant) && !replace) throw std::runtime_error("Merchant's Guild is active; use the explicit switch option");
-        return Mutation(c, "cofjoin", [&] {
+        if (!apply) return std::string();
+        {
             if (Member(merchant)) { uint8_t mid = 1; void* args[]{&mid}; Invoke(Method(c.provider, "TryLeaveFaction", 1), c.provider, args);
                 if (Member(merchant)) throw std::runtime_error("Merchant's Guild leave was refused"); }
             uint8_t fid = 0; void* args[]{&fid}; Invoke(Method(c.provider, "TryJoinFaction", 1), c.provider, args);
             if (!Member(c.faction)) throw std::runtime_error("the game's normal faction join conditions were not met");
             return std::string(",\"changed\":true");
-        });
+        }
     });
 }
 std::string Rank(const std::string& id, int value) {
-    return Run([=]() mutable {
-        const auto c = Edit(id); const int max = Value<int>(Method(c.data, "get_MaxRank", 0), c.data);
+    return Mutation(id, "cofrank", [=](const Context& c, bool apply) mutable -> std::string {
+        if (!Member(c.faction)) throw std::runtime_error("join Circle of Fortune first"); const int max = Value<int>(Method(c.data, "get_MaxRank", 0), c.data);
         if (value < 1 || value > max) throw std::runtime_error("rank outside the runtime catalog");
         if (value == RankOf(c)) return "{\"ok\":true,\"changed\":false,\"cof\":" + State(c) + "}";
-        return Mutation(c, "cofrank", [&] {
+        if (!apply) return std::string();
+        {
             int previous = RankOf(c);
             bool gameplay = false; void* args[]{&value, &gameplay}; Invoke(Method(c.faction, "SetRank", 2), c.faction, args);
             // This build's SetRank sorts the endpoints before ToggleRanks and
@@ -315,37 +346,40 @@ std::string Rank(const std::string& id, int value) {
             Invoke(Method(c.faction, "SetFavorAndReputation", 2), c.faction, values);
             if (RankOf(c) != value) throw std::runtime_error("rank readback failed");
             return std::string(",\"changed\":true,\"slots\":") + Slots(c);
-        });
+        }
     });
 }
 std::string Favor(const std::string& id, int value) {
-    return Run([=]() mutable {
-        const auto c = Edit(id); if (!rules::Favor(value)) throw std::runtime_error("favor must be 0..999999");
-        return Mutation(c, "coffavor", [&] {
+    return Mutation(id, "coffavor", [=](const Context& c, bool apply) mutable -> std::string {
+        if (!Member(c.faction)) throw std::runtime_error("join Circle of Fortune first"); if (!rules::Favor(value)) throw std::runtime_error("favor must be 0..999999");
+        if (!apply) return std::string();
+        {
             int rep = Number(c.faction, "<Reputation>k__BackingField"); void* args[]{&value, &rep};
             Invoke(Method(c.faction, "SetFavorAndReputation", 2), c.faction, args);
             if (Number(c.faction, "<Favor>k__BackingField") != value) throw std::runtime_error("favor readback failed");
             return std::string();
-        });
+        }
     });
 }
 std::string Reputation(const std::string& id, int amount) {
-    return Run([=]() mutable {
-        const auto c = Edit(id);
+    return Mutation(id, "cofreputation", [=](const Context& c, bool apply) mutable -> std::string {
+        if (!Member(c.faction)) throw std::runtime_error("join Circle of Fortune first");
         if (amount < 0 || amount > 1000000) throw std::runtime_error("reputation grant must be 0..1000000");
         const int current = Number(c.faction, "<Reputation>k__BackingField");
         if (current < 0 || current > std::numeric_limits<int>::max() - amount)
             throw std::runtime_error("reputation addition would overflow");
-        return Mutation(c, "cofreputation", [&] {
+        if (!apply) return std::string();
+        {
             UnscaledReputation unscaled;
             void* args[]{&amount}; Invoke(Method(c.faction, "GainReputation", 1), c.faction, args); return std::string();
-        });
+        }
     });
 }
 std::string UnlockLenses(const std::string& id) {
-    return Run([=] {
-        const auto c = Edit(id); Root data(ProphecyData());
-        return Mutation(c, "coflenses", [&] {
+    return Mutation(id, "coflenses", [=](const Context& c, bool apply) mutable -> std::string {
+        if (!Member(c.faction)) throw std::runtime_error("join Circle of Fortune first"); Root data(ProphecyData());
+        if (!apply) return std::string();
+        {
             int unlocked = 0;
             for (int i = 0; i < 12; ++i) { void* args[]{&i};
                 if (Value<int>(Resolve("ProphecyData", "GetUnlockRankForLens", 1), data.Get(), args) > RankOf(c) ||
@@ -354,12 +388,12 @@ std::string UnlockLenses(const std::string& id) {
                 ++unlocked;
             }
             return ",\"unlocked\":" + std::to_string(unlocked);
-        });
+        }
     });
 }
 std::string Configure(const std::string& id, int index, int reward, int lens, bool preview) {
-    return Run([=] {
-        const auto c = Edit(id); void* slot = Slot(c, index); Root config(Config(c, index, reward, lens));
+    return Mutation(id, "cofprophecy", [=](const Context& c, bool apply) mutable -> std::string {
+        if (!Member(c.faction)) throw std::runtime_error("join Circle of Fortune first"); void* slot = Slot(c, index); Root config(Config(c, index, reward, lens));
         const bool reset = reward != RewardID(Get<void*>(slot, F("ProphecySlot", "<Reward>k__BackingField"))) || lens != LensID(slot);
         if (preview) {
             Root copy(Invoke(Method(slot, "Copy", 0), slot));
@@ -372,28 +406,30 @@ std::string Configure(const std::string& id, int index, int reward, int lens, bo
                 std::to_string(before) + ",\"chargesAfter\":" + std::to_string(after) + ",\"progressAfter\":" +
                 std::to_string(Get<int>(copy.Get(), F("ProphecySlot", "<ChargeInProgress>k__BackingField"))) + "}";
         }
-        return Mutation(c, "cofprophecy", [&] {
+        if (!apply) return std::string();
+        {
             void* args[]{config.Get()}; Invoke(Method(c.faction, "AttemptApplyProphecyConfiguration", 1), c.faction, args);
             void* selected = Slot(c, index);
             if (RewardID(Get<void*>(selected, F("ProphecySlot", "<Reward>k__BackingField"))) != reward || LensID(selected) != lens)
                 throw std::runtime_error("prophecy configuration readback failed");
             return ",\"slots\":" + Slots(c);
-        });
+        }
     });
 }
 std::string Charges(const std::string& id, int index, int value) {
-    return Run([=]() mutable {
-        const auto c = Edit(id); void* slot = Slot(c, index);
+    return Mutation(id, "cofcharges", [=](const Context& c, bool apply) mutable -> std::string {
+        if (!Member(c.faction)) throw std::runtime_error("join Circle of Fortune first"); void* slot = Slot(c, index);
         if (!rules::Charges(value)) throw std::runtime_error("charges must be 0..99");
         if (!Get<void*>(slot, F("ProphecySlot", "<Reward>k__BackingField"))) throw std::runtime_error("select a prophecy reward first");
-        return Mutation(c, "cofcharges", [&] {
+        if (!apply) return std::string();
+        {
             const int old = Get<uint8_t>(slot, F("ProphecySlot", "<CompletedCharges>k__BackingField"));
             int delta = value - old;
             if (delta < 0) { Invoke(Method(slot, "ResetCharges", 0), slot); delta = value; }
             if (delta > 0) { void* args[]{&delta}; Invoke(Method(slot, "AddCharges", 1), slot, args); }
             if (Get<uint8_t>(slot, F("ProphecySlot", "<CompletedCharges>k__BackingField")) != value) throw std::runtime_error("charge readback failed");
             return ",\"slots\":" + Slots(c);
-        });
+        }
     });
 }
 std::string Multiplier(double value) {
@@ -438,66 +474,72 @@ std::string Status() {
 }
 #ifdef EPOCHPACT_RESEARCH
 std::string TestGain(const std::string& id, int amount, bool includeReputation) {
-    return Run([=]() mutable {
-        const auto c = Edit(id);
+    return Mutation(id, "coffavor", [=](const Context& c, bool apply) mutable -> std::string {
+        if (!Member(c.faction)) throw std::runtime_error("join Circle of Fortune first");
         if (c.name != "EpCoFTest" || amount < 1 || amount > 10000) throw std::runtime_error("gain probe requires isolated EpCoFTest and 1..10000");
-        return Mutation(c, "coffavor", [&] { bool ignoreRep = !includeReputation, ignoreMult = false; void* args[]{&amount, &ignoreRep, &ignoreMult};
-            Invoke(gain, c.faction, args); return ",\"slots\":" + Slots(c); });
+        if (!apply) return std::string();
+        { bool ignoreRep = !includeReputation, ignoreMult = false; void* args[]{&amount, &ignoreRep, &ignoreMult};
+            Invoke(gain, c.faction, args); return ",\"slots\":" + Slots(c); }
     });
 }
 std::string TestReputation(const std::string& id, int amount, bool otherFaction) {
-    return Run([=]() mutable {
-        const auto c = Edit(id);
+    return Mutation(id, "cofreputation", [=](const Context& c, bool apply) mutable -> std::string {
+        if (!Member(c.faction)) throw std::runtime_error("join Circle of Fortune first");
         if (c.name != "EpCoFTest" || amount < 1 || amount > 10000) throw std::runtime_error("reputation probe requires isolated EpCoFTest and 1..10000");
-        return Mutation(c, "cofreputation", [&] {
+        if (!apply) return std::string();
+        {
             void* target = otherFaction ? GetFaction(c.provider, 1) : c.faction;
             void* args[]{&amount}; Invoke(gainReputation, target, args); return std::string();
-        });
+        }
     });
 }
 std::string TestSpend(const std::string& id, int amount) {
-    return Run([=]() mutable {
-        const auto c = Edit(id);
+    return Mutation(id, "coffavor", [=](const Context& c, bool apply) mutable -> std::string {
+        if (!Member(c.faction)) throw std::runtime_error("join Circle of Fortune first");
         if (c.name != "EpCoFTest" || amount < 1 || amount > 10000) throw std::runtime_error("spend probe requires isolated EpCoFTest and 1..10000");
-        return Mutation(c, "coffavor", [&] {
+        if (!apply) return std::string();
+        {
             bool grantRep = true; void* args[]{&amount, &grantRep};
             if (!Value<bool>(Method(c.faction, "TrySpendFavor", 2), c.faction, args)) throw std::runtime_error("normal Favor spend refused");
             return std::string();
-        });
+        }
     });
 }
 std::string TestCharge(const std::string& id, int index, int amount) {
-    return Run([=]() mutable {
-        const auto c = Edit(id);
+    return Mutation(id, "cofcharges", [=](const Context& c, bool apply) mutable -> std::string {
+        if (!Member(c.faction)) throw std::runtime_error("join Circle of Fortune first");
         if (c.name != "EpCoFTest" || amount < 1 || amount > 10000)
             throw std::runtime_error("charge probe requires isolated EpCoFTest and 1..10000");
         (void)Slot(c, index);
-        return Mutation(c, "cofcharges", [&] {
+        if (!apply) return std::string();
+        {
             void* args[]{&index, &amount}; Invoke(Method(c.faction, "AddFavorToSlot", 2), c.faction, args);
             return ",\"slots\":" + Slots(c);
-        });
+        }
     });
 }
 std::string TestReward(const std::string& id, int index, int target) {
-    return Run([=]() mutable {
-        const auto c = Edit(id); void* slot = Slot(c, index);
+    return Mutation(id, "cofcharges", [=](const Context& c, bool apply) mutable -> std::string {
+        if (!Member(c.faction)) throw std::runtime_error("join Circle of Fortune first"); void* slot = Slot(c, index);
         if (c.name != "EpCoFTest" || target < 0 || target > 8)
             throw std::runtime_error("reward probe requires isolated EpCoFTest and a normal target 0..8");
-        return Mutation(c, "cofcharges", [&] {
+        if (!apply) return std::string();
+        {
             bool doubleItems = Get<bool>(c.faction, F("CircleOfFortune", "<PropheciesGrantDoubleItems>k__BackingField"));
             int used = 0; void* args[]{&target, &doubleItems, c.actor, &used};
             const bool triggered = Value<bool>(Method(slot, "TryTriggerReward", 4), slot, args);
             return ",\"triggered\":" + std::string(Boolean(triggered)) + ",\"chargesUsed\":" + std::to_string(used) + ",\"slots\":" + Slots(c);
-        });
+        }
     });
 }
 std::string TestLoot(const std::string& id, const std::string& kind, int count) {
-    return Run([=] {
-        const auto c = Edit(id);
+    return Mutation(id, "cofcharges", [=](const Context& c, bool apply) mutable -> std::string {
+        if (!Member(c.faction)) throw std::runtime_error("join Circle of Fortune first");
         if (c.name != "EpCoFTest" || count < 1 || count > (kind == "level" ? 100 : 30) ||
             (kind != "enemy" && kind != "echo" && kind != "lp" && kind != "level"))
             throw std::runtime_error("loot probe requires isolated EpCoFTest and a bounded count/level");
-        return Mutation(c, "cofcharges", [&] {
+        if (!apply) return std::string();
+        {
             if (kind == "level") {
                 void* experience = Get<void*>(c.actor, Offset("Actor", "experienceTracker"));
                 int level = count; void* args[]{&level}; Invoke(Method(experience, "SetLevel", 1), experience, args);
@@ -571,7 +613,7 @@ std::string TestLoot(const std::string& id, const std::string& kind, int count) 
                     ",\"rewardIndex\":" + std::to_string(rewardIndex) + ",\"guaranteedAttempts\":" + std::to_string(attempts);
             }
             return std::string(",\"probe\":") + Json(kind) + ",\"count\":" + std::to_string(count);
-        });
+        }
     });
 }
 std::string TestGround(const std::string& id) {

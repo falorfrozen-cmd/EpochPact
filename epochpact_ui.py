@@ -77,7 +77,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None):
                 result = bridge.connection()
                 # Recovery is useful player information. A Settings-first
                 # startup must not wait for a save action to show this history.
-                result = {**result, "history": [dict(item) for item in bridge.history]}
+                result = {**result, "history": bridge.available_history()}
             elif payload["type"] == "reconcile":
                 result = bridge.reconcile()
             else:

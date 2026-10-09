@@ -1,6 +1,7 @@
 #include "commands.hpp"
 
 #include "common.hpp"
+#include "file_safety.hpp"
 #include "cof.hpp"
 #include "crafting.hpp"
 #include "map_view.hpp"
@@ -42,37 +43,7 @@ std::vector<std::string> Split(const std::string& line) {
 }
 
 std::string ReadAndDelete(const std::wstring& path) {
-    std::string text;
-    // Claim the packet by atomic rename before reading it. The producer can
-    // publish the next packet without colliding with a FILE read/delete lock,
-    // and a failed deletion cannot cause an already executed packet to repeat.
-    const auto claimed = path + L".claimed";
-    if (!MoveFileExW(path.c_str(), claimed.c_str(), MOVEFILE_REPLACE_EXISTING)) return text;
-    // Antivirus/indexing can briefly deny opening a file even after our rename.
-    // Retry opening this SAME claimed packet before any command is executed;
-    // never resubmit a mutation or read a stale claimed packet on a later poll.
-    HANDLE file = INVALID_HANDLE_VALUE;
-    for (unsigned attempt = 0; attempt < 250; ++attempt) {
-        file = CreateFileW(claimed.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                           nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-        if (file != INVALID_HANDLE_VALUE) break;
-        const auto error = GetLastError();
-        if (error != ERROR_SHARING_VIOLATION && error != ERROR_ACCESS_DENIED) break;
-        Sleep(2);
-    }
-    if (file == INVALID_HANDLE_VALUE) { Log("IPC: claimed packet open failed; command was not executed (error %lu)", GetLastError()); return text; }
-    char buf[4096]; DWORD n = 0;
-    bool readable = true;
-    while (true) {
-        if (!ReadFile(file, buf, sizeof buf, &n, nullptr)) { readable = false; break; }
-        if (!n) break;
-        text.append(buf, n);
-        if (text.size() > 128 * 1024) { readable = false; break; }
-    }
-    CloseHandle(file);
-    if (!readable) { text.clear(); Log("IPC: unreadable or oversized packet refused; command was not executed"); }
-    DeleteFileW(claimed.c_str());
-    return text;
+    return files::ClaimPacket(path, [](const char* message) { Log("%s", message); });
 }
 
 void Append(const std::wstring& path, const std::string& text) {
@@ -346,6 +317,7 @@ void Loop(il2cpp::Domain* domain) {
     const std::wstring dir = PluginDir() + L"ipc\\";
     EnsureDir(dir);
     const std::wstring in = dir + L"cmd.txt", out = dir + L"out.txt";
+    files::Rotate(out, 1024 * 1024);
     Publish(dir + L"protocol.json", "{\"version\":2,\"pid\":" + std::to_string(GetCurrentProcessId()) + "}");
     const il2cpp::Api& a = il2cpp::api();
     for (;;) {
@@ -371,7 +343,7 @@ void Loop(il2cpp::Domain* domain) {
                 }
                 const std::string reply = Execute(line);
                 Log("command: %s", line.c_str());
-                Append(out, "> " + line + "\r\n" + reply + "\r\n");
+                if (nonce.empty()) Append(out, "> " + line + "\r\n" + reply + "\r\n");
                 if (!nonce.empty()) Publish(dir + L"reply.json", "{\"nonce\":" + managed::Json(nonce) +
                     ",\"reply\":" + managed::Json(reply) + "}");
             }

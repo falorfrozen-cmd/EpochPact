@@ -6,6 +6,7 @@
 #include "hook.hpp"
 #include "mainthread.hpp"
 #include "stat_editor.hpp"
+#include "cooldown_rules.hpp"
 
 #include <atomic>
 #include <cmath>
@@ -148,12 +149,10 @@ const StatDef* FindStatDef(const std::string& name) {
     return nullptr;
 }
 
-// ---- cooldown: PlayerChargeManager.OnUpdateTick(float deltaTime) drives the player's
-// charges and cooldowns once a frame. Scaling deltaTime scales that countdown only (the
-// manager exists on the player, not on monsters). ChargeManager.getCooldown stays hooked as
-// the length source for the abilities that ask for it.
-
+// ---- cooldown: scale the local player countdown once. Never shorten the
+// global ChargeManager.getCooldown length (also used by AI).
 feature::Feature g_cooldown;
+size_t g_chargeOwner = 0, g_actorCharges = 0;
 
 using ChargeTickFn = void (*)(void* self, float deltaTime, const Method* m);
 ChargeTickFn o_chargeTick = nullptr;
@@ -161,8 +160,16 @@ ChargeTickFn o_chargeTick = nullptr;
 void d_chargeTick(void* self, float deltaTime, const Method* m) {
     double mult = 1.0;
     if (deltaTime > 0.0f && feature::Active(g_cooldown, &mult)) {
-        const float scaled = static_cast<float>(deltaTime * mult);
-        if (g_cooldown.firstPending.exchange(false)) Log("cooldown: first boosted tick dt %g -> %g (x%g)", deltaTime, scaled, mult);
+        bool localOwner = false;
+        game::Guarded([&] {
+            void* actor = LocalPlayerActor();
+            localOwner = actor && self && g_chargeOwner && g_actorCharges &&
+                *reinterpret_cast<void**>(static_cast<char*>(self) + g_chargeOwner) == actor &&
+                *reinterpret_cast<void**>(static_cast<char*>(actor) + g_actorCharges) == self;
+        }, nullptr);
+        const float scaled = rules::CooldownDelta(deltaTime, mult, localOwner);
+        if (localOwner && g_cooldown.firstPending.exchange(false))
+            Log("cooldown: local player countdown dt %g -> %g (x%g)", deltaTime, scaled, mult);
         deltaTime = scaled;
     }
     o_chargeTick(self, deltaTime, m);
@@ -171,32 +178,13 @@ void d_chargeTick(void* self, float deltaTime, const Method* m) {
 feature::Hook h_chargeTick{"PlayerChargeManager.OnUpdateTick", {}, reinterpret_cast<void*>(&d_chargeTick),
                            reinterpret_cast<void**>(&o_chargeTick)};
 
-using GetCooldownFn = float (*)(void* self, int32_t index, const Method* m);
-GetCooldownFn o_getCooldown = nullptr;
-
-float d_getCooldown(void* self, int32_t index, const Method* m) {
-    const float seconds = o_getCooldown(self, index, m);
-    double mult = 1.0;
-    if (seconds > 0.0f && feature::Active(g_cooldown, &mult)) {
-        float scaled = static_cast<float>(seconds / mult);
-        if (scaled < 0.05f) scaled = 0.05f;
-        if (g_cooldown.firstPending.exchange(false))
-            Log("cooldown: first boosted cooldown %g -> %g (x%g)", seconds, scaled, mult);
-        return scaled;
-    }
-    return seconds;
-}
-
-feature::Hook h_getCooldown{"ChargeManager.getCooldown", {}, reinterpret_cast<void*>(&d_getCooldown),
-                            reinterpret_cast<void**>(&o_getCooldown)};
-
 }  // namespace
 
 bool Init() {
     statedit::Init();
     g_cooldown.cmd = "cooldown";
     g_cooldown.max = 10;
-    g_cooldown.hooks = {&h_chargeTick, &h_getCooldown};
+    g_cooldown.hooks = {&h_chargeTick};
 
     m_playerActor = game::FindMethod("LE.dll", "", "PlayerFinder", "getPlayerActor", 0);
     g_mutatorOffset = game::FieldOffset("LE.dll", "", "Actor", "characterMutator");
@@ -245,12 +233,13 @@ bool Init() {
         static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(m_statCtor.code) - il2cpp::api().base),
         static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(m_updateStats.code) - il2cpp::api().base));
     h_chargeTick.ref = game::FindMethod("LE.dll", "", "PlayerChargeManager", "OnUpdateTick", 1);
-    h_getCooldown.ref = game::FindMethod("LE.dll", "", "ChargeManager", "getCooldown", 1);
+    g_chargeOwner = game::FieldOffset("LE.dll", "", "ChargeManager", "actor");
+    g_actorCharges = game::FieldOffset("LE.dll", "", "Actor", "chargeManager");
+    if (!g_chargeOwner || !g_actorCharges) h_chargeTick.ref = {};
 
     Log("player: PlayerFinder.getPlayerActor %s, Actor.characterMutator +0x%zX, CharacterMutator.myStats +0x%zX; PlayerChargeManager.OnUpdateTick "
-        "%s, ChargeManager.getCooldown %s",
-        m_playerActor ? "found" : "MISSING", g_mutatorOffset, g_myStatsOffset, h_chargeTick.ref ? "found" : "MISSING",
-        h_getCooldown.ref ? "found" : "MISSING");
+        "%s (local owner checked)",
+        m_playerActor ? "found" : "MISSING", g_mutatorOffset, g_myStatsOffset, h_chargeTick.ref ? "found" : "MISSING");
     return static_cast<bool>(m_playerActor) && static_cast<bool>(h_chargeTick.ref);
 }
 

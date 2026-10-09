@@ -397,6 +397,21 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(result['history'], self.bridge.history)
             execute.assert_not_called()
 
+    def test_expired_native_backup_disappears_from_recovery_history(self):
+        with tempfile.TemporaryDirectory() as folder:
+            boundary = Path(folder); kept = boundary / 'kept'; kept.mkdir()
+            (kept / 'manifest.json').write_text('{}')
+            self.bridge.history = [
+                {'id': 0, 'backup': str(boundary / 'expired')},
+                {'id': 1, 'backup': str(kept)},
+            ]
+            with patch.object(ui.progression, 'BACKUPS', boundary):
+                self.assertEqual(self.bridge.available_history(), [{'id': 1, 'backup': str(kept)}])
+                with patch.object(ui.progression, 'undo') as undo:
+                    with self.assertRaises(ValueError):
+                        self.bridge.execute('undo', {'backup': str(boundary / 'expired')})
+                    undo.assert_not_called()
+
     def test_bounded_local_journal_keeps_native_details_without_session_token(self):
         with tempfile.TemporaryDirectory() as folder:
             log = Path(folder) / 'operations.log'

@@ -22,6 +22,8 @@ import ctypes
 import ctypes.wintypes as wt
 import datetime as _dt
 import json
+import logging
+import re
 import secrets
 import hashlib
 import os
@@ -31,13 +33,53 @@ import sys
 import time
 from pathlib import Path
 
-GAME = Path(r"C:\Program Files (x86)\Steam\steamapps\common\Last Epoch")
+EXE = "Last Epoch.exe"
+
+
+def _steam_root() -> Path | None:
+    import winreg
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam") as key:
+            return Path(winreg.QueryValueEx(key, 'SteamPath')[0])
+    except OSError:
+        return None
+
+
+def resolve_game_dir(env=None, steam_root=None) -> Path:
+    env = os.environ if env is None else env
+    configured = env.get('EPOCHPACT_GAME_DIR', '').strip().strip('"')
+    if configured:
+        path = Path(configured).expanduser().resolve()
+        if not (path / EXE).is_file():
+            raise FileNotFoundError(f'EPOCHPACT_GAME_DIR must contain {EXE}: {path}')
+        return path
+    steam = Path(steam_root) if steam_root is not None else _steam_root()
+    libraries = [steam] if steam else []
+    if steam:
+        try:
+            text = (steam / 'steamapps/libraryfolders.vdf').read_text(encoding='utf-8-sig')
+            # Current Steam uses numbered objects with a path key. Older
+            # library files use a numbered key followed directly by the path.
+            for key, value in re.findall(r'"([^"\\]+)"\s*"((?:\\.|[^"\\])*)"', text):
+                if key == 'path' or key.isdigit():
+                    path = Path(value.replace('\\\\', '\\').replace('\\"', '"'))
+                    if path.is_absolute():
+                        libraries.append(path)
+        except (OSError, UnicodeError):
+            pass
+    for library in libraries:
+        candidate = library / 'steamapps/common/Last Epoch'
+        if (candidate / EXE).is_file():
+            return candidate.resolve()
+    return Path(r"C:\Program Files (x86)\Steam\steamapps\common\Last Epoch")
+
+
+GAME = resolve_game_dir()
 SAVES = Path(os.environ["USERPROFILE"]) / "AppData" / "LocalLow" / "Eleventh Hour Games" / "Last Epoch" / "Saves"
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "native" / "build"
 OUT = ROOT / "research" / "live"
 STEAM_APP = 899770
-EXE = "Last Epoch.exe"
 MARK = "EpochPact\\EpochPact.Core.dll".encode("utf-16-le")  # only EpochPact's loader carries this
 
 user32 = ctypes.WinDLL("user32", use_last_error=True)
@@ -112,12 +154,29 @@ def refuse_if_running() -> bool:
     return False
 
 
-def cmd_install(_: argparse.Namespace) -> int:
+def build_artifact(flavor='player') -> tuple[Path, str]:
+    if flavor not in ('player', 'research', 'test'):
+        raise ValueError('Unknown build flavor.')
+    path = BUILD / flavor / 'EpochPact.Core.dll'
+    metadata = json.loads((path.parent / 'build-info.json').read_text(encoding='utf-8'))
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    if metadata.get('flavor') != flavor or metadata.get('sha256') != digest:
+        raise ValueError('Build flavor or SHA256 mismatch; rebuild before installing.')
+    return path, digest
+
+
+def cmd_install(args: argparse.Namespace) -> int:
     if refuse_if_running():
         return 2
-    loader, core_src = BUILD / "version.dll", BUILD / "EpochPact.Core.dll"
-    if not loader.is_file() or not core_src.is_file():
-        print("refused: build first (native\\build.bat)")
+    flavor = getattr(args, 'flavor', 'player')
+    loader = BUILD / 'version.dll'
+    try:
+        core_src, digest = build_artifact(flavor)
+    except (OSError, ValueError) as exc:
+        print(f'refused: build native\\build.bat {flavor} first: {exc}')
+        return 2
+    if not loader.is_file() or not (GAME / EXE).is_file():
+        print('refused: loader build or game executable missing')
         return 2
     target = GAME / "version.dll"
     if target.exists() and not is_ours(target):
@@ -126,7 +185,9 @@ def cmd_install(_: argparse.Namespace) -> int:
     (GAME / "EpochPact").mkdir(exist_ok=True)
     shutil.copy2(loader, target)
     shutil.copy2(core_src, GAME / "EpochPact" / "EpochPact.Core.dll")
-    print(f"installed: {target} and {GAME / 'EpochPact' / 'EpochPact.Core.dll'}")
+    record = {'flavor': flavor, 'sha256': digest, 'source': str(core_src), 'time': time.time()}
+    (GAME / 'EpochPact' / 'installed-build.json').write_text(json.dumps(record) + '\n', encoding='utf-8')
+    print(f"installed: {flavor}, SHA256 {digest}: {target} and {GAME / 'EpochPact' / 'EpochPact.Core.dll'}")
     return 0
 
 
@@ -151,7 +212,50 @@ def backup_saves() -> Path | None:
         return None
     dest = OUT / "saves-backups" / (_dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f") + "-" + secrets.token_hex(4))
     shutil.copytree(SAVES, dest)
+    # Only new, explicitly managed backups participate in automatic retention.
+    # Historical owner/test backups are never removed merely for their age.
+    (dest / '.epochpact-retention').write_text('1\n', encoding='ascii')
+    try:
+        prune_session_backups(dest.parent, keep=20, newest=dest)
+    except (OSError, ValueError) as exc:
+        logging.getLogger(__name__).warning('Backup kept; retention deferred: %s', exc)
     return dest
+
+
+def _linked(path: Path) -> bool:
+    # st_reparse_tag works on older supported Python versions too. Cloud
+    # placeholders are not junctions and may remain under OneDrive.
+    return path.is_symlink() or getattr(path.lstat(), 'st_reparse_tag', 0) in (0xA0000003, 0xA000000C)
+
+
+def prune_session_backups(root: Path, *, keep: int, newest: Path) -> None:
+    if keep < 1 or _linked(root):
+        raise ValueError('Unsafe backup retention root or limit.')
+    resolved_root = root.resolve(strict=True)
+    candidates = []
+    for path in root.iterdir():
+        try:
+            if not path.is_dir() or _linked(path):
+                continue
+            if path.resolve().parent != resolved_root:
+                continue
+            marker = path / '.epochpact-retention'
+            if not marker.is_file() or _linked(marker) or marker.read_text(encoding='ascii') != '1\n':
+                continue
+            # Refuse the entire tree if it contains any linked directory/file.
+            if any(_linked(p) for p in path.rglob('*')):
+                continue
+            candidates.append((marker.stat().st_mtime_ns, path))
+        except (OSError, UnicodeError):
+            continue
+    candidates.sort(key=lambda entry: (entry[0], entry[1].name), reverse=True)
+    for _, path in candidates[keep:]:
+        try:
+            if path == newest or _linked(path) or path.resolve().parent != resolved_root or any(_linked(p) for p in path.rglob('*')):
+                continue
+            shutil.rmtree(path)
+        except OSError as exc:
+            logging.getLogger(__name__).warning('Backup kept because retention failed: %s', exc)
 
 
 def cmd_launch(args: argparse.Namespace) -> int:
@@ -350,7 +454,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status").set_defaults(fn=cmd_status)
-    sub.add_parser("install").set_defaults(fn=cmd_install)
+    install = sub.add_parser("install")
+    install.add_argument('--flavor', choices=('player', 'research', 'test'), default='player')
+    install.set_defaults(fn=cmd_install)
     sub.add_parser("uninstall").set_defaults(fn=cmd_uninstall)
     launch = sub.add_parser("launch")
     launch.add_argument("--offline", action="store_true", help="use the game's official --offline launch argument")

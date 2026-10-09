@@ -432,7 +432,7 @@ std::string Test(const std::string& id,const std::string& action) {
             out << "]}"; return out.str();
         }
         if(action=="stashunique0" || action=="stashunique2") {
-            (void)progression::SnapshotCurrent(id,"collection-test-stash");
+            (void)progression::SnapshotFixtureCurrent(id,"collection-test-stash");
             Root item(Fixture(c,-1,-1,7,false,1,action=="stashunique0"?0:2,55));
             void* holder=Get<void*>(c.manager,Offset("ItemContainersManager","stash"));
             Root stash(Invoke(Method(holder,"get_CurrentContainer",0),holder));
@@ -464,7 +464,7 @@ std::string Test(const std::string& id,const std::string& action) {
             throw std::runtime_error("native generation did not produce a T7 fixture in bounded attempts");
         }
         if(action=="setup" || action=="lowsetup") {
-            (void)progression::SnapshotCurrent(id,"crafting-test-setup");
+            (void)progression::SnapshotFixtureCurrent(id,"crafting-test-setup");
             // Empty through the normal return-to-inventory APIs. This command is
             // compile-time research only and refuses every owner character.
             const auto mainContainer=Get<void*>(c.craft,forgeMain);
@@ -517,7 +517,7 @@ std::string Test(const std::string& id,const std::string& action) {
             void* error=nullptr; void* success=nullptr; bool warning=false, green=false;
             void* checkArgs[]{&error,&warning,&green,&success};
             if(!Value<bool>(Method(c.craft,"CheckForgeCapability",4),c.craft,checkArgs)) throw std::runtime_error("normal forge UI refuses: "+Text(error));
-            (void)progression::SnapshotCurrent(id,"crafting-test-forge");
+            (void)progression::SnapshotFixtureCurrent(id,"crafting-test-forge");
             const std::string before=Preview(); Invoke(forge,c.craft);
             return "{\"ok\":true,\"before\":"+before+",\"after\":"+Preview()+"}";
         }

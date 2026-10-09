@@ -20,6 +20,10 @@ combat/return/reward loop, interface recovery and exact save restoration. It
 identifies guarded test-driver evidence, retained earlier checks, observed crashes
 and coverage limits; it does not claim exhaustive gameplay or zero crashes.
 
+[October 9 review fixes](docs/code-review-fixes-2026-10-09.md) update backup writing,
+frame dispatch, cooldown ownership, game discovery and build selection. See its
+scoped evidence for these changed paths.
+
 ## Features
 
 | Command | What it does |
@@ -73,10 +77,19 @@ Current faction research: [CoF / MG](research/factions-1.5.md) and
 ## Build and test
 
 ```
-native\build.bat
+native\build.bat player     # player core, loader and tests
+native\build.bat            # research core, loader and tests
 native\build\hook_test.exe
 native\build\xp_test.exe
+native\build\review_test.exe
+native\build\mainthread_test.exe
 ```
+
+Artifacts are kept separately in `native\build\player`, `research` and `test`.
+The installer defaults to the player artifact and verifies its type and SHA256.
+Use `install --flavor research` only for intentional development sessions.
+Game discovery uses `EPOCHPACT_GAME_DIR`, then Steam's registry/library list,
+then the default Steam folder.
 
 Live: `py -3 tools/le_session.py install`, `launch`, load an offline character, then
 `py -3 tools/live_xp_check.py`; afterwards `close` and `restore-saves <backup>`.

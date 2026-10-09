@@ -2,6 +2,8 @@
 #include "monolith_rules.hpp"
 #include "managed.hpp"
 #include "progression.hpp"
+#include "mutation_transaction.hpp"
+#include <memory>
 #include "hook.hpp"
 #include <atomic>
 #include <set>
@@ -145,12 +147,7 @@ void* GetRun(const Context& c, uint8_t id, int difficulty, bool create = false) 
     return Invoke(m_newRun, c.runs, newArgs);
 }
 void Save(const Context& c) { Invoke(m_saveRuns, c.runs); progression::SaveCurrent(c.id); }
-std::string Snapshot(const Context& c, const char* action) {
-    try { Invoke(m_saveRuns, c.runs); }
-    catch (const std::exception& e) { throw std::runtime_error(std::string("pre-snapshot saveRuns: ") + e.what()); }
-    try { return progression::SnapshotCurrent(c.id, action); }
-    catch (const std::exception& e) { throw std::runtime_error(std::string("snapshot: ") + e.what()); }
-}
+
 std::string RunJson(void* run) {
     if (!run) return "null";
     void* web = Get<void*>(run, Offset("MonolithRun", "web"));
@@ -189,14 +186,36 @@ struct ManualGain {
     ManualGain() { manual = true; }
     ~ManualGain() { manual = before; }
 };
-template<class Work> std::string Mutation(const Context& c, const char* action, Work work) {
-    const auto backup = Snapshot(c, action);
-    try {
-        const std::string details = work(); Save(c);
-        return "{\"ok\":true,\"backup\":" + Json(backup) + "," + details + "}";
-    } catch (const std::exception& e) {
-        return "{\"ok\":false,\"backup\":" + Json(backup) + ",\"error\":" + Json(e.what()) + "}";
-    }
+template<class Work> std::string Mutation(const std::string& id, const char* action, Work work) {
+    Context before;
+    progression::SnapshotData snapshot;
+    std::vector<std::unique_ptr<Root>> roots;
+    auto sync = [](const Context& c) { Invoke(m_saveRuns, c.runs); };
+    return transaction::Execute(Run, [&] {
+        const auto c = Current(id);
+        if (id.empty()) throw std::runtime_error("offline save id required");
+        const auto early = work(c, false);
+        if (!early.empty()) return early;
+        before = c;
+        for (void* object : {c.actor, c.data, c.runs, c.progress}) roots.push_back(std::make_unique<Root>(object));
+        sync(c);
+        snapshot = progression::CaptureSnapshotCurrent(id, action);
+        return std::string();
+    }, [&] { return progression::WriteCapturedSnapshot(snapshot); }, [&] {
+        const auto c = Current(id);
+        if (c.actor != before.actor ||
+                c.data != before.data ||
+                c.runs != before.runs ||
+                c.progress != before.progress || c.name != before.name || c.scene != before.scene)
+            throw std::runtime_error("character or game context changed during backup; action cancelled");
+        sync(c);
+        const auto now = progression::CaptureSnapshotCurrent(id, action);
+        if (now.character != snapshot.character || now.stash != snapshot.stash || now.global != snapshot.global)
+            throw std::runtime_error("save state changed during backup; refresh and try again");
+        const auto details = work(c, true);
+        Save(c);
+        return "{\"ok\":true," + details + "}";
+    }, Json);
 }
 }
 
@@ -417,14 +436,15 @@ std::string PanelReady(const std::string& id, int timeline, int difficulty) {
     });
 }
 std::string Unlock(const std::string& id) {
-    return Run([id] {
+    return Mutation(id, "monolithunlock", [id](const Context& c, bool apply) -> std::string {
         if (id.empty()) throw std::runtime_error("offline save id required");
-        const auto c = Current(id); Editable(c); const auto ts = Catalog();
+        Editable(c); const auto ts = Catalog();
         int pending = 0;
         for (const auto& t : ts) for (int d = 0; d < std::min(2, static_cast<int>(t.difficulties.size())); ++d)
             if (!IsUnlocked(c, t.id, d)) ++pending;
         if (!pending) return std::string("{\"ok\":true,\"unlocked\":0}");
-        return Mutation(c, "monolithunlock", [&] {
+        if (!apply) return std::string();
+        {
             int count = 0;
             for (const auto& t : ts) for (uint8_t d = 0; d < std::min(2, static_cast<int>(t.difficulties.size())); ++d) {
                 if (IsUnlocked(c, t.id, d)) continue;
@@ -436,35 +456,37 @@ std::string Unlock(const std::string& id) {
                 ++count;
             }
             return "\"unlocked\":" + std::to_string(count);
-        });
+        }
     });
 }
 std::string Select(const std::string& id, int timeline, int difficulty) {
-    return Run([=]() mutable {
+    return Mutation(id, "monolithselect", [=](const Context& c, bool apply) mutable -> std::string {
         if (id.empty()) throw std::runtime_error("offline save id required");
-        const auto c = Current(id); Editable(c); RestContextForPanel(); const auto t = Find(timeline, difficulty);
+        Editable(c); RestContextForPanel(); const auto t = Find(timeline, difficulty);
         if (!IsUnlocked(c, t.id, difficulty)) throw std::runtime_error("timeline difficulty is locked");
-        return Mutation(c, "monolithselect", [&] {
+        if (!apply) return std::string();
+        {
             auto tid = t.id; bool specific = true, woven = false; int placed = -1;
             void* args[]{&tid, &specific, &difficulty, &woven, &placed}; Invoke(m_open, nullptr, args);
             if (Get<uint8_t>(c.runs, Offset("MonolithRunsManager", "mostRecentlyRequestedTimelineID")) != tid ||
                 Get<int>(c.runs, Offset("MonolithRunsManager", "mostRecentlyRequestedDifficultyIndex")) != difficulty)
                 throw std::runtime_error("timeline selection did not finish");
             return "\"selected\":" + RunJson(GetRun(c, t.id, difficulty));
-        });
+        }
     });
 }
 std::string Corruption(const std::string& id, int timeline, int difficulty, int value) {
-    return Run([=]() mutable {
+    return Mutation(id, "corruption", [=](const Context& c, bool apply) mutable -> std::string {
         if (id.empty()) throw std::runtime_error("offline save id required");
-        const auto c = Current(id); Editable(c); const auto t = Find(timeline, difficulty);
+        Editable(c); const auto t = Find(timeline, difficulty);
         if (!IsUnlocked(c, t.id, difficulty)) throw std::runtime_error("timeline difficulty is locked");
         void* d = t.difficulties[difficulty];
         if (!rules::Corruption(value, Get<int>(d, Offset("MonolithTimeline.Difficulty", "minimumCorruption")),
             Get<bool>(d, Offset("MonolithTimeline.Difficulty", "hasMaxCorruption")),
             Get<int>(d, Offset("MonolithTimeline.Difficulty", "maximumCorruption"))))
             throw std::runtime_error("corruption outside this difficulty's limits; use monolithread");
-        return Mutation(c, "corruption", [&] {
+        if (!apply) return std::string();
+        {
             Root run(GetRun(c, t.id, difficulty, true));
             void* web = Get<void*>(run.Get(), Offset("MonolithRun", "web"));
             if (!web || Get<uint8_t>(web, Offset("EchoWeb", "timelineID")) != t.id)
@@ -477,17 +499,18 @@ std::string Corruption(const std::string& id, int timeline, int difficulty, int 
             Invoke(m_updateHighest, c.runs); Invoke(m_updateShared, c.runs);
             RefreshSelected(c, t.id, difficulty);
             return "\"run\":" + RunJson(run.Get());
-        });
+        }
     });
 }
 std::string Stability(const std::string& id, int timeline, int difficulty, int value) {
-    return Run([=]() mutable {
+    return Mutation(id, "stability", [=](const Context& c, bool apply) mutable -> std::string {
         if (id.empty()) throw std::runtime_error("offline save id required");
-        const auto c = Current(id); Editable(c); const auto t = Find(timeline, difficulty);
+        Editable(c); const auto t = Find(timeline, difficulty);
         if (!IsUnlocked(c, t.id, difficulty)) throw std::runtime_error("timeline difficulty is locked");
         const int maximum = Get<int>(t.difficulties[difficulty], Offset("MonolithTimeline.Difficulty", "maxStability"));
         if (value < 0 || maximum < 0 || value > maximum) throw std::runtime_error("stability outside the timeline's limits");
-        return Mutation(c, "stability", [&] {
+        if (!apply) return std::string();
+        {
             Root run(GetRun(c, t.id, difficulty, true));
             const int current = Get<int>(run.Get(), runStability);
             if (current < 0 || current > maximum) throw std::runtime_error("invalid existing stability");
@@ -496,7 +519,7 @@ std::string Stability(const std::string& id, int timeline, int difficulty, int v
             if (Get<int>(run.Get(), runStability) != value) throw std::runtime_error("stability verification failed");
             RefreshSelected(c, t.id, difficulty);
             return "\"run\":" + RunJson(run.Get());
-        });
+        }
     });
 }
 std::string SetMultiplier(double value) {
@@ -526,16 +549,17 @@ std::string Status() {
 }
 #ifdef EPOCHPACT_RESEARCH
 std::string TestGain(const std::string& id, int timeline, int difficulty, int amount) {
-    return Run([=]() mutable {
-        const auto c = Current(id); Editable(c); const auto t = Find(timeline, difficulty);
+    return Mutation(id, "stability", [=](const Context& c, bool apply) mutable -> std::string {
+        Editable(c); const auto t = Find(timeline, difficulty);
         if (id.empty() || c.name != "EpMonolithTest" || amount < -10000 || amount > 10000)
             throw std::runtime_error("research gain requires the isolated EpMonolithTest character");
         if (!IsUnlocked(c, t.id, difficulty)) throw std::runtime_error("timeline difficulty is locked");
-        return Mutation(c, "stability", [&] {
+        if (!apply) return std::string();
+        {
             Root run(GetRun(c, t.id, difficulty, true));
             void* args[]{&amount}; Invoke(m_add, run.Get(), args);
             return "\"run\":" + RunJson(run.Get());
-        });
+        }
     });
 }
 #endif

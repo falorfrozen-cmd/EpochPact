@@ -72,7 +72,8 @@ the existing serialized command channel; the existing dispatcher remains.
 research dumps, capture trackers, fixture commands or research housekeeping.
 `native\build.bat player-core` builds only that core. Existing default/`core` builds
 retain research tooling for development. `py -3 tools/le_session.py install`
-installs the current build only while the game is closed.
+installs the verified `native\build\player` artifact only while the game is closed.
+Research/test installations require an explicit `--flavor research` / `--flavor test`.
 
 Verification on Last Epoch **1.5.2** used a freshly backed-up isolated EpCraftTest
 clone: a real 486-type catalog, four Fractured Crown copies with 0/2 LP across

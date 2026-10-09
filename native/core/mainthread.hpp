@@ -2,8 +2,8 @@
 //
 // Run() queues a job and waits for it. The queue is drained from a hook on
 // UnityEngine.EventSystems.EventSystem.Update, which runs every frame in the menus and in
-// the world. The hook is installed only while jobs are waiting and removed again after
-// two idle seconds, so an idle EpochPact adds nothing to a frame.
+// the world. The hook stays installed once enabled; an idle frame takes only an atomic
+// pending-count check before calling the original Update (no queue mutex).
 #pragma once
 
 #include <functional>
@@ -20,7 +20,7 @@ bool Run(std::function<void()> job, unsigned timeoutMs, std::string* why);
 bool RunSteps(std::function<bool()> step, unsigned timeoutMs, std::string* why);
 void KeepTicking();
 
-// Called by the command loop on each poll: removes the frame hook after two idle seconds.
+// Called by the command loop on each poll: retained for command-loop compatibility; does not remove the frame hook.
 void Housekeep();
 
 bool HookInstalled();

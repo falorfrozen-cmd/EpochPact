@@ -38,7 +38,8 @@ This file is the operating manual for an AI agent picking the project up (Gemini
 ## Build and test
 
 ```
-native\build.bat            # MSVC x64, static CRT; builds version.dll + EpochPact.Core.dll + tests
+native\build.bat player     # verified player artifact, loader and tests
+native\build.bat            # research artifact, loader and tests
 native\build\hook_test.exe  # must stay 48/48
 native\build\xp_test.exe    # must stay 24/24
 native\build\stat_key_test.exe # 40/40
@@ -46,6 +47,8 @@ native\build\density_test.exe  # 37/37
 native\build\monolith_test.exe # 22/22
 native\build\cof_test.exe      # 48/48
 native\build\loot_crafting_test.exe # 6260/6260
+native\build\review_test.exe # worker transaction, retention, IPC claim and cooldown regression
+native\build\mainthread_test.exe # actual queue/hook code against synthetic Unity Update
 py -3 -m unittest tools.test_progression_backend tools.test_monolith_backend tools.test_cof_backend tools.test_le_session -v # 27 recovery/IPC tests
 py -3 -m unittest tools.test_loot_crafting_backend tools.test_ui_bridge -v # IPC validation + catalog/UI integration
 ```
@@ -67,7 +70,8 @@ py -3 tools/le_session.py restore-saves <backup folder>
   Never hard-code offsets: verify them in the dump first.
 - The hook engine patches the first instructions with a 5-byte jump to a relay (within 2 GB),
   relocating RIP-relative operands and short jumps; anything it cannot decode is refused.
-- Command channel: `<game>\EpochPact\ipc\cmd.txt` in / `out.txt` out; the loop attaches to
+- Command channel: `<game>\EpochPact\ipc\cmd.txt` in / nonce-matched `reply.json` out.
+  Only nonce-less legacy commands append to `out.txt`. The loop attaches to
   IL2CPP only while commands run (an attached thread blocks the game's quit otherwise).
 - **The focus trap:** the game stops updating when its window is not focused, so
   `mainthread::Run` jobs (queued on `EventSystem.Update`) do not run. `research::KeepTicking`
@@ -102,7 +106,7 @@ py -3 tools/le_session.py restore-saves <backup folder>
 | `craftforge <id>` | one normal selected Forge action | verify loaded offline identity; serialize current items and snapshot before calling Forge; never retry a failed/lost response |
 | `mapreveal 0\|1` / `mapread` | reveal minimap/overlay / read render state | substitute fog shader input; original exploration texture unchanged; restore and remove both hooks at zero |
 | `speed <1-5>` | separate + (n-1)×100% Movespeed contribution | isolated stat_editor entry + recalculation |
-| `cooldown <1-10>` | charges/cooldowns tick n× faster | `PlayerChargeManager.OnUpdateTick` deltaTime × n; `ChargeManager.getCooldown` ÷ n |
+| `cooldown <1-10>` | local player charges/cooldowns tick n× faster | `PlayerChargeManager.OnUpdateTick` deltaTime × n; check Actor.chargeManager and ChargeManager.actor; global getCooldown stays unchanged |
 | `stat <name> [value]` | convenient aliases for isolated EpochPact modifiers | full-key editor; constructor + GC root + dontCollapse; virtual UpdateStatsInternal via runtime_invoke |
 | `sheetread` | reads the seven resistance TMP_Text labels | main thread, no UI input |
 | `sheetstats` / `sheetstat <row> [mode value]` | discovers all C rows and edits full identities, including minions, ailments and secondary modifiers | runtime metadata; inactive labels may be cached; no per-frame scan |

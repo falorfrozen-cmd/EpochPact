@@ -1,5 +1,10 @@
 # EpochPact live verification — 2026-10-09
 
+This report describes the earlier full-feature audit. The later
+[code-review repairs and scoped live checks](code-review-fixes-2026-10-09.md)
+supersede its installed DLL hash and evidence for the changed backup, cooldown
+and frame-dispatch paths. Unchanged feature coverage is retained below.
+
 The scoped checks pass on **Last Epoch 1.5.2 offline**. The installed DLL is the final player build. Gameplay drivers and research capture trackers are absent. This report distinguishes native live checks, guarded gameplay tests and retained earlier evidence; it does not certify every combat scenario or zero crashes.
 
 | Feature | Actual evidence | Result |
