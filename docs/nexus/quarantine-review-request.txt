@@ -71,6 +71,7 @@ Validation and preservation
 The exact uploaded artifacts are retained unchanged with sizes/SHA-256 and per-entry manifest verification. Gameplay, installation and shutdown results are separated in docs/nexus/verification.md. Full-game exits had both 0x00000000 and 0xC0000005 outcomes; that known issue is disclosed and is not presented as fixed. No private save or raw local diagnostic data is attached.
 
 Evidence available in the repository:
+https://github.com/falorfrozen-cmd/EpochPact/tree/round1-xp-multiplier/docs/nexus
 - docs/nexus/publication.json: uploaded file IDs, hashes and exact findings
 - docs/nexus/artifacts.json: archive metadata
 - docs/nexus/runtime-manifest.json: runtime entry names/sizes/hashes
