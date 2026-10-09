@@ -1,5 +1,13 @@
 # EpochPact 0.1.1-alpha.1 release verification — 2026-10-10
 
+## Nexus publication and security review
+
+The page was published at https://www.nexusmods.com/lastepoch/mods/44 and showed "Great job! Your mod is live." The Main/Primary manual ZIP and Optional app ZIP are both quarantined. Page scan status is "Some suspicious files"; both ZIP reports show 4/67 findings. The EXE report shows 6/71, loader 2/71 and native core 1/66. Exact vendor names/signatures, file IDs and report dates are recorded in [publication.json](publication.json).
+
+The affected archives are preserved unchanged. The cause is not established; no false-positive claim is made. A concrete [security review request](quarantine-review-request.txt) is prepared but has not been sent. Download controls are unavailable, so downloading from Nexus and comparing the downloaded ZIP hash remains blocked. Report-hash equality does not replace that test. No archived-version warning was observed after publication.
+
+The split manual UI/game-directory layout is not a tested mod-manager installation. The release instructions use manual installation or the optional app setup.
+
 ## Distribution
 
 Player EXE: 26,956,729 bytes; SHA-256 `75ef47123c8d5c94fb299a85d96a1524cab9c0e3a6cd0aea993dfe0b0585e68a`.
