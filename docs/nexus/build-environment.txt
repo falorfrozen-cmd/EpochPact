@@ -1,0 +1,29 @@
+EpochPact 0.1.1-alpha.1 uploaded build environment
+Windows x64; CPython 3.13.7 [MSC v.1944 64 bit (AMD64)]
+Native: MSVC x64, C++20, /O2 /MT /DNDEBUG, player flavor.
+Actual package build venv inventory (build dependencies are not all bundled player files):
+altgraph==0.17.5
+blinker==1.9.0
+bottle==0.13.4
+capstone==5.0.9
+cffi==2.1.1
+click==8.5.0
+clr_loader==0.3.1
+Flask==3.1.2
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.4
+packaging==26.3
+pefile==2024.8.26
+proxy_tools==0.1.0
+pycparser==3.11
+pyinstaller==6.20.0
+pyinstaller-hooks-contrib==2026.8
+pythonnet==3.1.0
+pywebview==6.2.1
+pywin32-ctypes==0.2.3
+setuptools==84.0.0
+typing_extensions==4.16.0
+Werkzeug==3.1.9
+The player package contains only the explicit runtime allowlist. No claim of
+bit-for-bit reproducibility across compiler/Python versions or timestamps.

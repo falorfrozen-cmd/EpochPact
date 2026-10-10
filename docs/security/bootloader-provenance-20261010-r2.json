@@ -1,0 +1,12 @@
+{
+  "scope": "Read-only executable PE section comparison against the previously audited official PyInstaller bootloader; not an audit of the appended application or a malware verdict",
+  "officialBootloaderSHA256": "1015b3391b8e45c2760d4f15f4089aa9cb043f8e56e4051e8234e0e3d2556c10",
+  "candidateSHA256": "64eee8abe749bfda5d03bab8de072aa39ea9ad5b35a78a3e9d98ab6cb7a8cf49",
+  "executableSections": [
+    {
+      "section": ".text",
+      "matchesOfficial": true,
+      "sha256": "b6384a19c8e7951b27929ff0febeef11246d385ee5f6e0f3931b7e985597b701"
+    }
+  ]
+}

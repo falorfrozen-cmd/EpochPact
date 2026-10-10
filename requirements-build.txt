@@ -1,0 +1,6 @@
+# Developer-only dependencies. Players receive the bundled executable.
+Flask==3.1.3
+pywebview==6.2.1
+pythonnet==3.1.0
+clr_loader==0.3.1
+PyInstaller==6.20.0

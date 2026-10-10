@@ -1,0 +1,29 @@
+{
+  "version": "0.1.1-alpha.1",
+  "archives": [
+    {
+      "file": "EpochPact-0.1.1-alpha.1-App-Setup.zip",
+      "bytes": 26781900,
+      "sha256": "22014a3ffe9eb43cbad13bb80d809a8e60c0102d570fdd3a1480b942d46e1def",
+      "entries": 9,
+      "version": "0.1.1-alpha.1",
+      "runtime": [
+        "EpochPact.exe"
+      ],
+      "verified": true
+    },
+    {
+      "file": "EpochPact-0.1.1-alpha.1-Manual.zip",
+      "bytes": 27319195,
+      "sha256": "06f08a5479cdca0e03e3c3fa020b0973112e2d78ba4331c70bb473de1b6d73d0",
+      "entries": 10,
+      "version": "0.1.1-alpha.1",
+      "runtime": [
+        "EpochPactUI/EpochPact.exe",
+        "CopyToGame/version.dll",
+        "CopyToGame/EpochPact/EpochPact.Core.dll"
+      ],
+      "verified": true
+    }
+  ]
+}

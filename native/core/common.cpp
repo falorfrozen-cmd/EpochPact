@@ -1,4 +1,5 @@
 #include "common.hpp"
+#include "file_safety.hpp"
 
 #include <cstdarg>
 #include <cstdio>
@@ -28,7 +29,9 @@ bool InitPaths() {
     size_t slash = dir.find_last_of(L'\\');
     if (slash == std::wstring::npos) return false;
     g_pluginDir = dir.substr(0, slash + 1) + L"EpochPact\\";
-    return EnsureDir(g_pluginDir + L"logs\\");
+    if (!EnsureDir(g_pluginDir + L"logs\\")) return false;
+    files::Rotate(g_pluginDir + L"logs\\core.log", 5 * 1024 * 1024);
+    return true;
 }
 
 void Log(const char* fmt, ...) {

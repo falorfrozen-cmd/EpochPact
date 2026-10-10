@@ -1,0 +1,117 @@
+{
+  "scope": "Shipping player DLL; isolated EpAllModsTest; no owner character loaded",
+  "coreSha256": "e514a3f24f151f4ada2434bf2a8e561caec57e14ebf277deae1f157b5db0c3ec",
+  "automated": {
+    "native": 6562,
+    "python": 103,
+    "javascript": 65,
+    "failures": 0
+  },
+  "operations": [
+    {
+      "command": "stability 6 1 normal 205",
+      "durationMs": 425.35,
+      "result": {
+        "ok": true,
+        "run": {
+          "timeline": 1,
+          "difficulty": 0,
+          "corruption": 0,
+          "stability": 205,
+          "maxStability": 500
+        },
+        "backup": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Last Epoch\\EpochPact\\backups\\progression\\22272-9101562"
+      }
+    },
+    {
+      "command": "stability 6 1 normal 204",
+      "durationMs": 419.56,
+      "result": {
+        "ok": true,
+        "run": {
+          "timeline": 1,
+          "difficulty": 0,
+          "corruption": 0,
+          "stability": 204,
+          "maxStability": 500
+        },
+        "backup": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Last Epoch\\EpochPact\\backups\\progression\\22272-9101953"
+      }
+    },
+    {
+      "command": "corruption 6 1 normal 0",
+      "durationMs": 365.59,
+      "result": {
+        "ok": true,
+        "run": {
+          "timeline": 1,
+          "difficulty": 0,
+          "corruption": 0,
+          "stability": 204,
+          "maxStability": 500
+        },
+        "backup": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Last Epoch\\EpochPact\\backups\\progression\\22272-9102390"
+      }
+    },
+    {
+      "command": "coffavor 6 1304",
+      "durationMs": 324.19,
+      "result": {
+        "ok": true,
+        "cof": {
+          "member": true,
+          "rank": 2,
+          "favor": 1304,
+          "reputation": 1706
+        },
+        "backup": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Last Epoch\\EpochPact\\backups\\progression\\22272-9102750"
+      }
+    },
+    {
+      "command": "coffavor 6 1303",
+      "durationMs": 342.97,
+      "result": {
+        "ok": true,
+        "cof": {
+          "member": true,
+          "rank": 2,
+          "favor": 1303,
+          "reputation": 1706
+        },
+        "backup": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Last Epoch\\EpochPact\\backups\\progression\\22272-9103078"
+      }
+    }
+  ],
+  "frameTelemetry": {
+    "ok": true,
+    "hookInstalls": 1,
+    "pendingJobs": 0,
+    "steps": 12,
+    "maxStepMs": 49.485,
+    "stepsOver16ms": 8,
+    "maxFrameGapMs": 0.0,
+    "meanFrameGapMs": 0.0
+  },
+  "frameAfterIdle": {
+    "ok": true,
+    "hookInstalls": 1,
+    "pendingJobs": 0,
+    "steps": 13,
+    "maxStepMs": 49.485,
+    "stepsOver16ms": 8,
+    "maxFrameGapMs": 0.0,
+    "meanFrameGapMs": 0.0
+  },
+  "cooldownOwnerTick": "20:12:06.584 cooldown: local player countdown dt 0.0133156 -> 0.0665778 (x5)",
+  "cooldownScope": "Actual local-owner tick ran at x5, then reset; no ability consumption/duration measured.",
+  "nonceOutUnchanged": true,
+  "originalSaveFiles": 54,
+  "restoredByteForByte": true,
+  "limitations": [
+    "No before/after FPS benchmark; maxStepMs measures dispatched work, not complete frame times.",
+    "No new exhaustive ability-duration or enemy-combat audit.",
+    "Old unmanaged backups preserved.",
+    "Initial loading timeouts and harness contract errors retained in research/live/review-20261009; not counted as passes.",
+    "The first overstrict CoF transaction was refused without applying Favor; the corrected faction/prophecy comparison passed."
+  ]
+}

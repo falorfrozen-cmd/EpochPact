@@ -1,0 +1,129 @@
+{
+  "version": "0.1.1-alpha.2-review.2",
+  "capturedUTC": "2026-10-10T00:42:49.264071+00:00",
+  "reports": [
+    {
+      "artifact": "EpochPact-0.1.1-alpha.2-review.2-Manual-Review.zip",
+      "bytes": 26504147,
+      "sha256": "eb9c6deccfbf8a3f5442ad6ee8f5ebd9cdd4385816c0c4717b19a885c7320874",
+      "url": "https://www.virustotal.com/gui/file/eb9c6deccfbf8a3f5442ad6ee8f5ebd9cdd4385816c0c4717b19a885c7320874",
+      "analysisTime": "2026-10-10T07:32:25+07:00",
+      "completed": true,
+      "freshUploadThisIteration": true,
+      "displayedDetectionRatio": "1/64",
+      "detectedBy": [
+        {
+          "vendor": "Elastic",
+          "verdict": "Malicious (moderate Confidence)"
+        }
+      ],
+      "observedStatusCounts": {
+        "malicious": 1,
+        "undetected": 63,
+        "timeout": 2,
+        "type-unsupported": 7,
+        "failure": 2
+      },
+      "evidence": "images/virustotal-r2-zip.png",
+      "archiveLimit": "VirusTotal warned that this archive exceeds 3 MB and contains multiple files. Its result does not establish that every embedded runtime file was scanned. Required EXE/core were submitted separately; loader bytes are unchanged and its prior report is retained."
+    },
+    {
+      "artifact": "EpochPact.exe",
+      "bytes": 370889,
+      "sha256": "64eee8abe749bfda5d03bab8de072aa39ea9ad5b35a78a3e9d98ab6cb7a8cf49",
+      "url": "https://www.virustotal.com/gui/file/64eee8abe749bfda5d03bab8de072aa39ea9ad5b35a78a3e9d98ab6cb7a8cf49",
+      "analysisTime": "2026-10-10T07:34:36+07:00",
+      "completed": true,
+      "freshUploadThisIteration": true,
+      "displayedDetectionRatio": "3/71",
+      "detectedBy": [
+        {
+          "vendor": "Elastic",
+          "verdict": "Malicious (moderate Confidence)"
+        },
+        {
+          "vendor": "Skyhigh (SWG)",
+          "verdict": "BehavesLike.Win64.Dropper.fh"
+        },
+        {
+          "vendor": "Zillya",
+          "verdict": "Backdoor.XWorm.Win32.3294"
+        }
+      ],
+      "observedStatusCounts": {
+        "malicious": 3,
+        "undetected": 68,
+        "type-unsupported": 4
+      },
+      "evidence": "images/virustotal-r2-exe.png",
+      "microsoft": "Undetected in this completed report; review.1 had Trojan:Win32/Wacatac.B!ml. The changed label distribution does not establish safety or a cause."
+    },
+    {
+      "artifact": "EpochPact.Core.dll",
+      "bytes": 1164288,
+      "sha256": "e391eb9bde4d4174fa3b5411623c3d22a94061fccc3aeec0b64b629c3895ccc5",
+      "url": "https://www.virustotal.com/gui/file/e391eb9bde4d4174fa3b5411623c3d22a94061fccc3aeec0b64b629c3895ccc5",
+      "analysisTime": "2026-10-10T07:36:20+07:00",
+      "completed": true,
+      "freshUploadThisIteration": true,
+      "displayedDetectionRatio": "1/68",
+      "detectedBy": [
+        {
+          "vendor": "Cynet",
+          "verdict": "Malicious (score: 100)"
+        }
+      ],
+      "observedStatusCounts": {
+        "malicious": 1,
+        "undetected": 67,
+        "timeout": 1,
+        "type-unsupported": 4,
+        "failure": 2
+      },
+      "evidence": "images/virustotal-r2-core.png",
+      "timeout": [
+        "Google"
+      ],
+      "failure": [
+        "Skyhigh (SWG)",
+        "Zillya"
+      ]
+    },
+    {
+      "artifact": "version.dll",
+      "bytes": 108544,
+      "sha256": "bee68619c1869f7cb2b7c5e0cde123137e58c08fc8ec4f5fca237fb1c107370d",
+      "url": "https://www.virustotal.com/gui/file/bee68619c1869f7cb2b7c5e0cde123137e58c08fc8ec4f5fca237fb1c107370d",
+      "analysisTime": "2026-10-10T07:03:00+07:00",
+      "completed": true,
+      "displayedDetectionRatio": "2/71",
+      "detectedBy": [
+        {
+          "vendor": "Cynet",
+          "verdict": "Malicious (score: 100)"
+        },
+        {
+          "vendor": "Symantec",
+          "verdict": "ML.Attribute.HighConfidence"
+        }
+      ],
+      "observedStatusCounts": {
+        "malicious": 2,
+        "undetected": 69,
+        "type-unsupported": 4
+      },
+      "timeout": [],
+      "failure": [],
+      "unsupported": [
+        "Avast-Mobile",
+        "BitDefenderFalx",
+        "Symantec Mobile Insight",
+        "Trustlook"
+      ],
+      "evidence": "images/virustotal-loader.png",
+      "freshUploadThisIteration": false,
+      "scope": "Unchanged byte-identical loader; this is the prior completed report, not a fresh reanalysis."
+    }
+  ],
+  "conclusion": "Detections remain unresolved. No zero-detection or false-positive conclusion. Not approved for replacing quarantined player files."
+}

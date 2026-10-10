@@ -1,0 +1,33 @@
+// VERSIONINFO for EpochPact.Core.dll.
+#include <winres.h>
+#include "..\version_info.h"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION EP_VERSION_NUM
+ PRODUCTVERSION EP_VERSION_NUM
+ FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+ FILEFLAGS VS_FF_PRERELEASE
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_DLL
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName", EP_COMPANY
+            VALUE "FileDescription", "EpochPact core: offline Last Epoch mod features"
+            VALUE "FileVersion", EP_VERSION_STR
+            VALUE "InternalName", "EpochPact.Core"
+            VALUE "OriginalFilename", "EpochPact.Core.dll"
+            VALUE "ProductName", EP_PRODUCT
+            VALUE "ProductVersion", EP_VERSION_STR
+            VALUE "LegalCopyright", EP_COPYRIGHT
+            VALUE "Comments", EP_COMMENTS
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END

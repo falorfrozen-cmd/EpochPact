@@ -1,0 +1,158 @@
+{
+  "version": "0.1.1-alpha.2-review.2",
+  "status": "Local review candidate; detections unresolved; not a player release",
+  "archive": {
+    "path": "dist/security-review/feedback-r2-packages/EpochPact-0.1.1-alpha.2-review.2-Manual-Review.zip",
+    "bytes": 26504147,
+    "sha256": "eb9c6deccfbf8a3f5442ad6ee8f5ebd9cdd4385816c0c4717b19a885c7320874",
+    "entries": 840,
+    "runtimeFiles": 771,
+    "verified": true
+  },
+  "binaries": [
+    {
+      "path": "dist/security-review/feedback-r2/EpochPact/EpochPact.exe",
+      "bytes": 370889,
+      "sha256": "64eee8abe749bfda5d03bab8de072aa39ea9ad5b35a78a3e9d98ab6cb7a8cf49"
+    },
+    {
+      "path": "dist/security-review/feedback-r2/EpochPact/_internal/native/build/player/EpochPact.Core.dll",
+      "bytes": 1164288,
+      "sha256": "e391eb9bde4d4174fa3b5411623c3d22a94061fccc3aeec0b64b629c3895ccc5"
+    },
+    {
+      "path": "dist/security-review/feedback-r2/EpochPact/_internal/native/build/version.dll",
+      "bytes": 108544,
+      "sha256": "bee68619c1869f7cb2b7c5e0cde123137e58c08fc8ec4f5fca237fb1c107370d"
+    }
+  ],
+  "buildInputs": {
+    "packages": 23,
+    "comparedInstalledFiles": 1978,
+    "mismatches": 0,
+    "scope": "Official artifact identity and comparison with installed package files; not a malware verdict.",
+    "report": "fresh-environment-20261010.json"
+  },
+  "pythonTests": {
+    "passed": 157,
+    "scope": "Final source; fixtures/mocks, not live gameplay"
+  },
+  "javascriptTests": {
+    "passed": 74,
+    "scope": "UI models and readiness/launcher fixtures, not live gameplay"
+  },
+  "nativeTests": {
+    "passedByExecutable": {
+      "hook": 50,
+      "xp": 24,
+      "items": 11,
+      "mainthread": 13,
+      "lifecycle": 6,
+      "stat_key": 40,
+      "density": 37,
+      "monolith": 22,
+      "cof": 48,
+      "loot_crafting": 6260,
+      "review": 73
+    },
+    "scope": "Compiled real native implementation in controlled fixtures, not live Last Epoch"
+  },
+  "compiledApplication": {
+    "file": "dist/security-review/feedback-r2/EpochPact/EpochPact.exe",
+    "layout": "onedir",
+    "sha256": "64eee8abe749bfda5d03bab8de072aa39ea9ad5b35a78a3e9d98ab6cb7a8cf49",
+    "bytes": 370889,
+    "nativePlayerSHA256": "e391eb9bde4d4174fa3b5411623c3d22a94061fccc3aeec0b64b629c3895ccc5",
+    "checks": [
+      "folder bundle inventory matches every file hash; no nested archives or build tools",
+      "bundled Python runtime",
+      "verified player DLL only",
+      "no historical character snapshots",
+      "current launcher source in EXE",
+      "compiled installer helper installs exact DLLs in custom Unicode folder without Python",
+      "compiled installer refuses another mod loader without changes",
+      "compiled installer refuses an unsupported game build before writing files",
+      "first launch performs no selection, installation or gameplay mutation",
+      "compiled interface serves scripts, font and both theme assets",
+      "installation API rejects missing session token",
+      "compiled API rejects foreign Host and Origin even with a valid session token",
+      "compiled HTTP selection and explicit installation succeed through the serial job queue",
+      "fixture game is never executed; no game IPC or save backups created",
+      "fresh EXE process remembers selected path and issues a new session token",
+      "compiled EXE rejects a legacy shared port and serves Game setup from its own backend",
+      "compiled startup logs contain no exception"
+    ],
+    "jobDurationsMs": [
+      99.8,
+      30.9,
+      80.0,
+      228.6
+    ],
+    "scope": "Final compiled EXE, isolated installer fixtures and HTTP interface; no interactive picker test, UAC approval or live gameplay test."
+  },
+  "defender": {
+    "scope": "Official custom scans of the exact review.2 build folder and ZIP; exit 0, no threats. Remediation was not disabled. Real-time protection remained enabled; no exclusions added.",
+    "AntivirusEnabled": true,
+    "RealTimeProtectionEnabled": true,
+    "AntivirusSignatureVersion": "1.459.645.0",
+    "folderExitCode": 0,
+    "zipExitCode": 0
+  },
+  "freshMultiEngineScan": {
+    "report": "virustotal-20261010-r2.json",
+    "freshArtifacts": 3,
+    "unchangedPriorArtifacts": 1
+  },
+  "bootloaderProvenance": {
+    "report": "bootloader-provenance-20261010-r2.json",
+    "scope": "Executable .text section identity only; not appended application audit"
+  },
+  "preservedOriginalsAndReview1": [
+    {
+      "path": "dist/nexus-final/EpochPact-0.1.1-alpha.1-Manual.zip",
+      "bytes": 27319195,
+      "sha256": "06f08a5479cdca0e03e3c3fa020b0973112e2d78ba4331c70bb473de1b6d73d0"
+    },
+    {
+      "path": "dist/nexus-final/EpochPact-0.1.1-alpha.1-App-Setup.zip",
+      "bytes": 26781900,
+      "sha256": "22014a3ffe9eb43cbad13bb80d809a8e60c0102d570fdd3a1480b942d46e1def"
+    },
+    {
+      "path": "dist/EpochPact.exe",
+      "bytes": 26956729,
+      "sha256": "75ef47123c8d5c94fb299a85d96a1524cab9c0e3a6cd0aea993dfe0b0585e68a"
+    },
+    {
+      "path": "native/build/version.dll",
+      "bytes": 108544,
+      "sha256": "cf9b4b319e63d32dbe22c16d52b1970fdfdaad3a0188e1d53add5e6ebc051a6c"
+    },
+    {
+      "path": "native/build/player/EpochPact.Core.dll",
+      "bytes": 1163264,
+      "sha256": "6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f"
+    },
+    {
+      "path": "dist/security-review/packages/EpochPact-0.1.1-alpha.2-review.1-Manual-Review.zip",
+      "bytes": 26501914,
+      "sha256": "50faf9151bc1c95f80efb4e85f3fcb2a1bd3dad2af10a00b3e924a241907416c"
+    },
+    {
+      "path": "dist/security-review/onedir-final/EpochPact/EpochPact.exe",
+      "bytes": 370889,
+      "sha256": "068bc76120b2a8d17c8d4f87a51f3ebaf6e2696829e80ec2d4492498c6590435"
+    }
+  ],
+  "liveGameplayTest": null,
+  "interactiveUACTest": null,
+  "gameOrSaveChangesThisIteration": false,
+  "unresolved": [
+    "EXE Elastic/Skyhigh/Zillya findings; ZIP Elastic; core Cynet; unchanged loader Cynet/Symantec",
+    "Nexus quarantine, original findings and download/hash check",
+    "Previously observed full-game exit 0xC0000005",
+    "System32 LoadLibrary in proxy DllMain",
+    "Actual reported E: drive access-denied cause and live item-hover test",
+    "Unimplemented feature requests tracked in docs/feedback-20261010.md"
+  ]
+}

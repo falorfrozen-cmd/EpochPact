@@ -1,0 +1,120 @@
+- complementary:
+  - link "EpochPact LAST EPOCH · OFFLINE TOOLS":
+    - /url: "#overview"
+    - strong: EpochPact
+    - generic: LAST EPOCH · OFFLINE TOOLS
+  - navigation "Main navigation":
+    - link "Overview":
+      - /url: "#overview"
+      - generic: ◈
+      - text: Overview
+    - link "General settings":
+      - /url: "#general"
+      - generic: ⚙
+      - text: General settings
+    - link "Character":
+      - /url: "#stats"
+      - generic: ♜
+      - text: Character
+    - link "Unique Atlas":
+      - /url: "#atlas"
+      - generic: ✦
+      - text: Unique Atlas
+    - link "Stash Assistant":
+      - /url: "#stash"
+      - generic: ▤
+      - text: Stash Assistant
+    - link "Campaign":
+      - /url: "#campaign"
+      - generic: ⌘
+      - text: Campaign
+    - link "Monolith":
+      - /url: "#monolith"
+      - generic: ◇
+      - text: Monolith
+    - link "Circle of Fortune":
+      - /url: "#cof"
+      - generic: ✧
+      - text: Circle of Fortune
+    - link "Factions":
+      - /url: "#factions"
+      - generic: ♧
+      - text: Factions
+    - link "Settings":
+      - /url: "#settings"
+      - generic: ☷
+      - text: Settings
+  - text: Rewrite the past.
+  - text: Shape your journey.
+  - generic: Created by Falor
+- banner:
+  - generic: EpochPact / Monolith
+  - status: ○ Game disconnected
+  - button "↻ Refresh"
+  - generic: ⌕
+  - textbox "Search all settings":
+    - /placeholder: Find a setting…
+- main:
+  - text: CHRONOFORGE
+  - heading "Reshape your destiny." [level=1]
+  - paragraph: Timelines, Normal / Empowered progression and Stability.
+  - generic: Refresh live data. Historical character snapshots are not shown as current values.
+  - heading "Monolith management" [level=2]
+  - button "Refresh live" [disabled]
+  - paragraph: Opening a timeline or showing an Echo travels to Traveler's Rest first. Refreshing data does not travel or start an Echo.
+  - text: Timeline
+  - combobox "Timeline"
+  - text: Difficulty
+  - combobox "Difficulty":
+    - option "Normal" [selected]
+    - option "Empowered"
+  - paragraph: Refresh the live timeline catalog.
+  - article:
+    - heading "Unlock Normal + Empowered timelines" [level=3]
+    - generic: Game save
+    - paragraph: Unlocks every Normal and Empowered timeline. Already unlocked entries are skipped.
+    - button "Apply action" [disabled]
+  - article:
+    - heading "Select timeline / difficulty" [level=3]
+    - generic: Game save
+    - paragraph: Selects the timeline and difficulty through the normal game panel. This explicit action travels to Traveler's Rest through its unlocked waypoint first. It does not start an Echo.
+    - button "Apply action" [disabled]
+  - article:
+    - heading "Corruption" [level=3]
+    - generic: Game save
+    - paragraph: Sets the selected timeline and difficulty's absolute Corruption value. Limits are read from the current game assets.
+    - text: Corruption · ?–?
+    - spinbutton "Corruption · ?–?"
+    - button "Apply action" [disabled]
+  - article:
+    - heading "Stability" [level=3]
+    - generic: Game save
+    - paragraph: Sets the selected timeline and difficulty's absolute Stability value. The upper limit is read from the current game assets.
+    - text: Stability · 0–?
+    - spinbutton "Stability · 0–?"
+    - button "Apply action" [disabled]
+  - heading "Stability gains" [level=2]
+  - generic: Use Apply changes below
+  - article:
+    - generic: Stability gain multiplier
+    - generic: Session
+    - paragraph: Multiplies positive natural Stability gains. Losses and manually set absolute values are unchanged.
+    - slider "Stability gain multiplier slider": "1"
+    - button "Stability gain multiplier decrease": −
+    - spinbutton "Stability gain multiplier value": "1"
+    - button "Stability gain multiplier increase": +
+    - generic: ×
+    - button "Default"
+    - generic: "1–100× · Default: 1"
+  - text: REWARD FINDER
+  - heading "Monolith Navigator" [level=2]
+  - button "↻ Read Echo web" [disabled]
+  - paragraph: Search the selected timeline’s existing web. “Show in game” focuses the normal map; it never starts an Echo.
+  - generic: Read the Echo web to search rewards. Read requests do not generate new nodes.
+- contentinfo:
+  - generic: ✓
+  - text: Ready
+  - generic: Save actions use their own buttons.
+  - button "Reconcile actor stats" [disabled]
+  - button "Discard draft"
+  - button "Apply changes" [disabled]: Apply changes ◇

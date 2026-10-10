@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="bone" x1="20" y1="15" x2="45" y2="53" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e9d5a4"/><stop offset=".5" stop-color="#aa8f62"/><stop offset="1" stop-color="#655337"/>
+    </linearGradient>
+    <linearGradient id="iron" x1="10" y1="12" x2="48" y2="38" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8c9581"/><stop offset="1" stop-color="#36443c"/>
+    </linearGradient>
+    <path id="skull" d="M17 32c0-10 6-17 15-17s15 7 15 17c0 6-3 10-7 12v9H24v-9c-4-2-7-6-7-12Z"/>
+  </defs>
+  <g stroke="#b59a63" stroke-width="1.4" stroke-linejoin="round">
+    <g transform="translate(-7 -3) scale(.78)" opacity=".75">
+      <use href="#skull" fill="url(#iron)"/>
+      <path d="m23 32 6 1-2 6-5-2Zm13 1 6-1 1 5-5 2Z" fill="#0a1511" stroke="none"/>
+    </g>
+    <g transform="translate(21 -3) scale(.78)" opacity=".75">
+      <use href="#skull" fill="url(#iron)"/>
+      <path d="m23 32 6 1-2 6-5-2Zm13 1 6-1 1 5-5 2Z" fill="#0a1511" stroke="none"/>
+    </g>
+    <use href="#skull" fill="url(#bone)" stroke="#e5cb8f"/>
+    <path d="m23 30 7 2-2 7-6-2Zm11 2 7-2 1 7-6 2Z" fill="#0b1611" stroke="#65583e"/>
+    <path d="m32 37-3 6h6l-3-6Z" fill="#302d23" stroke="none"/>
+    <path d="M25 47h14m-10 0v6m6-6v6M30 16l-2 5 5 3-2 4" stroke="#6c6044"/>
+    <path d="m24 32 4 1m8 0 4-1" stroke="#9ce7bd" stroke-width="1.8"/>
+  </g>
+</svg>

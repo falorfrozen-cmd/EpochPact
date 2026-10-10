@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-08",
+  "result": "passed",
+  "changes": [
+    "Anchor the shell to the viewport instead of a fixed viewport-height size",
+    "Keep the Void Atlas crystal centered in its narrow artwork pane",
+    "Start both desktop launch paths maximized to fit the monitor work area under Windows DPI scaling"
+  ],
+  "browser": {
+    "engine": "Headless Edge",
+    "mode": "preview; no native IPC or save access",
+    "deviceScaleFactor": 1.5,
+    "themes": ["void-atlas", "chronoforge"],
+    "viewports": ["1800x1040", "1500x900", "1280x720", "1000x700", "860x650", "720x900"],
+    "casesPassed": 12,
+    "checks": [
+      "Shell stays within the viewport",
+      "Scrollable content does not overlap the footer",
+      "All three footer buttons stay within the viewport",
+      "Last navigation tab remains reachable",
+      "Long settings content can scroll",
+      "No JavaScript errors"
+    ],
+    "evidence": ["ui-evidence/void-atlas-layout-fixed.png", "ui-evidence/void-atlas-compact-fixed.png"],
+    "transcript": "research/live/void-layout-check.json"
+  },
+  "python": {"suite": "tools.test_ui_bridge", "tests": 20, "passed": 20},
+  "desktop": "Reopen the existing desktop UI to load the new CSS and maximized startup setting."
+}

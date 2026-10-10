@@ -22,6 +22,8 @@ using Type = void;
     X(domain_get, Domain*, ())                                                            \
     X(domain_get_assemblies, const Assembly**, (const Domain*, size_t*))                  \
     X(thread_attach, void*, (Domain*))                                                    \
+    X(thread_current, void*, ())                                                          \
+    X(thread_detach, void, (void*))                                                       \
     X(assembly_get_image, const Image*, (const Assembly*))                                \
     X(image_get_name, const char*, (const Image*))                                        \
     X(image_get_class_count, size_t, (const Image*))                                      \
@@ -30,6 +32,8 @@ using Type = void;
     X(class_get_namespace, const char*, (const Class*))                                   \
     X(class_get_parent, const Class*, (const Class*))                                     \
     X(class_get_declaring_type, const Class*, (const Class*))                             \
+    X(class_get_nested_types, const Class*, (const Class*, void**))                       \
+    X(class_get_type, const Type*, (const Class*))                                       \
     X(class_is_enum, bool, (const Class*))                                                \
     X(class_is_valuetype, bool, (const Class*))                                           \
     X(class_is_interface, bool, (const Class*))                                           \
@@ -49,6 +53,7 @@ using Type = void;
     X(method_get_flags, uint32_t, (const Method*, uint32_t*))                             \
     X(type_get_name, char*, (const Type*))                                                \
     X(type_get_type, int, (const Type*))                                                  \
+    X(type_get_object, void*, (const Type*))                                              \
     X(field_get_name, const char*, (const Field*))                                        \
     X(field_get_type, const Type*, (const Field*))                                        \
     X(field_get_offset, size_t, (const Field*))                                           \
@@ -57,6 +62,16 @@ using Type = void;
     X(property_get_name, const char*, (const Property*))                                  \
     X(property_get_get_method, const Method*, (const Property*))                          \
     X(property_get_set_method, const Method*, (const Property*))                          \
+    X(class_get_field_from_name, const Field*, (const Class*, const char*))                 \
+    X(object_new, void*, (const Class*))                                                    \
+    X(object_get_class, const Class*, (void*))                                              \
+    X(object_get_virtual_method, const Method*, (void*, const Method*))                    \
+    X(object_unbox, void*, (void*))                                                        \
+    X(runtime_invoke, void*, (const Method*, void*, void**, void**))                        \
+    X(gchandle_new, uintptr_t, (void*, bool))                                             \
+    X(gchandle_get_target, void*, (uintptr_t))                                            \
+    X(gchandle_free, void, (uintptr_t))                                                   \
+    X(string_new, void*, (const char*))                                                 \
     X(free, void, (void*))
 
 struct Api {

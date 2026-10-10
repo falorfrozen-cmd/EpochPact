@@ -1,0 +1,55 @@
+{
+  "version": "0.1.1-alpha.1",
+  "game": "Last Epoch",
+  "author": "Falor",
+  "github": "https://github.com/falorfrozen-cmd/EpochPact",
+  "discord": "https://discord.gg/q6aexZZSAf",
+  "kind": "Manual",
+  "runtime": [
+    "EpochPactUI/EpochPact.exe",
+    "CopyToGame/version.dll",
+    "CopyToGame/EpochPact/EpochPact.Core.dll"
+  ],
+  "files": [
+    {
+      "path": "CopyToGame/EpochPact/EpochPact.Core.dll",
+      "bytes": 1163264,
+      "sha256": "6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f"
+    },
+    {
+      "path": "CopyToGame/version.dll",
+      "bytes": 108544,
+      "sha256": "cf9b4b319e63d32dbe22c16d52b1970fdfdaad3a0188e1d53add5e6ebc051a6c"
+    },
+    {
+      "path": "DISTRIBUTION-PERMISSIONS.txt",
+      "bytes": 810,
+      "sha256": "f59f84270eb9fe93e85c107617f4b60f9515b06ae85dd58a53ed4307db56f2bd"
+    },
+    {
+      "path": "EpochPactUI/EpochPact.exe",
+      "bytes": 26956729,
+      "sha256": "75ef47123c8d5c94fb299a85d96a1524cab9c0e3a6cd0aea993dfe0b0585e68a"
+    },
+    {
+      "path": "INTER-OFL.txt",
+      "bytes": 4377,
+      "sha256": "5b9321a4298cfeb6b34354164a1c3afc3db114569984c502b9b35d988fd58c57"
+    },
+    {
+      "path": "README-MANUAL.md",
+      "bytes": 7109,
+      "sha256": "322584dbf12a8f94d51e5db80246193c0f79754635474769fae7ea9ed97dcd96"
+    },
+    {
+      "path": "THIRD-PARTY-NOTICES.txt",
+      "bytes": 71420,
+      "sha256": "7382542fb5aa3a7cd214b0e0536d3eab5093561ef282642ea68facbb4e6a405e"
+    },
+    {
+      "path": "supported-game-builds.json",
+      "bytes": 291,
+      "sha256": "b7fd7d3ffa705c0a40a8de182e2d9cfe939670abe914ead1e687326cb01da232"
+    }
+  ]
+}

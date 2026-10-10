@@ -1,0 +1,45 @@
+{
+  "version": "0.1.1-alpha.2-review.3",
+  "status": "Partial: loader completed; other fresh submissions require CAPTCHA approval",
+  "reports": [
+    {
+      "artifact": "version.dll",
+      "bytes": 111104,
+      "sha256": "3e695920df290cb7b6d146db728cdbdb3def7f359ffd7c2032e0f219b109e181",
+      "url": "https://www.virustotal.com/gui/file/3e695920df290cb7b6d146db728cdbdb3def7f359ffd7c2032e0f219b109e181",
+      "analysisTime": "2026-10-10T08:53:41+07:00",
+      "completed": true,
+      "freshUploadThisIteration": true,
+      "displayedDetectionRatio": "2/71",
+      "detectedBy": [
+        {"vendor": "Cynet", "verdict": "Malicious (score: 100)"},
+        {"vendor": "Symantec", "verdict": "ML.Attribute.HighConfidence"}
+      ],
+      "observedStatusCounts": {"malicious": 2, "undetected": 69, "type-unsupported": 4},
+      "evidence": "images/virustotal-r3-loader.png"
+    },
+    {
+      "artifact": "EpochPact.Core.dll",
+      "bytes": 1167872,
+      "sha256": "7b00bf42ac09ef003eb3a7c67e7b297e39868789b46b2bf7fc77296ab175c13e",
+      "completed": false,
+      "status": "Fresh upload requested; CAPTCHA blocked completion. No current verdict recorded."
+    },
+    {
+      "artifact": "EpochPact.exe",
+      "bytes": 370804,
+      "sha256": "5d0c15eb6d70d82a7cd4f4cfd0bfae3f43c28a84e3f04a2a60136f32cc8f1106",
+      "completed": false,
+      "status": "Fresh upload requested; CAPTCHA blocked completion. No current verdict recorded."
+    },
+    {
+      "artifact": "EpochPact-0.1.1-alpha.2-review.3-Manual-Review.zip",
+      "bytes": 26512220,
+      "sha256": "f0ad5d29217d47d57a0bc35d97867550c19d5d90229c079682b77188aba4f30e",
+      "completed": false,
+      "status": "Fresh upload requested; CAPTCHA blocked completion. No current verdict recorded.",
+      "archiveLimit": "VirusTotal warned that this archive exceeds 3 MB and contains multiple files; even a completed ZIP report would not establish a scan of every embedded runtime file."
+    }
+  ],
+  "interpretation": "No zero-detection or false-positive conclusion. Prior review.2 results are historical reports of different bytes."
+}

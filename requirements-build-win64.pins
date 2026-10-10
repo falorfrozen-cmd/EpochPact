@@ -1,0 +1,26 @@
+# Reviewed build pins: Python 3.13 / Windows x64.
+# Flask 3.1.3 and wheel 0.46.2 fix published security advisories.
+# proxy_tools has an official source distribution only. wheel is build-only.
+altgraph==0.17.5
+blinker==1.9.0
+bottle==0.13.4
+cffi==2.1.1
+click==8.5.0
+clr_loader==0.3.1
+Flask==3.1.3
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.4
+packaging==26.3
+pefile==2024.8.26
+proxy_tools==0.1.0
+pycparser==3.11
+PyInstaller==6.20.0
+pyinstaller-hooks-contrib==2026.8
+pythonnet==3.1.0
+pywebview==6.2.1
+pywin32-ctypes==0.2.3
+setuptools==84.0.0
+typing_extensions==4.16.0
+Werkzeug==3.1.9
+wheel==0.46.2

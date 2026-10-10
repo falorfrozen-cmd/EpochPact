@@ -1,0 +1,106 @@
+{
+  "verifiedAt": "2026-10-08",
+  "gameVersion": "1.5.2",
+  "features": [
+    "Unique Atlas",
+    "Stash Assistant",
+    "Monolith Navigator"
+  ],
+  "catalogControls": 72,
+  "pythonTests": {
+    "passed": 65,
+    "command": "py -3 -m unittest tools.test_collection_backend tools.test_progression_backend tools.test_monolith_backend tools.test_cof_backend tools.test_le_session tools.test_loot_crafting_backend tools.test_ui_bridge"
+  },
+  "statPresentationTests": {
+    "passed": 7
+  },
+  "nativeRegressionAssertions": {
+    "passed": 6472
+  },
+  "liveResearch": {
+    "passed": 14,
+    "checks": [
+      "real stash insertion accounted for",
+      "LP0/LP2 read from real stash containers",
+      "atlas counts inventory + stash copies and best LP",
+      "runtime Unique/Set catalog and owned/missing",
+      "real T7 tier and roll read correctly",
+      "unique modifiers use actual names, values and percentage conversion",
+      "items staged in Forge remain owned",
+      "reading an unopened web does not create it",
+      "unopened timeline still has no run after read",
+      "existing Echo web yields actual rewards and coordinates",
+      "normal map selection readback verifies focus",
+      "normal map selection readback verifies focus",
+      "focus neither starts nor completes Echoes",
+      "navigator does not change items or their locations"
+    ],
+    "catalogTypes": 486,
+    "equipment": 33,
+    "ownedCrownCopies": 4,
+    "bestLP": 2,
+    "echoes": 7
+  },
+  "livePlayer": {
+    "ok": true,
+    "gameVersion": "1.5.2",
+    "profile": "player",
+    "coreSHA256": "f2ed2f749fca34bb8a411460393481a1e3a9490197cead93e7c84cf58d22d972",
+    "checks": [
+      "actual player build has no research trackers",
+      "research fixture command is not shipped",
+      "player DLL reads real catalog, all four copies and usable LP",
+      "player DLL reads real stash item locations",
+      "player DLL reads existing rewards and Echo graph",
+      "player DLL verifies normal in-game selection",
+      "player focus does not advance Echoes or change items",
+      "player read leaves an unopened timeline unchanged",
+      "installed DLL equals tested player build"
+    ],
+    "catalogTypes": 486,
+    "equipment": 33,
+    "echoes": 7,
+    "focus": {
+      "ok": true,
+      "selectionVerified": true,
+      "focused": 2,
+      "timeline": 1
+    }
+  },
+  "browser": {
+    "actualGameConnection": true,
+    "endpoint": "http://127.0.0.1:17884",
+    "checks": [
+      "Atlas ownership and four-copy comparison from live game data",
+      "Stash duplicate groups and actual locations",
+      "Wishlist and local protection persist after reload (same browser origin)",
+      "Gold search yields two actual reward matches out of seven nodes",
+      "Show in game returns success through HTTP/native selection readback in player build",
+      "Reading an unopened timeline displays no web, without generating one",
+      "Both themes at 860x650 have no horizontal content overflow",
+      "Chronoforge at 720x600: last comparison card reachable; content scrolls",
+      "No browser console errors in tested flows"
+    ],
+    "screenshots": [
+      "ui-evidence/collection-player-final.png",
+      "ui-evidence/collection-player-echo-focus.png",
+      "ui-evidence/collection-navigator-void.png",
+      "ui-evidence/collection-small-void.png",
+      "ui-evidence/collection-small-chronoforge.png",
+      "ui-evidence/collection-720px.png"
+    ]
+  },
+  "saveRestoration": {
+    "restoredFiles": 54,
+    "archivedTestFiles": 3,
+    "originalBytesVerified": true
+  },
+  "scope": [
+    "Fresh isolated EpCraftTest clone; owner's character not advanced",
+    "Loaded stash/character only; separate stashes and other characters not scanned",
+    "Small live collection fitted one page; large-stash performance not benchmarked",
+    "Multi-page snapshot consistency separately covered by deterministic backend tests",
+    "Protection is a local reminder, not a game inventory lock",
+    "Existing Echo web only; focus neither starts nor completes an Echo"
+  ]
+}

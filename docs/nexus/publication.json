@@ -1,0 +1,211 @@
+{
+  "version": "0.1.1-alpha.1",
+  "mod": "EpochPact - Offline Tools",
+  "author": "Falor",
+  "game": "Last Epoch",
+  "category": "Miscellaneous",
+  "modUrl": "https://www.nexusmods.com/lastepoch/mods/44",
+  "sourceCommit": "e62d998df4fd2ee797698c923cc0309e2099c966",
+  "sourceUrl": "https://github.com/falorfrozen-cmd/EpochPact/tree/e62d998df4fd2ee797698c923cc0309e2099c966",
+  "page": {
+    "published": true,
+    "confirmation": "Great job! Your mod is live.",
+    "displayedPublicationDate": "10 October 2026, 1:06AM",
+    "scanStatus": "Some suspicious files",
+    "language": "English",
+    "aiTags": [
+      "AI-Generated Content",
+      "AI Media"
+    ],
+    "actualUiImages": 5
+  },
+  "files": [
+    {
+      "filename": "EpochPact-0.1.1-alpha.1-Manual.zip",
+      "displayName": "EpochPact - Manual Player Package",
+      "category": "Main",
+      "primary": true,
+      "legacyFileId": 251,
+      "apiFileId": 8117889,
+      "uniqueId": "zBmCSZbb4",
+      "bytes": 27319195,
+      "sha256": "06f08a5479cdca0e03e3c3fa020b0973112e2d78ba4331c70bb473de1b6d73d0",
+      "scanStatus": "quarantined",
+      "localZipVerified": true,
+      "virusTotal": {
+        "url": "https://www.virustotal.com/gui/file/06f08a5479cdca0e03e3c3fa020b0973112e2d78ba4331c70bb473de1b6d73d0",
+        "flagged": 4,
+        "total": 67,
+        "lastAnalysis": "2026-10-10T01:00:07+07:00",
+        "detections": [
+          {
+            "engine": "Bkav Pro",
+            "signature": "W32.Malware.2138C4"
+          },
+          {
+            "engine": "Elastic",
+            "signature": "Malicious (moderate Confidence)"
+          },
+          {
+            "engine": "SentinelOne (Static ML)",
+            "signature": "Static AI - Suspicious Archive"
+          },
+          {
+            "engine": "Zillya",
+            "signature": "Backdoor.XWorm.Win32.3294"
+          }
+        ]
+      }
+    },
+    {
+      "filename": "EpochPact-0.1.1-alpha.1-App-Setup.zip",
+      "displayName": "EpochPact - Optional App Setup",
+      "category": "Optional",
+      "primary": false,
+      "legacyFileId": 252,
+      "apiFileId": 8117901,
+      "uniqueId": "cjxSIMZZJ",
+      "bytes": 26781900,
+      "sha256": "22014a3ffe9eb43cbad13bb80d809a8e60c0102d570fdd3a1480b942d46e1def",
+      "scanStatus": "quarantined",
+      "localZipVerified": true,
+      "virusTotal": {
+        "url": "https://www.virustotal.com/gui/file/22014a3ffe9eb43cbad13bb80d809a8e60c0102d570fdd3a1480b942d46e1def",
+        "flagged": 4,
+        "total": 67,
+        "lastAnalysis": "2026-10-10T01:01:54+07:00",
+        "detections": [
+          {
+            "engine": "Bkav Pro",
+            "signature": "W32.Malware.2138C4"
+          },
+          {
+            "engine": "Elastic",
+            "signature": "Malicious (moderate Confidence)"
+          },
+          {
+            "engine": "SentinelOne (Static ML)",
+            "signature": "Static AI - Suspicious Archive"
+          },
+          {
+            "engine": "Zillya",
+            "signature": "Backdoor.XWorm.Win32.3294"
+          }
+        ]
+      }
+    }
+  ],
+  "components": [
+    {
+      "filename": "EpochPact.exe",
+      "bytes": 26956729,
+      "sha256": "75ef47123c8d5c94fb299a85d96a1524cab9c0e3a6cd0aea993dfe0b0585e68a",
+      "virusTotal": {
+        "url": "https://www.virustotal.com/gui/file/75ef47123c8d5c94fb299a85d96a1524cab9c0e3a6cd0aea993dfe0b0585e68a",
+        "flagged": 6,
+        "total": 71,
+        "lastAnalysis": "2026-10-10T01:03:25+07:00",
+        "detections": [
+          {
+            "engine": "Bkav Pro",
+            "signature": "W32.Malware.2138C4"
+          },
+          {
+            "engine": "CrowdStrike Falcon",
+            "signature": "Win/malicious_confidence_70% (D)"
+          },
+          {
+            "engine": "Elastic",
+            "signature": "Malicious (moderate Confidence)"
+          },
+          {
+            "engine": "SecureAge",
+            "signature": "Malicious"
+          },
+          {
+            "engine": "SentinelOne (Static ML)",
+            "signature": "Static AI - Suspicious PE"
+          },
+          {
+            "engine": "Zillya",
+            "signature": "Backdoor.XWorm.Win32.3294"
+          }
+        ]
+      }
+    },
+    {
+      "filename": "version.dll",
+      "bytes": 108544,
+      "sha256": "cf9b4b319e63d32dbe22c16d52b1970fdfdaad3a0188e1d53add5e6ebc051a6c",
+      "virusTotal": {
+        "url": "https://www.virustotal.com/gui/file/cf9b4b319e63d32dbe22c16d52b1970fdfdaad3a0188e1d53add5e6ebc051a6c",
+        "flagged": 2,
+        "total": 71,
+        "lastAnalysis": "2026-10-10T00:06:13+07:00",
+        "detections": [
+          {
+            "engine": "Cynet",
+            "signature": "Malicious (score: 100)"
+          },
+          {
+            "engine": "Symantec",
+            "signature": "ML.Attribute.HighConfidence"
+          }
+        ]
+      }
+    },
+    {
+      "filename": "EpochPact.Core.dll",
+      "bytes": 1163264,
+      "sha256": "6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f",
+      "virusTotal": {
+        "url": "https://www.virustotal.com/gui/file/6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f",
+        "flagged": 1,
+        "total": 66,
+        "lastAnalysis": "2026-10-10T00:06:16+07:00",
+        "detections": [
+          {
+            "engine": "Cynet",
+            "signature": "Malicious (score: 100)"
+          }
+        ]
+      }
+    }
+  ],
+  "downloadVerification": {
+    "status": "blocked",
+    "reason": "Both Nexus files are quarantined and download controls are unavailable.",
+    "downloadedFromNexus": false,
+    "downloadSha256Compared": false,
+    "nexusReportHashMatchesLocalArchive": true,
+    "limitation": "A matching report hash is not a downloaded-ZIP verification."
+  },
+  "modManager": {
+    "supported": false,
+    "reason": "This split UI/game-directory layout has no tested mod-manager installer; manual download/install only."
+  },
+  "securityReview": {
+    "status": "sent to Nexus support; awaiting review",
+    "draft": "quarantine-review-request.txt",
+    "cause": "not established",
+    "falsePositiveClaim": false,
+    "artifactsPreserved": true,
+    "sentAt": "2026-10-10T06:06:01+07:00",
+    "recipient": "support@nexusmods.com",
+    "sendVerified": "Gmail message carries SENT label; To and Subject matched the prepared request.",
+    "deliveryOrSupportResponseConfirmed": false
+  },
+  "shutdown": {
+    "appClose": "passed: XP x2 to x1; Intelligence 22 to 11; game remained running",
+    "fullGameExitCodes": [
+      "0x00000000",
+      "0xC0000005"
+    ],
+    "fullyFixed": false
+  },
+  "pending": [
+    "Nexus security review and download availability",
+    "Download the approved Main file from Nexus and compare its outer SHA-256"
+  ],
+  "noArchivedVersionWarningObserved": true
+}

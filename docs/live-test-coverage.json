@@ -1,0 +1,44 @@
+{
+  "checkedAtLocal": "2026-10-09T11:43:37.711921",
+  "characterStats": {
+    "propertyTypes": 134,
+    "distinctFullKeys": 247,
+    "sheetMappings": 206,
+    "primarySecondaryUiPaths": 210,
+    "aliases": 72,
+    "nativeCalculationAndResetChecks": 1463,
+    "actualCoreAttributeGetterChecks": 15,
+    "finalPlayerAttributeApplyRepeatResetChecks": 15,
+    "allCatalogKeysIndividuallyRuntimeTested": true,
+    "allConditionalCombatEffectsPlayed": false,
+    "modeException": "SP46 AllAttributes supports Added only",
+    "finalPlayerNativeApplicableApplyRepeatResetChecks": 4449,
+    "finalPlayerStatKeyCount": 247,
+    "finalPlayerSHA256": "6969a769deef1ac2866025893133353d09bc3f3a4f1d41194b6af5b4da12d02d"
+  },
+  "monolith": {
+    "timelineDifficultyCombinations": 20,
+    "playerUiAndPersistenceChecks": 135,
+    "nativeGainChecks": 80,
+    "persistenceVerified": true,
+    "naturalEchoCombatPlayed": true,
+    "fullEchoCompletionReturnAndRewardVerified": true,
+    "finalPlayerFlowChecks": 27,
+    "additionalColdPlayerSelectionChecks": 60,
+    "nativeBaseStability": 11,
+    "actualStabilityGainAtX3": 33
+  },
+  "allReadyFeatureGroupsHaveScopedChecks": true,
+  "allGameplayScenariosExhaustivelyVerified": false,
+  "playerCoreSHA256": "6969a769deef1ac2866025893133353d09bc3f3a4f1d41194b6af5b4da12d02d",
+  "limitations": [
+    "All 134 property types and all 247 catalog/full keys were individually exercised through native applicable getters. This does not prove every ability-specific, minion, tag-combination or conditional combat consumer.",
+    "The full real Echo combat/completion/return/chest loop used production player objects plus a clone-only command driver. All 26 non-command objects match the final shipping build byte-for-byte; the driver is absent from the installed player DLL.",
+    "Two UnityPlayer access violations occurred earlier in the audit, including one in an intermediate clean player build. Their crash dumps remain available; exact root causes are not established. The final build passed two cold starts, 80 timeline/difficulty selections, all stat checks and actual HTTP/browser checks without a repeated crash. This is not a zero-crash guarantee.",
+    "Density and category pickups were replayed through the real game using the guarded driver. Native pickup eligibility and vanilla close-range collection remain active; Bones were refused at distance 10 and collected at distance 5. Disabling a mod category does not disable vanilla pickup.",
+    "Natural x1 combat drops and actual x2 item hook invocations were recorded. A controlled exact x1/x2 random enemy-drop ratio was not established.",
+    "Campaign/reward, CoF and crafting proofs retained from October 8 cover their unchanged native implementations. Not every newly released game version, special craft or random combat scenario was tested.",
+    "Weaver and Merchant Guild management remain informational. Tests cover Last Epoch 1.5.2 offline on this PC; no online or other-version compatibility claim."
+  ],
+  "evidence": "docs/all-mods-current-verification.json"
+}

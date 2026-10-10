@@ -1,0 +1,81 @@
+- complementary:
+  - link "EpochPact LAST EPOCH · OFFLINE TOOLS":
+    - /url: "#overview"
+    - strong: EpochPact
+    - generic: LAST EPOCH · OFFLINE TOOLS
+  - navigation "Main navigation":
+    - link "Overview":
+      - /url: "#overview"
+      - generic: ◈
+      - text: Overview
+    - link "General settings":
+      - /url: "#general"
+      - generic: ⚙
+      - text: General settings
+    - link "Character":
+      - /url: "#stats"
+      - generic: ♜
+      - text: Character
+    - link "Unique Atlas":
+      - /url: "#atlas"
+      - generic: ✦
+      - text: Unique Atlas
+    - link "Stash Assistant":
+      - /url: "#stash"
+      - generic: ▤
+      - text: Stash Assistant
+    - link "Campaign":
+      - /url: "#campaign"
+      - generic: ⌘
+      - text: Campaign
+    - link "Monolith":
+      - /url: "#monolith"
+      - generic: ◇
+      - text: Monolith
+    - link "Circle of Fortune":
+      - /url: "#cof"
+      - generic: ✧
+      - text: Circle of Fortune
+    - link "Factions":
+      - /url: "#factions"
+      - generic: ♧
+      - text: Factions
+    - link "Settings":
+      - /url: "#settings"
+      - generic: ☷
+      - text: Settings
+  - text: Rewrite the past.
+  - text: Shape your journey.
+  - generic: Created by Falor
+- banner:
+  - generic: EpochPact / Campaign
+  - status: ● Offline · InGame
+  - button "↻ Refresh"
+  - generic: ⌕
+  - textbox "Search all settings":
+    - /placeholder: Find a setting…
+- main:
+  - text: CHRONOFORGE
+  - heading "Begin a new chapter." [level=1]
+  - paragraph: Quests, their normal rewards and waypoints across the world.
+  - generic: Live reading · EpAllModsTest · Save 6 · Level 56 · M_Rest
+  - heading "Campaign and waypoints" [level=2]
+  - button "Refresh live"
+  - article:
+    - heading "Complete main + side campaign · level 55 minimum" [level=3]
+    - generic: Game save
+    - paragraph: Completes unfinished eligible campaign quests with their normal rewards and raises the character to at least level 55. Unlocks End of Time, MonolithHub and M_Rest waypoints. Completed quests do not grant rewards again.
+    - button "Apply action"
+  - article:
+    - heading "Unlock all waypoints" [level=3]
+    - generic: Game save
+    - paragraph: Unlocks actual waypoint scenes. Monolith timeline difficulty unlocks are a separate action.
+    - button "Apply action"
+  - generic "Quest rewards and coverage (85 quests / 109 waypoints)"
+- contentinfo:
+  - generic: ✓
+  - text: Ready
+  - generic: Save actions use their own buttons.
+  - button "Reconcile actor stats" [disabled]
+  - button "Discard draft"
+  - button "Apply changes" [disabled]: Apply changes ◇

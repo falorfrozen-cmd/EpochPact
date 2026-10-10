@@ -1,0 +1,25 @@
+CHARACTER BONUS
+Intelligence
+×
+
+Shares its bonus with Madness.
+
+CURRENT BONUS
++100% increased · In game: 8
+↻ Refresh
+Flat bonus
+Increase %
+Your bonus
++100% increased Intelligence
+−
++
+%
+
+Adds to this stat's existing percentage increases. Equipment bonuses still apply.
+
+Slider -100–100%. You can type values outside this slider range.
+Advanced
+Reset bonus
+Apply bonus ◇
+
+Applies to this character. Your equipment and base stats are kept.

@@ -1,0 +1,38 @@
+{
+  "version": "0.1.1-alpha.5",
+  "changes": [
+    "VERSIONINFO resources (publisher Falor, product EpochPact) on version.dll, EpochPact.Core.dll and EpochPact.exe",
+    "PyInstaller 6.20.0 bootloader rebuilt from the verified PyPI sdist (sha256 95c5c7e03d5d61e9dfb8ef259c699cf492bb1041beb6dbe83696608cec07347a) with local MSVC; runw.exe sha256 60d10ff93df9101ea52a31f2924f0ed873d115fff5a65417b79e226538f01718 (official 1015b3391b8e45c2760d4f15f4089aa9cb043f8e56e4051e8234e0e3d2556c10)"
+  ],
+  "package": "dist/share/EpochPact-0.1.1-alpha.5/EpochPact.zip",
+  "reports": [
+    {
+      "artifact": "EpochPact.exe",
+      "sha256": "002d7389d6fa6848b6487a92deef1a4b809bb2b91a09e9e71ea83eb16af8e81a",
+      "url": "https://www.virustotal.com/gui/file/002d7389d6fa6848b6487a92deef1a4b809bb2b91a09e9e71ea83eb16af8e81a",
+      "freshUploadThisIteration": true,
+      "displayedDetectionRatio": "0/71",
+      "detectedBy": []
+    },
+    {
+      "artifact": "EpochPact.Core.dll",
+      "sha256": "ba92bf275a631210c14c52e0ab8dba0b2f1f1fd7bcf6554fe1fcbe655b3ecc87",
+      "url": "https://www.virustotal.com/gui/file/ba92bf275a631210c14c52e0ab8dba0b2f1f1fd7bcf6554fe1fcbe655b3ecc87",
+      "freshUploadThisIteration": true,
+      "displayedDetectionRatio": "0/71",
+      "detectedBy": []
+    },
+    {
+      "artifact": "version.dll",
+      "sha256": "b99e764a21e1c3912a977418a7cdd15b3f61e72e64cf98e39c18f7fe1a68d98f",
+      "url": "https://www.virustotal.com/gui/file/b99e764a21e1c3912a977418a7cdd15b3f61e72e64cf98e39c18f7fe1a68d98f",
+      "freshUploadThisIteration": true,
+      "displayedDetectionRatio": "1/71",
+      "detectedBy": [{"vendor": "Cynet", "verdict": "Malicious (score: 100)"}],
+      "previous": "alpha.4 / review.3 loader 3e695920...e181: 2/71 (Cynet, Symantec ML.Attribute.HighConfidence)"
+    }
+  ],
+  "notScanned": "EpochPact.zip (25.7 MB) exceeds the browser upload tool's 10 MB limit; upload it manually if Nexus needs an archive report.",
+  "localChecks": "native tests all pass; 182 Python tests OK; verify_player_package OK; Windows Defender (signatures 1.459.645.0) found no threats in the package folder.",
+  "note": "Scan counts describe these exact bytes on this date only; they are not a safety certification."
+}

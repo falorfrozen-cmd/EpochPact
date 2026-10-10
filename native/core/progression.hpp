@@ -1,0 +1,22 @@
+#pragma once
+#include <string>
+
+namespace ep::progression {
+bool Init();
+std::string Read();
+std::string Identity();
+std::string Complete(const std::string& expectedId);
+std::string UnlockWaypoints(const std::string& expectedId);
+// Capture touches game objects and must run on the main thread. Writing the
+// copied strings touches only the filesystem and belongs on the IPC worker.
+struct SnapshotData {
+    std::string character, stash, global, stashId, name, id, operation, rewards;
+};
+SnapshotData CaptureSnapshotCurrent(const std::string& expectedId, const char* operation);
+std::string WriteCapturedSnapshot(const SnapshotData& snapshot);
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+// Isolated crafting fixture setup only; excluded from every player build.
+std::string SnapshotFixtureCurrent(const std::string& expectedId, const char* operation);
+#endif
+void SaveCurrent(const std::string& expectedId);
+}

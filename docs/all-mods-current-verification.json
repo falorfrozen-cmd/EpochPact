@@ -1,0 +1,711 @@
+{
+  "checkedAtLocal": "2026-10-09T11:43:37.711921",
+  "gameVersion": "1.5.2",
+  "profile": "player; guarded gameplay driver separately identified",
+  "playerCoreSHA256": "6969a769deef1ac2866025893133353d09bc3f3a4f1d41194b6af5b4da12d02d",
+  "scopedVerificationPassed": true,
+  "allGameplayScenariosExhaustivelyVerified": false,
+  "catalogCounts": {
+    "controls": 72,
+    "properties": 134,
+    "statAliases": 72,
+    "sheetRows": 206,
+    "distinctSheetKeys": 169,
+    "atTags": 30,
+    "ailmentIds": 151,
+    "quests": 148,
+    "eligibleCampaignQuests": 85,
+    "sceneMarkers": 160,
+    "waypoints": 109,
+    "timelines": 10,
+    "lenses": 12,
+    "prophecyRewards": 123
+  },
+  "stats": {
+    "propertyTypes": 134,
+    "distinctFullKeys": 247,
+    "sheetMappings": 206,
+    "primarySecondaryUiPaths": 210,
+    "aliases": 72,
+    "nativeCalculationAndResetChecks": 1463,
+    "actualCoreAttributeGetterChecks": 15,
+    "finalPlayerAttributeApplyRepeatResetChecks": 15,
+    "allCatalogKeysIndividuallyRuntimeTested": true,
+    "allConditionalCombatEffectsPlayed": false,
+    "modeException": "SP46 AllAttributes supports Added only",
+    "finalPlayerNativeApplicableApplyRepeatResetChecks": 4449,
+    "finalPlayerStatKeyCount": 247,
+    "finalPlayerSHA256": "6969a769deef1ac2866025893133353d09bc3f3a4f1d41194b6af5b4da12d02d"
+  },
+  "monolith": {
+    "timelineDifficultyCombinations": 20,
+    "playerUiAndPersistenceChecks": 135,
+    "nativeGainChecks": 80,
+    "persistenceVerified": true,
+    "naturalEchoCombatPlayed": true,
+    "fullEchoCompletionReturnAndRewardVerified": true,
+    "finalPlayerFlowChecks": 27,
+    "additionalColdPlayerSelectionChecks": 60,
+    "nativeBaseStability": 11,
+    "actualStabilityGainAtX3": 33
+  },
+  "ui": {
+    "retainedChecks": 675,
+    "failures": 0,
+    "currentReadyControls": 72,
+    "finalHttpChecks": 6,
+    "actualBrowserIntelligence": "4 -> 8 -> 4",
+    "serverRestartReadOnlyRecoveryVerified": true,
+    "staleLiveCharacterRemovedOnDisconnect": true
+  },
+  "cof": {
+    "tuningRuntimeChecks": 42,
+    "gainRuntimeChecks": 9,
+    "rankRange": [
+      1,
+      12
+    ],
+    "lenses": 12
+  },
+  "general": {
+    "actualGainCooldownChecks": 11,
+    "additionalRetainedReadbackChecks": 6,
+    "xp": "5 -> 15 at x3",
+    "gold": "100 -> 300 at x3"
+  },
+  "craftingLoot": {
+    "completedHarnessChecks": 23,
+    "retainedNativeCommands": 87,
+    "normalForgeAndGroundPickupUsed": true
+  },
+  "collections": {
+    "runtimeChecks": 14,
+    "catalogItems": 486,
+    "finalPlayerReadbackVerified": true
+  },
+  "campaign": {
+    "earlierSameSessionRegressionPassed": true,
+    "completedQuests": 84,
+    "level": 55,
+    "waypoints": 109,
+    "maxNativeStepMs": 40.636,
+    "maxFrameGapMs": 53.052,
+    "repeatGivesNoDuplicateRewards": true,
+    "restartPersistenceVerified": true
+  },
+  "automated": {
+    "pythonTests": 81,
+    "javascriptPresentationTests": 9,
+    "nativeChecks": 6479,
+    "nativeBreakdown": {
+      "hook": 48,
+      "xp": 24,
+      "statKey": 40,
+      "density": 37,
+      "monolith": 22,
+      "cof": 48,
+      "lootCrafting": 6260
+    },
+    "allPassed": true,
+    "javascriptSessionTests": 6,
+    "javascriptTestsTotal": 15
+  },
+  "latency": {
+    "profile": "shipping player; actual HTTP -> serialized native IPC stat read",
+    "count": 20,
+    "mean": 112.77550000000001,
+    "max": 129.21,
+    "unit": "milliseconds"
+  },
+  "ipc": {
+    "finalPlayerChecks": 5,
+    "transientFileLockAtMostOnce": true,
+    "longLockDoesNotExecute": true,
+    "twoProcessesGetTheirOwnNonceReply": true
+  },
+  "fixes": [
+    "Resolved the exact bool pickupGold(GroundItemList,Actor,uint) overload; gold multiplier now changes actual pickups.",
+    "Formatted selector-dependent reset commands and stopped requiring unused parameters when resetting pickup modes/categories/affixes.",
+    "Native IPC claimed-file reads tolerate bounded transient Windows sharing locks without resubmitting mutations.",
+    "A named cross-process mutex serializes the full IPC request/reply exchange, including nonce matching.",
+    "Require actual Rest scene, hidden LoadingScreen and settled client transition before opening/focusing Monolith panels.",
+    "Open the timeline once, wait on two read-only matching panel-ready readings, then focus without opening it again.",
+    "Recover an explicitly rejected expired read-only interface session once; never automatically repeat a mutation.",
+    "Invalidate old live character caches, bonus dialog and save-action eligibility after interface restart or identity loss."
+  ],
+  "ownerRestore": {
+    "restoredFiles": 54,
+    "archivedTestFiles": 3,
+    "originalBytesVerified": true,
+    "verifiedAtLocal": "2026-10-09T11:40:43.655080",
+    "originalFiles": {
+      "1CHARACTERSLOT_BETA_0": true,
+      "1CHARACTERSLOT_BETA_0.bak": true,
+      "1CHARACTERSLOT_BETA_1_temp": true,
+      "1CHARACTERSLOT_BETA_2.bak": true,
+      "1CHARACTERSLOT_BETA_2_temp": true,
+      "1CHARACTERSLOT_BETA_3_temp": true,
+      "1CHARACTERSLOT_BETA_4.bak": true,
+      "1CHARACTERSLOT_BETA_5.bak": true,
+      "BACKUP_GLOBAL_DATA": true,
+      "Epoch_Local_Global_Data_Beta": true,
+      "Epoch_Local_Global_Data_Beta.bak": true,
+      "Epoch_Local_Global_Data_Beta_temp": true,
+      "STASH_0": true,
+      "STASH_0.bak": true,
+      "STASH_0_TAB_0": true,
+      "STASH_0_TAB_0.bak": true,
+      "STASH_0_TAB_1": true,
+      "STASH_0_TAB_1.bak": true,
+      "STASH_0_TAB_2": true,
+      "STASH_0_TAB_2.bak": true,
+      "STASH_0_TAB_3": true,
+      "STASH_0_TAB_3.bak": true,
+      "STASH_CYCLE_2_0": true,
+      "STASH_CYCLE_2_0.bak": true,
+      "STASH_CYCLE_2_0_TAB_0": true,
+      "STASH_CYCLE_7_0": true,
+      "STASH_CYCLE_7_0.bak": true,
+      "STASH_CYCLE_7_0_TAB_0": true,
+      "STASH_CYCLE_7_0_TAB_0.bak": true,
+      "STASH_CYCLE_7_0_TAB_1": true,
+      "STASH_CYCLE_7_0_TAB_1.bak": true,
+      "STASH_CYCLE_7_0_TAB_10": true,
+      "STASH_CYCLE_7_0_TAB_11": true,
+      "STASH_CYCLE_7_0_TAB_12": true,
+      "STASH_CYCLE_7_0_TAB_13": true,
+      "STASH_CYCLE_7_0_TAB_13.bak": true,
+      "STASH_CYCLE_7_0_TAB_2": true,
+      "STASH_CYCLE_7_0_TAB_2.bak": true,
+      "STASH_CYCLE_7_0_TAB_3": true,
+      "STASH_CYCLE_7_0_TAB_3.bak": true,
+      "STASH_CYCLE_7_0_TAB_4": true,
+      "STASH_CYCLE_7_0_TAB_4.bak": true,
+      "STASH_CYCLE_7_0_TAB_5": true,
+      "STASH_CYCLE_7_0_TAB_5.bak": true,
+      "STASH_CYCLE_7_0_TAB_6": true,
+      "STASH_CYCLE_7_0_TAB_6.bak": true,
+      "STASH_CYCLE_7_0_TAB_7": true,
+      "STASH_CYCLE_7_0_TAB_7.bak": true,
+      "STASH_CYCLE_7_0_TAB_8": true,
+      "STASH_CYCLE_7_0_TAB_8.bak": true,
+      "STASH_CYCLE_7_0_TAB_9": true,
+      "STASH_CYCLE_8_0": true,
+      "STASH_CYCLE_8_0_TAB_0": true,
+      "steam_autocloud.vdf": true
+    },
+    "originalCharacter": {
+      "id": "0",
+      "characterName": "Falor",
+      "level": 55,
+      "cycle": 8
+    },
+    "authoritativeBackup": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\saves-backups\\20261009-075448-962871-77dd2751",
+    "installedPlayerSHA256": "6969a769deef1ac2866025893133353d09bc3f3a4f1d41194b6af5b4da12d02d",
+    "gameClosed": true,
+    "ownerCharacterNotLoadedDuringThisAudit": true
+  },
+  "limitations": [
+    "All 134 property types and all 247 catalog/full keys were individually exercised through native applicable getters. This does not prove every ability-specific, minion, tag-combination or conditional combat consumer.",
+    "The full real Echo combat/completion/return/chest loop used production player objects plus a clone-only command driver. All 26 non-command objects match the final shipping build byte-for-byte; the driver is absent from the installed player DLL.",
+    "Two UnityPlayer access violations occurred earlier in the audit, including one in an intermediate clean player build. Their crash dumps remain available; exact root causes are not established. The final build passed two cold starts, 80 timeline/difficulty selections, all stat checks and actual HTTP/browser checks without a repeated crash. This is not a zero-crash guarantee.",
+    "Density and category pickups were replayed through the real game using the guarded driver. Native pickup eligibility and vanilla close-range collection remain active; Bones were refused at distance 10 and collected at distance 5. Disabling a mod category does not disable vanilla pickup.",
+    "Natural x1 combat drops and actual x2 item hook invocations were recorded. A controlled exact x1/x2 random enemy-drop ratio was not established.",
+    "Campaign/reward, CoF and crafting proofs retained from October 8 cover their unchanged native implementations. Not every newly released game version, special craft or random combat scenario was tested.",
+    "Weaver and Merchant Guild management remain informational. Tests cover Last Epoch 1.5.2 offline on this PC; no online or other-version compatibility claim."
+  ],
+  "evidence": {
+    "stats": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\stats.json",
+      "sha256": "01fe1822ce90f6a114e19ac90d4f8278af55685aa9cd0ef765de7f1b559a1de6",
+      "bytes": 1092884
+    },
+    "ui": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\ui.json",
+      "sha256": "2be14d1b254068acfc95807b619e47750dd57c5aa13518ceb3e9702cd8df142b",
+      "bytes": 6257053
+    },
+    "general": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\general.json",
+      "sha256": "b29dd983e75ed8467419dfeddace40589cd3592fd49435020665dc25cc26998e",
+      "bytes": 12339
+    },
+    "cofGains": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\cofGains.json",
+      "sha256": "5c1f4e0fdbfcf42474bad966bad9f73045179748d850a93689a6334078febaf2",
+      "bytes": 488616
+    },
+    "cof": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\cof.json",
+      "sha256": "0f0fde195d4f9143dcc07dbbe8e91f6cbbb1a4a364aabbc540f395f0f61e71e1",
+      "bytes": 2147530
+    },
+    "craftingLoot": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\craftingLoot.json",
+      "sha256": "e74de91d5fac7b16c0d7cc1fdcbbd4a28c6c72513c137fb03d4c6f70dd7e7275",
+      "bytes": 197111
+    },
+    "collections": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\collections.json",
+      "sha256": "6c4038f4655ada333a31202575d4b6c0169600e474db544fce9de2edaa991db1",
+      "bytes": 17222
+    },
+    "monolithGain": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\monolithGain.json",
+      "sha256": "0edaa9aab8f3723dc1800a044ee1509ae845875ed75da24d3275c3e524c7f2d3",
+      "bytes": 101884
+    },
+    "monolithPlayer": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\monolithPlayer.json",
+      "sha256": "3fe19f66633bbea02a34d014705f6b1d997164df63d7579cd2babbf75de46cab",
+      "bytes": 1466170
+    },
+    "finalPlayer": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\finalPlayer.json",
+      "sha256": "cdb718e09a26e3afe4f82f7aa35f68cba7871fc292c4caf6e0b961e44bc77e8a",
+      "bytes": 482985
+    },
+    "ipc": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\ipc.json",
+      "sha256": "745ffb8755343fae111f0deb058418e8ca34993fe214787c00acf7b94406ac12",
+      "bytes": 2063
+    },
+    "ownerRestore": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\ownerRestore.json",
+      "sha256": "f99958e5d7544d54d858cabcdd666681dc55f2d7fb0c53de9443fb8a4ee93b97",
+      "bytes": 7937
+    },
+    "derivedReadbacks": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\derivedReadbacks.json",
+      "sha256": "db5608b9ec3d2b9f0e0f6e62687c2b6752851777ffaf61924e59d514cf948f2b",
+      "bytes": 2125
+    },
+    "campaign": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\campaign.json",
+      "sha256": "3b33bf05d46260dd3cf9ba1222780be84f99fabc39def9e4f7fc8d7c5107fa9d",
+      "bytes": 175144
+    },
+    "densityEarlierGameplay": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261008\\densityEarlierGameplay.json",
+      "sha256": "dc8aad8e54ea375a4fb0ee5f59e234935c308292d2e8bdfdc0074a2d04f96739",
+      "bytes": 3109
+    },
+    "finalPlayerStats": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-player-stats.json",
+      "sha256": "620dafd5808ae1188550bc2ac68f63300971824e950d02acb6e3cf8824b6862a",
+      "bytes": 2030691
+    },
+    "finalPlayerMonolith": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-final-player.json",
+      "sha256": "87e9ddded2af0959e4faf5f435c3e2c6ad20ab10695c798b933c4fac8539aa78",
+      "bytes": 123068
+    },
+    "coldPlayerStress": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-cold-player.json",
+      "sha256": "1293b2f8fa905d2e5a21ffec5cf2173d2843e8a7ecf2781ab7138f74b5fdd725",
+      "bytes": 7683
+    },
+    "liveHttp": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-ui-player.json",
+      "sha256": "0c14563b4bc1074b1ab7b23ffe889c97178c3ebf199b9a0a5b40d05f62dd125f",
+      "bytes": 304503
+    },
+    "fullEcho": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-complete-echo.json",
+      "sha256": "059b5ded560bd4a20d97e2ea1cf68d2ac86547fc027ba0d5462d2361a4db132a",
+      "bytes": 91853
+    },
+    "extendedGameplay": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-current.json",
+      "sha256": "681b0bd829b9f91ba67a99c8ec2dcad21d498909c48714f70cdb86b859b79c89",
+      "bytes": 1167414
+    },
+    "driverObjectIdentity": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-audit-object-identity.json",
+      "sha256": "8eaeb82c328170abc2bfa1e2436d2e4e13ef826b8a1f59f245a75a80bbf4314f",
+      "bytes": 5667
+    },
+    "ownerRestoreCurrent": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-owner-restored.json",
+      "sha256": "77b84077d0f562dae9e9f919bad8b0b9288b33906cc6d0f6690ac8b126a0b215",
+      "bytes": 2554
+    },
+    "nativeRegressionCurrent": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-regression.json",
+      "sha256": "0b2f08524bcc30655d1d03e75dd204bf69eebc37ba350ac5118cc9da4e4051e0",
+      "bytes": 5583
+    },
+    "finalCleanPlayerLog": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-final-clean-player.log",
+      "sha256": "63e63c790e80a8a122306345fd168dcd1b53d62f75c36bbed38e6dfac7af5b75",
+      "bytes": 523254
+    },
+    "player-campaign-reconnected": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\docs\\ui-evidence\\player-campaign-reconnected.txt",
+      "sha256": "c4b9998f329f51ee96c7ca0afe2705d0109be723c22085e816802a55846fd00f",
+      "bytes": 2640
+    },
+    "player-intelligence-doubled": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\docs\\ui-evidence\\player-intelligence-doubled.txt",
+      "sha256": "3d3d5919d04f7be21cd5e5a9f2f39ce736e6cad475235cab94411e22264b2e09",
+      "bytes": 446
+    },
+    "player-intelligence-reset": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\docs\\ui-evidence\\player-intelligence-reset.txt",
+      "sha256": "fb18c0d19ea03dc9829e61df8d06e77bcb547886efb77a1a5c4d7f56fd64323e",
+      "bytes": 436
+    },
+    "player-disconnected-final": {
+      "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\docs\\ui-evidence\\player-disconnected-final.txt",
+      "sha256": "a5ba6f26c36af0859e216aa4c648686ccc15777055f1bb17f5cf6b1ac6fbc678",
+      "bytes": 4442
+    }
+  },
+  "fixedSourceSHA256": {
+    "native/core/commands.cpp": "1e1504a5de56b0ea6a352af05bec9409ae577471f7236c2441ce6fecf2d62fb9",
+    "native/core/monolith.cpp": "8e07ce639c73be716fcbac5d90aceb5855a2bafdfaae883444cf7270c004b73a",
+    "native/core/monolith.hpp": "b868a6a1b8b054961cee07f26bd4fa0c0e8291abf601d9b8765bb6a933d88408",
+    "native/core/stat_editor.cpp": "617978467033e1fdd3335b49661d564fc87c5aeb42ced66be5cd54ce414e0b85",
+    "native/core/stat_editor.hpp": "dfe314000b7268995c06f88bc29b30a2acdf9c89747e298b1cdf0e1feb70992a",
+    "tools/monolith_backend.py": "796eb7656d4f1d20e78c2c6fd5bcebd25e8a83a7ecc521da81093c574c3e3574",
+    "tools/ui_bridge.py": "a6e35491cf0500e73c0d0c9a5e7f335215a6537e9f5eb509041dece70463b3e7",
+    "tools/le_session.py": "25283a91e85bcf837c456d93e9965fc946af46185afca081b741ccfd5a9779ca",
+    "epochpact_ui.py": "c7a410a9c0f3351d984d00f26e0853423350d87505ecd972055f4aca83ef62f4",
+    "ui/app.js": "e7d41c34656f7629724c1136d1f47a8e74fb29ac4cece54751ea60c78c57e342",
+    "ui/session.js": "e4a3c7e3299baf1fcfa624e1b6751e3284efef940a86ac9d48f70218b4326c53",
+    "ui/index.html": "9ad567ad2de5f27cc1a91742b57b435d3f4f7bd2250a177640923b7c21d90a44",
+    "tools/test_monolith_backend.py": "8f24a992e0bbfbe1db53f03aeb8bdbc7ab80414861063f7467e6c221d638acc8",
+    "tools/test_ui_bridge.py": "7e5d99f48d9bca44a81ea25500427d5835f3da13d9b82337aa0eb221afae631f",
+    "tools/test_ui_session.cjs": "d6edb39a9bb50e5c6bdc40a3236e1fa38ab4d0d16d533c9810553645df30b935"
+  },
+  "extendedGameplay": {
+    "rawCheckCount": 78,
+    "rawHistoricalFailedChecks": 9,
+    "latestCompleteEchoChecks": 10,
+    "latestCompleteEchoPassed": true,
+    "guardedDriverOnly": true,
+    "density": "86 boosted packs, 957 planned actors, 298 observed spawns, 26 completed packs; retained snapshot, not all packs in the map",
+    "globalDrops": "152 actual native boosted hook calls at x2; original quantity 1 -> 2",
+    "pickup": "gold, missing/full potions, XP, Favor and Bones eligibility/off-on native paths recorded",
+    "reward": "actual chest interaction produced 3 XP tomes"
+  },
+  "observedCrashes": [
+    {
+      "evidence": {
+        "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-crash\\exception.json",
+        "sha256": "6fadf57bf309f710aff5eca097714aa3d0dfd12cebea97b711ed0d397a40128b",
+        "bytes": 440
+      },
+      "dump": {
+        "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-crash\\crash.dmp",
+        "sha256": "a0976ed722c3cf65c095d817171074edbb6640b6b70fdd2c00dade9d5d9cff17",
+        "bytes": 704299
+      },
+      "rootCauseEstablished": false
+    },
+    {
+      "evidence": {
+        "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-player-crash\\exception.json",
+        "sha256": "1499fa2632666c09385039910ea593f807f372194c99a222af4630331b80695b",
+        "bytes": 440
+      },
+      "dump": {
+        "path": "C:\\Users\\falor\\OneDrive\\Belgeler\\Last Epoch\\EpochPact\\research\\live\\all-mods-20261009\\extended-player-crash\\crash.dmp",
+        "sha256": "5cf8601ce8c3c9e1283b75f601be4195eed3777b86b5b2674dafdf786a28df67",
+        "bytes": 708958
+      },
+      "rootCauseEstablished": false
+    }
+  ],
+  "releaseClaim": "Scoped offline verification passed; exhaustive gameplay and zero-crash certification are not claimed.",
+  "controlCoverage": {
+    "atlas_read": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "stash_read": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "echo_read": {
+      "catalogContractExercised": true,
+      "evidence": "collections + final-player Echo web read"
+    },
+    "echo_focus": {
+      "catalogContractExercised": true,
+      "evidence": "final-player verified native focus + full Echo"
+    },
+    "xp": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 5"
+    },
+    "gold": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 5"
+    },
+    "drops": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 5"
+    },
+    "density": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 5"
+    },
+    "rarity": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 5"
+    },
+    "speed": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 5"
+    },
+    "cooldown": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 5"
+    },
+    "autopickup": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "density_read": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "loot_read": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 19"
+    },
+    "loot_mode": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 4"
+    },
+    "loot_lp": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 4"
+    },
+    "loot_t7": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 3"
+    },
+    "loot_filter": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 3"
+    },
+    "loot_affixes": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "loot_category": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 18"
+    },
+    "loot_reset": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "craft_read": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 10"
+    },
+    "craft_fp": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 4"
+    },
+    "craft_hope": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 3"
+    },
+    "craft_despair": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 3"
+    },
+    "craft_shards": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 3"
+    },
+    "craft_reset": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "sheet_catalog": {
+      "catalogContractExercised": true,
+      "evidence": "206-row sheet and metadata audit"
+    },
+    "sheet_row": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 420"
+    },
+    "raw_stat": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 774"
+    },
+    "stat_alias": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 144"
+    },
+    "stat_reset": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 3"
+    },
+    "sheet_open": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 4"
+    },
+    "resistance_labels": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "progress_read": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "campaign_complete": {
+      "catalogContractExercised": true,
+      "evidence": "rewarded 84-quest campaign, repeat and restart audit"
+    },
+    "waypoints_unlock": {
+      "catalogContractExercised": true,
+      "evidence": "109 actual waypoint scenes and restart audit"
+    },
+    "monolith_read": {
+      "catalogContractExercised": true,
+      "evidence": "all 20 timelines/difficulties and fresh HTTP/browser read"
+    },
+    "monolith_unlock": {
+      "catalogContractExercised": true,
+      "evidence": "retained player unlock/idempotence audit"
+    },
+    "monolith_select": {
+      "catalogContractExercised": true,
+      "evidence": "27 final flow checks + 60 cold selections"
+    },
+    "corruption": {
+      "catalogContractExercised": true,
+      "evidence": "retained 135 player checks: bounds, native values, reset and persistence"
+    },
+    "stability": {
+      "catalogContractExercised": true,
+      "evidence": "retained 135 player checks: bounds, manual/native values and persistence"
+    },
+    "stability_multiplier": {
+      "catalogContractExercised": true,
+      "evidence": "80 retained native gain checks + real base 11 -> 33 combat reward"
+    },
+    "cof_read": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 42"
+    },
+    "cof_join": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "cof_rank": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 14"
+    },
+    "cof_favor": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 6"
+    },
+    "cof_reputation_grant": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "cof_lenses_unlock": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "cofpreview": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "cofprophecy": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 4"
+    },
+    "cof_charges": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 12"
+    },
+    "cof_favor_multiplier": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "cof_reputation_multiplier": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "cof_charge_multiplier": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "cof_reward_multiplier": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "cof_exalted_multiplier": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "cof_t7_multiplier": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "cof_lp_multiplier": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "cof_double_enemy": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "cof_double_echo": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "cof_lens_celerity": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "cof_lens_charity": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "cof_lens_duplication": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "factions_read": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "session_read": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "status": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "player_read": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 2"
+    },
+    "characters": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "play_offline": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "load_character": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    },
+    "undo": {
+      "catalogContractExercised": true,
+      "evidence": "retained UI/backend checks: 1"
+    }
+  }
+}

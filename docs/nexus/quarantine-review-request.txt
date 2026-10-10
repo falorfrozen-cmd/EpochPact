@@ -1,0 +1,90 @@
+To: support@nexusmods.com
+Subject: Security review request - EpochPact 0.1.1-alpha.1 - Last Epoch mod 44, files 251 and 252
+
+Hello Nexus Mods support,
+
+I am Falor (Nexus account falorfrozen), the author of EpochPact - Offline Tools:
+https://www.nexusmods.com/lastepoch/mods/44
+
+The page was published and showed "Great job! Your mod is live." Both uploads are currently quarantined. I am requesting a review of the specific scan findings. I have not established their cause and am not asserting that they are false positives.
+
+Affected uploads
+1. Main / Primary: EpochPact - Manual Player Package, version 0.1.1-alpha.1
+   Legacy file ID: 251; API file ID: 8117889; unique ID: zBmCSZbb4
+   Filename: EpochPact-0.1.1-alpha.1-Manual.zip
+   Size: 27,319,195 bytes
+   SHA-256: 06f08a5479cdca0e03e3c3fa020b0973112e2d78ba4331c70bb473de1b6d73d0
+   Report: https://www.virustotal.com/gui/file/06f08a5479cdca0e03e3c3fa020b0973112e2d78ba4331c70bb473de1b6d73d0
+   Analysis: 2026-10-10 01:00:07 UTC+07:00; 4/67 vendors flagged.
+
+2. Optional: EpochPact - Optional App Setup, version 0.1.1-alpha.1
+   Legacy file ID: 252; API file ID: 8117901; unique ID: cjxSIMZZJ
+   Filename: EpochPact-0.1.1-alpha.1-App-Setup.zip
+   Size: 26,781,900 bytes
+   SHA-256: 22014a3ffe9eb43cbad13bb80d809a8e60c0102d570fdd3a1480b942d46e1def
+   Report: https://www.virustotal.com/gui/file/22014a3ffe9eb43cbad13bb80d809a8e60c0102d570fdd3a1480b942d46e1def
+   Analysis: 2026-10-10 01:01:54 UTC+07:00; 4/67 vendors flagged.
+
+Both ZIP reports show:
+- Bkav Pro: W32.Malware.2138C4
+- Elastic: Malicious (moderate Confidence)
+- SentinelOne (Static ML): Static AI - Suspicious Archive
+- Zillya: Backdoor.XWorm.Win32.3294
+
+Runtime components
+- EpochPact.exe: 26,956,729 bytes
+  SHA-256: 75ef47123c8d5c94fb299a85d96a1524cab9c0e3a6cd0aea993dfe0b0585e68a
+  Report: https://www.virustotal.com/gui/file/75ef47123c8d5c94fb299a85d96a1524cab9c0e3a6cd0aea993dfe0b0585e68a
+  6/71 findings: Bkav Pro W32.Malware.2138C4; CrowdStrike Falcon Win/malicious_confidence_70% (D); Elastic Malicious (moderate Confidence); SecureAge Malicious; SentinelOne (Static ML) Static AI - Suspicious PE; Zillya Backdoor.XWorm.Win32.3294.
+- version.dll: 108,544 bytes
+  SHA-256: cf9b4b319e63d32dbe22c16d52b1970fdfdaad3a0188e1d53add5e6ebc051a6c
+  Report: https://www.virustotal.com/gui/file/cf9b4b319e63d32dbe22c16d52b1970fdfdaad3a0188e1d53add5e6ebc051a6c
+  2/71 findings: Cynet Malicious (score: 100); Symantec ML.Attribute.HighConfidence.
+- EpochPact.Core.dll: 1,163,264 bytes
+  SHA-256: 6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f
+  Report: https://www.virustotal.com/gui/file/6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f
+  1/66 finding: Cynet Malicious (score: 100).
+
+What the package does
+EpochPact is an unsigned native loader/core plus an external, bundled-Python desktop application for offline Last Epoch. The version.dll proxy loads the project's native core from the game directory; the core hooks supported game functions and processes offline commands. The desktop app uses a loopback interface and the existing local IPC. Both required DLLs are included in the manual package and embedded in the optional app. The desktop app is bundled with PyInstaller; users do not install Python. Windows x64, WebView2 and .NET Framework 4.8 are required. MelonLoader/BepInEx are not required.
+
+Supported game: Steam Last Epoch 1.5.2.1, Steam build 25816319 (internal 1.5.2.2). Online is unsupported. Game compatibility is checked against the locally installed GameAssembly.dll before app installation/launch. No proprietary game executables, GameAssembly.dll, game metadata, saves, private logs, SDKs, test drivers or nested/encrypted archives are distributed.
+
+Source and build information
+Public source at the uploaded build's exact commit:
+https://github.com/falorfrozen-cmd/EpochPact/tree/e62d998df4fd2ee797698c923cc0309e2099c966
+The repository contains the project's native loader/core, UI, Python backend, tests and build/package scripts. It does not contain the complete upstream source of bundled third-party Python/.NET/browser runtimes or fonts. These are separately credited and licensed in THIRD-PARTY-NOTICES.txt and INTER-OFL.txt.
+
+Build on Windows x64 with Python 3.13.7 and MSVC x64 Build Tools (C++20, static /MT CRT):
+git clone https://github.com/falorfrozen-cmd/EpochPact.git
+cd EpochPact
+git checkout e62d998df4fd2ee797698c923cc0309e2099c966
+py -3.13 -m venv .build-venv
+.\.build-venv\Scripts\python.exe -m pip install -r requirements-build.txt
+.\native\build.bat player
+.\.build-venv\Scripts\python.exe -m tools.build_player
+.\.build-venv\Scripts\python.exe -m tools.package_nexus_release --output dist/nexus-review
+
+Use a new output directory. The package script refuses to overwrite an existing archive, uses an explicit allowlist and verifies each ZIP entry against its runtime manifest. This describes how to rebuild the project, not a claim of bit-for-bit reproducibility across toolchains/timestamps. The recorded build environment is in docs/nexus/build-environment.txt.
+
+Validation and preservation
+The exact uploaded artifacts are retained unchanged with sizes/SHA-256 and per-entry manifest verification. Gameplay, installation and shutdown results are separated in docs/nexus/verification.md. Full-game exits had both 0x00000000 and 0xC0000005 outcomes; that known issue is disclosed and is not presented as fixed. No private save or raw local diagnostic data is attached.
+
+Evidence available in the repository:
+https://github.com/falorfrozen-cmd/EpochPact/tree/round1-xp-multiplier/docs/nexus
+- docs/nexus/publication.json: uploaded file IDs, hashes and exact findings
+- docs/nexus/artifacts.json: archive metadata
+- docs/nexus/runtime-manifest.json: runtime entry names/sizes/hashes
+- docs/nexus/images/: publication/quarantine and component report screenshots
+- docs/nexus/verification.md: scoped validation results
+
+Nexus download verification is blocked by quarantine. Matching VirusTotal report hashes are not being represented as a completed re-download test.
+
+Please advise which component or behavior needs additional investigation and review the affected files when possible. I can provide the preserved artifacts or additional non-private build evidence if requested.
+
+Thank you,
+Falor
+GitHub: https://github.com/falorfrozen-cmd/EpochPact
+Community support: https://discord.gg/q6aexZZSAf
+
+Sent to support@nexusmods.com on 2026-10-10 at 06:06 UTC+07:00. Gmail SENT status verified. Nexus acknowledgement/review outcome pending.

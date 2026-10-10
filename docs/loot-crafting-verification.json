@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-08",
+  "result": "passed",
+  "gameVersion": "1.5.2",
+  "features": [
+    "Smart pickup using native filter, Unique LP, wanted T7 and material/category controls",
+    "Normal forge FP cost, Basic Hope/Despair chance, consumed shard preservation and preview"
+  ],
+  "ui": {
+    "group": "general",
+    "controlsAdded": 14,
+    "catalogTotal": 68,
+    "browser": "Headless Edge preview; no native IPC/save access",
+    "evidence": [
+      "ui-evidence/smart-loot-preview.png",
+      "ui-evidence/loot-crafting-preview.png"
+    ],
+    "transcript": "research/live/loot-crafting-ui-check.json"
+  },
+  "native": {
+    "build": "MSVC x64; built DLL and installed DLL SHA-256 match",
+    "coreSha256": "837a5e2833d6f127f11cf7585fa2d563c47cbbb31030619c2e0e8a945320804d",
+    "rules": {
+      "tests": 6260,
+      "passed": 6260
+    },
+    "live": {
+      "character": "EpCraftTest isolated solo clone",
+      "passed": [
+        "Basic Hope 0/100% real forge",
+        "Despair 0/100% real forge",
+        "FP factor 0/0.5/1",
+        "shard preservation enabled/disabled",
+        "reset removes all crafting hooks",
+        "native filter SHOW/HIDE",
+        "materials-only actual pickup preserves ground equipment",
+        "generated Unique LP0 rejected / LP2 accepted",
+        "generated Exalted wanted T7 accepted",
+        "inventory capacity remains authoritative",
+        "invalid identity and values rejected",
+        "zero crafting and loot faults"
+      ],
+      "transcript": "research/live/loot-crafting-live-check.json"
+    }
+  },
+  "python": {
+    "tests": 49,
+    "passed": 49,
+    "nativeIpc": "mocked",
+    "command": "py -3 -m unittest tools.test_loot_crafting_backend tools.test_ui_bridge tools.test_cof_backend tools.test_monolith_backend tools.test_progression_backend tools.test_le_session -v"
+  },
+  "recovery": {
+    "originalFiles": 54,
+    "byteForByteVerified": true,
+    "testFilesArchived": 3,
+    "manifest": "research/live/loot-crafting-test-manifest.json",
+    "gameClosedNormally": true
+  },
+  "scope": [
+    "Offline only; session settings reset at restart",
+    "Native rules remain authoritative; no item deletion/selling/salvaging",
+    "Special rune formulas, Greater Hope, Weaver/Eternity Cache and future game patches are outside verified scope"
+  ]
+}
