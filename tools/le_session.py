@@ -104,34 +104,47 @@ kernel32.CloseHandle.argtypes = [wt.HANDLE]
 kernel32.CreateMutexW.restype = wt.HANDLE
 kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, wt.BOOL, wt.LPCWSTR]
 kernel32.ReleaseMutex.argtypes = [wt.HANDLE]
-kernel32.GetSystemDirectoryW.argtypes = [wt.LPWSTR, wt.UINT]
-kernel32.GetSystemDirectoryW.restype = wt.UINT
+class ProcessEntry32(ctypes.Structure):
+    _fields_ = [('dwSize', wt.DWORD), ('cntUsage', wt.DWORD), ('th32ProcessID', wt.DWORD),
+                ('th32DefaultHeapID', ctypes.c_size_t), ('th32ModuleID', wt.DWORD), ('cntThreads', wt.DWORD),
+                ('th32ParentProcessID', wt.DWORD), ('pcPriClassBase', wt.LONG), ('dwFlags', wt.DWORD),
+                ('szExeFile', wt.WCHAR * 260)]
+
+kernel32.CreateToolhelp32Snapshot.argtypes = [wt.DWORD, wt.DWORD]
+kernel32.CreateToolhelp32Snapshot.restype = wt.HANDLE
+kernel32.Process32FirstW.argtypes = [wt.HANDLE, ctypes.POINTER(ProcessEntry32)]
+kernel32.Process32FirstW.restype = wt.BOOL
+kernel32.Process32NextW.argtypes = [wt.HANDLE, ctypes.POINTER(ProcessEntry32)]
+kernel32.Process32NextW.restype = wt.BOOL
 WM_CLOSE = 0x0010
 SYNCHRONIZE = 0x00100000
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
 
-def system_tool(name: str) -> Path:
-    """Resolve a Windows utility without searching the application folder or PATH."""
-    if name not in ('tasklist.exe',):
-        raise ValueError('Unsupported system utility')
-    buffer = ctypes.create_unicode_buffer(32768)
-    length = kernel32.GetSystemDirectoryW(buffer, len(buffer))
-    if not length or length >= len(buffer):
-        raise OSError('Cannot resolve the Windows system directory')
-    return Path(buffer.value) / name
-
-
 def game_pids() -> list[int]:
-    out = subprocess.run([str(system_tool('tasklist.exe')), "/FI", f"IMAGENAME eq {EXE}", "/FO", "CSV", "/NH"],
-                         capture_output=True, text=True, errors="replace",
-                         creationflags=subprocess.CREATE_NO_WINDOW).stdout
-    pids = []
-    for line in out.splitlines():
-        parts = [p.strip('"') for p in line.split('","')]
-        if len(parts) > 1 and parts[0].lower() == EXE.lower():
-            pids.append(int(parts[1]))
-    return pids
+    """Read process names without launching an external utility.
+
+    Enumeration failure must propagate: it does not mean the game is closed.
+    No process memory is opened or changed.
+    """
+    snapshot = kernel32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
+    if snapshot in (None, ctypes.c_void_p(-1).value):
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        entry = ProcessEntry32()
+        entry.dwSize = ctypes.sizeof(entry)
+        more = kernel32.Process32FirstW(snapshot, ctypes.byref(entry))
+        pids = []
+        while more:
+            if entry.szExeFile.casefold() == EXE.casefold():
+                pids.append(entry.th32ProcessID)
+            more = kernel32.Process32NextW(snapshot, ctypes.byref(entry))
+        error = ctypes.get_last_error()
+        if error != 18:  # ERROR_NO_MORE_FILES is the only successful end.
+            raise ctypes.WinError(error)
+        return pids
+    finally:
+        kernel32.CloseHandle(snapshot)
 
 
 def game_window(pid: int) -> int | None:
@@ -197,12 +210,16 @@ def cmd_install(args: argparse.Namespace) -> int:
     if flavor == 'player':
         try:
             require_supported_build(GAME)
+        except PermissionError:
+            raise  # Preserve access-denied errors for the explicit installer UI.
         except (OSError, ValueError) as exc:
             print(f'refused: {exc}')
             return 2
     loader = BUILD / 'version.dll'
     try:
         core_src, digest = build_artifact(flavor)
+    except PermissionError:
+        raise
     except (OSError, ValueError) as exc:
         print(f'refused: build native\\build.bat {flavor} first: {exc}')
         return 2

@@ -20,6 +20,7 @@ def main():
     parser.add_argument('--work', type=Path, default=ROOT / 'build/pyinstaller')
     parser.add_argument('--stage', type=Path, default=ROOT / 'build/player-resources')
     parser.add_argument('--loader', type=Path)
+    parser.add_argument('--native-build', type=Path, help='Verified isolated native build root.')
     parser.add_argument('--version', help='Explicit candidate version; leaves published release metadata unchanged.')
     args = parser.parse_args()
     release = json.loads((ROOT / 'docs/nexus/release.json').read_text(encoding='utf-8'))
@@ -31,6 +32,8 @@ def main():
     if args.layout == 'onedir' and (output / 'EpochPact').exists():
         raise ValueError('Choose an empty output folder; this bundle already exists.')
     from tools import le_session as le
+    if args.native_build:
+        le.BUILD = args.native_build.resolve(strict=True)
     core, digest = le.build_artifact('player')
     loader = args.loader.resolve(strict=True) if args.loader else le.BUILD / 'version.dll'
     if not le.is_ours(loader):

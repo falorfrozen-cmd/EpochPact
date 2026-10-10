@@ -6,8 +6,8 @@ rem   build\hook_test.exe         decoder and hook engine tests (run it after a 
 setlocal
 set "HERE=%~dp0"
 set "OUT=%HERE%build"
-rem An isolated loader-only build leaves the previously published core untouched.
-if "%~1"=="loader" if not "%~2"=="" set "OUT=%~f2"
+rem All build modes accept an isolated output directory; published evidence stays intact.
+if not "%~2"=="" set "OUT=%~f2"
 if not exist "%OUT%" mkdir "%OUT%"
 if not exist "%OUT%\tests" mkdir "%OUT%\tests"
 
@@ -52,7 +52,7 @@ for %%f in (%CORE_SRC%) do call set "CORE_CPP=%%CORE_CPP%% "%CORE%\%%f.cpp""
 for %%f in (%CORE_SRC%) do call set "CORE_OBJ=%%CORE_OBJ%% "%OUT%\%%f.obj""
 cl %CFLAGS% /EHa %CORE_FLAGS% /c /Fo"%OUT%\\" %CORE_CPP% || exit /b 1
 link /nologo /DLL /OUT:"%OUT%\EpochPact.Core.dll" %CORE_OBJ% "%OUT%\stat_thunk.obj" kernel32.lib user32.lib psapi.lib || exit /b 1
-py -3 "%HERE%..\tools\stamp_build.py" %FLAVOR% || exit /b 1
+py -3 "%HERE%..\tools\stamp_build.py" %FLAVOR% --build-dir "%OUT%" || exit /b 1
 if "%~1"=="core" goto :done
 if "%~1"=="player-core" goto :done
 if "%~1"=="test-core" goto :done
@@ -65,6 +65,9 @@ link /nologo /OUT:"%OUT%\hook_test.exe" "%OUT%\tests\hook_test.obj" "%OUT%\tests
 ml64 /nologo /c /Fo"%OUT%\tests\xp_targets.obj" "%HERE%tests\xp_targets.asm" || exit /b 1
 cl %CFLAGS% /EHa /c /Fo"%OUT%\tests\\" "%HERE%tests\xp_test.cpp" "%HERE%tests\fake_game.cpp" "%CORE%\xp.cpp" || exit /b 1
 link /nologo /OUT:"%OUT%\xp_test.exe" "%OUT%\tests\xp_test.obj" "%OUT%\tests\fake_game.obj" "%OUT%\tests\xp.obj" "%OUT%\tests\x64_decode.obj" "%OUT%\tests\hook.obj" "%OUT%\tests\xp_targets.obj" kernel32.lib || exit /b 1
+
+cl %CFLAGS% /EHa /c /Fo"%OUT%\tests\\" "%HERE%tests\items_test.cpp" || exit /b 1
+link /nologo /OUT:"%OUT%\items_test.exe" "%OUT%\tests\items_test.obj" "%OUT%\tests\x64_decode.obj" "%OUT%\tests\hook.obj" kernel32.lib || exit /b 1
 
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\stat_key_test.exe" "%HERE%tests\stat_key_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\density_test.exe" "%HERE%tests\density_test.cpp" || exit /b 1

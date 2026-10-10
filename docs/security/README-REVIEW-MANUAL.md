@@ -50,11 +50,18 @@ saves, unrelated mods and existing backups/logs alone. App settings are under
 
 ## Review scope and known limitations
 
-This build changes packaging, updates Flask to fix its published session-cache
-advisory, removes unused build tooling and restricts utility/DLL search paths.
-The native gameplay core is byte-for-byte identical to 0.1.1-alpha.1. Game hooks
-remain required; this build does not establish why security products flagged the
-previous EXE/DLLs and is not a certification of absence of malware.
+Candidate `0.1.1-alpha.2-review.2` additionally changes the native core: auto
+pickup pauses while an item is hovered, and newly generated hook trampolines
+become read/execute-only before use. The app reads process names through Windows
+without launching tasklist, and separates denied download files from game-folder
+installation permission errors. The loader remains the previously reviewed
+`bee68619...` build. These are functional/security changes, not antivirus verdicts.
+
+The first review candidate updated Flask for its published session-cache advisory,
+removed unused build tooling and restricted DLL search paths. Game hooks remain
+required; neither candidate establishes why security products flagged the files
+or certifies absence of malware. Do not treat old scan results as scans of the
+new EXE/core/ZIP.
 
 Do not infer fresh gameplay validation from a successful build or installer
 fixture test. See the accompanying verification report in the source repository.

@@ -107,7 +107,7 @@
     ],
     "autopickup": [
       "Auto pickup",
-      "Collects nearby items, gold, potions, tomes and bones through the game's normal pickup actions. Checks every 0.75 seconds."
+      "Collects nearby items, gold, potions, tomes and bones through the game's normal pickup actions. Pauses while you inspect an item."
     ],
     "density_read": [
       "Density diagnostics",

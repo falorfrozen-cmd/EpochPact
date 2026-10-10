@@ -108,16 +108,26 @@ std::string Hook(void* target, void* detour, Fn* original) {
     return ep::hook::Install(target, detour, reinterpret_cast<void**>(original), &why) ? std::string() : why;
 }
 
+bool ReadExecuteOnly(void* address) {
+    MEMORY_BASIC_INFORMATION info{};
+    return VirtualQuery(address, &info, sizeof info) == sizeof info &&
+           info.State == MEM_COMMIT && info.Protect == PAGE_EXECUTE_READ;
+}
+
 void Hooks() {
     std::string why;
     Check(t_plain(5) == 6, "t_plain before");
     why = Hook(reinterpret_cast<void*>(&t_plain), reinterpret_cast<void*>(&d_plain_x10), &o_plain);
     Check(why.empty(), "install t_plain", why);
+    Check(ReadExecuteOnly(reinterpret_cast<void*>(o_plain)), "trampoline page is read/execute only");
+    Fn firstTrampoline = o_plain;
     Check(t_plain(5) == 60, "t_plain hooked (x10)", std::to_string(t_plain(5)));
     Check(ep::hook::Remove(reinterpret_cast<void*>(&t_plain), &why), "remove t_plain", why);
     Check(t_plain(5) == 6, "t_plain after remove", std::to_string(t_plain(5)));
     why = Hook(reinterpret_cast<void*>(&t_plain), reinterpret_cast<void*>(&d_plain_add), &o_plain);
     Check(why.empty() && t_plain(5) == 1006, "t_plain re-hooked with another detour", std::to_string(t_plain(5)));
+    Check(ReadExecuteOnly(reinterpret_cast<void*>(o_plain)) && ReadExecuteOnly(reinterpret_cast<void*>(firstTrampoline)) &&
+              firstTrampoline(5) == 6, "reinstall keeps previous code immutable and callable");
     Check(!ep::hook::Install(reinterpret_cast<void*>(&t_plain), reinterpret_cast<void*>(&d_none), nullptr, &why),
           "a second install is refused", why);
     ep::hook::Remove(reinterpret_cast<void*>(&t_plain), nullptr);

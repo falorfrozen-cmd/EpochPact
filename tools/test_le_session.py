@@ -15,27 +15,43 @@ import subprocess
 from tools import le_session as le
 
 
-class SystemToolTests(unittest.TestCase):
-    def test_process_listing_never_searches_current_directory_or_path(self):
-        with tempfile.TemporaryDirectory() as directory:
-            fake = Path(directory) / 'tasklist.exe'
-            fake.write_bytes(b'never execute this fixture')
-            with patch.dict(os.environ, {'PATH': directory}), \
-                 patch.object(le.subprocess, 'run') as run:
-                run.return_value.stdout = '"Last Epoch.exe","123","Console","1","100 K"\n'
-                self.assertEqual(le.game_pids(), [123])
-            chosen = Path(run.call_args.args[0][0])
-            self.assertTrue(chosen.is_absolute())
-            self.assertEqual(chosen.name, 'tasklist.exe')
-            self.assertNotEqual(chosen, fake)
-            self.assertTrue(chosen.is_file())
-
-    def test_failure_to_resolve_system_directory_does_not_fall_back_to_path(self):
-        with patch.object(le.kernel32, 'GetSystemDirectoryW', return_value=0), \
+class ProcessListingTests(unittest.TestCase):
+    def test_process_listing_uses_windows_snapshot_without_spawning_a_program(self):
+        entries = iter([('Last Epoch.exe', 123), ('LAST EPOCH.EXE', 124), ('Last Epoch.exe.exe', 125)])
+        def step(snapshot, pointer):
+            try:
+                name, pid = next(entries)
+                pointer._obj.szExeFile = name
+                pointer._obj.th32ProcessID = pid
+                return True
+            except StopIteration:
+                le.ctypes.set_last_error(18)
+                return False
+        with patch.object(le.kernel32, 'CreateToolhelp32Snapshot', return_value=44) as snapshot, \
+             patch.object(le.kernel32, 'Process32FirstW', side_effect=step), \
+             patch.object(le.kernel32, 'Process32NextW', side_effect=step), \
+             patch.object(le.kernel32, 'CloseHandle') as close, \
              patch.object(le.subprocess, 'run') as run:
-            with self.assertRaises(OSError):
-                le.game_pids()
+            self.assertEqual(le.game_pids(), [123, 124])
+            snapshot.assert_called_once_with(2, 0)
+            close.assert_called_once_with(44)
             run.assert_not_called()
+
+    def test_access_denied_snapshot_is_not_reported_as_no_game(self):
+        with patch.object(le.kernel32, 'CreateToolhelp32Snapshot', return_value=le.ctypes.c_void_p(-1).value), \
+             patch.object(le.ctypes, 'get_last_error', return_value=5), \
+             patch.object(le.kernel32, 'CloseHandle') as close:
+            with self.assertRaises(PermissionError): le.game_pids()
+            close.assert_not_called()
+
+    def test_partial_enumeration_failure_closes_handle_and_blocks_install(self):
+        with patch.object(le.kernel32, 'CreateToolhelp32Snapshot', return_value=44), \
+             patch.object(le.kernel32, 'Process32FirstW', return_value=True), \
+             patch.object(le.kernel32, 'Process32NextW', return_value=False), \
+             patch.object(le.ctypes, 'get_last_error', return_value=5), \
+             patch.object(le.kernel32, 'CloseHandle') as close:
+            with self.assertRaises(PermissionError): le.game_pids()
+            close.assert_called_once_with(44)
 
 
 def concurrent_sender(game, command, queue):

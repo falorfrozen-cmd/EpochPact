@@ -123,7 +123,13 @@ class PlayerSetup:
 
     def status(self, *, check_running=True):
         result = {'selected': False, 'executable': str(self.executable or ''), 'installed': False,
-                  'running': bool(le.game_pids()) if check_running else False, 'problem': self.problem, 'revision': self.revision}
+                  'running': False, 'problem': self.problem, 'revision': self.revision}
+        if check_running:
+            try:
+                result['running'] = bool(le.game_pids())
+            except OSError:
+                result['runningUnknown'] = True
+                result['problem'] = 'Windows could not check whether Last Epoch is running. Installation has been blocked; refresh and try again.'
         if self.executable is None:
             return result
         try:
@@ -142,7 +148,7 @@ class PlayerSetup:
 
     def require_ready(self):
         # The existing game/IPC gate decides whether a loaded actor is ready.
-        # Avoid spawning tasklist for every slider, stat read and game command.
+        # Avoid process enumeration for every slider, stat read and game command.
         state = self.status(check_running=False)
         if not state['selected']:
             raise RuntimeError('Select Last Epoch.exe in Game setup first.')
@@ -153,16 +159,27 @@ class PlayerSetup:
             raise RuntimeError('EpochPact is disabled in this game folder. Remove the EpochPact disabled file before launching.')
 
     def install(self):
-        if not self.status()['selected']:
+        state = self.status()
+        if state.get('runningUnknown'):
+            raise RuntimeError(state['problem'])
+        if not state['selected']:
             raise RuntimeError('Select Last Epoch.exe before installing the mod.')
+        # Elevation cannot repair unreadable or quarantined bundled files.
+        try:
+            le.build_artifact('player')
+            (le.BUILD / 'version.dll').read_bytes()
+        except PermissionError as exc:
+            return {'ok': False, 'requiresElevation': False,
+                    'error': 'Windows denied access to the downloaded mod files. Check the security protection history and restore a verified EpochPact download. ' + str(exc),
+                    'launcher': self.status(check_running=False)}
         output = io.StringIO()
         try:
             with contextlib.redirect_stdout(output):
                 code = le.cmd_install(argparse.Namespace(flavor='player'))
-        except PermissionError:
+        except PermissionError as exc:
             return {'ok': False, 'requiresElevation': True,
-                    'error': 'Windows requires administrator permission to install here. Use Install as administrator.',
-                    'launcher': self.status()}
+                    'error': 'Windows denied access while installing in the game folder. Folder permissions or security software may be responsible. You can explicitly try Install as administrator. ' + str(exc),
+                    'launcher': self.status(check_running=False)}
         if code:
             raise RuntimeError(output.getvalue().strip().removeprefix('refused: '))
         state = self.status()

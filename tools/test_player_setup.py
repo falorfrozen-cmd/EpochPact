@@ -186,6 +186,32 @@ class SetupTests(unittest.TestCase):
         self.assertFalse(result['ok']); self.assertTrue(result['requiresElevation'])
         launch.assert_not_called()
 
+    def test_compatibility_access_denial_reaches_admin_button_without_installing(self):
+        self.setup.select(str(self.exe))
+        with patch.object(le, 'require_supported_build', side_effect=PermissionError('denied GameAssembly.dll')):
+            result = self.setup.install()
+        self.assertFalse(result['ok']); self.assertTrue(result['requiresElevation'])
+        self.assertIn('GameAssembly.dll', result['error'])
+        self.assertFalse((self.exe.parent / 'version.dll').exists())
+        self.assertFalse((self.exe.parent / 'EpochPact').exists())
+
+    def test_denied_download_does_not_offer_elevation_or_change_game(self):
+        self.setup.select(str(self.exe))
+        with patch.object(le, 'build_artifact', side_effect=PermissionError('denied bundled core')):
+            result = self.setup.install()
+        self.assertFalse(result['ok']); self.assertFalse(result['requiresElevation'])
+        self.assertIn('download', result['error'])
+        self.assertFalse((self.exe.parent / 'EpochPact').exists())
+
+    def test_unreadable_process_list_is_not_treated_as_game_closed(self):
+        self.setup.select(str(self.exe))
+        with patch.object(le, 'game_pids', side_effect=PermissionError('process list denied')), \
+             patch.object(le, 'cmd_install') as install:
+            self.assertTrue(self.setup.status()['runningUnknown'])
+            with self.assertRaisesRegex(RuntimeError, 'Installation has been blocked'):
+                self.setup.install()
+            install.assert_not_called()
+
     def test_launch_calls_only_existing_offline_backend(self):
         self.setup.select(str(self.exe)); self.setup.install()
         with patch.object(le, 'cmd_launch', return_value=0) as launch:

@@ -17,7 +17,6 @@ namespace ep::hook {
 namespace {
 
 constexpr size_t kPatch = 5;            // E9 rel32
-constexpr size_t kSlot = 160;           // trampoline (up to 128 bytes) + relay (14) per hook
 constexpr size_t kTrampolineMax = 128;
 constexpr intptr_t kReach = 0x7FF00000; // stay a little inside rel32's +-2 GB
 
@@ -31,6 +30,7 @@ struct Record {
     uint8_t* target = nullptr;
     uint8_t* trampoline = nullptr;
     uint8_t* relay = nullptr;
+    void* detour = nullptr;
     uint8_t saved[32] = {};
     size_t stolen = 0;
     bool installed = false;
@@ -55,17 +55,21 @@ void Fail(std::string* why, const char* fmt, ...) {
     *why = buf;
 }
 
-// A kSlot-sized piece of executable memory within reach of `target`.
+// Each trampoline owns a separate page: writing a new hook must never change the
+// protection of a page another thread can already execute. Reserve nearby address
+// space, commit only the page being built as RW, then seal it RX before publishing.
 uint8_t* AllocNear(const uint8_t* target) {
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    const size_t page = si.dwPageSize;
     for (Block& b : g_blocks) {
-        if (b.used + kSlot <= b.size && Near(b.base, target) && Near(b.base + b.size, target)) {
+        if (b.used + page <= b.size && Near(b.base, target) && Near(b.base + b.size, target)) {
             uint8_t* p = b.base + b.used;
-            b.used += kSlot;
+            if (!VirtualAlloc(p, page, MEM_COMMIT, PAGE_READWRITE)) continue;
+            b.used += page;
             return p;
         }
     }
-    SYSTEM_INFO si;
-    GetSystemInfo(&si);
     const uintptr_t gran = si.dwAllocationGranularity;
     const uintptr_t lo = reinterpret_cast<uintptr_t>(si.lpMinimumApplicationAddress);
     const uintptr_t hi = reinterpret_cast<uintptr_t>(si.lpMaximumApplicationAddress);
@@ -76,13 +80,30 @@ uint8_t* AllocNear(const uint8_t* target) {
             if ((dir == 0 && origin < delta + lo) || addr < lo || addr + gran > hi) continue;
             MEMORY_BASIC_INFORMATION mbi;
             if (!VirtualQuery(reinterpret_cast<void*>(addr), &mbi, sizeof mbi) || mbi.State != MEM_FREE) continue;
-            void* p = VirtualAlloc(reinterpret_cast<void*>(addr), gran, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+            void* p = VirtualAlloc(reinterpret_cast<void*>(addr), gran, MEM_RESERVE, PAGE_NOACCESS);
             if (!p) continue;
-            g_blocks.push_back({static_cast<uint8_t*>(p), kSlot, gran});
+            if (!VirtualAlloc(p, page, MEM_COMMIT, PAGE_READWRITE)) {
+                VirtualFree(p, 0, MEM_RELEASE);
+                continue;
+            }
+            g_blocks.push_back({static_cast<uint8_t*>(p), page, gran});
             return static_cast<uint8_t*>(p);
         }
     }
     return nullptr;
+}
+
+bool SealCode(uint8_t* page, std::string* why) {
+    DWORD old = 0;
+    if (!VirtualProtect(page, kTrampolineMax + 14, PAGE_EXECUTE_READ, &old)) {
+        Fail(why, "cannot make the trampoline read/execute (error %lu)", GetLastError());
+        return false;
+    }
+    if (!FlushInstructionCache(GetCurrentProcess(), page, kTrampolineMax + 14)) {
+        Fail(why, "cannot flush the trampoline instruction cache (error %lu)", GetLastError());
+        return false;
+    }
+    return true;
 }
 
 void EmitAbsJmp(uint8_t*& out, const void* dest) {  // FF 25 00000000 <abs64>
@@ -307,7 +328,11 @@ bool Install(void* targetPtr, void* detour, void** original, std::string* why) {
         Fail(why, "already installed");
         return false;
     }
-    if (!rec) {
+    if (rec && std::memcmp(target, rec->saved, rec->stolen) != 0) {
+        Fail(why, "the target changed after this hook was removed");
+        return false;
+    }
+    if (!rec || rec->detour != detour) {
         uint8_t* slot = AllocNear(target);
         if (!slot) {
             Fail(why, "no free memory within 2 GB of the target");
@@ -317,13 +342,26 @@ bool Install(void* targetPtr, void* detour, void** original, std::string* why) {
         fresh.target = target;
         fresh.trampoline = slot;
         fresh.relay = slot + kTrampolineMax;
-        if (!BuildTrampoline(target, fresh.trampoline, &fresh.stolen, why)) return false;
+        fresh.detour = detour;
+        if (!BuildTrampoline(target, fresh.trampoline, &fresh.stolen, why)) {
+            VirtualFree(slot, 0, MEM_DECOMMIT);
+            return false;
+        }
         std::memcpy(fresh.saved, target, fresh.stolen);
-        g_records.push_back(fresh);
-        rec = &g_records.back();
+        uint8_t* relay = fresh.relay;
+        EmitAbsJmp(relay, detour);
+        if (!SealCode(slot, why)) {
+            VirtualFree(slot, 0, MEM_DECOMMIT);
+            return false;
+        }
+        // Retain old RX pages: a caller may still be returning through an earlier
+        // trampoline. A re-install with the same detour can reuse its immutable page.
+        if (rec) *rec = fresh;
+        else {
+            g_records.push_back(fresh);
+            rec = &g_records.back();
+        }
     }
-    uint8_t* r = rec->relay;
-    EmitAbsJmp(r, detour);  // the relay may point at a new detour on a re-install
 
     uint8_t patch[sizeof(Record::saved)];
     std::memset(patch, 0xCC, rec->stolen);  // a jump into the middle of the old bytes should crash loudly

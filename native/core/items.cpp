@@ -78,6 +78,18 @@ const Field* g_labelListField = nullptr;         // ItemTooltipOrganizer.pickabl
 const il2cpp::Class* g_groundItemLabel = nullptr;
 game::MethodRef m_requestPickup;                 // GroundItemLabel.requestPickup()
 const Field* g_managerField = nullptr;           // GroundItemManager.instance
+const Field* g_hoveredItemField = nullptr;       // TooltipItem.highlightedTooltipItem
+
+bool InspectingItem() {
+    // A failed/missing hover read must pause collection, not dismiss a tooltip.
+    if (!g_hoveredItemField) return true;
+    bool inspecting = true;
+    if (!game::Guarded([&] {
+        void* hovered = game::StaticObject(g_hoveredItemField);
+        inspecting = hovered && game::IsAlive(hovered);
+    }, nullptr)) return true;
+    return inspecting;
+}
 
 struct ActiveList {
     const char* what;
@@ -153,6 +165,7 @@ void PickAll() {
     int calls = 0;
     if (m_requestPickup) {
         for (int i = 0; i < labelCount; ++i) {
+            if (InspectingItem()) break;
             if (game::Guarded([&] { if(game::IsAlive(labels[i])) { managed::Invoke(m_requestPickup,labels[i]); ++calls; } },nullptr)) {}
         }
     }
@@ -168,6 +181,7 @@ void PickAll() {
     for (const auto& l : lists) {
         if (!l.pick->code) continue;
         for (int i = 0; i < l.count; ++i) {
+            if (InspectingItem()) break;
             game::Guarded([&] { if(game::IsAlive(l.list[i])) { managed::Invoke(*l.pick,l.list[i]); ++calls; } },nullptr);
         }
     }
@@ -185,6 +199,7 @@ void d_distantTick(void* self, float deltaTime, const Method* m) {
     o_distantTick(self, deltaTime, m);  // the game's own distant pickup stays in charge
     if (g_auto.load(std::memory_order_relaxed) == 0.0) return;
     if (!game::IsOfflinePlay()) return;
+    if (InspectingItem()) return;  // Leave both the tooltip and scan timer alone.
     const unsigned long now = GetTickCount();
     unsigned long last = g_lastScan.load(std::memory_order_relaxed);
     if (now - last < 750) return;
@@ -217,6 +232,7 @@ bool Init() {
     h_distantTick.ref = game::FindMethod("LE.dll", "", "DistantItemPickupHandler", "OnUpdateTick", 1);
     g_labelListField = game::FindStaticField("LE.dll", "", "ItemTooltipOrganizer", "pickableGroundLabelList");
     g_managerField = game::FindStaticField("LE.dll", "", "GroundItemManager", "instance");
+    g_hoveredItemField = game::FindStaticField("LE.dll", "", "TooltipItem", "highlightedTooltipItem");
     g_groundItemLabel = game::FindClass("LE.dll", "", "GroundItemLabel");
     m_requestPickup = game::FindMethod("LE.dll", "", "GroundItemLabel", "requestPickup", 0);
 
@@ -231,10 +247,11 @@ bool Init() {
     g_activeLists[3] = list("activeFavorTomes", "LE.dll", "PickupFavorTomeInteraction", "PickUp");
     g_activeLists[4] = list("activeAncientBones", "LE.dll", "PickupAncientBonesInteraction", "PickUp");
 
-    Log("items: RollRarity %s; autopickup: tick %s, label list %s, manager %s, GroundItemLabel %s, requestPickup %s; active lists "
+    Log("items: RollRarity %s; autopickup: tick %s, label list %s, manager %s, GroundItemLabel %s, requestPickup %s, hover guard %s; active lists "
         "gold %d potion %d xp %d favor %d bone %d",
         h_rollRarity.ref ? "found" : "MISSING", h_distantTick.ref ? "found" : "MISSING", g_labelListField ? "found" : "MISSING",
         g_managerField ? "found" : "MISSING", g_groundItemLabel ? "found" : "MISSING", m_requestPickup ? "found" : "MISSING",
+        g_hoveredItemField ? "found" : "MISSING",
         g_activeLists[0].pick ? 1 : 0, g_activeLists[1].pick ? 1 : 0, g_activeLists[2].pick ? 1 : 0, g_activeLists[3].pick ? 1 : 0,
         g_activeLists[4].pick ? 1 : 0);
     return static_cast<bool>(h_rollRarity.ref);
@@ -257,6 +274,7 @@ std::string SetAuto(double on) {
         return "autopickup -> off (hook removed)";
     }
     if (!smartloot::CanCollect()) return "autopickup: refused: enter a loaded offline character first";
+    if (!g_hoveredItemField) return "autopickup: refused: item tooltip hover state was not found in this game build";
     if (!hook::IsInstalled(h_distantTick.ref.code)) {
         std::string why;
         if (!hook::Install(h_distantTick.ref.code, h_distantTick.detour, h_distantTick.original, &why)) {
@@ -266,7 +284,8 @@ std::string SetAuto(double on) {
     }
     g_auto = 1.0;
     g_autoFirst = true;
-    return "autopickup -> on (items, gold, potions, tomes and bones; a scan every 0.75 s)";
+    g_lastScan = 0;
+    return "autopickup -> on (items, gold, potions, tomes and bones; pauses while inspecting an item)";
 }
 
 std::string Status() { return feature::Line(g_rarity) + "\n" + AutoStatus(); }

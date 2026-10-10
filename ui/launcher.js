@@ -19,7 +19,7 @@
  }
  function disable(){
   for(const b of document.querySelectorAll('.game-setup button')){
-   b.disabled=(isBusy?.()||false)||((b.hasAttribute('data-game-install')||b.hasAttribute('data-game-elevate'))&&(!state?.selected||state.running||state.foreignLoader))||
+   b.disabled=(isBusy?.()||false)||((b.hasAttribute('data-game-install')||b.hasAttribute('data-game-elevate'))&&(!state?.selected||state.running||state.runningUnknown||state.foreignLoader))||
     (b.hasAttribute('data-game-launch')&&(!state?.installed||state.running||state.disabled));
   }
  }

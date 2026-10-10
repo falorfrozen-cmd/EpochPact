@@ -1,82 +1,69 @@
 # Candidate detection review — draft, not submitted
 
-Use the vendor responsible for each detection, as described in
-[VirusTotal's vendor-contact guidance](https://docs.virustotal.com/docs/false-positive-contacts).
-VirusTotal aggregates engine results; a small detection count or a clean result
-does not settle whether a file is safe. This draft requests analysis without
-declaring a false positive.
+Use [VirusTotal's vendor-contact directory](https://docs.virustotal.com/docs/false-positive-contacts)
+and verify each destination against the vendor's official site before submission.
+Send a vendor only the findings relevant to its engine. No vendor submission has
+been made as part of review.2; the existing Nexus support request is a separate
+case. This message requests analysis without declaring a false positive.
 
-Current candidate findings: EXE — Elastic, Microsoft and Skyhigh (SWG);
-loader — Cynet and Symantec; unchanged core — Cynet; ZIP — Elastic.
-Microsoft's official submission page is
-https://www.microsoft.com/en-us/wdsi/filesubmission.
-The contact directory links Elastic's review form and lists the relevant other
-vendors. Review the official destination before submitting. No vendor request
-has been sent as part of this candidate review.
+## Responsible vendors / current evidence
 
-Submit each responsible vendor's relevant files/report links rather than
-claiming that one vendor flagged every component. The complete measurements
-and immutable hashes are in [the fresh reports](virustotal-20261010.json).
-
-| Component | SHA-256 | Finding |
+| Artifact | Findings | Exact SHA-256 |
 | --- | --- | --- |
-| version.dll | `bee68619c1869f7cb2b7c5e0cde123137e58c08fc8ec4f5fca237fb1c107370d` | Cynet: Malicious (score: 100); Symantec: ML.Attribute.HighConfidence |
-| EpochPact.Core.dll | `6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f` | Cynet: Malicious (score: 100) |
+| EpochPact.exe | Elastic: Malicious (moderate Confidence); Skyhigh (SWG): BehavesLike.Win64.Dropper.fh; Zillya: Backdoor.XWorm.Win32.3294 | `64eee8abe749bfda5d03bab8de072aa39ea9ad5b35a78a3e9d98ab6cb7a8cf49` |
+| EpochPact.Core.dll | Cynet: Malicious (score: 100) | `e391eb9bde4d4174fa3b5411623c3d22a94061fccc3aeec0b64b629c3895ccc5` |
+| version.dll, unchanged | Cynet: Malicious (score: 100); Symantec: ML.Attribute.HighConfidence | `bee68619c1869f7cb2b7c5e0cde123137e58c08fc8ec4f5fca237fb1c107370d` |
+| Review.2 Manual ZIP | Elastic: Malicious (moderate Confidence) | `eb9c6deccfbf8a3f5442ad6ee8f5ebd9cdd4385816c0c4717b19a885c7320874` |
 
-Loader report: https://www.virustotal.com/gui/file/bee68619c1869f7cb2b7c5e0cde123137e58c08fc8ec4f5fca237fb1c107370d
-
-Core report: https://www.virustotal.com/gui/file/6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f
+Microsoft is Undetected on the new EXE report. The earlier Microsoft detection
+and original Nexus files are retained in [the review.1 history](review-20261010.md);
+this is not evidence that all security findings are resolved.
 
 ## Message
 
-Subject: Detection review request — EpochPact offline game tool, candidate EXE
+Subject: Detection review request — EpochPact offline Last Epoch tool
 
 Hello,
 
 I maintain EpochPact, an open-source Windows tool for offline Last Epoch. Please
-review your detection of this local security-review candidate. I have not
-established the cause and am not asking users to disable security products.
+review your engine's findings on candidate 0.1.1-alpha.2-review.2. The cause is
+not established, and users are not asked to disable security products or add
+exclusions. This candidate has not replaced the quarantined Nexus files.
 
-File: EpochPact.exe, folder-build candidate 0.1.1-alpha.2-review.1, 370,889 bytes.
-SHA-256: 068bc76120b2a8d17c8d4f87a51f3ebaf6e2696829e80ec2d4492498c6590435.
-VirusTotal: https://www.virustotal.com/gui/file/068bc76120b2a8d17c8d4f87a51f3ebaf6e2696829e80ec2d4492498c6590435
+Relevant file hashes and engine labels are listed above. Public VirusTotal
+reports and exact byte sizes are in:
+https://github.com/falorfrozen-cmd/EpochPact/blob/round1-xp-multiplier/docs/security/virustotal-20261010-r2.json
 
-Observed detections:
+Source, build changes, validation scopes and remaining limitations:
+https://github.com/falorfrozen-cmd/EpochPact/blob/round1-xp-multiplier/docs/security/review-20261010-r2.md
 
-- Elastic: Malicious (moderate Confidence)
-- Microsoft: Trojan:Win32/Wacatac.B!ml
-- Skyhigh (SWG): BehavesLike.Win64.Dropper.fh
+The Windows EXE is a PyInstaller 6.20.0 folder build with required runtime files
+separately visible. Its executable .text section matches the audited official
+runw.exe bootloader; this comparison does not audit the appended application.
+The build uses 23 pinned official PyPI inputs; 1,978 installed files matched the
+upstream artifacts. UPX is disabled. Full loader/core source is in the same
+repository. The native core intentionally hooks offline game functions.
 
-The local Microsoft Defender custom scan reported no threats both before and
-after the VirusTotal analysis, with real-time protection enabled and signatures
-1.459.641.0 / 1.459.645.0 respectively. This discrepancy is recorded without
-claiming either result is conclusive.
+Review.2 pauses automatic pickup during item hover, preserves installation
+access-denied errors, and enumerates process names through Windows Toolhelp
+without spawning tasklist. Generated trampolines are built RW and then sealed
+RX before publication; target-function patching still temporarily changes code
+protection. The loader remains byte-identical to review.1. Its unresolved
+System32 LoadLibrary call in DllMain is disclosed in the review.
 
-Source and build audit:
-https://github.com/falorfrozen-cmd/EpochPact/blob/round1-xp-multiplier/docs/security/review-20261010.md
+Local Microsoft Defender custom scans of the exact candidate folder and ZIP
+reported no threats, with signatures 1.459.645.0 and real-time protection enabled.
+VirusTotal still reports the findings above. These observations are recorded
+separately; neither is presented as conclusive evidence of safety.
 
-The EXE is built with official PyInstaller 6.20.0. Its executable .text section
-matches the audited official runw.exe bootloader. Required Python/runtime files
-are separately visible in the app folder. Exact PyPI inputs are pinned and
-hashed; 1,978 installed source/data/native files matched official artifacts.
-There is no UPX packing. The native game loader/core are separate required files,
-with source available in the repository. The game core uses hooks for offline
-modding; it is unchanged and has a separately recorded Cynet detection.
+The ZIP is a Windows application/manual installation bundle, not a PyPI package
+submission. VirusTotal's archive size warning prevents treating the ZIP report
+as a complete scan of every embedded file; the EXE/core were scanned separately
+and the unchanged loader's earlier completed report is retained.
 
-The review ZIP is a Windows application/manual installation package, not an
-upload to PyPI or a replacement click distribution. VirusTotal's Code insights
-labels it as click 8.5.0 (whl); genuine upstream dependency metadata is present
-inside the application runtime. Please consider the actual application identity
-and contents when reviewing that classification. This does not explain or
-invalidate the separate engine detections.
-
-ZIP SHA-256: 50faf9151bc1c95f80efb4e85f3fcb2a1bd3dad2af10a00b3e924a241907416c.
-ZIP report: https://www.virustotal.com/gui/file/50faf9151bc1c95f80efb4e85f3fcb2a1bd3dad2af10a00b3e924a241907416c
-
-Please identify the component or behavior that triggered your finding, and
-whether you need the full runtime bundle, source or further evidence. The
-candidate is not published as an approved replacement for the quarantined Nexus
-files. Their original bytes are preserved for an existing Nexus support request.
+Please identify which component or behavior triggered your finding and whether
+you need the runtime bundle, source or further evidence. The exact archives and
+original quarantined files are preserved for review.
 
 Thank you,
 Falor
