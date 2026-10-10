@@ -18,7 +18,9 @@ void Shutdown() {
     // Cancelled frame jobs release the IPC worker's stack and let it detach
     // while the domain is still valid. Never tear down IL2CPP under that worker.
     if (finished && GetCurrentThreadId() != workerId) WaitForSingleObject(finished, INFINITE);
-    Log("runtime shutdown: worker stopped; continuing IL2CPP shutdown");
+    std::string why;
+    if (!hook::RemoveAll(&why)) Log("runtime shutdown: hook restoration incomplete: %s", why.c_str());
+    Log("runtime shutdown: worker stopped and hook restoration attempted; continuing IL2CPP shutdown");
     original();
 }
 }

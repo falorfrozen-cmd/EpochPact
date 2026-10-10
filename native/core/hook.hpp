@@ -19,6 +19,10 @@ bool Install(void* target, void* detour, void** original, std::string* why);
 // still be running them; they are reused if the same target is hooked again.
 bool Remove(void* target, std::string* why);
 
+// Restore all owned patches, retaining code pages for callers already in them.
+// Foreign modifications or failed thread/protection checks are reported.
+bool RemoveAll(std::string* why);
+
 bool IsInstalled(void* target);
 
 }  // namespace ep::hook

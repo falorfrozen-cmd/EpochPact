@@ -62,6 +62,8 @@ ml64 /nologo /c /Fo"%OUT%\tests\test_targets.obj" "%HERE%tests\test_targets.asm"
 cl %CFLAGS% /EHsc /c /Fo"%OUT%\tests\\" "%HERE%tests\hook_test.cpp" "%CORE%\x64_decode.cpp" "%CORE%\hook.cpp" || exit /b 1
 link /nologo /OUT:"%OUT%\hook_test.exe" "%OUT%\tests\hook_test.obj" "%OUT%\tests\x64_decode.obj" "%OUT%\tests\hook.obj" "%OUT%\tests\test_targets.obj" kernel32.lib || exit /b 1
 
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\hook_failure_test.exe" "%HERE%tests\hook_failure_test.cpp" "%OUT%\tests\x64_decode.obj" "%OUT%\tests\test_targets.obj" || exit /b 1
+
 ml64 /nologo /c /Fo"%OUT%\tests\xp_targets.obj" "%HERE%tests\xp_targets.asm" || exit /b 1
 cl %CFLAGS% /EHa /c /Fo"%OUT%\tests\\" "%HERE%tests\xp_test.cpp" "%HERE%tests\fake_game.cpp" "%CORE%\xp.cpp" || exit /b 1
 link /nologo /OUT:"%OUT%\xp_test.exe" "%OUT%\tests\xp_test.obj" "%OUT%\tests\fake_game.obj" "%OUT%\tests\xp.obj" "%OUT%\tests\x64_decode.obj" "%OUT%\tests\hook.obj" "%OUT%\tests\xp_targets.obj" kernel32.lib || exit /b 1

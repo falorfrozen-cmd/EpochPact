@@ -1,0 +1,769 @@
+{
+  "version": "0.1.1-alpha.2-review.3",
+  "status": "Local review candidate; detections unresolved; not a player release",
+  "archive": {
+    "path": "dist/security-review/hardening-r3-packages/EpochPact-0.1.1-alpha.2-review.3-Manual-Review.zip",
+    "bytes": 26512220,
+    "sha256": "f0ad5d29217d47d57a0bc35d97867550c19d5d90229c079682b77188aba4f30e",
+    "entries": 840,
+    "runtimeFiles": 771,
+    "verified": true
+  },
+  "binaries": [
+    {
+      "path": "dist/security-review/hardening-r3/EpochPact/EpochPact.exe",
+      "bytes": 370804,
+      "sha256": "5d0c15eb6d70d82a7cd4f4cfd0bfae3f43c28a84e3f04a2a60136f32cc8f1106"
+    },
+    {
+      "path": "dist/security-review/hardening-r3/EpochPact/_internal/native/build/player/EpochPact.Core.dll",
+      "bytes": 1167872,
+      "sha256": "7b00bf42ac09ef003eb3a7c67e7b297e39868789b46b2bf7fc77296ab175c13e"
+    },
+    {
+      "path": "dist/security-review/hardening-r3/EpochPact/_internal/native/build/version.dll",
+      "bytes": 111104,
+      "sha256": "3e695920df290cb7b6d146db728cdbdb3def7f359ffd7c2032e0f219b109e181"
+    }
+  ],
+  "pythonTests": {
+    "passed": 164,
+    "scope": "unittest modules, controlled fixtures; no live game"
+  },
+  "nativeTests": {
+    "results": [
+      {
+        "test": "cof_test.exe",
+        "exit": 0,
+        "result": "cof: 48/48 passed"
+      },
+      {
+        "test": "density_test.exe",
+        "exit": 0,
+        "result": "density_test: 37/37 passed"
+      },
+      {
+        "test": "game_read_test.exe",
+        "exit": 0,
+        "result": "game_read_test: 12/12 passed"
+      },
+      {
+        "test": "hook_failure_test.exe",
+        "exit": 0,
+        "result": "hook_failure: 14/14 passed"
+      },
+      {
+        "test": "hook_test.exe",
+        "exit": 0,
+        "result": "hook_test: 50/50 passed"
+      },
+      {
+        "test": "items_test.exe",
+        "exit": 0,
+        "result": "items_test: 12/12 passed"
+      },
+      {
+        "test": "lifecycle_test.exe",
+        "exit": 0,
+        "result": "lifecycle: 7/7 passed"
+      },
+      {
+        "test": "loot_crafting_test.exe",
+        "exit": 0,
+        "result": "loot/crafting: 6260/6260 passed"
+      },
+      {
+        "test": "mainthread_test.exe",
+        "exit": 0,
+        "result": "mainthread: 13/13 passed"
+      },
+      {
+        "test": "monolith_test.exe",
+        "exit": 0,
+        "result": "monolith: 22/22 passed"
+      },
+      {
+        "test": "review_test.exe",
+        "exit": 0,
+        "result": "review: 73/73 passed"
+      },
+      {
+        "test": "stat_key_test.exe",
+        "exit": 0,
+        "result": "stat_key_test: 40 passed, 0 failed"
+      },
+      {
+        "test": "xp_test.exe",
+        "exit": 0,
+        "result": "xp_test: 24/24 passed"
+      }
+    ],
+    "scope": "13 compiled test executables; controlled synthetic targets; no live Last Epoch"
+  },
+  "loaderFixture": {
+    "loaderSHA256": "3e695920df290cb7b6d146db728cdbdb3def7f359ffd7c2032e0f219b109e181",
+    "checks": [
+      "17 exports present; no core starts during DLL attach; 16 concurrent first calls resolve once; five-argument ExW forwarding matches System32; LastError preserved",
+      "core resolves dependency beside itself",
+      "crash-handler host forwards APIs without starting the core",
+      "missing trusted dependency fails closed; same-named DLL in current directory / PATH is not loaded",
+      "disabled marker prevents core initialization without breaking version forwarding"
+    ],
+    "scope": "Compiled benign fixtures only; no game launch, game hooks, saves or live gameplay validation."
+  },
+  "compiledApplication": {
+    "file": "dist/security-review/hardening-r3/EpochPact/EpochPact.exe",
+    "layout": "onedir",
+    "sha256": "5d0c15eb6d70d82a7cd4f4cfd0bfae3f43c28a84e3f04a2a60136f32cc8f1106",
+    "bytes": 370804,
+    "nativePlayerSHA256": "7b00bf42ac09ef003eb3a7c67e7b297e39868789b46b2bf7fc77296ab175c13e",
+    "checks": [
+      "folder bundle inventory matches every file hash; no nested archives or build tools",
+      "bundled Python runtime",
+      "verified player DLL only",
+      "no historical character snapshots",
+      "current launcher source in EXE",
+      "compiled installer helper installs exact DLLs in custom Unicode folder without Python",
+      "compiled installer refuses another mod loader without changes",
+      "compiled installer refuses an unsupported game build before writing files",
+      "first launch performs no selection, installation or gameplay mutation",
+      "compiled interface serves scripts, font and both theme assets",
+      "installation API rejects missing session token",
+      "compiled API rejects foreign Host and Origin even with a valid session token",
+      "compiled HTTP selection and explicit installation succeed through the serial job queue",
+      "fixture game is never executed; no game IPC or save backups created",
+      "fresh EXE process remembers selected path and issues a new session token",
+      "compiled EXE rejects a legacy shared port and serves Game setup from its own backend",
+      "compiled startup logs contain no exception"
+    ],
+    "jobDurationsMs": [
+      56.3,
+      26.8,
+      94.9,
+      233.3
+    ],
+    "scope": "Final compiled EXE, isolated installer fixtures and HTTP interface; no interactive picker test, UAC approval or live gameplay test."
+  },
+  "defender": {
+    "status": {
+      "AntivirusEnabled": true,
+      "RealTimeProtectionEnabled": true,
+      "AntivirusSignatureVersion": "1.459.645.0",
+      "AntivirusSignatureLastUpdated": "2026-10-09T23:49:58+07:00"
+    },
+    "folderExitCode": 0,
+    "zipExitCode": 0,
+    "folderResult": "No threats found",
+    "zipResult": "No threats found",
+    "normalRemediation": true
+  },
+  "liveGame": {
+    "runThisIteration": false,
+    "hover": "Not verified in a live session",
+    "shutdown": "Not verified in a live session; previous 0xC0000005 remains unresolved"
+  },
+  "javascriptTests": {
+    "rerunThisIteration": false,
+    "reason": "UI JavaScript unchanged; prior review.2 results retained separately"
+  },
+  "knownLimits": [
+    "Administrator helper still elevates user-writable Python tree; unresolved",
+    "Result-path validation is not an atomic parent-handle defense against local races",
+    "First forwarded call from another DLL DllMain may still hold that caller loader lock",
+    "Stable thread preflight cannot exclude new threads after the final snapshot"
+  ],
+  "virustotal": "virustotal-20261010-r3.json",
+  "research": "av-remediation-20261010.md",
+  "compiledSourceInputs": [
+    {
+      "path": "EpochPact.spec",
+      "bytes": 3246,
+      "sha256": "30107ee00b689a6d671869e10cab8747c27e95630df9ef34ce792d6515680927"
+    },
+    {
+      "path": "epochpact_desktop.py",
+      "bytes": 2480,
+      "sha256": "25da043338c2e6ea346173176643a48be9286e1a86db440782094d3fe53b1ca5"
+    },
+    {
+      "path": "epochpact_ui.py",
+      "bytes": 13602,
+      "sha256": "6f660d45a037bc9f916f399cc05fc0033ebdaff65e2237ac10b254633f71681f"
+    },
+    {
+      "path": "native/build.bat",
+      "bytes": 6110,
+      "sha256": "62b46cf8a826fe687605f719201960d72fc152420855f11d632b834700d80584"
+    },
+    {
+      "path": "native/core/cof.cpp",
+      "bytes": 42098,
+      "sha256": "28cfdf08b749308bc2905a0ea65752159e1fea56cf98b07a612991d9df8c9f81"
+    },
+    {
+      "path": "native/core/cof.hpp",
+      "bytes": 1349,
+      "sha256": "c1623fb13bcbc3465685e008dabc9eda52a609eeae429cef213d607767b212cf"
+    },
+    {
+      "path": "native/core/cof_rules.hpp",
+      "bytes": 1370,
+      "sha256": "264a65969c080cb5650d854896298499c083726c69cc41a00101fa76a2427e13"
+    },
+    {
+      "path": "native/core/cof_tuning.cpp",
+      "bytes": 19001,
+      "sha256": "108654339bbe77c5875354343fd3fc88db46c785dbd41476a64997ad41c32f2d"
+    },
+    {
+      "path": "native/core/cof_tuning.hpp",
+      "bytes": 273,
+      "sha256": "7712691584276718abdc7abe8a28076adfe840fc794b9cff3143e5ce9e1aff46"
+    },
+    {
+      "path": "native/core/cof_tuning_rules.hpp",
+      "bytes": 1576,
+      "sha256": "bb256d9a10a58af6b077c0ff5df0729b755264ab963bf6c2a4ee83f8cc06ae56"
+    },
+    {
+      "path": "native/core/collection.cpp",
+      "bytes": 13751,
+      "sha256": "443eb0bd59477de627e26a744ff67e58a9cf998940c3044687f0d12d98da1b23"
+    },
+    {
+      "path": "native/core/collection.hpp",
+      "bytes": 114,
+      "sha256": "c86fc9c4e10d3daa38328f7d97fb3730cfebdc77e5ec20d91bd668da353284b8"
+    },
+    {
+      "path": "native/core/commands.cpp",
+      "bytes": 21236,
+      "sha256": "f7bdf0edfa7a7e0d76919a63e34df233f65ace4fe288bb5546e22aa86f02d502"
+    },
+    {
+      "path": "native/core/commands.hpp",
+      "bytes": 614,
+      "sha256": "13c4139d45730e6702b4f518d7390b2f977507e4bca5473727867691c461af5d"
+    },
+    {
+      "path": "native/core/common.cpp",
+      "bytes": 1796,
+      "sha256": "1a918f1a10cdccc7bc8877f555817ef37a183c7788acc0b29c9ca0bdd8ae2972"
+    },
+    {
+      "path": "native/core/common.hpp",
+      "bytes": 479,
+      "sha256": "e9dd7064f805decebcbef6872e356abcf74eb2c3ad97be2d452ac1b4282bcfca"
+    },
+    {
+      "path": "native/core/cooldown_rules.hpp",
+      "bytes": 343,
+      "sha256": "74f159aaa76adc7796920360282bbd4908d568ec0d1e8612c2b499ef8009c201"
+    },
+    {
+      "path": "native/core/core.cpp",
+      "bytes": 4823,
+      "sha256": "ae8da56fb4e6d7fa662a478fce3302ce8052147ba5d6cf81830f54dd6fd25728"
+    },
+    {
+      "path": "native/core/crafting.cpp",
+      "bytes": 39483,
+      "sha256": "6e278ce361a50015eba65d0a0a639d15aa60031048379de0ac5274a92ef336c1"
+    },
+    {
+      "path": "native/core/crafting.hpp",
+      "bytes": 325,
+      "sha256": "16c8b7e48e16efd0737dd91e50ab03304cd41105a94b5b9284049bbe89419881"
+    },
+    {
+      "path": "native/core/density.cpp",
+      "bytes": 16049,
+      "sha256": "6967c4684385289b47a6261c6929a95e0bbcbaf053ebf33baed87f3601d5992a"
+    },
+    {
+      "path": "native/core/density.hpp",
+      "bytes": 320,
+      "sha256": "da20377e7139f0a0119e72cce83a4a49d97848ef91ad4046f9234cae4ed7e101"
+    },
+    {
+      "path": "native/core/density_rules.hpp",
+      "bytes": 2449,
+      "sha256": "2f9bd06af1d1f189d0ef3e664157bc136591f36ef6f03682856cdf1f8140bc39"
+    },
+    {
+      "path": "native/core/dumper.cpp",
+      "bytes": 9258,
+      "sha256": "627071f3be130e050d85857de152402a6be342e43f2ac838d949ae565cddc392"
+    },
+    {
+      "path": "native/core/dumper.hpp",
+      "bytes": 319,
+      "sha256": "118f5be26a5c8faeb09f9ddd9f99e692a4238608c2c077c31b76fc0d4dec370c"
+    },
+    {
+      "path": "native/core/factions.cpp",
+      "bytes": 9038,
+      "sha256": "6dedd04f3346f75da023f4be8548dee59c991f83cf13f3f7689257d2cb3a9937"
+    },
+    {
+      "path": "native/core/factions.hpp",
+      "bytes": 78,
+      "sha256": "0a0702f558fed85ac68571eb7f9df18d6a3ceb46869db382d8008ed6c34859ed"
+    },
+    {
+      "path": "native/core/feature.hpp",
+      "bytes": 3348,
+      "sha256": "d53622bd96c893069a3846db3261b60949aaa54a566c64658896b1ad1de429fa"
+    },
+    {
+      "path": "native/core/file_safety.hpp",
+      "bytes": 4562,
+      "sha256": "55a8547972df3d4d87df57e8699d98f48d42804ace808386d1219b785c82e77e"
+    },
+    {
+      "path": "native/core/game.cpp",
+      "bytes": 6012,
+      "sha256": "ad766e6488343eb6131db8a40c7f1c5641279f8ee46afad28e39a88649b7ec3e"
+    },
+    {
+      "path": "native/core/game.hpp",
+      "bytes": 2950,
+      "sha256": "70105185046f592354bf560a986fe94e7f985075b50296f74219dfe0266e3c27"
+    },
+    {
+      "path": "native/core/game_guard.inl",
+      "bytes": 1389,
+      "sha256": "321ba53688edea231cc716fccc455933400f4fc881659b1e6702d9fda2bfaa94"
+    },
+    {
+      "path": "native/core/hook.cpp",
+      "bytes": 18701,
+      "sha256": "13dd04749a7b95fae4e110ae1e8a792204f4ef1d8e1600d3672c454354ba44e9"
+    },
+    {
+      "path": "native/core/hook.hpp",
+      "bytes": 1274,
+      "sha256": "1a58cd3739a012c3919fc31063bdf2a09557ffc3b8028b153162af47cb97c2fb"
+    },
+    {
+      "path": "native/core/il2cpp_api.cpp",
+      "bytes": 1191,
+      "sha256": "6af7928a27105106d69116174e62b9b135f9d26ea53f9549700ee0bb241da284"
+    },
+    {
+      "path": "native/core/il2cpp_api.hpp",
+      "bytes": 6534,
+      "sha256": "1eb7363604070b6e00252531626fb8cb7ac8c94bccf7739b399c32986b9c53fb"
+    },
+    {
+      "path": "native/core/items.cpp",
+      "bytes": 13563,
+      "sha256": "f0697d2cc8df59ae2c1c555c14e458f34c9efa3c018461209a87eca0552a11e4"
+    },
+    {
+      "path": "native/core/items.hpp",
+      "bytes": 750,
+      "sha256": "1f361ad97d7d9b1d89c39177bf8d25c0164822ed090feada8249a907fdc589ec"
+    },
+    {
+      "path": "native/core/lifecycle.cpp",
+      "bytes": 1625,
+      "sha256": "ca7e1b69fee953817a9fca80a75125b55f9ed2047082ecddc5646600371a7287"
+    },
+    {
+      "path": "native/core/lifecycle.hpp",
+      "bytes": 216,
+      "sha256": "1e81898350c1a006ce401ddec4a2773d11964e503b42d16427e394317d82c3d2"
+    },
+    {
+      "path": "native/core/loot.cpp",
+      "bytes": 7109,
+      "sha256": "4c67b2654509583aae01c8be348b5d0373858b1abe3b042d7852d32aa57312e9"
+    },
+    {
+      "path": "native/core/loot.hpp",
+      "bytes": 734,
+      "sha256": "99bf92025ae40ee4344bc6b1a540cbf3b652ada05120923730e11c1042340fc2"
+    },
+    {
+      "path": "native/core/loot_crafting_rules.hpp",
+      "bytes": 1902,
+      "sha256": "be2f7d1e28fa30d9bafeecf5e268da0be342d21ea62e7320535917d4fa5a5b4b"
+    },
+    {
+      "path": "native/core/mainthread.cpp",
+      "bytes": 8134,
+      "sha256": "d4e3b92c3d427c6c89c936b14fab0d08582cff6314ce4148cb5a02c81bcc4835"
+    },
+    {
+      "path": "native/core/mainthread.hpp",
+      "bytes": 1272,
+      "sha256": "162ada1260616dc4c5250e38b696cd872275197e6349757eb67216ecd8f277d9"
+    },
+    {
+      "path": "native/core/managed.hpp",
+      "bytes": 6632,
+      "sha256": "20cdb2726294f8473fc1654cd334698b780ea652216f1ad575602836f8dea0c1"
+    },
+    {
+      "path": "native/core/map_view.cpp",
+      "bytes": 6884,
+      "sha256": "ebb87aa0d57605c8c6621c95d031f327a2f9c5f65e2d33254e52425c1f79d96d"
+    },
+    {
+      "path": "native/core/map_view.hpp",
+      "bytes": 215,
+      "sha256": "199b6dff9222d9456379d742638c2792ab1d6c909b1fd61b8b0a61156cf1d91e"
+    },
+    {
+      "path": "native/core/monolith.cpp",
+      "bytes": 33431,
+      "sha256": "4fe928a89fd3729fe17f353740d731db2023b7479bb505ffecf35656b55cb02c"
+    },
+    {
+      "path": "native/core/monolith.hpp",
+      "bytes": 802,
+      "sha256": "b868a6a1b8b054961cee07f26bd4fa0c0e8291abf601d9b8765bb6a933d88408"
+    },
+    {
+      "path": "native/core/monolith_rules.hpp",
+      "bytes": 902,
+      "sha256": "3692b9ebb93b0fdae9519dae07dd05c323f9d90f37ba199948de68e2f20da63b"
+    },
+    {
+      "path": "native/core/mutation_transaction.hpp",
+      "bytes": 1478,
+      "sha256": "9be475b9993f6147a4f2df8409a5d77ed7846f0ff646583395eb38be44eb0a95"
+    },
+    {
+      "path": "native/core/player.cpp",
+      "bytes": 20210,
+      "sha256": "3e1f3d603f5a29dd022350f068470489e371bd2e4ee83cdfffeb92b2f1419a91"
+    },
+    {
+      "path": "native/core/player.hpp",
+      "bytes": 1503,
+      "sha256": "708a7f362c1aa526554dc85cb4907751c7e3d84aa342de929344a8ad0d9870e4"
+    },
+    {
+      "path": "native/core/progression.cpp",
+      "bytes": 42577,
+      "sha256": "a635e511f2b98ee125417d7eb2b4e189bb1c467431022d3f96ae5f56304f55c7"
+    },
+    {
+      "path": "native/core/progression.hpp",
+      "bytes": 931,
+      "sha256": "52e242b3eb92dfba019c94ab3190eecd94c8c0ad7e160171a3f9c9a6a0593f47"
+    },
+    {
+      "path": "native/core/research.cpp",
+      "bytes": 18289,
+      "sha256": "aed77d77f59c9ae7ae7a1507b4373ed6ee84cd86ce012a9a971cc7421595133b"
+    },
+    {
+      "path": "native/core/research.hpp",
+      "bytes": 1033,
+      "sha256": "b7e55ab9c74d6896afeff97eb857186fbc0dd957685fd5c1f8cbe31f5d9737d9"
+    },
+    {
+      "path": "native/core/smart_loot.cpp",
+      "bytes": 13283,
+      "sha256": "280bb20d8cca68f68e5e5d6ea4eb284a64454f55dc81d265d6269c0f706e6887"
+    },
+    {
+      "path": "native/core/smart_loot.hpp",
+      "bytes": 331,
+      "sha256": "97a9c036b688c894d774630a9a56f54195aed0cf2558ebed54068a53d59ffed9"
+    },
+    {
+      "path": "native/core/stat_editor.cpp",
+      "bytes": 48081,
+      "sha256": "617978467033e1fdd3335b49661d564fc87c5aeb42ced66be5cd54ce414e0b85"
+    },
+    {
+      "path": "native/core/stat_editor.hpp",
+      "bytes": 887,
+      "sha256": "dfe314000b7268995c06f88bc29b30a2acdf9c89747e298b1cdf0e1feb70992a"
+    },
+    {
+      "path": "native/core/stat_key.hpp",
+      "bytes": 2626,
+      "sha256": "9174a33defd84dd5af6922bf3d54f7c1e6129a55c91c5fc5dba7d60f4e6c1c64"
+    },
+    {
+      "path": "native/core/stat_thunk.asm",
+      "bytes": 1259,
+      "sha256": "9ca15756754e5bceba91a9dff5d7b1b108157abbc8ebb3c9babf1a7a800616b0"
+    },
+    {
+      "path": "native/core/version.hpp",
+      "bytes": 182,
+      "sha256": "061bde8d4d03107284bde6db91ff6e8be4adac4340af6782117cf0645ed5a31f"
+    },
+    {
+      "path": "native/core/x64_decode.cpp",
+      "bytes": 7155,
+      "sha256": "cabdde760eedfd6d9810f5856aed68f317529b8a0b9abe8ca33267cefb54f938"
+    },
+    {
+      "path": "native/core/x64_decode.hpp",
+      "bytes": 1447,
+      "sha256": "14619dcefca47d5a480269156c6d333eab8a3e7b58e65ac5ab76dcfbb3e65de7"
+    },
+    {
+      "path": "native/core/xp.cpp",
+      "bytes": 3550,
+      "sha256": "951b109397265afc5c85f8871e824fc66c760003aef1baddcd4a64a04b01ab34"
+    },
+    {
+      "path": "native/core/xp.hpp",
+      "bytes": 566,
+      "sha256": "545a821b71f46a3ad561f08f7a420af03477a0c6dbedcfacc36f5b36835ff8af"
+    },
+    {
+      "path": "native/proxy/version.def",
+      "bytes": 880,
+      "sha256": "03005f1e39504d102622361ba294ff05e5ec903bce9f2a63bf4fb7d365e1373b"
+    },
+    {
+      "path": "native/proxy/version_proxy.cpp",
+      "bytes": 5270,
+      "sha256": "0255fef7891807508ad96db7b53e2d6296f0a4b6c3813d811e8a14ded6faea54"
+    },
+    {
+      "path": "native/proxy/version_thunks.asm",
+      "bytes": 1556,
+      "sha256": "7a9a973f2dd8faddd1997eba1840fee9f3d3367c697a0379b0fbd90b600e4178"
+    },
+    {
+      "path": "tools/app_paths.py",
+      "bytes": 2474,
+      "sha256": "180d455db9bb32a8c75d71bdd1047a20a2badc31fe0e6e37f6f5fbab4ea26287"
+    },
+    {
+      "path": "tools/audit_build_inputs.py",
+      "bytes": 6566,
+      "sha256": "a62b86ac43349cddb4103fe2453b2513366fade57d78b720ffef3e5417c22758"
+    },
+    {
+      "path": "tools/build_player.py",
+      "bytes": 5942,
+      "sha256": "a33916914dbcf9803e4d02479deaa2121d8da54d7ae32a765af90029a0df06c8"
+    },
+    {
+      "path": "tools/ce_features_http_check.py",
+      "bytes": 2589,
+      "sha256": "a32b01fabcb023e2c9553f8583d7de1ce4fcc2bcb7a3d25f1f24417031dfae3f"
+    },
+    {
+      "path": "tools/ce_features_live_check.py",
+      "bytes": 8211,
+      "sha256": "fdfe4e1a92f1104da053d87fe205df24ff98851beefd53173e66b8cb2777a73a"
+    },
+    {
+      "path": "tools/cof_backend.py",
+      "bytes": 4511,
+      "sha256": "846df75553a9da6981ba5e668de3d19e894ea689a831544564c3f5d5a22cb5b1"
+    },
+    {
+      "path": "tools/cof_live_check.py",
+      "bytes": 678,
+      "sha256": "6cca43cb84e8a069607cac0f6c43fc586195e0c46dc1135e37912aad561ee2dc"
+    },
+    {
+      "path": "tools/collection_backend.py",
+      "bytes": 4362,
+      "sha256": "ddaa52a935a175b1757a4745a026d551811129b9caf1234a1813f644008908f8"
+    },
+    {
+      "path": "tools/collection_live_check.py",
+      "bytes": 7604,
+      "sha256": "383b70f46feaa5ec03e5abb316f1b17d8d975584aaa26a883afd94dd29ba218c"
+    },
+    {
+      "path": "tools/export_ui_catalog.py",
+      "bytes": 58366,
+      "sha256": "f92e9ad2e5b501eb3528e60b8c2dcaac89b2cf0e358f38c20b43233021a701b7"
+    },
+    {
+      "path": "tools/focus_le.py",
+      "bytes": 1804,
+      "sha256": "0f0c801168682c3d46dbf9f658c0ae9a378b1a9c5c19d1fae02f801018770d8d"
+    },
+    {
+      "path": "tools/game_compatibility.py",
+      "bytes": 1334,
+      "sha256": "c69b7323cea9e2286a49833d7947663c0a8c31179eb4e0f01c07c2d2155e5cb2"
+    },
+    {
+      "path": "tools/le_session.py",
+      "bytes": 25886,
+      "sha256": "0284a8245117da11553ffc023626d18f604b711b9438b36abf199dd996510b89"
+    },
+    {
+      "path": "tools/live_xp_check.py",
+      "bytes": 3845,
+      "sha256": "0023c0870f967a7e93db8db7694eda9666a284e9a421d2da0670e533d2cc005b"
+    },
+    {
+      "path": "tools/load_live_character.py",
+      "bytes": 1333,
+      "sha256": "ee2a1844754a99ef1728e6090437fc8d4dc8bbad6e136cb2fa0db8b9b807568f"
+    },
+    {
+      "path": "tools/loot_crafting_backend.py",
+      "bytes": 3754,
+      "sha256": "515ffdaabfe14d30a66dd003cc84da55811da4c29508c4037ce5916751eda105"
+    },
+    {
+      "path": "tools/loot_crafting_live_check.py",
+      "bytes": 7328,
+      "sha256": "b84d98ba755bd14b9acdf28bd98ea479c655d63a9820c4a42b10be5d0c5bda99"
+    },
+    {
+      "path": "tools/monolith_backend.py",
+      "bytes": 5533,
+      "sha256": "796eb7656d4f1d20e78c2c6fd5bcebd25e8a83a7ecc521da81093c574c3e3574"
+    },
+    {
+      "path": "tools/monolith_live_check.py",
+      "bytes": 5390,
+      "sha256": "f54bbff16e3ad990d60154019c0aea39173c2ecfae39aedcf3d0441a975e49b7"
+    },
+    {
+      "path": "tools/package_nexus_release.py",
+      "bytes": 7555,
+      "sha256": "4a0c88e782d8ed7187076bfe460e34a375a7bd5d7ecedb9313ad2da5067f980b"
+    },
+    {
+      "path": "tools/package_review_bundle.py",
+      "bytes": 6581,
+      "sha256": "d2fb28bde843cda35b4885809f9d5f9ff731214f8bd1c200ecc468b6efb010b8"
+    },
+    {
+      "path": "tools/player_setup.py",
+      "bytes": 12957,
+      "sha256": "90976d897fa7400ec82c65749fc4d0f52c225e30d74975b898ff79758db8840d"
+    },
+    {
+      "path": "tools/progression_backend.py",
+      "bytes": 8120,
+      "sha256": "7555a58c905f682d45184356ba1430f0e19837b995fb9badf0589dbd6b7aafb2"
+    },
+    {
+      "path": "tools/progression_panel.py",
+      "bytes": 7829,
+      "sha256": "32d8fb84e410bf08ad1856a10ba83239ca4068a7c994c702c9d31e4f4e3cf2b4"
+    },
+    {
+      "path": "tools/responsiveness_live_check.py",
+      "bytes": 7089,
+      "sha256": "3c9b89e4a93673488dcfc6a3da3bac2dd86352139edbdc75b8f8fe881fc99224"
+    },
+    {
+      "path": "tools/screenshot.py",
+      "bytes": 2532,
+      "sha256": "25991c25eb0f71bfdd5bef3546ecb729daa79a5026c5be9b44d7978922719426"
+    },
+    {
+      "path": "tools/speed_check.py",
+      "bytes": 1696,
+      "sha256": "cae9761bb4083b857894b7eb4de8e72c0c891f62a7c5fccc8c07e4439099983d"
+    },
+    {
+      "path": "tools/speed_live_check.py",
+      "bytes": 2983,
+      "sha256": "490755ebf486ffffe185477a83480dcf104d88f4ff2aa5c57731491e9dd9ea25"
+    },
+    {
+      "path": "tools/stamp_build.py",
+      "bytes": 1118,
+      "sha256": "cbe1f95b1493e09a0c0363b925f7d1171eca58a34de4bc14cc287ffbfd6b34e3"
+    },
+    {
+      "path": "tools/stat_editor_live_check.py",
+      "bytes": 5247,
+      "sha256": "0edc6b578109a510a17bc868b6cc69215f3312f8d70942a594968d9da723cd7a"
+    },
+    {
+      "path": "tools/test_cof_backend.py",
+      "bytes": 4829,
+      "sha256": "66870eb2ce2bae1e508d6db8d6ceb08cbb7c11ac057dc6c355a9c9f6d92906bd"
+    },
+    {
+      "path": "tools/test_collection_backend.py",
+      "bytes": 5194,
+      "sha256": "91862fe7b8ab67945699e539ee853de46f99d837f5e6535d29bad3cb3499c18f"
+    },
+    {
+      "path": "tools/test_installer_result.py",
+      "bytes": 2078,
+      "sha256": "fae8c5cb0ff114f551eedbbfc94a7ff181ac8a38c85ac8738363ec46c046fdaf"
+    },
+    {
+      "path": "tools/test_le_session.py",
+      "bytes": 18476,
+      "sha256": "edc2f773224420ac484654bd5bf0c21179478228aa354051950abb53c98293b7"
+    },
+    {
+      "path": "tools/test_loot_crafting_backend.py",
+      "bytes": 3157,
+      "sha256": "62a3ff3bb6de2a33bc5a1c76ab34b9738242b5c988b7fd5a99d0cff47a21a605"
+    },
+    {
+      "path": "tools/test_monolith_backend.py",
+      "bytes": 5814,
+      "sha256": "8f24a992e0bbfbe1db53f03aeb8bdbc7ab80414861063f7467e6c221d638acc8"
+    },
+    {
+      "path": "tools/test_nexus_release.py",
+      "bytes": 5512,
+      "sha256": "7c194a37ad3af572e6b75c24a5a16aa2d347e7b167b2ee0728679026d6690e07"
+    },
+    {
+      "path": "tools/test_player_setup.py",
+      "bytes": 18447,
+      "sha256": "f4f6d3dc429d2df293b961a50c44a00961cb9ee89025eb4813546286ffa57074"
+    },
+    {
+      "path": "tools/test_progression_backend.py",
+      "bytes": 6426,
+      "sha256": "8181f00efdcc13df680fc3460590a14b97f3129c3f84d270ff8465e4eea03df0"
+    },
+    {
+      "path": "tools/test_review_bundle.py",
+      "bytes": 6134,
+      "sha256": "0ef4a196196030d00dbb5491cf0cf68ef70d04db2c7c6c61f9c18cea347c726b"
+    },
+    {
+      "path": "tools/test_shutdown.py",
+      "bytes": 5639,
+      "sha256": "84993dcf99d240911a3f2b529315dd5c6c70a8c23992d700816c3be44b0f3022"
+    },
+    {
+      "path": "tools/test_ui_bridge.py",
+      "bytes": 29914,
+      "sha256": "df19c169b3e7b906ae4642e284d5902210530b54f5c2604760f4826aab1e75b1"
+    },
+    {
+      "path": "tools/ui_bridge.py",
+      "bytes": 33871,
+      "sha256": "7115351b867851d94815bfa88f74a84fc15e951d8594ec43afd7f0a93d2a6730"
+    },
+    {
+      "path": "tools/ui_language.py",
+      "bytes": 5022,
+      "sha256": "caa7e337acf06297bbec41f002f1343eaf0765d7a79e89e8396694ad0edf0d0a"
+    },
+    {
+      "path": "tools/verify_loader_security.py",
+      "bytes": 4975,
+      "sha256": "fc6a207cf05c46ba41a5c5d08bdfb216f79e294bc9d56c5eb209d71b379dbb49"
+    },
+    {
+      "path": "tools/verify_player_package.py",
+      "bytes": 15753,
+      "sha256": "dc79e6bb0830451be80fbb79fa154908b1fda6da5e32162d375269c1a4d064d7"
+    }
+  ]
+}

@@ -163,7 +163,8 @@ class SetupTests(unittest.TestCase):
             result_path = Path(arguments[arguments.index('--install-result') + 1])
             self.setup.install()
             result_path.write_text('{"ok":true}')
-        with patch('tools.player_setup.user_root', return_value=self.root / 'user'), \
+        with patch('tools.player_setup.installer_result_root', return_value=self.root / 'user'), \
+             patch('tools.app_paths.installer_result_root', return_value=self.root / 'user'), \
              patch('tools.player_setup.run_elevated', side_effect=helper) as invoked:
             self.assertTrue(self.setup.elevated_install()['launcher']['installed'])
         self.assertEqual(invoked.call_count, 1)
@@ -171,7 +172,8 @@ class SetupTests(unittest.TestCase):
 
     def test_cancelled_administrator_request_never_launches_or_retries(self):
         self.setup.select(str(self.exe))
-        with patch('tools.player_setup.user_root', return_value=self.root / 'user'), \
+        with patch('tools.player_setup.installer_result_root', return_value=self.root / 'user'), \
+             patch('tools.app_paths.installer_result_root', return_value=self.root / 'user'), \
              patch('tools.player_setup.run_elevated', side_effect=RuntimeError('Administrator installation was cancelled')) as invoked, \
              patch.object(le, 'cmd_launch') as launch:
             with self.assertRaisesRegex(RuntimeError, 'cancelled'):

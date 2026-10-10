@@ -16,6 +16,7 @@ from pathlib import Path
 import socket
 import subprocess
 import tempfile
+import secrets
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -111,10 +112,18 @@ def main():
         env.update(PATH=str(windows / 'System32') + ';' + str(windows), EPOCHPACT_USER_DIR=str(user))
 
         def helper(game, result_name):
-            result = user / result_name
-            process = subprocess.run([str(exe), '--install-plugin', '--game-exe', str(game),
-                                      '--install-result', str(result)], env=env, cwd=root, timeout=45)
-            return process.returncode, json.loads(result.read_text())
+            from tools.app_paths import installer_result_root, validate_installer_result
+            # The elevated path intentionally ignores EPOCHPACT_USER_DIR. Only a
+            # fresh nonce result file is written to the OS-known local data folder.
+            result = installer_result_root() / ('setup-install-' + secrets.token_hex(16) + '.json')
+            validate_installer_result(str(result))
+            result.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                process = subprocess.run([str(exe), '--install-plugin', '--game-exe', str(game),
+                                          '--install-result', str(result)], env=env, cwd=root, timeout=45)
+                return process.returncode, json.loads(result.read_text())
+            finally:
+                result.unlink(missing_ok=True)
 
         code, result = helper(custom, 'setup-install-' + 'a' * 32 + '.json')
         assert code == 0 and result['ok'], result

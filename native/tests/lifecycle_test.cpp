@@ -3,13 +3,20 @@
 #include "../core/mainthread.hpp"
 #include "../core/game.hpp"
 #include "../core/common.hpp"
+#include "../core/hook.hpp"
 #include <atomic>
 #include <future>
 #include <iostream>
 
-std::atomic<bool> exited{false}, originalCalled{false}, ordered{false};
+std::atomic<bool> exited{false}, originalCalled{false}, ordered{false}, restored{false};
+void Shutdown();
+void Update(void*, const ep::il2cpp::Method*);
 #pragma optimize("", off)
-__declspec(noinline) void Shutdown() { originalCalled = true; ordered = exited.load(); }
+__declspec(noinline) void Shutdown() {
+    originalCalled = true; ordered = exited.load();
+    restored = !ep::hook::IsInstalled(reinterpret_cast<void*>(&Shutdown)) &&
+               !ep::hook::IsInstalled(reinterpret_cast<void*>(&Update));
+}
 __declspec(noinline) void Update(void*, const ep::il2cpp::Method*) {}
 #pragma optimize("", on)
 namespace ep {
@@ -39,6 +46,7 @@ int main() {
     Shutdown(); worker.get();
     check(ep::lifecycle::Stopping(), "shutdown stop signal published");
     check(originalCalled && ordered, "original runtime shutdown waits for worker exit");
+    check(restored, "shutdown and frame hooks restored before original runtime destruction");
     check(mutations == 0, "pending mutation cancelled before runtime destruction");
     check(!ep::mainthread::Run([] {}, 5000, nullptr), "no job accepted after runtime shutdown");
     std::cout << "lifecycle: " << tests - failed << '/' << tests << " passed\n";

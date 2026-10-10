@@ -51,15 +51,20 @@ def main():
         marker = root / 'probe-result.txt'
         environment['EPOCHPACT_LOADER_PROBE'] = str(marker)
         environment['PATH'] = str(current)  # A same-named dependency is deliberately on PATH too.
-        def run(expected):
-            process = subprocess.run([str(host / 'Last Epoch.exe'), str(installed), str(expected)],
+        def run(expected, name='Last Epoch.exe'):
+            process = subprocess.run([str(host / name), str(installed), str(expected)],
                                      cwd=current, env=environment, capture_output=True, text=True, timeout=10)
             if process.returncode:
                 raise AssertionError(f'Loader fixture failed ({process.returncode}): {process.stdout} {process.stderr}')
         run(1)
         assert marker.read_text() == '1'
-        checks.append('17 exports present; forwarded version API matches System32; core resolves dependency beside itself')
+        checks.append('17 exports present; no core starts during DLL attach; 16 concurrent first calls resolve once; five-argument ExW forwarding matches System32; LastError preserved')
+        checks.append('core resolves dependency beside itself')
         marker.unlink()
+        shutil.copy2(host / 'Last Epoch.exe', host / 'UnityCrashHandler64.exe')
+        run(0, 'UnityCrashHandler64.exe')
+        assert not marker.exists()
+        checks.append('crash-handler host forwards APIs without starting the core')
         (core_dir / 'EpochPactSecurityProbe.dll').rename(root / 'trusted-dependency.dll')
         run(0)
         assert not marker.exists()

@@ -6,6 +6,7 @@
 #include <tlhelp32.h>
 
 #include <cstdarg>
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -32,6 +33,7 @@ struct Record {
     uint8_t* relay = nullptr;
     void* detour = nullptr;
     uint8_t saved[32] = {};
+    uint8_t patch[32] = {};
     size_t stolen = 0;
     bool installed = false;
 };
@@ -91,6 +93,23 @@ uint8_t* AllocNear(const uint8_t* target) {
         }
     }
     return nullptr;
+}
+
+// Only unpublished pages can be reclaimed. Published trampolines remain callable
+// for the process lifetime, including after a hook is removed.
+void DiscardPage(uint8_t* page) {
+    SYSTEM_INFO si{};
+    GetSystemInfo(&si);
+    for (auto it = g_blocks.begin(); it != g_blocks.end(); ++it) {
+        if (page >= it->base && page < it->base + it->size) {
+            if (VirtualFree(page, si.dwPageSize, MEM_DECOMMIT) &&
+                page + si.dwPageSize == it->base + it->used) {
+                it->used -= si.dwPageSize;
+                if (it->used == 0 && VirtualFree(it->base, 0, MEM_RELEASE)) g_blocks.erase(it);
+            }
+            return;
+        }
+    }
 }
 
 bool SealCode(uint8_t* page, std::string* why) {
@@ -240,34 +259,48 @@ bool BuildTrampoline(uint8_t* target, uint8_t* tramp, size_t* stolenOut, std::st
 // Suspends every other thread of the process. Returns false (with all threads running
 // again) when one of them stands inside [lo, hi). Nothing here allocates once the first
 // thread is suspended: it might hold the heap lock.
-bool Freeze(std::vector<HANDLE>& held, const uint8_t* lo, const uint8_t* hi) {
-    std::vector<DWORD> ids;
+bool ThreadIds(std::vector<DWORD>& ids, DWORD* error) {
+    ids.clear();
     ids.reserve(256);
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
-    if (snap == INVALID_HANDLE_VALUE) return false;
+    if (snap == INVALID_HANDLE_VALUE) { *error = GetLastError(); return false; }
     THREADENTRY32 te{sizeof te};
     const DWORD pid = GetCurrentProcessId(), self = GetCurrentThreadId();
+    SetLastError(ERROR_SUCCESS);
     for (BOOL ok = Thread32First(snap, &te); ok; ok = Thread32Next(snap, &te))
         if (te.th32OwnerProcessID == pid && te.th32ThreadID != self) ids.push_back(te.th32ThreadID);
+    *error = GetLastError();
     CloseHandle(snap);
+    if (*error != ERROR_NO_MORE_FILES) return false;
+    std::sort(ids.begin(), ids.end());
+    *error = ERROR_SUCCESS;
+    return true;
+}
 
+bool Freeze(std::vector<HANDLE>& held, std::vector<DWORD>& ids, std::vector<DWORD>& second,
+            const uint8_t* lo, const uint8_t* hi, DWORD* error) {
+    // Snapshot allocation happens before suspension: a stopped thread may hold
+    // the process heap lock. Stable preflight detects churn, but cannot prevent
+    // a new thread being created after the second snapshot.
+    if (!ThreadIds(ids, error) || !ThreadIds(second, error)) return false;
+    if (ids != second) { *error = ERROR_RETRY; return false; }
     held.clear();
     held.reserve(ids.size());
     bool inside = false;
     for (DWORD id : ids) {
         HANDLE t = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, id);
-        if (!t) continue;
+        if (!t) { *error = GetLastError(); inside = true; break; }
         if (SuspendThread(t) == static_cast<DWORD>(-1)) {
-            CloseHandle(t);
-            continue;
+            *error = GetLastError(); CloseHandle(t);
+            inside = true; break;
         }
         held.push_back(t);
         CONTEXT ctx{};
         ctx.ContextFlags = CONTEXT_CONTROL;
         if (GetThreadContext(t, &ctx)) {
             const auto rip = reinterpret_cast<const uint8_t*>(ctx.Rip);
-            if (rip >= lo && rip < hi) inside = true;
-        }
+            if (rip >= lo && rip < hi) { *error = ERROR_RETRY; inside = true; }
+        } else { *error = GetLastError(); inside = true; break; }
     }
     if (!inside) return true;
     for (HANDLE t : held) {
@@ -287,24 +320,60 @@ void Thaw(std::vector<HANDLE>& held) {
 }
 
 // Writes `bytes` over `at` with the other threads held; retried while one of them is inside.
-bool WriteCode(uint8_t* at, const uint8_t* bytes, size_t n, std::string* why) {
+bool RestoreProtection(uint8_t* at, size_t n, DWORD protection) {
+    DWORD ignored = 0;
+    // Preserve the exact original flags. Do not silently replace them with RX.
+    for (int i = 0; i < 3; ++i)
+        if (VirtualProtect(at, n, protection, &ignored)) return true;
+    return false;
+}
+
+bool WriteCode(uint8_t* at, const uint8_t* expected, const uint8_t* bytes, size_t n, std::string* why) {
     std::vector<HANDLE> held;
+    // Keep these buffers alive until after Thaw: freeing a local vector in
+    // Freeze's success return can deadlock on a suspended thread's heap lock.
+    std::vector<DWORD> ids, second;
+    DWORD freezeError = ERROR_SUCCESS;
     for (int attempt = 0; attempt < 100; ++attempt) {
-        if (Freeze(held, at, at + n)) {
+        if (Freeze(held, ids, second, at, at + n, &freezeError)) {
+            // A different patcher may have changed the target since preflight.
+            if (std::memcmp(at, expected, n) != 0) {
+                Thaw(held);
+                Fail(why, "the target changed; refusing to overwrite another patch");
+                return false;
+            }
             DWORD old = 0;
             bool ok = VirtualProtect(at, n, PAGE_EXECUTE_READWRITE, &old) != 0;
+            DWORD error = ok ? ERROR_SUCCESS : GetLastError();
+            bool rollbackFlush = true, protectionRestored = true;
             if (ok) {
                 std::memcpy(at, bytes, n);
-                VirtualProtect(at, n, old, &old);
-                FlushInstructionCache(GetCurrentProcess(), at, n);
+                ok = FlushInstructionCache(GetCurrentProcess(), at, n) != 0;
+                if (!ok) error = GetLastError();
+                if (ok) {
+                    protectionRestored = RestoreProtection(at, n, old);
+                    if (!protectionRestored) { error = GetLastError(); ok = false; }
+                }
+                if (!ok) {
+                    // No thread is running the patch yet. Undo it before resuming.
+                    std::memcpy(at, expected, n);
+                    rollbackFlush = FlushInstructionCache(GetCurrentProcess(), at, n) != 0;
+                    protectionRestored = RestoreProtection(at, n, old);
+                }
             }
             Thaw(held);
-            if (!ok) Fail(why, "VirtualProtect failed (error %lu)", GetLastError());
+            if (!ok) Fail(why, "code patch failed (error %lu); rollback cache=%s, protection=%s", error,
+                          rollbackFlush ? "ok" : "FAILED", protectionRestored ? "ok" : "FAILED");
             return ok;
+        }
+        // Permission/context failures cannot be assumed safe or spun away.
+        if (freezeError != ERROR_RETRY && freezeError != ERROR_INVALID_PARAMETER) {
+            Fail(why, "cannot safely suspend/inspect process threads (error %lu)", freezeError);
+            return false;
         }
         Sleep(1);
     }
-    Fail(why, "a thread stayed inside the patched bytes for 100 attempts");
+    Fail(why, "thread preflight did not become safe after 100 attempts (error %lu)", freezeError);
     return false;
 }
 
@@ -344,14 +413,14 @@ bool Install(void* targetPtr, void* detour, void** original, std::string* why) {
         fresh.relay = slot + kTrampolineMax;
         fresh.detour = detour;
         if (!BuildTrampoline(target, fresh.trampoline, &fresh.stolen, why)) {
-            VirtualFree(slot, 0, MEM_DECOMMIT);
+            DiscardPage(slot);
             return false;
         }
         std::memcpy(fresh.saved, target, fresh.stolen);
         uint8_t* relay = fresh.relay;
         EmitAbsJmp(relay, detour);
         if (!SealCode(slot, why)) {
-            VirtualFree(slot, 0, MEM_DECOMMIT);
+            DiscardPage(slot);
             return false;
         }
         // Retain old RX pages: a caller may still be returning through an earlier
@@ -373,7 +442,8 @@ bool Install(void* targetPtr, void* detour, void** original, std::string* why) {
     patch[0] = 0xE9;
     std::memcpy(patch + 1, &rel, 4);
     if (original) *original = rec->trampoline;
-    if (!WriteCode(target, patch, rec->stolen, why)) return false;
+    if (!WriteCode(target, rec->saved, patch, rec->stolen, why)) return false;
+    std::memcpy(rec->patch, patch, rec->stolen);
     rec->installed = true;
     return true;
 }
@@ -385,7 +455,7 @@ bool Remove(void* target, std::string* why) {
         Fail(why, "not installed");
         return false;
     }
-    if (!WriteCode(rec->target, rec->saved, rec->stolen, why)) return false;
+    if (!WriteCode(rec->target, rec->patch, rec->saved, rec->stolen, why)) return false;
     rec->installed = false;
     return true;
 }
@@ -394,6 +464,18 @@ bool IsInstalled(void* target) {
     std::lock_guard<std::mutex> hold(g_lock);
     const Record* rec = Find(target);
     return rec && rec->installed;
+}
+
+bool RemoveAll(std::string* why) {
+    std::lock_guard<std::mutex> hold(g_lock);
+    bool ok = true;
+    std::string detail;
+    for (Record& rec : g_records) {
+        if (!rec.installed) continue;
+        if (WriteCode(rec.target, rec.patch, rec.saved, rec.stolen, &detail)) rec.installed = false;
+        else { ok = false; Fail(why, "hook at %p could not be restored: %s", rec.target, detail.c_str()); }
+    }
+    return ok;
 }
 
 }  // namespace ep::hook

@@ -15,7 +15,7 @@ import subprocess
 import sys
 
 from . import le_session as le, progression_backend as progression
-from .app_paths import user_root
+from .app_paths import user_root, installer_result_root, validate_installer_result
 
 
 def run_elevated(arguments):
@@ -216,8 +216,10 @@ class PlayerSetup:
     def elevated_install(self):
         if not self.status()['selected']:
             raise RuntimeError('Select Last Epoch.exe before installing.')
-        result_path = user_root() / ('setup-install-' + secrets.token_hex(16) + '.json')
+        result_path = installer_result_root() / ('setup-install-' + secrets.token_hex(16) + '.json')
+        validate_installer_result(str(result_path))
         result_path.parent.mkdir(parents=True, exist_ok=True)
+        validate_installer_result(str(result_path))
         arguments = ['--install-plugin', '--game-exe', str(self.executable), '--install-result', str(result_path)]
         if not getattr(sys, 'frozen', False):
             arguments.insert(0, str(le.ROOT / 'epochpact_desktop.py'))

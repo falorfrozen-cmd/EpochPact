@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 import sys
 
-from tools.app_paths import user_root
+from tools.app_paths import user_root, validate_installer_result
 
 
 def installer():
@@ -21,9 +21,7 @@ def installer():
     parser.add_argument('--game-exe', required=True)
     parser.add_argument('--install-result', required=True)
     args = parser.parse_args()
-    output = Path(args.install_result).resolve()
-    if output.parent != user_root().resolve() or not re.fullmatch(r'setup-install-[0-9a-f]{32}\.json', output.name):
-        raise ValueError('Invalid installer result path.')
+    output = validate_installer_result(args.install_result)
     try:
         le.GAME = validate_executable(args.game_exe).parent
         import contextlib
@@ -34,7 +32,11 @@ def installer():
         result = {'ok': code == 0, 'error': text.getvalue().strip() if code else None}
     except Exception as exc:
         result = {'ok': False, 'error': str(exc)}
-    output.write_text(json.dumps(result) + '\n', encoding='utf-8')
+    # Recheck after installation; exclusive creation refuses replacement of a
+    # pre-existing file, including one created while the helper was running.
+    validate_installer_result(args.install_result)
+    with output.open('x', encoding='utf-8') as stream:
+        stream.write(json.dumps(result) + '\n')
     return 0 if result['ok'] else 1
 
 

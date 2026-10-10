@@ -50,18 +50,24 @@ saves, unrelated mods and existing backups/logs alone. App settings are under
 
 ## Review scope and known limitations
 
-Candidate `0.1.1-alpha.2-review.2` additionally changes the native core: auto
-pickup pauses while an item is hovered, and newly generated hook trampolines
-become read/execute-only before use. The app reads process names through Windows
-without launching tasklist, and separates denied download files from game-folder
-installation permission errors. The loader remains the previously reviewed
-`bee68619...` build. These are functional/security changes, not antivirus verdicts.
+Candidate `0.1.1-alpha.2-review.3` preserves unreadable item-hover state instead
+of interpreting it as no tooltip. Its loader initializes on the first forwarded
+version call, outside its DllMain. Hook writing checks thread/cache/protection
+failures, rolls failed patches back, preserves foreign patches and restores owned
+hooks before IL2CPP shutdown. Installer result files use the OS-known user folder,
+reject linked paths and cannot overwrite existing files. Permission errors remain
+visible. These are functional/security changes, not antivirus verdicts.
 
 The first review candidate updated Flask for its published session-cache advisory,
 removed unused build tooling and restricted DLL search paths. Game hooks remain
-required; neither candidate establishes why security products flagged the files
+required; these candidates do not establish why security products flagged the files
 or certifies absence of malware. Do not treat old scan results as scans of the
-new EXE/core/ZIP.
+new EXE/core/loader/ZIP.
+
+The explicit administrator installer still elevates the bundled Python app tree;
+the review's tamper-before-elevation concern remains open. Prefer the manual
+copying option while a separate trusted helper is being designed. Never elevate
+a package from an unverified source.
 
 Do not infer fresh gameplay validation from a successful build or installer
 fixture test. See the accompanying verification report in the source repository.
