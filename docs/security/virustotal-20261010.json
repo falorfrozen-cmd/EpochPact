@@ -1,0 +1,154 @@
+{
+  "version": "0.1.1-alpha.2-review.1",
+  "recordedUTC": "2026-10-10T00:06:03.378936+00:00",
+  "scope": "Four exact candidate artifacts; authorized VirusTotal uploads/reanalysis observed through the browser UI. These reports are independent of local Defender and installer/gameplay tests. No safety or false-positive conclusion is established.",
+  "collection": "Header ratio, analysis timestamp, complete visible vendor rows and screenshots; no private API or hidden-state access. Status counts include timeout/failure/unsupported entries separately from the displayed ratio.",
+  "artifacts": [
+    {
+      "artifact": "EpochPact-0.1.1-alpha.2-review.1-Manual-Review.zip",
+      "bytes": 26501914,
+      "sha256": "50faf9151bc1c95f80efb4e85f3fcb2a1bd3dad2af10a00b3e924a241907416c",
+      "url": "https://www.virustotal.com/gui/file/50faf9151bc1c95f80efb4e85f3fcb2a1bd3dad2af10a00b3e924a241907416c",
+      "analysisTime": "2026-10-10T06:49:39+07:00",
+      "completed": true,
+      "displayedDetectionRatio": "1/66",
+      "detectedBy": [
+        {
+          "vendor": "Elastic",
+          "verdict": "Malicious (moderate Confidence)"
+        }
+      ],
+      "observedStatusCounts": {
+        "malicious": 1,
+        "undetected": 65,
+        "timeout": 1,
+        "type-unsupported": 7,
+        "failure": 1
+      },
+      "timeout": [
+        "ClamAV"
+      ],
+      "failure": [
+        "Trustlook"
+      ],
+      "unsupported": [
+        "Arctic Wolf",
+        "BitDefenderFalx",
+        "Palo Alto Networks",
+        "SecureAge",
+        "Symantec Mobile Insight",
+        "TEHTRIS",
+        "Trapmine"
+      ],
+      "evidence": "images/virustotal-zip.png",
+      "archiveLimit": "VirusTotal warned that an archive over 3 MB containing more than one file cannot establish that all contents were scanned; EXE and required native DLLs were submitted separately.",
+      "codeInsights": {
+        "displayedVerdict": "Malicious",
+        "identifiedPackage": "click (whl)",
+        "identifiedVersion": "8.5.0",
+        "summary": "Code insights interprets the Windows app bundle as a click distribution and alleges package impersonation due to unrelated executables and mod-loader files.",
+        "analysis": "The uploaded artifact is an EpochPact Windows application ZIP containing genuine upstream click metadata, not a PyPI upload. The metadata-origin explanation is an inference; it does not explain or invalidate Elastic or other engine findings."
+      }
+    },
+    {
+      "artifact": "EpochPact.exe",
+      "bytes": 370889,
+      "sha256": "068bc76120b2a8d17c8d4f87a51f3ebaf6e2696829e80ec2d4492498c6590435",
+      "url": "https://www.virustotal.com/gui/file/068bc76120b2a8d17c8d4f87a51f3ebaf6e2696829e80ec2d4492498c6590435",
+      "analysisTime": "2026-10-10T06:49:32+07:00",
+      "completed": true,
+      "displayedDetectionRatio": "3/71",
+      "detectedBy": [
+        {
+          "vendor": "Elastic",
+          "verdict": "Malicious (moderate Confidence)"
+        },
+        {
+          "vendor": "Microsoft",
+          "verdict": "Trojan:Win32/Wacatac.B!ml"
+        },
+        {
+          "vendor": "Skyhigh (SWG)",
+          "verdict": "BehavesLike.Win64.Dropper.fh"
+        }
+      ],
+      "observedStatusCounts": {
+        "malicious": 3,
+        "undetected": 68,
+        "type-unsupported": 4
+      },
+      "timeout": [],
+      "failure": [],
+      "unsupported": [
+        "Avast-Mobile",
+        "BitDefenderFalx",
+        "Symantec Mobile Insight",
+        "Trustlook"
+      ],
+      "evidence": "images/virustotal-exe.png"
+    },
+    {
+      "artifact": "version.dll",
+      "bytes": 108544,
+      "sha256": "bee68619c1869f7cb2b7c5e0cde123137e58c08fc8ec4f5fca237fb1c107370d",
+      "url": "https://www.virustotal.com/gui/file/bee68619c1869f7cb2b7c5e0cde123137e58c08fc8ec4f5fca237fb1c107370d",
+      "analysisTime": "2026-10-10T07:03:00+07:00",
+      "completed": true,
+      "displayedDetectionRatio": "2/71",
+      "detectedBy": [
+        {
+          "vendor": "Cynet",
+          "verdict": "Malicious (score: 100)"
+        },
+        {
+          "vendor": "Symantec",
+          "verdict": "ML.Attribute.HighConfidence"
+        }
+      ],
+      "observedStatusCounts": {
+        "malicious": 2,
+        "undetected": 69,
+        "type-unsupported": 4
+      },
+      "timeout": [],
+      "failure": [],
+      "unsupported": [
+        "Avast-Mobile",
+        "BitDefenderFalx",
+        "Symantec Mobile Insight",
+        "Trustlook"
+      ],
+      "evidence": "images/virustotal-loader.png"
+    },
+    {
+      "artifact": "EpochPact.Core.dll",
+      "bytes": 1163264,
+      "sha256": "6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f",
+      "url": "https://www.virustotal.com/gui/file/6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f",
+      "analysisTime": "2026-10-10T06:52:49+07:00",
+      "completed": true,
+      "displayedDetectionRatio": "1/71",
+      "detectedBy": [
+        {
+          "vendor": "Cynet",
+          "verdict": "Malicious (score: 100)"
+        }
+      ],
+      "observedStatusCounts": {
+        "malicious": 1,
+        "undetected": 70,
+        "type-unsupported": 4
+      },
+      "timeout": [],
+      "failure": [],
+      "unsupported": [
+        "Avast-Mobile",
+        "BitDefenderFalx",
+        "Symantec Mobile Insight",
+        "Trustlook"
+      ],
+      "evidence": "images/virustotal-core.png"
+    }
+  ],
+  "conclusion": "Detections remain. Do not present this candidate as cleared or replace quarantined files pending review."
+}

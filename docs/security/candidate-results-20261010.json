@@ -98,6 +98,22 @@
     },
     "output": "Scan starting...\r\nScan finished.\r\nScanning <project>\\dist\\security-review found no threats.\r\n"
   },
+  "defenderAfterVirusTotal": {
+    "scope": "Exact candidate EXE scan after the VirusTotal Microsoft detection; no settings changed; no remediation",
+    "target": "dist/security-review/onedir-final/EpochPact/EpochPact.exe",
+    "startedUTC": "2026-10-09T23:54:15.8730772Z",
+    "completedUTC": "2026-10-09T23:54:17.3435295Z",
+    "exitCode": 0,
+    "before": {
+      "RealTimeProtectionEnabled": true,
+      "AntivirusSignatureVersion": "1.459.645.0"
+    },
+    "after": {
+      "RealTimeProtectionEnabled": true,
+      "AntivirusSignatureVersion": "1.459.645.0"
+    },
+    "output": "Scan starting...\r\nScan finished.\r\nScanning <project>\\dist\\security-review\\onedir-final\\EpochPact\\EpochPact.exe found no threats.\r\n"
+  },
   "preservedOriginals": [
     {
       "path": "dist/nexus-final/EpochPact-0.1.1-alpha.1-Manual.zip",
@@ -125,11 +141,20 @@
       "sha256": "6265d3e4f15a609f174a3b577dd81e6df2e59dea2cfbbecef66f43d8d52f7a9f"
     }
   ],
-  "freshMultiEngineScan": null,
+  "bootloaderProvenance": {
+    "report": "bootloader-provenance-20261010.json",
+    "scope": "Executable .text section matches audited official bootloader; not a malware verdict"
+  },
+  "freshMultiEngineScan": {
+    "report": "virustotal-20261010.json",
+    "completedArtifacts": 4,
+    "scope": "Four exact candidate artifacts; authorized VirusTotal uploads/reanalysis observed through the browser UI. These reports are independent of local Defender and installer/gameplay tests. No safety or false-positive conclusion is established."
+  },
   "liveGameplayTest": null,
   "unresolved": [
     "Nexus quarantine and original detections",
-    "Original player-core Cynet detection",
+    "Candidate EXE Elastic/Microsoft/Skyhigh detections; loader Cynet/Symantec; core Cynet; ZIP Elastic",
+    "VirusTotal Microsoft EXE detection conflicts with local Defender no-threat result; cause unestablished",
     "Previously observed full-game exit 0xC0000005",
     "LoadLibrary in loader DllMain",
     "Nexus download/hash comparison blocked by quarantine"
