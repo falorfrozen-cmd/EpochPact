@@ -36,7 +36,8 @@ def installer():
             code = le.cmd_install(argparse.Namespace(flavor='player'))
         result = {'ok': code == 0, 'error': text.getvalue().strip() if code else None}
     except Exception as exc:
-        result = {'ok': False, 'error': english_exception(exc)}
+        step = getattr(exc, 'install_step', None)
+        result = {'ok': False, 'error': (f'Could not {step}. ' if step else '') + english_exception(exc)}
     # Recheck after installation; exclusive creation refuses replacement of a
     # pre-existing file, including one created while the helper was running.
     try:

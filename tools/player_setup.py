@@ -193,7 +193,7 @@ class PlayerSetup:
                 code = le.cmd_install(argparse.Namespace(flavor='player'))
         except PermissionError as exc:
             return {'ok': False, 'requiresElevation': True,
-                    'error': 'Windows denied access while installing in the game folder. Folder permissions or security software may be responsible. You can explicitly try Install as administrator. ' + english_exception(exc),
+                    'error': 'Windows denied access while trying to ' + getattr(exc, 'install_step', 'install the mod') + '. Folder permissions or security software may be responsible. You can explicitly try Install as administrator. ' + english_exception(exc),
                     'launcher': self.status(check_running=False)}
         if code:
             raise RuntimeError(output.getvalue().strip().removeprefix('refused: '))

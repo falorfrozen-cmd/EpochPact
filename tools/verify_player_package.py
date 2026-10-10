@@ -17,6 +17,7 @@ import socket
 import subprocess
 import tempfile
 import secrets
+import stat
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -132,6 +133,44 @@ def main():
         assert (custom.parent / 'version.dll').read_bytes() == loader
         assert (custom.parent / 'EpochPact/EpochPact.Core.dll').read_bytes() == core
         checks.append('compiled installer helper installs exact DLLs in custom Unicode folder without Python')
+        if onedir:
+            # Use real Windows read-only flags on the extracted app's payload
+            # and the existing owned mod, never on the build or owner's game.
+            payload_files = [exe.parent / '_internal/native/build/version.dll',
+                             exe.parent / '_internal/native/build/player/EpochPact.Core.dll']
+            installed_files = [custom.parent / 'version.dll', custom.parent / 'EpochPact/EpochPact.Core.dll',
+                               custom.parent / 'EpochPact/installed-build.json']
+            old_bytes = {p.name: p.read_bytes() for p in installed_files}
+            sources_attributes = {p: p.stat().st_file_attributes for p in payload_files}
+            readonly_fresh = fixture(root, 'Read-only download fresh install', args.game_assembly)
+            try:
+                for p in payload_files + installed_files:
+                    p.chmod(stat.S_IREAD)
+                    assert p.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY
+                for game in (readonly_fresh, custom):
+                    code, result = helper(game, 'readonly-install')
+                    assert code == 0 and result['ok'], result
+                    installed_loader = game.parent / 'version.dll'
+                    installed_core = game.parent / 'EpochPact/EpochPact.Core.dll'
+                    assert installed_loader.read_bytes() == loader
+                    assert installed_core.read_bytes() == core
+                    for p in (installed_loader, installed_core, game.parent / 'EpochPact/installed-build.json'):
+                        assert not p.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY
+                    assert not list((game.parent / 'EpochPact').glob('.install-*'))
+                for p in payload_files:
+                    assert p.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY
+                backups = list((custom.parent / 'EpochPact/install-backups').iterdir())
+                assert len(backups) == 1
+                for name, data in old_bytes.items():
+                    assert (backups[0] / name).read_bytes() == data
+                checks.extend(['compiled EXE fresh install from actual read-only bundled DLLs preserves source flags and exact bytes',
+                               'compiled EXE updates actual read-only owned files with exact recovery backups and no leaked stages'])
+            finally:
+                for p in payload_files:
+                    if p.exists():
+                        p.chmod(stat.S_IREAD if sources_attributes[p] & stat.FILE_ATTRIBUTE_READONLY else stat.S_IREAD | stat.S_IWRITE)
+                for p in installed_files:
+                    if p.exists(): p.chmod(stat.S_IREAD | stat.S_IWRITE)
         before = (foreign.parent / 'version.dll').read_bytes()
         code, result = helper(foreign, 'setup-install-' + 'b' * 32 + '.json')
         assert code != 0 and not result['ok']

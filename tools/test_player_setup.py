@@ -1,6 +1,7 @@
 """First-run selection, installer refusals, frozen paths and HTTP queue boundaries."""
 import argparse
 import json
+import stat
 from pathlib import Path
 import tempfile
 import threading
@@ -110,14 +111,145 @@ class SetupTests(unittest.TestCase):
         paths = [self.exe.parent / 'version.dll', self.exe.parent / 'EpochPact/EpochPact.Core.dll',
                  self.exe.parent / 'EpochPact/installed-build.json']
         before = {path: path.read_bytes() for path in paths}
-        real_copy = le.shutil.copy2
+        real_copy = le._copy_install_file
         def denied_loader(source, destination, *args, **kwargs):
             if Path(destination).name == 'new-2':
                 raise PermissionError('simulated denied stage')
             return real_copy(source, destination, *args, **kwargs)
-        with patch.object(le.shutil, 'copy2', side_effect=denied_loader):
+        with patch.object(le, '_copy_install_file', side_effect=denied_loader):
             self.assertTrue(self.setup.install()['requiresElevation'])
         self.assertEqual(before, {path: path.read_bytes() for path in paths})
+        self.assertEqual(list((self.exe.parent / 'EpochPact').glob('.install-*')), [])
+
+    def installed_files(self):
+        return [self.exe.parent / 'version.dll', self.exe.parent / 'EpochPact/EpochPact.Core.dll',
+                self.exe.parent / 'EpochPact/installed-build.json']
+
+    def mark_readonly(self, path):
+        # Real Windows file attributes, not a mocked PermissionError. Cleanup
+        # touches only this test's temporary files.
+        self.addCleanup(lambda: path.chmod(stat.S_IREAD | stat.S_IWRITE) if path.exists() else None)
+        path.chmod(stat.S_IREAD)
+        self.assertTrue(path.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY)
+
+    def test_readonly_download_installs_and_updates_without_inheriting_attributes(self):
+        bundle = self.root / 'readonly bundle'
+        (bundle / 'player').mkdir(parents=True)
+        source_core, digest = le.build_artifact()
+        core = bundle / 'player/EpochPact.Core.dll'
+        loader = bundle / 'version.dll'
+        core.write_bytes(source_core.read_bytes())
+        loader.write_bytes((le.BUILD / 'version.dll').read_bytes())
+        (bundle / 'player/build-info.json').write_text(json.dumps({'flavor': 'player', 'sha256': digest}))
+        self.mark_readonly(core); self.mark_readonly(loader)
+        self.setup.select(str(self.exe))
+        with patch.object(le, 'BUILD', bundle):
+            for _ in range(2):
+                result = self.setup.install()
+                self.assertTrue(result['ok'], result)
+                self.assertTrue(result['launcher']['installed'])
+                for installed in self.installed_files():
+                    self.assertFalse(installed.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY)
+                self.assertEqual(self.installed_files()[0].read_bytes(), loader.read_bytes())
+                self.assertEqual(self.installed_files()[1].read_bytes(), core.read_bytes())
+                self.assertEqual(list((self.exe.parent / 'EpochPact').glob('.install-*')), [])
+        for source in (core, loader):
+            self.assertTrue(source.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY)
+
+    def test_update_readonly_owned_files_preserves_recovery_bytes(self):
+        self.setup.select(str(self.exe)); self.setup.install()
+        paths = self.installed_files()
+        paths[1].write_bytes(b'previous EpochPact_Start\x00 player core')
+        before = {path.name: path.read_bytes() for path in paths}
+        for path in paths: self.mark_readonly(path)
+        result = self.setup.install()
+        self.assertTrue(result['ok'], result)
+        backups = list((self.exe.parent / 'EpochPact/install-backups').iterdir())
+        self.assertEqual(len(backups), 1)
+        for path in paths:
+            self.assertEqual((backups[0] / path.name).read_bytes(), before[path.name])
+            self.assertFalse(path.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY)
+        self.assertEqual(list((self.exe.parent / 'EpochPact').glob('.install-*')), [])
+
+    def test_failed_update_restores_readonly_owned_files_and_flags(self):
+        self.setup.select(str(self.exe)); self.setup.install()
+        paths = self.installed_files()
+        paths[1].write_bytes(b'previous EpochPact_Start\x00 player core')
+        before = {path: path.read_bytes() for path in paths}
+        for path in paths: self.mark_readonly(path)
+        real_replace = le.os.replace
+        def fail_loader(source, destination):
+            if Path(source).name == 'new-2':
+                raise PermissionError(13, 'fixture locked loader', str(destination))
+            return real_replace(source, destination)
+        with patch.object(le.os, 'replace', side_effect=fail_loader):
+            result = self.setup.install()
+        self.assertFalse(result['ok']); self.assertTrue(result['requiresElevation'])
+        self.assertIn('replace version.dll', result['error'])
+        self.assertEqual(before, {path: path.read_bytes() for path in paths})
+        for path in paths:
+            self.assertTrue(path.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY)
+        self.assertEqual(list((self.exe.parent / 'EpochPact').glob('.install-*')), [])
+
+    def test_cleanup_failure_does_not_mask_original_permission_error(self):
+        self.setup.select(str(self.exe))
+        original = PermissionError(13, 'fixture denied source', 'original-source.dll')
+        with patch.object(le, '_copy_install_file', side_effect=original), \
+             patch.object(le, '_cleanup_install_stage', side_effect=PermissionError('cleanup-only-error')), \
+             self.assertLogs(le.__name__, level='WARNING') as logs:
+            result = self.setup.install()
+        self.assertFalse(result['ok']); self.assertTrue(result['requiresElevation'])
+        self.assertIn('original-source.dll', result['error'])
+        self.assertIn('copy the core DLL', result['error'])
+        self.assertNotIn('cleanup-only-error', result['error'])
+        self.assertIn('cleanup-only-error', logs.output[0])
+        self.assertFalse((self.exe.parent / 'version.dll').exists())
+
+    def test_cleanup_failure_does_not_reject_verified_successful_install(self):
+        self.setup.select(str(self.exe))
+        with patch.object(le, '_cleanup_install_stage', side_effect=PermissionError('fixture locked stage')), \
+             self.assertLogs(le.__name__, level='WARNING'):
+            result = self.setup.install()
+        self.assertTrue(result['ok']); self.assertTrue(result['launcher']['installed'])
+        self.assertEqual(len(list((self.exe.parent / 'EpochPact').glob('.install-*'))), 1)
+
+    def test_foreign_readonly_loader_is_refused_without_changing_bytes_or_flags(self):
+        self.setup.select(str(self.exe))
+        loader = self.exe.parent / 'version.dll'
+        loader.write_bytes(b'foreign loader')
+        self.mark_readonly(loader)
+        with self.assertRaisesRegex(RuntimeError, 'not EpochPact'):
+            self.setup.install()
+        self.assertEqual(loader.read_bytes(), b'foreign loader')
+        self.assertTrue(loader.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY)
+        self.assertFalse((self.exe.parent / 'EpochPact').exists())
+
+    def test_uninstall_readonly_owned_dlls_keeps_saves_and_other_mod_files(self):
+        self.setup.select(str(self.exe)); self.setup.install()
+        files = self.installed_files()
+        for path in files: self.mark_readonly(path)
+        unrelated = self.exe.parent / 'other-mod.dll'; unrelated.write_bytes(b'keep other mod')
+        saves = self.root / 'player saves'; saves.mkdir()
+        save = saves / 'character'; save.write_bytes(b'keep player save')
+        with patch.object(le, 'SAVES', saves):
+            self.assertEqual(le.cmd_uninstall(argparse.Namespace()), 0)
+        self.assertFalse(files[0].exists()); self.assertFalse(files[1].exists())
+        self.assertTrue(files[2].exists())
+        self.assertEqual(unrelated.read_bytes(), b'keep other mod')
+        self.assertEqual(save.read_bytes(), b'keep player save')
+
+    def test_corrupted_staged_core_refused_before_publishing(self):
+        self.setup.select(str(self.exe)); self.setup.install()
+        before = {path: path.read_bytes() for path in self.installed_files()}
+        real_copy = le._copy_install_file
+        def corrupt(source, destination):
+            real_copy(source, destination)
+            if Path(destination).name == 'new-0':
+                Path(destination).write_bytes(b'corrupted staged core')
+        with patch.object(le, '_copy_install_file', side_effect=corrupt):
+            with self.assertRaisesRegex(ValueError, 'SHA-256'):
+                self.setup.install()
+        self.assertEqual(before, {path: path.read_bytes() for path in self.installed_files()})
         self.assertEqual(list((self.exe.parent / 'EpochPact').glob('.install-*')), [])
 
     def test_failed_publication_restores_previous_files_or_removes_new_files(self):

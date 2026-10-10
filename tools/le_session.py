@@ -28,6 +28,7 @@ import secrets
 import hashlib
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -203,6 +204,43 @@ def build_artifact(flavor='player') -> tuple[Path, str]:
     return path, digest
 
 
+def _copy_install_file(source: Path, destination: Path):
+    """Install bytes, not a download's read-only flags or security metadata."""
+    with source.open('rb') as incoming, destination.open('xb') as outgoing:
+        shutil.copyfileobj(incoming, outgoing, length=1024 * 1024)
+
+
+def _make_install_writable(path: Path) -> bool:
+    """Clear only the Windows read-only flag on a validated mod/temp file.
+
+    This does not change folder ACLs, ownership or security software settings.
+    Callers must establish that the file belongs to their install transaction.
+    """
+    try:
+        attributes = path.lstat().st_file_attributes
+    except FileNotFoundError:
+        return False
+    if _linked(path):
+        raise ValueError('Linked installation file; left alone: ' + str(path))
+    if attributes & stat.FILE_ATTRIBUTE_READONLY:
+        path.chmod(stat.S_IREAD | stat.S_IWRITE, follow_symlinks=False)
+        return True
+    return False
+
+
+def _cleanup_install_stage(stage: Path):
+    # A flat directory created by this transaction, never a recursive cleanup
+    # of the game/mod directory. Refuse unexpected entries and linked paths.
+    if _linked(stage):
+        raise ValueError('Linked install stage; left alone: ' + str(stage))
+    for file in stage.iterdir():
+        if _linked(file) or not file.is_file():
+            raise ValueError('Unexpected install stage entry; left alone: ' + str(file))
+        _make_install_writable(file)
+        file.unlink()
+    stage.rmdir()
+
+
 def cmd_install(args: argparse.Namespace) -> int:
     if refuse_if_running():
         return 2
@@ -246,14 +284,24 @@ def cmd_install(args: argparse.Namespace) -> int:
     stage.mkdir()
     destinations = [mod_dir / 'EpochPact.Core.dll', mod_dir / 'installed-build.json', target]
     committed = []
+    readonly_changed = []
     preserve_stage = False
+    step = 'prepare mod files'
     try:
-        shutil.copy2(core_src, stage / 'new-0')
+        step = 'copy the core DLL'
+        _copy_install_file(core_src, stage / 'new-0')
+        if hashlib.sha256((stage / 'new-0').read_bytes()).hexdigest() != digest:
+            raise ValueError('Staged core DLL failed SHA-256 verification.')
         (stage / 'new-1').write_text(json.dumps(record) + '\n', encoding='utf-8')
-        shutil.copy2(loader, stage / 'new-2')
+        step = 'copy version.dll'
+        loader_digest = hashlib.sha256(loader.read_bytes()).hexdigest()
+        _copy_install_file(loader, stage / 'new-2')
+        if hashlib.sha256((stage / 'new-2').read_bytes()).hexdigest() != loader_digest:
+            raise ValueError('Staged loader DLL failed SHA-256 verification.')
+        step = 'back up the previous mod files'
         for index, destination in enumerate(destinations):
             if destination.exists():
-                shutil.copy2(destination, stage / f'old-{index}')
+                _copy_install_file(destination, stage / f'old-{index}')
         # Retain successful-update recovery files as well as the transactional
         # rollback copies. This directory contains mod files only, never saves.
         old_files = [(index, destination) for index, destination in enumerate(destinations)
@@ -262,7 +310,7 @@ def cmd_install(args: argparse.Namespace) -> int:
             recovery = mod_dir / 'install-backups' / stage.name.removeprefix('.install-')
             recovery.mkdir(parents=True)
             for index, destination in old_files:
-                shutil.copy2(stage / f'old-{index}', recovery / destination.name)
+                _copy_install_file(stage / f'old-{index}', recovery / destination.name)
             (recovery / 'README.txt').write_text(
                 'Close Last Epoch first. To restore this previous mod installation, copy version.dll\n'
                 'to the game root, and EpochPact.Core.dll / installed-build.json to its EpochPact folder.\n'
@@ -273,9 +321,13 @@ def cmd_install(args: argparse.Namespace) -> int:
             print('refused: another loader appeared during installation; left alone')
             return 2
         for index, destination in enumerate(destinations):
+            step = 'replace ' + destination.name
+            if _make_install_writable(destination):
+                readonly_changed.append(destination)
             os.replace(stage / f'new-{index}', destination)
             committed.append((index, destination))
-    except OSError as original:
+    except (OSError, ValueError) as original:
+        original.install_step = step
         failures = []
         for index, destination in reversed(committed):
             try:
@@ -286,15 +338,24 @@ def cmd_install(args: argparse.Namespace) -> int:
                     destination.unlink(missing_ok=True)
             except OSError as exc:
                 failures.append(str(exc))
+        # Restore original read-only flags even when replacement itself failed.
+        for destination in readonly_changed:
+            try:
+                destination.chmod(stat.S_IREAD, follow_symlinks=False)
+            except OSError as exc:
+                failures.append(str(exc))
         if failures:
             preserve_stage = True
             raise RuntimeError(f'Installation failed and recovery could not finish. Close the game and reinstall. Previous files are kept in {stage}.') from original
         raise
     finally:
         if not preserve_stage:
-            for file in stage.iterdir():
-                file.unlink()
-            stage.rmdir()
+            try:
+                _cleanup_install_stage(stage)
+            except (OSError, ValueError) as cleanup:
+                # Cleanup cannot turn a committed, verified installation into
+                # failure or overwrite the error which caused the rollback.
+                logging.getLogger(__name__).warning('Install stage cleanup failed; files retained at %s: %s', stage, cleanup)
     print(f"installed: {flavor}, SHA256 {digest}: {target} and {GAME / 'EpochPact' / 'EpochPact.Core.dll'}")
     return 0
 
@@ -313,8 +374,10 @@ def cmd_uninstall(_: argparse.Namespace) -> int:
         if not is_ours(target):
             print("refused: version.dll is not EpochPact's; left alone")
             return 2
+        _make_install_writable(target)
         target.unlink()
     if core.exists():
+        _make_install_writable(core)
         core.unlink()
     print("uninstalled (logs and dumps in <game>\\EpochPact are kept)")
     return 0
