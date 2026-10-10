@@ -82,6 +82,8 @@ def main():
     assert metadata['flavor'] == 'player' and metadata['sha256'] == sha(core)
     assert sha(exe.read_bytes()) == json.loads((exe.parent / 'build-info.json').read_text())['sha256']
     assert extract('ui/launcher.js') == (ROOT / 'ui/launcher.js').read_bytes()
+    for script in ('app.js', 'session.js'):
+        assert extract('ui/' + script) == (ROOT / 'ui' / script).read_bytes(), script
     checks.extend(['bundled Python runtime', 'verified player DLL only',
                    'no historical character snapshots', 'current launcher source in EXE'])
 
@@ -141,6 +143,18 @@ def main():
         assert not (unsupported.parent / 'version.dll').exists()
         assert not (unsupported.parent / 'EpochPact').exists()
         checks.append('compiled installer refuses an unsupported game build before writing files')
+
+        invalid_result_game = fixture(root, 'Invalid receipt folder', args.game_assembly)
+        unapproved_result = root / ('setup-install-' + secrets.token_hex(16) + '.json')
+        unapproved_result.write_text('keep this unrelated file', encoding='utf-8')
+        process = subprocess.run([str(exe), '--install-plugin', '--game-exe', str(invalid_result_game),
+                                  '--install-result', str(unapproved_result)], env=env, cwd=root, timeout=45)
+        from tools.app_paths import INSTALL_RESULT_INVALID
+        assert process.returncode == INSTALL_RESULT_INVALID, process.returncode
+        assert unapproved_result.read_text(encoding='utf-8') == 'keep this unrelated file'
+        assert not (invalid_result_game.parent / 'version.dll').exists()
+        assert not (invalid_result_game.parent / 'EpochPact').exists()
+        checks.append('compiled helper returns code 20 for an unapproved receipt folder without installing or overwriting a file')
 
         with socket.socket() as reservation:
             reservation.bind(('127.0.0.1', 0))

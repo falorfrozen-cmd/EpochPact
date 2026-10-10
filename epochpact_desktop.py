@@ -6,11 +6,11 @@ import ctypes
 import json
 import logging
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
-import re
 import sys
 
-from tools.app_paths import user_root, validate_installer_result
+from tools.app_paths import (user_root, validate_installer_result,
+                             INSTALL_RESULT_INVALID, INSTALL_RESULT_WRITE_FAILED)
+from tools.ui_language import english_exception
 
 
 def installer():
@@ -21,7 +21,12 @@ def installer():
     parser.add_argument('--game-exe', required=True)
     parser.add_argument('--install-result', required=True)
     args = parser.parse_args()
-    output = validate_installer_result(args.install_result)
+    try:
+        output = validate_installer_result(args.install_result)
+    except (OSError, ValueError):
+        # A different account's LocalAppData or an unsafe output path must not
+        # be accepted just to return a receipt. Report through the process exit.
+        return INSTALL_RESULT_INVALID
     try:
         le.GAME = validate_executable(args.game_exe).parent
         import contextlib
@@ -31,12 +36,15 @@ def installer():
             code = le.cmd_install(argparse.Namespace(flavor='player'))
         result = {'ok': code == 0, 'error': text.getvalue().strip() if code else None}
     except Exception as exc:
-        result = {'ok': False, 'error': str(exc)}
+        result = {'ok': False, 'error': english_exception(exc)}
     # Recheck after installation; exclusive creation refuses replacement of a
     # pre-existing file, including one created while the helper was running.
-    validate_installer_result(args.install_result)
-    with output.open('x', encoding='utf-8') as stream:
-        stream.write(json.dumps(result) + '\n')
+    try:
+        validate_installer_result(args.install_result)
+        with output.open('x', encoding='utf-8') as stream:
+            stream.write(json.dumps(result) + '\n')
+    except (OSError, ValueError):
+        return INSTALL_RESULT_WRITE_FAILED
     return 0 if result['ok'] else 1
 
 

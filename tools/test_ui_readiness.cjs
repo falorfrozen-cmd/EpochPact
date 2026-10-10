@@ -401,6 +401,22 @@ test('a failed save action retains its draft and backup while hiding technical d
  assert.equal(h.run(`monoDrafts[monoDraftKey('stability')]`),'300');assert.equal(h.run('history.length'),1);
 });
 
+test('setup access errors retain their cause and file path instead of asking to refresh the game',async()=>{
+ const h=harness(),error='Windows denied access while installing in the game folder. Permission denied (WinError 5): E:\\SteamLibrary\\steamapps\\common\\Last Epoch\\version.dll';
+ h.replies.push({ok:false,error,requiresElevation:true});let feedback;
+ h.context.capture=message=>{feedback=message;};
+ await h.run(`runTask({type:'launcher',action:'install'},{silent:true,onError:capture})`);
+ assert.equal(feedback,error);assert.equal(h.element('#notification').textContent,error);
+ assert.doesNotMatch(feedback,/Refresh the connection|game could not complete/);
+ assert.equal(h.calls.length,1,'failed installation is never retried');
+});
+
+test('setup technical fallback names setup and its log, without game connection advice',()=>{
+ const h=harness();
+ const error=h.run(`playerError('Traceback: {internal}',{type:'launcher',action:'elevated_install'})`);
+ assert.match(error,/Game setup|operations.log/);assert.doesNotMatch(error,/Refresh|Traceback|internal/);
+});
+
 test('developer opt-in preserves technical result inspection without changing the operation',async()=>{
  const h=actionHarness();h.run('developer=true;confirmAction=async()=>true');
  h.replies.push({ok:true,actorValues:{},backup:'C:/private/backup'});await h.run('formAction(testForm)');

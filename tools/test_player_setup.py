@@ -163,6 +163,7 @@ class SetupTests(unittest.TestCase):
             result_path = Path(arguments[arguments.index('--install-result') + 1])
             self.setup.install()
             result_path.write_text('{"ok":true}')
+            return 0
         with patch('tools.player_setup.installer_result_root', return_value=self.root / 'user'), \
              patch('tools.app_paths.installer_result_root', return_value=self.root / 'user'), \
              patch('tools.player_setup.run_elevated', side_effect=helper) as invoked:
@@ -190,12 +191,65 @@ class SetupTests(unittest.TestCase):
 
     def test_compatibility_access_denial_reaches_admin_button_without_installing(self):
         self.setup.select(str(self.exe))
-        with patch.object(le, 'require_supported_build', side_effect=PermissionError('denied GameAssembly.dll')):
+        with patch.object(le, 'require_supported_build', side_effect=PermissionError(13, 'denied', str(self.exe.parent / 'GameAssembly.dll'))):
             result = self.setup.install()
         self.assertFalse(result['ok']); self.assertTrue(result['requiresElevation'])
         self.assertIn('GameAssembly.dll', result['error'])
         self.assertFalse((self.exe.parent / 'version.dll').exists())
         self.assertFalse((self.exe.parent / 'EpochPact').exists())
+
+    def test_missing_administrator_receipt_has_exit_code_and_never_retries(self):
+        self.setup.select(str(self.exe))
+        with patch('tools.player_setup.installer_result_root', return_value=self.root / 'user'), \
+             patch('tools.app_paths.installer_result_root', return_value=self.root / 'user'), \
+             patch('tools.player_setup.run_elevated', return_value=0xC0000005) as helper, \
+             patch.object(le, 'cmd_install') as install, patch.object(le, 'cmd_launch') as launch:
+            with self.assertRaisesRegex(RuntimeError, 'without returning a result.*0xC0000005'):
+                self.setup.elevated_install()
+        helper.assert_called_once(); install.assert_not_called(); launch.assert_not_called()
+
+    def test_different_admin_result_folder_is_explained_without_relaxing_validation(self):
+        self.setup.select(str(self.exe))
+        with patch('tools.player_setup.installer_result_root', return_value=self.root / 'user'), \
+             patch('tools.app_paths.installer_result_root', return_value=self.root / 'user'), \
+             patch('tools.player_setup.run_elevated', return_value=app_paths.INSTALL_RESULT_INVALID):
+            with self.assertRaisesRegex(RuntimeError, 'before copying.*different administrator account'):
+                self.setup.elevated_install()
+        self.assertFalse((self.exe.parent / 'version.dll').exists())
+
+    def test_failed_receipt_write_counts_as_installed_only_after_hash_verification(self):
+        self.setup.select(str(self.exe))
+        def helper(arguments):
+            self.setup.install()
+            return app_paths.INSTALL_RESULT_WRITE_FAILED
+        with patch('tools.player_setup.installer_result_root', return_value=self.root / 'user'), \
+             patch('tools.app_paths.installer_result_root', return_value=self.root / 'user'), \
+             patch('tools.player_setup.run_elevated', side_effect=helper):
+            result = self.setup.elevated_install()
+        self.assertTrue(result['ok']); self.assertTrue(result['launcher']['installed'])
+        self.assertIn('receipt', result['message'])
+
+    def test_failed_receipt_write_cannot_claim_an_uninstalled_mod_succeeded(self):
+        self.setup.select(str(self.exe))
+        with patch('tools.player_setup.installer_result_root', return_value=self.root / 'user'), \
+             patch('tools.app_paths.installer_result_root', return_value=self.root / 'user'), \
+             patch('tools.player_setup.run_elevated', return_value=app_paths.INSTALL_RESULT_WRITE_FAILED):
+            with self.assertRaisesRegex(RuntimeError, 'could not be verified'):
+                self.setup.elevated_install()
+        self.assertFalse((self.exe.parent / 'version.dll').exists())
+
+    def test_invalid_and_conflicting_helper_results_are_not_success(self):
+        self.setup.select(str(self.exe))
+        for receipt, code in (([], 0), ({'ok': 'true'}, 0), ({'ok': True}, 1)):
+            with self.subTest(receipt=receipt, code=code):
+                def helper(arguments):
+                    Path(arguments[arguments.index('--install-result') + 1]).write_text(json.dumps(receipt))
+                    return code
+                with patch('tools.player_setup.installer_result_root', return_value=self.root / 'user'), \
+                     patch('tools.app_paths.installer_result_root', return_value=self.root / 'user'), \
+                     patch('tools.player_setup.run_elevated', side_effect=helper):
+                    with self.assertRaisesRegex(RuntimeError, 'invalid result|conflicting results'):
+                        self.setup.elevated_install()
 
     def test_denied_download_does_not_offer_elevation_or_change_game(self):
         self.setup.select(str(self.exe))
@@ -204,6 +258,15 @@ class SetupTests(unittest.TestCase):
         self.assertFalse(result['ok']); self.assertFalse(result['requiresElevation'])
         self.assertIn('download', result['error'])
         self.assertFalse((self.exe.parent / 'EpochPact').exists())
+
+    def test_incomplete_download_never_offers_elevation_or_installs(self):
+        self.setup.select(str(self.exe))
+        with patch.object(le, 'build_artifact', side_effect=FileNotFoundError(2, 'missing', 'core.dll')), \
+             patch.object(le, 'cmd_install') as install:
+            result = self.setup.install()
+        self.assertFalse(result['ok']); self.assertFalse(result['requiresElevation'])
+        self.assertIn('Extract the entire EpochPact ZIP', result['error'])
+        install.assert_not_called()
 
     def test_unreadable_process_list_is_not_treated_as_game_closed(self):
         self.setup.select(str(self.exe))

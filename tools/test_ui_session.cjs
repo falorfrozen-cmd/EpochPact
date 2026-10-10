@@ -28,6 +28,17 @@ test('accepted mutation is never resubmitted if a restarted server loses its job
  await assert.rejects(h.transport.run({type:'control',id:'campaign_complete'}),/Operation not found/);
  assert.equal(h.calls.filter(c=>c.url==='/api/jobs').length,1);assert.equal(h.sessions.length,0);
 });
+
+test('slow administrator setup names the Windows prompt and never requeues the install',async()=>{
+ const messages=[],calls=[];let clock=0;
+ const responses=[reply(202,{ok:true,job:'install'}),reply(200,{done:false}),reply(200,{done:true,result:{ok:true}})];
+ const transport=create({fetch:async(url)=>{calls.push(url);return responses.shift();},sleep:async()=>{clock+=16000;},
+  now:()=>clock,warn:message=>messages.push(message),isReadOnly:()=>false});
+ assert.deepEqual(await transport.run({type:'launcher',action:'elevated_install'}),{ok:true});
+ assert.equal(calls.filter(url=>url==='/api/jobs').length,1);
+ assert.equal(messages.length,1);assert.match(messages[0],/game setup|Windows administrator prompt/);
+ assert.doesNotMatch(messages[0],/Waiting for the game\./);
+});
 test('recovery cannot loop on a second invalid session or unrelated 403',async()=>{
  const h=harness([expired(),reply(200,{token:'new'}),expired()],true);
  await assert.rejects(h.transport.run({type:'connection'}),/Invalid interface session/);assert.equal(h.calls.length,3);

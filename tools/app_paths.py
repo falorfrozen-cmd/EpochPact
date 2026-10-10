@@ -3,6 +3,11 @@ from pathlib import Path
 import os
 import sys
 
+# Dedicated helper exit codes distinguish a refused output path (before any
+# copying) from a failed receipt write after the installation attempt.
+INSTALL_RESULT_INVALID = 20
+INSTALL_RESULT_WRITE_FAILED = 21
+
 
 def resource_root() -> Path:
     return Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parents[1]))

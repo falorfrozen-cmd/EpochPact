@@ -8,6 +8,7 @@ import ctypes.wintypes as wt
 import hashlib
 import io
 import json
+import logging
 import os
 from pathlib import Path
 import secrets
@@ -15,7 +16,9 @@ import subprocess
 import sys
 
 from . import le_session as le, progression_backend as progression
-from .app_paths import user_root, installer_result_root, validate_installer_result
+from .app_paths import (user_root, installer_result_root, validate_installer_result,
+                        INSTALL_RESULT_INVALID, INSTALL_RESULT_WRITE_FAILED)
+from .ui_language import english_exception
 
 
 def run_elevated(arguments):
@@ -34,6 +37,7 @@ def run_elevated(arguments):
     info.fMask = 0x40 | 0x100  # NOCLOSEPROCESS | NOASYNC
     info.lpVerb = 'runas'
     info.lpFile = sys.executable
+    info.lpDirectory = str(Path(sys.executable).parent)
     info.lpParameters = subprocess.list2cmdline(arguments)
     info.nShow = 0
     if not api.ShellExecuteExW(ctypes.byref(info)):
@@ -42,8 +46,15 @@ def run_elevated(arguments):
             raise RuntimeError('Administrator installation was cancelled. No retry was made.')
         raise ctypes.WinError(error)
     try:
-        if le.kernel32.WaitForSingleObject(info.hProcess, 120000) != 0:
-            raise RuntimeError('The administrator installer has not finished. Wait before trying again.')
+        waited = le.kernel32.WaitForSingleObject(info.hProcess, 120000)
+        if waited == 258:
+            raise RuntimeError('The administrator installer is still running. Do not start another installation.')
+        if waited != 0:
+            raise ctypes.WinError(ctypes.get_last_error())
+        code = wt.DWORD()
+        if not le.kernel32.GetExitCodeProcess(info.hProcess, ctypes.byref(code)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return code.value
     finally:
         le.kernel32.CloseHandle(info.hProcess)
 
@@ -170,7 +181,11 @@ class PlayerSetup:
             (le.BUILD / 'version.dll').read_bytes()
         except PermissionError as exc:
             return {'ok': False, 'requiresElevation': False,
-                    'error': 'Windows denied access to the downloaded mod files. Check the security protection history and restore a verified EpochPact download. ' + str(exc),
+                    'error': 'Windows denied access to the downloaded mod files. Check the security protection history and restore a verified EpochPact download. ' + english_exception(exc),
+                    'launcher': self.status(check_running=False)}
+        except (OSError, ValueError) as exc:
+            return {'ok': False, 'requiresElevation': False,
+                    'error': 'The bundled mod files are missing, unreadable or do not match this app. Extract the entire EpochPact ZIP with _internal beside EpochPact.exe. ' + english_exception(exc),
                     'launcher': self.status(check_running=False)}
         output = io.StringIO()
         try:
@@ -178,7 +193,7 @@ class PlayerSetup:
                 code = le.cmd_install(argparse.Namespace(flavor='player'))
         except PermissionError as exc:
             return {'ok': False, 'requiresElevation': True,
-                    'error': 'Windows denied access while installing in the game folder. Folder permissions or security software may be responsible. You can explicitly try Install as administrator. ' + str(exc),
+                    'error': 'Windows denied access while installing in the game folder. Folder permissions or security software may be responsible. You can explicitly try Install as administrator. ' + english_exception(exc),
                     'launcher': self.status(check_running=False)}
         if code:
             raise RuntimeError(output.getvalue().strip().removeprefix('refused: '))
@@ -224,16 +239,38 @@ class PlayerSetup:
         if not getattr(sys, 'frozen', False):
             arguments.insert(0, str(le.ROOT / 'epochpact_desktop.py'))
         try:
-            run_elevated(arguments)
-            result = json.loads(result_path.read_text(encoding='utf-8'))
+            code = run_elevated(arguments)
+            try:
+                result = json.loads(result_path.read_text(encoding='utf-8'))
+            except FileNotFoundError as exc:
+                if code == INSTALL_RESULT_INVALID:
+                    raise RuntimeError('Administrator installation stopped before copying files: the result folder could not be validated (installer code 20). If the Windows prompt used a different administrator account, run EpochPact from that account or use manual installation.') from exc
+                if code == INSTALL_RESULT_WRITE_FAILED:
+                    state = self.status()
+                    if state.get('installed'):
+                        return {'ok': True, 'launcher': state,
+                                'message': 'The mod files are installed and verified, but Windows could not save the installer receipt (installer code 21). You can launch offline.'}
+                    raise RuntimeError('Windows could not save the administrator installer result (installer code 21), and the installed mod files could not be verified. Do not launch the mod; share operations.log with support.') from exc
+                suffix = f' (installer code 0x{code:08X})' if isinstance(code, int) else ''
+                raise RuntimeError('The administrator installer ended without returning a result' + suffix + '. Extract the entire EpochPact ZIP, check Windows security protection history, and share operations.log with support. No installation was automatically retried.') from exc
+            except (OSError, ValueError) as exc:
+                raise RuntimeError('The administrator installer result could not be read. Check operations.log before trying another installation. ' + english_exception(exc)) from exc
+            if not isinstance(result, dict) or type(result.get('ok')) is not bool:
+                raise RuntimeError('The administrator installer returned an invalid result. Check operations.log before trying another installation.')
             if not result.get('ok'):
-                raise RuntimeError(result.get('error', 'Administrator installation failed.'))
+                raise RuntimeError(result.get('error') or 'Administrator installation failed. Check operations.log for the error details.')
+            if code != 0:
+                raise RuntimeError(f'The administrator installer returned conflicting results (installer code 0x{code:08X}). Check operations.log before trying another installation.')
             state = self.status()
             if not state['installed']:
                 raise RuntimeError('Installation verification failed. The game has not been started.')
             return {'ok': True, 'launcher': state, 'message': 'Player mod installed. You can launch offline now.'}
         finally:
-            result_path.unlink(missing_ok=True)
+            try:
+                result_path.unlink(missing_ok=True)
+            except OSError as exc:
+                # Receipt cleanup must not replace the real installation error.
+                logging.getLogger(__name__).warning('Could not remove installer receipt: %s', english_exception(exc))
 
     def execute(self, action, args):
         with progression._ipc_lock:

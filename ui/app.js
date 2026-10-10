@@ -134,8 +134,12 @@ function notify(message, error=false) {
  const box=$("#notification"); box.textContent=message; box.classList.toggle("error",error);box.hidden=false;
  clearTimeout(notify.timer);notify.timer=setTimeout(()=>box.hidden=true,error?12000:6500);
 }
-function playerError(message){
+function playerError(message,payload){
  const text=String(message||"The game could not complete this action.");
+ // A file path is useful context for setup failures. It is not a failed game
+ // command, and refreshing the game connection cannot repair installation.
+ if(payload?.type==="launcher")return /traceback|actorValues|statraw|[{}]/i.test(text)?
+  "Game setup could not finish. Check operations.log in LocalAppData/EpochPact/live/ui for the error details. No action was automatically retried.":text;
  if(/main thread|pick the job|paused or minimi/i.test(text))return "The game did not respond. Return to the game, then refresh and try again.";
  if(/traceback|actorValues|statraw|[{}]|[a-z]:[\\/]/i.test(text))return "The game could not complete this action. Refresh the connection and try again. Technical details were saved in the local log.";
  return text;
@@ -238,7 +242,7 @@ async function runTask(payload,{show=false,title="Operation result",silent=false
   if(show)resultDialog(result,title,payload);
   else if(!silent)notify(developer?result.preview?"Preview complete; the game was unchanged.":"Operation complete.":playerResult(payload,result));
   return result;
- }catch(error){const message=developer?error.message:playerError(error.message)+(errorBackup?" A recovery backup is available in Settings.":"");onError?.(message);notify(message,true);return null;}
+ }catch(error){const message=developer?error.message:playerError(error.message,payload)+(errorBackup?" A recovery backup is available in Settings.":"");onError?.(message);notify(message,true);return null;}
  finally{busy=false;updateDisabled();armAutomatic();}
 }
 async function refreshConnection(silent=true,refreshCurrent=true,{preservePage=false}={}) {

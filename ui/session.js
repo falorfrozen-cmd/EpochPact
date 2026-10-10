@@ -45,7 +45,9 @@
     if(!response.ok)throw new Error(status.error||'Could not read operation status. The action was not submitted again.');
     if(status.done)return status.result;
     await sleep(now()-started<1000?50:150);
-    if(now()-started>15000&&!warned){warned=true;warn('Waiting for the game. The action is queued and will not be submitted again.');}
+    if(now()-started>15000&&!warned){warned=true;warn(payload.type==='launcher'?
+     'Waiting for game setup. Check for a Windows administrator prompt. The action will not be submitted again.':
+     'Waiting for the game. The action is queued and will not be submitted again.');}
    }
   }
   return {run,setSession};
