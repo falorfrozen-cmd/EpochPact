@@ -13,6 +13,27 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def version_info(version):
+    """PyInstaller VSVersionInfo text: the same publisher fields as native/version_info.h."""
+    numbers = [int(n) for n in re.findall(r'\d+', version)][:4]
+    numbers += [0] * (4 - len(numbers))
+    fields = {'CompanyName': 'Falor', 'FileDescription': 'EpochPact app for Last Epoch (offline mod setup and controls)',
+              'FileVersion': version, 'InternalName': 'EpochPact', 'OriginalFilename': 'EpochPact.exe',
+              'ProductName': 'EpochPact', 'ProductVersion': version, 'LegalCopyright': 'Copyright (C) 2026 Falor',
+              'Comments': 'Unofficial offline mod for Last Epoch. Source: https://github.com/falorfrozen-cmd/EpochPact'}
+    strings = ',\n'.join(f'          StringStruct({k!r}, {v!r})' for k, v in fields.items())
+    return f'''VSVersionInfo(
+  ffi=FixedFileInfo(filevers={tuple(numbers)}, prodvers={tuple(numbers)}, mask=0x3f, flags=0x2,
+                    OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)),
+  kids=[
+    StringFileInfo([StringTable('040904B0', [
+{strings}])]),
+    VarFileInfo([VarStruct('Translation', [0x0409, 1200])])
+  ]
+)
+'''
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--layout', choices=('onefile', 'onedir'), default='onefile')
@@ -69,8 +90,11 @@ def main():
                 if path.is_file():
                     notices.append(path.read_text(encoding='utf-8', errors='replace'))
     (stage / 'THIRD-PARTY-NOTICES.txt').write_text('\n'.join(notices), encoding='utf-8')
+    version_file = stage / 'version-info.txt'
+    version_file.write_text(version_info(version), encoding='utf-8')
     environment = os.environ.copy()
-    environment.update(EPOCHPACT_BUILD_STAGE=str(stage), EPOCHPACT_FREEZE_LAYOUT=args.layout)
+    environment.update(EPOCHPACT_BUILD_STAGE=str(stage), EPOCHPACT_FREEZE_LAYOUT=args.layout,
+                       EPOCHPACT_VERSION_FILE=str(version_file))
     subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean',
                     '--distpath', str(output), '--workpath', str(args.work.resolve()),
                     str(ROOT / 'EpochPact.spec')], cwd=ROOT, env=environment, check=True)

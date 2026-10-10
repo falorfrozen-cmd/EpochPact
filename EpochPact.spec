@@ -6,6 +6,8 @@ from PyInstaller.utils.hooks import collect_data_files
 root = Path(SPECPATH)
 stage = Path(os.environ.get('EPOCHPACT_BUILD_STAGE', str(root / 'build/player-resources')))
 onedir = os.environ.get('EPOCHPACT_FREEZE_LAYOUT', 'onefile') == 'onedir'
+# Windows VERSIONINFO written by tools/build_player.py (publisher, product, version).
+version_file = os.environ.get('EPOCHPACT_VERSION_FILE') or None
 ui_files = ('index.html', 'app.js', 'style.css', 'stat-model.js', 'session.js',
             'collection-ui.js', 'collection.css', 'launcher.js', 'locale-en.json', 'catalog.json', 'supported-game-builds.json')
 assets = ('chronoforge-art.png', 'chronoforge-reference.png', 'void-atlas-art.png',
@@ -41,9 +43,9 @@ pyz = PYZ(a.pure)
 if onedir:
     exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='EpochPact',
               debug=False, strip=False, upx=False, console=False,
-              disable_windowed_traceback=False, uac_admin=False)
+              disable_windowed_traceback=False, uac_admin=False, version=version_file)
     bundle = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='EpochPact')
 else:
     exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], name='EpochPact',
               debug=False, strip=False, upx=False, console=False,
-              disable_windowed_traceback=False, uac_admin=False)
+              disable_windowed_traceback=False, uac_admin=False, version=version_file)
