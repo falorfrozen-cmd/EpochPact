@@ -69,6 +69,8 @@ link /nologo /OUT:"%OUT%\xp_test.exe" "%OUT%\tests\xp_test.obj" "%OUT%\tests\fak
 cl %CFLAGS% /EHa /c /Fo"%OUT%\tests\\" "%HERE%tests\items_test.cpp" || exit /b 1
 link /nologo /OUT:"%OUT%\items_test.exe" "%OUT%\tests\items_test.obj" "%OUT%\tests\x64_decode.obj" "%OUT%\tests\hook.obj" kernel32.lib || exit /b 1
 
+cl %CFLAGS% /EHa /Fo"%OUT%\tests\\" /Fe"%OUT%\game_read_test.exe" "%HERE%tests\game_read_test.cpp" || exit /b 1
+
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\stat_key_test.exe" "%HERE%tests\stat_key_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\density_test.exe" "%HERE%tests\density_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\monolith_test.exe" "%HERE%tests\monolith_test.cpp" || exit /b 1

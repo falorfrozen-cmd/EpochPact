@@ -83,11 +83,10 @@ const Field* g_hoveredItemField = nullptr;       // TooltipItem.highlightedToolt
 bool InspectingItem() {
     // A failed/missing hover read must pause collection, not dismiss a tooltip.
     if (!g_hoveredItemField) return true;
-    bool inspecting = true;
-    if (!game::Guarded([&] {
-        void* hovered = game::StaticObject(g_hoveredItemField);
-        inspecting = hovered && game::IsAlive(hovered);
-    }, nullptr)) return true;
+    void* hovered = nullptr;
+    if (!game::TryStaticObject(g_hoveredItemField, &hovered)) return true;
+    bool inspecting = false;
+    if (!game::TryIsAlive(hovered, &inspecting)) return true;
     return inspecting;
 }
 

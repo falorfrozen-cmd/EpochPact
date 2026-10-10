@@ -35,6 +35,8 @@ const il2cpp::Field* FindStaticField(const char* image, const char* ns, const ch
 
 // The object a static reference field points at, or null.
 void* StaticObject(const il2cpp::Field* field);
+// Distinguish a successful null reference from an unreadable reference.
+bool TryStaticObject(const il2cpp::Field* field, void** value);
 
 // The offline gate. Online means the game is connected to Eleventh Hour Games' servers
 // (EHG.Multiplayer.GameplayEnvironment._isOnlinePlay). `known` is false when the field
@@ -61,6 +63,8 @@ private:
 
 // UnityEngine.Object's implicit bool: false once the native object is destroyed.
 bool IsAlive(void* unityObject);
+// `false` means unknown, not a destroyed Unity object.
+bool TryIsAlive(void* unityObject, bool* alive);
 
 }  // namespace ep::game
 

@@ -11,8 +11,30 @@ import multiprocessing
 import threading
 import time
 import subprocess
+import io
 
 from tools import le_session as le
+
+
+class CliErrorTests(unittest.TestCase):
+    def test_cli_denial_is_a_short_error_without_traceback(self):
+        output = io.StringIO()
+        with patch('sys.argv', ['le_session.py', 'install']), \
+             patch.object(le, 'cmd_install', side_effect=PermissionError(13, 'denied', 'GameAssembly.dll')), \
+             patch('sys.stderr', output):
+            self.assertEqual(le.main(), 2)
+        self.assertIn('GameAssembly.dll', output.getvalue())
+        self.assertNotIn('Traceback', output.getvalue())
+
+    def test_cli_enumeration_error_does_not_continue_install(self):
+        output = io.StringIO()
+        with patch('sys.argv', ['le_session.py', 'install']), \
+             patch.object(le, 'game_pids', side_effect=OSError(5, 'snapshot denied')), \
+             patch.object(le, 'build_artifact') as build, patch('sys.stderr', output):
+            self.assertEqual(le.main(), 2)
+            build.assert_not_called()
+        self.assertIn('snapshot denied', output.getvalue())
+        self.assertNotIn('Traceback', output.getvalue())
 
 
 class ProcessListingTests(unittest.TestCase):

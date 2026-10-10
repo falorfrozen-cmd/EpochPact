@@ -8,6 +8,7 @@ namespace fixture {
 ep::il2cpp::Api api;
 bool offline = true, hoverReadable = true, hoverFault = false, hoverAlive = true;
 bool hoverOnPickup = false, collectable = true;
+bool aliveReadable = true;
 int tickCalls = 0, pickups = 0, roots = 0;
 int hoverField, listField, labelClass, pickupMethod;
 void* hovered = nullptr;
@@ -65,6 +66,16 @@ void* StaticObject(const Field* field) {
 bool IsOfflinePlay(bool* known) { if (known) *known = true; return fixture::offline; }
 std::string GateText() { return "fixture gate"; }
 bool IsAlive(void* obj) { return obj && (obj != fixture::hovered || fixture::hoverAlive); }
+bool TryStaticObject(const Field* field, void** value) {
+    *value = nullptr;
+    return Guarded([&] { *value = StaticObject(field); }, nullptr);
+}
+bool TryIsAlive(void* obj, bool* alive) {
+    *alive = false;
+    if (!fixture::aliveReadable) return false;
+    *alive = IsAlive(obj);
+    return true;
+}
 }
 namespace smartloot {
 bool CanCollect() { return fixture::offline && fixture::collectable; }
@@ -94,7 +105,9 @@ int main() {
     Check(pickups == 2, "online mode never collects items");
     offline = true; hoverFault = true; Due(); Tick(nullptr, 0, nullptr);
     Check(pickups == 2 && roots == 0, "unreadable hover state pauses safely");
-    hoverFault = false; hoverOnPickup = true; Due(); Tick(nullptr, 0, nullptr);
+    hoverFault = false; hovered = &labels[0]; aliveReadable = false; Due(); Tick(nullptr, 0, nullptr);
+    Check(pickups == 2, "unreadable Unity lifetime state also pauses collection");
+    aliveReadable = true; hovered = nullptr; hoverOnPickup = true; Due(); Tick(nullptr, 0, nullptr);
     Check(pickups == 3 && roots == 0, "tooltip appearing during pickup stops the remaining calls");
     hoverOnPickup = false; hoverAlive = false; Due(); Tick(nullptr, 0, nullptr);
     Check(pickups == 4, "destroyed hover object does not permanently pause collection");

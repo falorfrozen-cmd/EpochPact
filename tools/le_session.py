@@ -594,7 +594,15 @@ def main() -> int:
     r.add_argument("backup")
     r.set_defaults(fn=cmd_restore_saves)
     args = ap.parse_args()
-    return args.fn(args)
+    try:
+        return args.fn(args)
+    except OSError as exc:
+        # CLI boundary only: backend callers still receive PermissionError so
+        # the UI can distinguish installation permissions from blocked inputs.
+        print(f'error: {exc}', file=sys.stderr)
+        if isinstance(exc, PermissionError):
+            print('Check folder permissions and security protection history before retrying.', file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

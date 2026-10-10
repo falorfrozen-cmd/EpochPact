@@ -93,8 +93,18 @@ const Field* FindStaticField(const char* image, const char* ns, const char* cls,
 
 void* StaticObject(const Field* field) {
     void* value = nullptr;
-    if (field) Guarded([&] { api().field_static_get_value(field, &value); }, nullptr);
+    TryStaticObject(field, &value);
     return value;
+}
+
+bool TryStaticObject(const Field* field, void** value) {
+    if (!value) return false;
+    *value = nullptr;
+    if (!field || !api().field_static_get_value) return false;
+    void* read = nullptr;
+    if (!Guarded([&] { api().field_static_get_value(field, &read); }, nullptr)) return false;
+    *value = read;
+    return true;
 }
 
 bool IsOfflinePlay(bool* known) {
@@ -123,11 +133,20 @@ std::string GateText() {
 }
 
 bool IsAlive(void* obj) {
-    if (!obj || !g_opImplicit) return false;
     bool alive = false;
+    return TryIsAlive(obj, &alive) && alive;
+}
+
+bool TryIsAlive(void* obj, bool* alive) {
+    if (!alive) return false;
+    *alive = false;
+    if (!obj) return true;
+    if (!g_opImplicit) return false;
+    bool read = false;
     using Fn = bool (*)(void*, const Method*);
-    Guarded([&] { alive = reinterpret_cast<Fn>(g_opImplicit.code)(obj, g_opImplicit.info); }, nullptr);
-    return alive;
+    if (!Guarded([&] { read = reinterpret_cast<Fn>(g_opImplicit.code)(obj, g_opImplicit.info); }, nullptr)) return false;
+    *alive = read;
+    return true;
 }
 
 void Handle::Set(void* obj) {
