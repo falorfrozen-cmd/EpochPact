@@ -5,6 +5,7 @@
 #include "progression.hpp"
 #include "commands.hpp"
 #include "lifecycle.hpp"
+#include "convenience_rules.hpp"
 #include <array>
 #include <atomic>
 #include <cmath>
@@ -19,6 +20,7 @@ namespace {
 using namespace managed;
 using MethodInfo=const il2cpp::Method*;
 struct Vec3{float x,y,z;};
+struct Vec2{float x,y;};
 struct XY{int x,y;};
 struct OptionalXY{bool has;XY value;};
 struct Setting{const char* key;std::atomic<double> value{0};};
@@ -39,6 +41,60 @@ std::atomic<bool> shortcutBusy{false};
 void(*originalClick)(void*,void*,MethodInfo)=nullptr;
 void(*originalSubmit)(void*,void*,MethodInfo)=nullptr;
 uint64_t lastButtons=0;
+bool shortcutEnabled=false;
+game::Handle menuTransform;
+struct Candidate{std::unique_ptr<Root> object;std::unique_ptr<Root> handler;int kind;uint64_t retryAfter=0;};
+std::vector<Candidate> candidates;
+std::vector<std::unique_ptr<Root>> pendingHandlers;
+size_t candidateCursor=0,bootstrapType=0;
+bool discover=true;
+int interactionScene=0;
+uint64_t nextInteraction=0,interactionChecks=0,sceneSearches=0,maximumInteractionMicros=0;
+uint64_t lastWork=0,retryWork=0,maximumDiscoveryMicros=0;
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+bool measureFrames=false;
+uint64_t previousFrame=0;
+std::vector<uint64_t> frameGaps;
+Vec3 testOriginalMenuScale{};
+bool testMenuScaleSaved=false;
+#endif
+void(*originalHandlerAwake)(void*,MethodInfo)=nullptr;
+void(*originalPortalInitialize)(void*,MethodInfo)=nullptr;
+void(*originalCaveAwake)(void*,MethodInfo)=nullptr;
+void(*originalShrineEra)(void*,int,MethodInfo)=nullptr;
+void(*originalShrineSetup)(void*,void*,bool,int,const Vec3*,MethodInfo)=nullptr;
+struct DamageResult {int events;float damage,secondary;};
+static_assert(sizeof(DamageResult)==12);
+using DamageFn=DamageResult(*)(void*,void*,void*,float,void*,bool,MethodInfo);
+DamageFn originalDamage=nullptr;
+struct DamageSample{void* actor=nullptr;uint64_t time=0;float damage=0;};
+std::array<DamageSample,8192> damageSamples{};
+size_t damageSampleIndex=0;
+uint64_t lastDroppedDamage=0;
+uint64_t monitorUntil=0,monitorStarted=0;
+std::map<void*,std::unique_ptr<Root>> monitoredAllies;
+game::Handle damageOwner;
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+uint64_t testDamageCalls=0,testDamageOwned=0;
+float testDamagePrimary=0,testDamageSecondary=0;
+#endif
+DamageResult ObserveDamage(void* self,void* stats,void* source,float factor,void* attacker,bool leech,MethodInfo method){
+    const auto result=originalDamage(self,stats,source,factor,attacker,leech,method);
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+    ++testDamageCalls;if(monitoredAllies.contains(attacker))++testDamageOwned;
+    testDamagePrimary=result.damage;testDamageSecondary=result.secondary;
+#endif
+    // Preserve the authoritative result and all game effects. The supported
+    // native tuple's second field is also sent to the game's damage events.
+    // Collection has no allocations and expires when the Summons page stops polling.
+    const auto now=GetTickCount64();
+    if(!lifecycle::Stopping()&&now<monitorUntil&&monitoredAllies.contains(attacker)&&std::isfinite(result.damage)&&result.damage>0){
+        auto& sample=damageSamples[damageSampleIndex++%damageSamples.size()];
+        if(sample.time&&now-sample.time<=5000)lastDroppedDamage=now;
+        sample={attacker,now,result.damage};
+    }
+    return result;
+}
 std::vector<Saved> saved;
 struct DisabledBehaviour {void* object;Setting* setting;};
 std::atomic<std::shared_ptr<const std::vector<DisabledBehaviour>>> disabledBehaviours=std::make_shared<const std::vector<DisabledBehaviour>>();
@@ -59,7 +115,13 @@ void PublishDisabled(){
 }
 bool shadowCaptured=false;
 int originalShadows=0;
-size_t F(const char* cls,const char* field,const char* ns=""){return Offset(cls,field,ns);}
+size_t F(const char* cls,const char* field,const char* ns=""){
+    static std::map<std::string,size_t> fields;
+    const std::string key=std::string(ns)+":"+cls+":"+field;
+    if(auto it=fields.find(key);it!=fields.end())return it->second;
+    return fields.emplace(key,Offset(cls,field,ns)).first->second;
+}
+uint64_t Micros(){LARGE_INTEGER counter,frequency;QueryPerformanceCounter(&counter);QueryPerformanceFrequency(&frequency);return static_cast<uint64_t>(counter.QuadPart*1000000/frequency.QuadPart);}
 game::MethodRef M(const char* cls,const char* name,int arity,const char* ns="",const char* image="LE.dll"){
     static std::map<std::string,game::MethodRef> methods;
     const std::string key=std::string(image)+":"+ns+":"+cls+":"+name+":"+std::to_string(arity);
@@ -114,16 +176,20 @@ bool Near(void* object,const Vec3& p){auto v=Position(object);double x=v.x-p.x,y
 void* Ui(){void* ui=game::StaticObject(game::FindStaticField("LE.dll","","UIBase","instance"));if(!ui||!game::IsAlive(ui))throw std::runtime_error("Game interface unavailable.");return ui;}
 bool PanelOpen(){void* ui=Ui();return Value<bool>(Method(ui,"IsInventoryOpen",0),ui)||Value<bool>(Method(ui,"IsStashOpen",0),ui)||Value<bool>(Method(ui,"IsShopOpen",0),ui);}
 const il2cpp::Method* Signature(const char* cls,const char* name,std::initializer_list<const char*> parameters,const char* ns="UnityEngine",const char* image="UnityEngine.CoreModule.dll"){
+    static std::map<std::string,const il2cpp::Method*> signatures;
+    std::string key=std::string(image)+":"+ns+":"+cls+":"+name;
+    for(const char* parameter:parameters)key+=std::string(":")+parameter;
+    if(auto it=signatures.find(key);it!=signatures.end())return it->second;
     auto& a=il2cpp::api();auto* c=game::FindClass(image,ns,cls);void* iterator=nullptr;
     while(auto* m=a.class_get_methods(c,&iterator)){
         if(std::string(a.method_get_name(m))!=name||a.method_get_param_count(m)!=parameters.size())continue;
         bool match=true;unsigned i=0;for(const char* expected:parameters){char* actual=a.type_get_name(a.method_get_param(m,i++));match &= actual&&std::string(actual)==expected;if(actual)a.free(actual);}
-        if(match)return m;
+        if(match){signatures.emplace(key,m);return m;}
     }throw std::runtime_error(std::string("Missing overload: ")+cls+"."+name);
 }
 void ClearShortcuts(){
     for(auto& b:shortcuts)if(game::IsAlive(b.object->Get())){void* a[]{b.object->Get()};Invoke(M("Object","Destroy",1,"UnityEngine","UnityEngine.CoreModule.dll"),nullptr,a);}
-    shortcuts.clear();inventoryPanel.Reset();
+    shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();
 }
 bool ShortcutClick(void* button){
     auto it=std::find_if(shortcuts.begin(),shortcuts.end(),[&](const Shortcut& s){return s.button->Get()==button;});
@@ -137,25 +203,52 @@ bool ShortcutClick(void* button){
 }
 void Click(void* self,void* event,MethodInfo info){bool ours=false;game::Guarded([&]{ours=ShortcutClick(self);},nullptr);if(!ours)originalClick(self,event,info);}
 void Submit(void* self,void* event,MethodInfo info){bool ours=false;game::Guarded([&]{ours=ShortcutClick(self);},nullptr);if(!ours)originalSubmit(self,event,info);}
+rules::Rect RectIn(void* transform,void* space){
+    const auto rect=Value<rules::Rect>(M("RectTransform","get_rect",0,"UnityEngine","UnityEngine.CoreModule.dll"),transform);
+    Vec3 lo{rect.x,rect.y,0},hi{rect.x+rect.w,rect.y+rect.h,0};void* la[]{&lo},*ha[]{&hi};
+    lo=Value<Vec3>(M("Transform","TransformPoint",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform,la);
+    hi=Value<Vec3>(M("Transform","TransformPoint",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform,ha);
+    lo=Value<Vec3>(M("Transform","InverseTransformPoint",1,"UnityEngine","UnityEngine.CoreModule.dll"),space,la);
+    hi=Value<Vec3>(M("Transform","InverseTransformPoint",1,"UnityEngine","UnityEngine.CoreModule.dll"),space,ha);
+    return {lo.x,lo.y,hi.x-lo.x,hi.y-lo.y};
+}
+void PlaceShortcuts(){
+    void* menu=menuTransform.Get();if(!menu||shortcuts.empty())return;
+    Root ct(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("UnityEngine.UIModule.dll","UnityEngine","Canvas"))));bool includeInactive=true;void* ca[]{ct.Get(),&includeInactive};
+    Root canvas(Invoke(Signature("Component","GetComponentInParent",{"System.Type","System.Boolean"}),menu,ca));
+    Root root(Invoke(M("Canvas","get_rootCanvas",0,"UnityEngine","UnityEngine.UIModule.dll"),canvas.Get()));
+    Root rt(Invoke(componentTransform,root.Get()));
+    const auto bounds=RectIn(menu,menu),screen=RectIn(rt.Get(),menu);
+    rules::Rect exclusion{};size_t count=0;void* ui=Ui();
+    if(Value<bool>(Method(ui,"IsStashOpen",0),ui)||Value<bool>(Method(ui,"IsShopOpen",0),ui)){
+        void* system=Get<void*>(ui,F("UIBase","_panelSystem"));
+        void* left=Get<void*>(system,F("PanelSystem","_leftPanelLocationRect","LE.UI.PanelSystem"));
+        if(left){exclusion=RectIn(left,menu);count=1;}
+    }
+    const auto placement=rules::PlaceToolbar(bounds,screen,&exclusion,count);
+    for(size_t i=0;i<shortcuts.size();++i){auto& b=shortcuts[i];bool show=placement.visible;void* a[]{&show};
+        if(Value<bool>(Method(b.object->Get(),"get_activeSelf",0),b.object->Get())!=show)Invoke(Method(b.object->Get(),"SetActive",1),b.object->Get(),a);
+        if(show){Root tr(Invoke(M("GameObject","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),b.object->Get()));
+            Vec2 pos{placement.rect.x+placement.rect.w-bounds.x,placement.rect.y-bounds.y+static_cast<float>(i)*38};void* p[]{&pos};
+            Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),tr.Get(),p);}
+    }
+}
 void InventoryButtons(){
     if(!shortcuts.empty()&&inventoryPanel.Get()){
-        bool enabled=!shortcutBusy;void* a[]{&enabled};
-        for(auto& b:shortcuts){Invoke(Method(b.button->Get(),"set_interactable",1),b.button->Get(),a);
-            for(auto& label:b.labels)if(Text(Invoke(M("TMP_Text","get_text",0,"TMPro","Unity.TextMeshPro.dll"),label->Get()))!=b.label){
-                Root text(il2cpp::api().string_new(b.label));void* args[]{text.Get()};Invoke(M("TMP_Text","set_text",1,"TMPro","Unity.TextMeshPro.dll"),label->Get(),args);}}
-        return;
+        bool enabled=!shortcutBusy;if(shortcutEnabled!=enabled){shortcutEnabled=enabled;void* a[]{&enabled};
+            for(auto& b:shortcuts)Invoke(Method(b.button->Get(),"set_interactable",1),b.button->Get(),a);}
+        PlaceShortcuts();return;
     }
     ClearShortcuts();
     auto panels=Find("LE.dll","","InventoryPanelUI");if(panels.empty())return;
     void* panel=panels.front();void* source=Get<void*>(panel,F("InventoryPanelUI","confirmRespecButton"));
-    void* parent=Get<void*>(panel,F("InventoryPanelUI","leftButtonsContainer"));if(!source||!parent)return;
+    void* parent=Get<void*>(panel,F("InventoryPanelUI","menuRectTransform"));if(!source||!parent)return;
     auto click=M("Button","OnPointerClick",1,"UnityEngine.UI","UnityEngine.UI.dll"),submit=M("Button","OnSubmit",1,"UnityEngine.UI","UnityEngine.UI.dll");
     std::string why;
     if(!hook::IsInstalled(click.code)&&!hook::Install(click.code,reinterpret_cast<void*>(&Click),reinterpret_cast<void**>(&originalClick),&why))throw std::runtime_error(why);
     if(!hook::IsInstalled(submit.code)&&!hook::Install(submit.code,reinterpret_cast<void*>(&Submit),reinterpret_cast<void**>(&originalSubmit),&why))throw std::runtime_error(why);
     auto* buttonType=game::FindClass("UnityEngine.UI.dll","UnityEngine.UI","Button");
-    auto* textType=game::FindClass("Unity.TextMeshPro.dll","TMPro","TMP_Text");
-    Root bt(il2cpp::api().type_get_object(il2cpp::api().class_get_type(buttonType))),tt(il2cpp::api().type_get_object(il2cpp::api().class_get_type(textType)));
+    Root bt(il2cpp::api().type_get_object(il2cpp::api().class_get_type(buttonType)));
     Root templateObject(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),source));
     const auto* instantiate=Signature("Object","Instantiate",{"UnityEngine.Object","UnityEngine.Transform","System.Boolean"});
     for(auto pair:std::array<std::pair<const char*,const char*>,3>{{{"stash","Stash"},{"stashall","Stash all"},{"vendor","Vendor"}}}){
@@ -168,21 +261,41 @@ void InventoryButtons(){
         if(!element)element=Invoke(Signature("GameObject","AddComponent",{"System.Type"}),object.Get(),la);
         Root layout(element);
         bool ignore=true;void* ia[]{&ignore};Invoke(M("LayoutElement","set_ignoreLayout",1,"UnityEngine.UI","UnityEngine.UI.dll"),layout.Get(),ia);
-        Root text(il2cpp::api().string_new(pair.second));bool inactive=true;void* targs[]{tt.Get(),&inactive};Root texts(Invoke(Signature("GameObject","GetComponentsInChildren",{"System.Type","System.Boolean"}),object.Get(),targs));
-        for(uintptr_t i=0;i<Get<uintptr_t>(texts.Get(),0x18);++i){void* label=Get<void*>(texts.Get(),0x20+8*i);shortcuts.back().labels.push_back(std::make_unique<Root>(label));
-            bool autosize=false;float fontSize=14;void* autoArgs[]{&autosize},*sizeArgs[]{&fontSize};
-            Invoke(M("TMP_Text","set_enableAutoSizing",1,"TMPro","Unity.TextMeshPro.dll"),label,autoArgs);Invoke(M("TMP_Text","set_fontSize",1,"TMPro","Unity.TextMeshPro.dll"),label,sizeArgs);
-            void* args[]{text.Get()};Invoke(M("TMP_Text","set_text",1,"TMPro","Unity.TextMeshPro.dll"),label,args);}
+        // A cloned game button can use legacy UI.Text rather than TMP, and its
+        // localization component must not restore the original blessing label.
+        // Only components below our cloned object are touched.
+        bool inactive=true;
+        for(auto spec:std::array<std::tuple<const char*,const char*,const char*>,4>{{
+            {"Unity.Localization.dll","UnityEngine.Localization.Components","LocalizeStringEvent"},
+            {"LE.dll","PixelCrushers.DialogueSystem","LocalizeUIText"},
+            {"LE.dll","PixelCrushers.DialogueSystem.TextMeshPro","LocalizeTextMeshPro"},
+            {"LE.dll","PixelCrushers.DialogueSystem","LocalizeTextMesh"}}}){
+            auto* cls=game::FindClass(std::get<0>(spec),std::get<1>(spec),std::get<2>(spec));if(!cls)continue;
+            Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(cls)));void* a[]{type.Get(),&inactive};
+            Root components(Invoke(Signature("GameObject","GetComponentsInChildren",{"System.Type","System.Boolean"}),object.Get(),a));
+            for(uintptr_t i=0;i<Get<uintptr_t>(components.Get(),0x18);++i){void* component=Get<void*>(components.Get(),0x20+8*i);bool enabled=false;void* ea[]{&enabled};Invoke(M("Behaviour","set_enabled",1,"UnityEngine","UnityEngine.CoreModule.dll"),component,ea);}
+        }
+        Root text(il2cpp::api().string_new(pair.second));
+        for(bool tmp:{true,false}){
+            Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass(tmp?"Unity.TextMeshPro.dll":"UnityEngine.UI.dll",tmp?"TMPro":"UnityEngine.UI",tmp?"TMP_Text":"Text"))));
+            void* targs[]{type.Get(),&inactive};Root texts(Invoke(Signature("GameObject","GetComponentsInChildren",{"System.Type","System.Boolean"}),object.Get(),targs));
+            for(uintptr_t i=0;i<Get<uintptr_t>(texts.Get(),0x18);++i){void* label=Get<void*>(texts.Get(),0x20+8*i);shortcuts.back().labels.push_back(std::make_unique<Root>(label));
+                bool autosize=false;void* autoArgs[]{&autosize};Invoke(Method(label,tmp?"set_enableAutoSizing":"set_resizeTextForBestFit",1),label,autoArgs);
+                if(tmp){float fontSize=14;void* a[]{&fontSize};Invoke(Method(label,"set_fontSize",1),label,a);}else{int fontSize=14;void* a[]{&fontSize};Invoke(Method(label,"set_fontSize",1),label,a);}
+                void* args[]{text.Get()};Invoke(Method(label,"set_text",1),label,args);}
+        }
+        if(shortcuts.back().labels.empty())throw std::runtime_error("Inventory shortcut has no supported text label.");
         Root transform(Invoke(M("GameObject","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),object.Get()));
-        // Use the empty space after Transfer/Sort in the footer. Never cover a
-        // usable inventory cell or the currency counters on the right.
-        struct Vec2{float x,y;};Vec2 size{100,32},pos{244+static_cast<float>((shortcuts.size()-1)*106),0},zero{0,0};Vec3 scale{1,1,1};
+        // The complete menu is reserved for vanilla UI. This vertical strip
+        // grows outwards from its left edge, rather than into the currency bar.
+        Vec2 size{108,32},pos{-8,static_cast<float>(shortcuts.size()-1)*38},zero{0,0},pivot{1,0};Vec3 scale{1,1,1};
         void* za[]{&zero};for(const char* name:{"set_anchorMin","set_anchorMax","set_pivot"})Invoke(M("RectTransform",name,1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),za);
+        void* piva[]{&pivot};Invoke(M("RectTransform","set_pivot",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),piva);
         void* sa[]{&size},*pa[]{&pos},*sca[]{&scale};Invoke(M("RectTransform","set_sizeDelta",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),sa);
         Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),pa);Invoke(M("Transform","set_localScale",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),sca);
         bool on=true;void* args[]{&on};Invoke(Method(object.Get(),"SetActive",1),object.Get(),args);
     }
-    inventoryPanel.Set(panel);
+    inventoryPanel.Set(panel);menuTransform.Set(parent);shortcutEnabled=false;PlaceShortcuts();
 }
 void RestoreGraphics(){
     disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());
@@ -233,68 +346,119 @@ void Graphics(){
         bool enabled=false;void* a[]{&enabled};Invoke(M("Behaviour","set_enabled",1,"UnityEngine","UnityEngine.CoreModule.dll"),camera,a);
     }
 }
+void ClearInteractions(){candidates.clear();pendingHandlers.clear();candidateCursor=0;bootstrapType=0;discover=true;interactionScene=0;}
+void AddCandidate(void* object,void* handler,int kind){
+    if(!object||!game::IsAlive(object)||candidates.size()>=4096)return;
+    for(const auto& entry:candidates)if((handler&&entry.handler&&entry.handler->Get()==handler)||entry.object->Get()==object)return;
+    candidates.push_back({std::make_unique<Root>(object),handler?std::make_unique<Root>(handler):nullptr,kind,0});
+}
+void HandlerAwake(void* self,MethodInfo info){
+    originalHandlerAwake(self,info);
+    if(active&&!lifecycle::Stopping())game::Guarded([&]{if(pendingHandlers.size()<4096)pendingHandlers.push_back(std::make_unique<Root>(self));},nullptr);
+}
+void PortalInitialize(void* self,MethodInfo info){originalPortalInitialize(self,info);
+    if(active&&!lifecycle::Stopping())game::Guarded([&]{AddCandidate(self,nullptr,2);},nullptr);}
+void CaveAwake(void* self,MethodInfo info){originalCaveAwake(self,info);
+    if(active&&!lifecycle::Stopping())game::Guarded([&]{AddCandidate(self,nullptr,3);},nullptr);}
+void ShrineEra(void* self,int era,MethodInfo info){originalShrineEra(self,era,info);
+    if(active&&!lifecycle::Stopping())game::Guarded([&]{AddCandidate(self,nullptr,1);},nullptr);}
+void ShrineSetup(void* self,void* object,bool networking,int kind,const Vec3* position,MethodInfo info){
+    originalShrineSetup(self,object,networking,kind,position,info);
+    if(active&&!lifecycle::Stopping())game::Guarded([&]{
+        Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","ShrineVisualsCreator"))));
+        void* args[]{type.Get()};void* component=Invoke(Signature("GameObject","GetComponent",{"System.Type"}),object,args);
+        AddCandidate(component,nullptr,1);
+    },nullptr);
+}
+void ClassifyHandler(void* handler){
+    if(!handler||!game::IsAlive(handler))return;
+    for(const char* cls:{"ChestVisualsCreator","ChestSync","ShrineVisualsCreator","ShrineSync"}){
+        Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","",cls))));bool includeInactive=false;void* a[]{type.Get(),&includeInactive};
+        void* component=Invoke(Signature("Component","GetComponentInParent",{"System.Type","System.Boolean"}),handler,a);
+        // Awake may precede assignment of the component's conditionHandler.
+        // Keep the owning component; resolve its own handler after initialization.
+        if(component){void* own=Get<void*>(component,F(cls,"conditionHandler"));AddCandidate(component,own,cls[0]=='C'?0:1);return;}
+    }
+}
 void Interactions(void* actor){
     if(items::IsInspectingItem()||PanelOpen())return;
-    const Vec3 player=Position(actor);int calls=0;
-    for(auto* setting:{&chests,&shrines})if(setting->value){
-        // Offline zones can contain the local visuals without an active Sync
-        // component. Both paths invoke the same normal, validated handler.
-        const char* visual=setting==&chests?"ChestVisualsCreator":"ShrineVisualsCreator";
-        const char* sync=setting==&chests?"ChestSync":"ShrineSync";
-        for(const char* cls:{visual,sync})for(void* object:Find("LE.dll","",cls)){
-            if(calls>=1||!game::IsAlive(object)||!Near(object,player))continue;
-            void* handler=Get<void*>(object,F(cls,"conditionHandler"));
-            if(!handler||Value<bool>(Method(handler,"triggeredAndCannotTriggerMultipleTimes",0),handler))continue;
-            Root playerObject(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),actor));
-            void* a[]{playerObject.Get()};if(!Value<bool>(Method(handler,"CheckConditionReadiness",1),handler,a))continue;
-            Invoke(Method(handler,"TryTriggerInteraction",1),handler,a);++calls;
-            if(setting==&chests)++openedChests;else ++usedShrines;
+    const auto start=Micros();
+    Root go(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),actor));
+    // A Scene is one handle-sized integer in this supported Unity build.
+    const int scene=Value<int>(M("GameObject","get_scene",0,"UnityEngine","UnityEngine.CoreModule.dll"),go.Get());
+    if(scene!=interactionScene){ClearInteractions();interactionScene=scene;portalGrace=GetTickCount64()+10000;}
+    if(discover){
+        // Bootstrap existing objects once, one type per frame. Awake/initialize
+        // notifications register later spawns; idle frames never search a scene.
+        static const char* types[]{"ChestVisualsCreator","ChestSync","ShrineVisualsCreator","ShrineSync","PortalSync","CaveEntranceLogic"};
+        const char* cls=types[bootstrapType];int kind=static_cast<int>(bootstrapType/2);
+        const char* ns=bootstrapType==4?"Networking.Multiplayer.Interactables.Portals":"";
+        for(void* object:Find("LE.dll",ns,cls)){
+            void* handler=bootstrapType<4?Get<void*>(object,F(cls,"conditionHandler")):nullptr;
+            AddCandidate(object,handler,bootstrapType==5?3:kind);
         }
+        ++sceneSearches;if(++bootstrapType==6)discover=false;
+        maximumDiscoveryMicros=std::max(maximumDiscoveryMicros,Micros()-start);return;
     }
-    if(portals.value && GetTickCount64()>=portalGrace && calls==0){
-        for(void* portal:Find("LE.dll","Networking.Multiplayer.Interactables.Portals","PortalSync")){
-            if(!game::IsAlive(portal)||!Get<bool>(portal,F("PortalSync","initialized","Networking.Multiplayer.Interactables.Portals"))||!Near(portal,player))continue;
-            Invoke(Method(portal,"SendAttemptUse",0),portal);++usedPortals;
-            // Returning or arriving near another portal must not loop through it.
-            // Each transition consumes the opt-in; the player rearms explicitly.
-            portals.value=0;portalGrace=GetTickCount64()+10000;break;
+    if(!pendingHandlers.empty()){auto handler=std::move(pendingHandlers.back());pendingHandlers.pop_back();ClassifyHandler(handler->Get());
+        maximumInteractionMicros=std::max(maximumInteractionMicros,Micros()-start);return;}
+    const auto now=GetTickCount64();if(now<nextInteraction||candidates.empty())return;
+    const Vec3 player=Position(actor);rules::Budget budget{0,start};size_t visited=0;
+    while(visited<candidates.size()&&budget.Next(Micros())){
+        if(candidateCursor>=candidates.size())candidateCursor=0;
+        auto& entry=candidates[candidateCursor++];++visited;++interactionChecks;
+        auto* setting=entry.kind==0?&chests:entry.kind==1?&shrines:&portals;
+        void* object=entry.object->Get();
+        if(!setting->value||now<entry.retryAfter||!game::IsAlive(object)||(entry.kind>=2&&now<portalGrace))continue;
+        void* handler=entry.handler?entry.handler->Get():nullptr;
+        if(!handler&&entry.kind<2){handler=Get<void*>(object,F(il2cpp::api().class_get_name(il2cpp::api().object_get_class(object)),"conditionHandler"));
+            if(handler)entry.handler=std::make_unique<Root>(handler);}
+        if(entry.kind==3){object=Get<void*>(object,F("CaveEntranceLogic","usePlayerSpawnInteraction"));
+            if(!object||!game::IsAlive(object)||Get<bool>(object,F("UsePlayerSpawnInteraction","startedAsyncInteraction")))continue;
+            handler=Get<void*>(object,F("BaseInteraction","conditionHandler"));}
+        if(!Near(object,player))continue;
+        if(entry.kind==2){if(!Get<bool>(object,F("PortalSync","initialized","Networking.Multiplayer.Interactables.Portals")))continue;
+            Invoke(Method(object,"SendAttemptUse",0),object);}
+        else{
+            if(!handler||!game::IsAlive(handler)||Value<bool>(Method(handler,"triggeredAndCannotTriggerMultipleTimes",0),handler))continue;
+            void* a[]{go.Get()};if(!Value<bool>(Method(handler,"CheckConditionReadiness",1),handler,a)){entry.retryAfter=now+1000;continue;}
+            Invoke(Method(handler,"TryTriggerInteraction",1),handler,a);
         }
-        if(portals.value)for(void* cave:Find("LE.dll","","CaveEntranceLogic")){
-            void* interaction=Get<void*>(cave,F("CaveEntranceLogic","usePlayerSpawnInteraction"));
-            if(!interaction||!game::IsAlive(interaction)||!Near(interaction,player)||Get<bool>(interaction,F("UsePlayerSpawnInteraction","startedAsyncInteraction")))continue;
-            void* handler=Get<void*>(interaction,F("BaseInteraction","conditionHandler"));
-            if(!handler||Value<bool>(Method(handler,"triggeredAndCannotTriggerMultipleTimes",0),handler))continue;
-            Root playerObject(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),actor));void* args[]{playerObject.Get()};
-            if(!Value<bool>(Method(handler,"CheckConditionReadiness",1),handler,args))continue;
-            Invoke(Method(handler,"TryTriggerInteraction",1),handler,args);++usedPortals;
-            portals.value=0;portalGrace=GetTickCount64()+10000;break;
-        }
+        entry.retryAfter=now+2000;nextInteraction=now+250;
+        if(entry.kind==0)++openedChests;else if(entry.kind==1)++usedShrines;
+        else{++usedPortals;portals.value=0;portalGrace=now+10000;}
+        break; // Never run a second native interaction in this frame.
     }
+    maximumInteractionMicros=std::max(maximumInteractionMicros,Micros()-start);
 }
 void Frame(void* self,MethodInfo info){
     originalFrame(self,info);
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+    if(measureFrames){const auto sample=Micros();if(previousFrame&&frameGaps.size()<10000)frameGaps.push_back(sample-previousFrame);previousFrame=sample;}
+#endif
     if(lifecycle::Stopping())return;
     const auto clock=GetTickCount64();
-    if(clock>=lastButtons+1000){lastButtons=clock;std::string why;
+    if(clock>=lastButtons+250){lastButtons=clock;std::string why;
         if(!game::Guarded([]{if(Actor())InventoryButtons();else if(!shortcuts.empty())ClearShortcuts();},&why)){
             ++faults;lastButtons=clock+14000;Log("inventory buttons: %s",why.c_str());
             game::Guarded([]{ClearShortcuts();},nullptr);
         }
     }
     if(!active.load(std::memory_order_relaxed))return;
-    const auto now=GetTickCount64();if(now-lastScan<1000)return;lastScan=now;
+    const auto now=GetTickCount64();
+    if(now<retryWork||now<lastWork+50)return;lastWork=now;
     std::string why;
     if(!game::Guarded([&]{
         void* actor=Actor();
-        if(!actor|| (owner.Get()&&owner.Get()!=actor)){
-            RestoreGraphics();for(auto* setting:settings)setting->value=0;owner.Reset();active=false;return;
-        }
+        if(!actor)return; // Loading/alt-tab is a pause, not a setting reset.
+        if(owner.Get()&&owner.Get()!=actor){RestoreGraphics();ClearInteractions();for(auto* setting:settings)setting->value=0;owner.Reset();active=false;return;}
         if(!owner.Get()){owner.Set(actor);portalGrace=now+10000;}
-        Graphics();if(chests.value||shrines.value||portals.value)Interactions(actor);
-    },&why)){++faults;Log("convenience: %s",why.c_str());}
+        if(now>=lastScan+1000){lastScan=now;Graphics();}
+        if(chests.value||shrines.value||portals.value)Interactions(actor);
+    },&why)){++faults;retryWork=now+5000;Log("convenience: %s",why.c_str());}
 }
 std::string State(){std::ostringstream out;out<<"{\"ok\":true,\"settings\":{";bool comma=false;for(auto* s:settings){if(comma)out<<',';comma=true;out<<Json(s->key)<<":{\"value\":"<<s->value<<",\"available\":"<<Boolean(frame&&hook::IsInstalled(frame.code))<<'}';}
-    return out.str()+"},\"inventoryButtons\":"+std::to_string(shortcuts.size())+",\"graphicsOverrides\":"+std::to_string(saved.size())+",\"chestsOpened\":"+std::to_string(openedChests)+",\"shrinesUsed\":"+std::to_string(usedShrines)+",\"portalsUsed\":"+std::to_string(usedPortals)+",\"faults\":"+std::to_string(faults)+"}";}
+    return out.str()+"},\"inventoryButtons\":"+std::to_string(shortcuts.size())+",\"graphicsOverrides\":"+std::to_string(saved.size())+",\"chestsOpened\":"+std::to_string(openedChests)+",\"shrinesUsed\":"+std::to_string(usedShrines)+",\"portalsUsed\":"+std::to_string(usedPortals)+",\"interactionCandidates\":"+std::to_string(candidates.size())+",\"interactionChecks\":"+std::to_string(interactionChecks)+",\"sceneSearches\":"+std::to_string(sceneSearches)+",\"maximumDiscoveryMicros\":"+std::to_string(maximumDiscoveryMicros)+",\"maximumInteractionMicros\":"+std::to_string(maximumInteractionMicros)+",\"faults\":"+std::to_string(faults)+"}";}
 }
 bool Init(){frame=game::FindMethod("LE.dll","","CameraManager","Update",0);
     findObjects=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Object","FindObjectsOfType",2);
@@ -310,17 +474,43 @@ std::string Set(const std::string& key,double value){return Run([&]{
     auto it=std::find_if(settings.begin(),settings.end(),[&](Setting* s){return key==s->key;});
     if(it==settings.end()||!std::isfinite(value)||(value!=0&&value!=1))throw std::runtime_error("Unknown convenience setting or invalid switch.");
     Current();if(!frame)throw std::runtime_error("Camera update entry point is unavailable.");
+    if((key=="chests"||key=="shrines"||key=="portals")&&value){
+        auto shrine=M("ShrineVisualsCreator","setEraPreset",1);std::string shrineReason;
+        if(!hook::IsInstalled(shrine.code)&&!hook::Install(shrine.code,reinterpret_cast<void*>(&ShrineEra),reinterpret_cast<void**>(&originalShrineEra),&shrineReason))throw std::runtime_error(shrineReason);
+        auto setup=M("ShrinesManager","SetUpShrineVisualsAndNetworking",4);
+        if(!hook::IsInstalled(setup.code)&&!hook::Install(setup.code,reinterpret_cast<void*>(&ShrineSetup),reinterpret_cast<void**>(&originalShrineSetup),&shrineReason))throw std::runtime_error(shrineReason);
+        for(auto spec:std::array<std::tuple<const char*,const char*,const char*,void*,void**>,3>{{
+            {"ConditionHandler","Awake","",reinterpret_cast<void*>(&HandlerAwake),reinterpret_cast<void**>(&originalHandlerAwake)},
+            {"PortalSync","OnInitialize","Networking.Multiplayer.Interactables.Portals",reinterpret_cast<void*>(&PortalInitialize),reinterpret_cast<void**>(&originalPortalInitialize)},
+            {"CaveEntranceLogic","Awake","",reinterpret_cast<void*>(&CaveAwake),reinterpret_cast<void**>(&originalCaveAwake)}}}){
+            auto ref=M(std::get<0>(spec),std::get<1>(spec),0,std::get<2>(spec));std::string reason;
+            if(!hook::IsInstalled(ref.code)&&!hook::Install(ref.code,std::get<3>(spec),std::get<4>(spec),&reason))throw std::runtime_error(reason);
+        }
+        if(!(chests.value||shrines.value||portals.value))ClearInteractions();
+    }
     if((key=="fog"||key=="reflections")&&value){auto enabled=M("Behaviour","set_enabled",1,"UnityEngine","UnityEngine.CoreModule.dll");std::string reason;
         if(!hook::IsInstalled(enabled.code)&&!hook::Install(enabled.code,reinterpret_cast<void*>(&Enabled),reinterpret_cast<void**>(&originalEnabled),&reason))throw std::runtime_error(reason);}
     std::string why;if(!hook::IsInstalled(frame.code)&&!hook::Install(frame.code,reinterpret_cast<void*>(&Frame),reinterpret_cast<void**>(&originalFrame),&why))throw std::runtime_error(why);
     const double previous=(*it)->value;
-    (*it)->value=value;active=true;lastScan=0;
-    try {Graphics();}
+    (*it)->value=value;active=true;lastScan=0;retryWork=0;
+    try {if(key!="chests"&&key!="shrines"&&key!="portals")Graphics();}
     catch(...){(*it)->value=previous;try{Graphics();}catch(...){++faults;}throw;}
     return State();
 });}
 std::string Summons(){return Run([]{
     const auto c=Current();void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));
+    const auto now=GetTickCount64();
+    if(damageOwner.Get()!=c.actor||now>monitorUntil){monitoredAllies.clear();damageSamples={};damageSampleIndex=0;lastDroppedDamage=0;monitorStarted=now;damageOwner.Set(c.actor);}
+    auto damage=M("ProtectionClass","ApplyDamage",5);std::string why;
+    if(!hook::IsInstalled(damage.code)&&!hook::Install(damage.code,reinterpret_cast<void*>(&ObserveDamage),reinterpret_cast<void**>(&originalDamage),&why))throw std::runtime_error(why);
+    monitorUntil=now+3000;
+    struct DamageTotal{double total=0;float last=0;uint64_t lastAt=0;size_t hits=0;};
+    std::map<void*,DamageTotal> damageTotals;
+    for(const auto& sample:damageSamples)if(sample.actor&&sample.time<=now&&now-sample.time<=5000){
+        auto& total=damageTotals[sample.actor];total.total+=sample.damage;++total.hits;
+        if(sample.time>=total.lastAt){total.lastAt=sample.time;total.last=sample.damage;}
+    }
+    std::set<void*> liveAllies;
     std::ostringstream out;out<<"{\"ok\":true,\"player\":"<<Player(c)<<",\"sampledAt\":"<<GetTickCount64()<<",\"summons\":[";bool comma=false;
     std::vector<void*> trackers{c.actor};std::set<void*> seen{c.actor};
     for(size_t ti=0;ti<trackers.size();++ti){void* creator=trackers[ti];tracker=Get<void*>(creator,F("Actor","summonTracker"));
@@ -332,6 +522,7 @@ std::string Summons(){return Run([]{
         if(!seen.insert(actor).second)continue;
         if(seen.size()>256)throw std::runtime_error("Summon count outside supported bounds.");
         trackers.push_back(actor);
+        liveAllies.insert(actor);if(!monitoredAllies.contains(actor))monitoredAllies.emplace(actor,std::make_unique<Root>(actor));
         void* health=Get<void*>(actor,F("Actor","health"));void* stats=Get<void*>(actor,F("Actor","stats"));
         if(!health||!stats||Get<float>(health,F("BaseHealth","currentHealth"))<=0)continue;
         void* precalc=Get<void*>(stats,F("BaseStats","precalculatedStats"));if(!precalc)continue;
@@ -347,21 +538,37 @@ std::string Summons(){return Run([]{
         uint8_t property=1,special=0;int tags=0,extra=0; // SP.Damage is validated from current enum below.
         auto* enumClass=game::FindClass("LE.dll","","SP");auto* field=il2cpp::api().class_get_field_from_name(enumClass,"Damage");
         if(!field)throw std::runtime_error("Damage property unavailable.");il2cpp::api().field_static_get_value(field,&property);
-        void* a[]{&property,&tags,&special,&extra};out<<Value<float>(M("Stats","GetTotalIncreased",4),stats,a)*100.<<'}';
+        void* a[]{&property,&tags,&special,&extra};out<<Value<float>(M("Stats","GetTotalIncreased",4),stats,a)*100.;
+        const auto total=damageTotals[actor];
+        const double seconds=std::min(5.0,(now-monitorStarted)/1000.0);
+        out<<",\"damage5s\":"<<total.total<<",\"damageEvents5s\":"<<total.hits<<",\"lastDamage\":"<<total.last<<",\"measuredDps\":"<<(seconds>0?total.total/seconds:0)<<'}';
     }}
-    return out.str()+"]}";
+    for(auto it=monitoredAllies.begin();it!=monitoredAllies.end();)if(!liveAllies.contains(it->first))it=monitoredAllies.erase(it);else ++it;
+    return out.str()+"],\"damageWindowSeconds\":"+std::to_string(std::min(5.0,(now-monitorStarted)/1000.0))+",\"damageSampleClipped\":"+Boolean(lastDroppedDamage&&now-lastDroppedDamage<=5000)+",\"damageMethod\":\"native applied damage events\"}";
 });}
 std::string InventoryRead(){return Run([]{const auto c=Current();void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
     Root content(Invoke(Method(inventory,"GetContent",0),inventory));
     return "{\"ok\":true,\"player\":"+Player(c)+",\"inventoryItems\":"+std::to_string(Entries(content.Get()).size())+"}";
 });}
 std::string Inventory(const std::string& id,const std::string& action){
-    if(action=="stash"||action=="vendor")return Run([&]{const auto c=Current(id);void* ui=Ui();
-        if(action=="stash"){bool show=true,focus=true,clear=false,preserve=false;void* a[]{&show,&focus,&clear,nullptr,&preserve};Invoke(Method(ui,"openStash",5),ui,a);}
+    if(action=="stash"||action=="vendor"){
+      bool requested=false,opened=false;std::string result,reason;
+      if(!mainthread::RunSteps([&]{try{const auto c=Current(id);void* ui=Ui();
+       if(!requested){requested=true;
+        opened=!Value<bool>(Method(ui,action=="stash"?"IsStashOpen":"IsShopOpen",0),ui);
+        if(!opened){bool sound=false;void* a[]{&sound};if(action=="stash")Invoke(Method(ui,"closeStash",1),ui,a);else Invoke(Method(ui,"closeShop",0),ui);}
+        else if(action=="stash"){bool show=true,focus=true,clear=false,preserve=false;void* a[]{&show,&focus,&clear,nullptr,&preserve};Invoke(Method(ui,"openStash",5),ui,a);}
         else {bool show=true,appearances=false,stash=false,sound=false;int tab=0;
             void* inventoryArgs[]{&show,&appearances,&stash,&tab,&sound};Invoke(Method(ui,"openInventory",5),ui,inventoryArgs);
             void* a[]{&show};Invoke(Method(ui,"openShop",1),ui,a);}
-        return "{\"ok\":true,\"player\":"+Player(c)+",\"action\":"+Json(action)+"}";});
+        return false;
+       }
+       if(Value<bool>(Method(ui,action=="stash"?"IsStashOpen":"IsShopOpen",0),ui)!=opened)return false;
+       game::Guarded([]{PlaceShortcuts();},nullptr);result="{\"ok\":true,\"player\":"+Player(c)+",\"action\":"+Json(action)+",\"opened\":"+Boolean(opened)+"}";
+      }catch(const std::exception& e){result="{\"ok\":false,\"error\":"+Json(e.what())+"}";}return true;},5000,&reason))
+          return "{\"ok\":false,\"error\":"+Json(reason.empty()?"The window did not finish opening. Refresh and try again.":reason)+"}";
+      return result;
+    }
     if(action!="stashall")return "{\"ok\":false,\"error\":\"Unknown inventory action.\"}";
     progression::SnapshotData snapshot;std::string why;
     if(!mainthread::Run([&]{snapshot=progression::CaptureSnapshotCurrent(id,"stash-all");},5000,&why))return "{\"ok\":false,\"error\":"+Json(why)+"}";
@@ -382,6 +589,20 @@ std::string Inventory(const std::string& id,const std::string& action){
 std::string Test(const std::string& id,const std::string& action){return Run([=]() -> std::string {
     const auto c=Current(id);if(c.name!="EpFeedbackTest")throw std::runtime_error("Convenience checks require the isolated EpFeedbackTest character.");
     void* ui=Ui();
+    if(action=="frames-start"){frameGaps.clear();previousFrame=0;measureFrames=true;maximumInteractionMicros=maximumDiscoveryMicros=0;return State();}
+    if(action=="frames-stop"){measureFrames=false;std::ostringstream out;out<<"{\"ok\":true,\"gapsMicros\":[";bool comma=false;for(auto value:frameGaps){if(comma)out<<',';comma=true;out<<value;}return out.str()+"]}";}
+    if(action.rfind("menu-scale-",0)==0){InventoryButtons();void* menu=menuTransform.Get();if(!menu)throw std::runtime_error("Open the inventory first.");
+        if(!testMenuScaleSaved){testOriginalMenuScale=Value<Vec3>(M("Transform","get_localScale",0,"UnityEngine","UnityEngine.CoreModule.dll"),menu);testMenuScaleSaved=true;}
+        const auto percent=std::stoi(action.substr(11));if(percent<50||percent>200)throw std::runtime_error("Unsupported scale fixture.");
+        Vec3 scale{testOriginalMenuScale.x*percent/100.f,testOriginalMenuScale.y*percent/100.f,testOriginalMenuScale.z};void* a[]{&scale};
+        Invoke(M("Transform","set_localScale",1,"UnityEngine","UnityEngine.CoreModule.dll"),menu,a);PlaceShortcuts();return State();}
+    if(action=="layout"){InventoryButtons();void* menu=menuTransform.Get();if(!menu)throw std::runtime_error("Open the inventory first.");
+        const auto menuRect=RectIn(menu,menu);std::ostringstream out;out<<"{\"ok\":true,\"buttons\":[";bool comma=false;
+        void* footer=Get<void*>(inventoryPanel.Get(),F("InventoryPanelUI","leftButtonsContainer"));const auto footerRect=RectIn(footer,menu);
+        for(auto& b:shortcuts){Root tr(Invoke(M("GameObject","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),b.object->Get()));const auto r=RectIn(tr.Get(),menu);
+            if(comma)out<<',';comma=true;out<<"{\"action\":"<<Json(b.action)<<",\"visible\":"<<Boolean(Value<bool>(Method(b.object->Get(),"get_activeSelf",0),b.object->Get()))<<",\"menuOverlap\":"<<Boolean(rules::Overlaps(r,menuRect))<<",\"footerOverlap\":"<<Boolean(rules::Overlaps(r,footerRect))<<",\"labels\":[";
+            bool next=false;for(auto& label:b.labels){if(next)out<<',';next=true;out<<Json(Text(Invoke(Method(label->Get(),"get_text",0),label->Get())));}out<<"],\"rect\":["<<r.x<<','<<r.y<<','<<r.w<<','<<r.h<<"]}";}
+        return out.str()+"]}";}
     if(action=="inventory-open"){bool show=true,appearances=false,stash=false,last=false;int tab=0;void* a[]{&show,&appearances,&stash,&tab,&last};Invoke(Method(ui,"openInventory",5),ui,a);return State();}
     if(action=="panels-close"){bool sound=false;void* a[]{&sound};Invoke(Method(ui,"closeShop",0),ui);Invoke(Method(ui,"closeStash",1),ui,a);Invoke(Method(ui,"closeInventory",0),ui);return State();}
     if(action=="panels")return "{\"ok\":true,\"inventory\":"+std::string(Boolean(Value<bool>(Method(ui,"IsInventoryOpen",0),ui)))+",\"stash\":"+Boolean(Value<bool>(Method(ui,"IsStashOpen",0),ui))+",\"shop\":"+Boolean(Value<bool>(Method(ui,"IsShopOpen",0),ui))+",\"buttons\":"+std::to_string(shortcuts.size())+"}";
@@ -409,11 +630,74 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
         for(auto& e:saved){bool actual=false;if(e.field)il2cpp::api().field_get_value(e.value->Get(),e.field,&actual);else actual=Value<bool>(M("Behaviour","get_enabled",0,"UnityEngine","UnityEngine.CoreModule.dll"),e.value->Get());
             if(comma)out<<',';comma=true;out<<"{\"setting\":"<<Json(e.setting->key)<<",\"before\":"<<Boolean(e.before)<<",\"actual\":"<<Boolean(actual)<<'}';}return out.str()+"]}";
     }
+    if(action=="map-F80"){
+        // Test-only navigation uses the game's map/era selection, not direct travel.
+        bool open=Value<bool>(Method(ui,"IsWorldMapPanelOpen",0),ui);
+        if(!open)Invoke(Method(ui,"MapKeyDown",0),ui);
+        for(void* point:Find("LE.dll","","UIWaypointStandard")){
+            if(Text(Get<void*>(point,F("UIWaypoint","sceneName")))!="F80")continue;
+            Root panel(Get<void*>(point,F("UIWaypointStandard","_mapPanel")));
+            void* args[]{point};Invoke(Method(panel.Get(),"HandleZoomToLocationAndEra",1),panel.Get(),args);
+            return "{\"ok\":true,\"selected\":\"F80\"}";
+        }
+        throw std::runtime_error("Test map destination unavailable.");
+    }
     if(action=="summon-cast"){
         uint16_t abilityId=379;void* a[]{&abilityId};Root ability(Invoke(Signature("Ability","getAbility",{"System.UInt16"},"","LE.dll"),nullptr,a));
         if(!ability.Get())throw std::runtime_error("Ballista ability unavailable.");
         void* constructor=Get<void*>(c.actor,F("Actor","abilityObjectConstructor"));Vec3 p=Position(c.actor),direction{0,0,1};p.x+=2;float delay=0;int type=1;bool mutate=true;void* args[]{constructor,&p,&direction,&delay,&type,&mutate,nullptr};Invoke(Method(ability.Get(),"CastAfterDelay",7),ability.Get(),args);
         return "{\"ok\":true,\"requested\":true}";
+    }
+    if(action=="combat-clock")return "{\"ok\":true,\"timeScale\":"+std::to_string(Value<float>(M("Time","get_timeScale",0,"UnityEngine","UnityEngine.CoreModule.dll")))+",\"damageCalls\":"+std::to_string(testDamageCalls)+",\"ownedCalls\":"+std::to_string(testDamageOwned)+",\"lastPrimary\":"+std::to_string(testDamagePrimary)+",\"lastSecondary\":"+std::to_string(testDamageSecondary)+"}";
+    if(action=="ally-attack"){
+        void* source=nullptr;void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));
+        for(void* summoned:Entries(Get<void*>(tracker,F("SummonTracker","summons")))){
+            if(!summoned||!game::IsAlive(summoned))continue;
+            void* references=Get<void*>(summoned,F("Summoned","references"));
+            if(references&&Get<void*>(references,F("CreationReferences","creator"))==c.actor){source=Get<void*>(summoned,F("Summoned","actor"));break;}
+        }
+        if(!source||!game::IsAlive(source))throw std::runtime_error("Cast a test ally first.");Root pin(source);
+        Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","AbilityList"))));
+        void* ca[]{type.Get()};Root list(Invoke(Signature("Component","GetComponent",{"System.Type"}),source,ca));
+        if(!list.Get())throw std::runtime_error("This ally has no ability list.");
+        const auto abilities=Entries(Get<void*>(list.Get(),F("AbilityList","abilities")));if(abilities.empty())throw std::runtime_error("This ally has no loaded attack.");
+        Root ability(abilities.front());void* alignment=Get<void*>(Get<void*>(source,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
+        auto start=Position(source);void* nearest=nullptr;double distance=1.e30;
+        for(void* target:Find("LE.dll","","Actor")){
+            if(!game::IsAlive(target))continue;void* manager=Get<void*>(target,F("Actor","alignmentManager"));if(!manager)continue;
+            void* other=Get<void*>(manager,F("AlignmentManager","alignment"));void* args[]{other};if(!other||!Value<bool>(Method(alignment,"IsFoe",1),alignment,args))continue;
+            void* health=Get<void*>(target,F("Actor","health"));if(!health||Get<float>(health,F("BaseHealth","currentHealth"))<=0)continue;
+            auto p=Position(target);double x=p.x-start.x,z=p.z-start.z,d=x*x+z*z;if(d<distance){distance=d;nearest=target;}
+        }
+        if(!nearest)throw std::runtime_error("No test enemy available.");
+        Vec3 p=Position(nearest),direction{p.x-start.x,p.y-start.y,p.z-start.z};float length=std::sqrt(direction.x*direction.x+direction.y*direction.y+direction.z*direction.z);if(length>0){direction.x/=length;direction.y/=length;direction.z/=length;}
+        void* constructor=Get<void*>(source,F("Actor","abilityObjectConstructor"));float delay=0;int castType=1;bool mutate=true;
+        void* args[]{constructor,&p,&direction,&delay,&castType,&mutate,nullptr};Invoke(Method(ability.Get(),"CastAfterDelay",7),ability.Get(),args);
+        return "{\"ok\":true,\"requested\":true,\"ability\":"+Json(Text(Get<void*>(ability.Get(),F("Ability","abilityName"))))+"}";
+    }
+    if(action=="enemies"||action=="near-enemy"){
+        void* alignment=Get<void*>(Get<void*>(c.actor,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
+        auto start=Position(c.actor);void* nearest=nullptr;double distance=1.e30;
+        std::ostringstream out;out<<"{\"ok\":true,\"enemies\":[";bool comma=false;
+        for(void* actor:Find("LE.dll","","Actor")){
+            if(actor==c.actor||!game::IsAlive(actor))continue;
+            void* manager=Get<void*>(actor,F("Actor","alignmentManager"));if(!manager)continue;
+            void* other=Get<void*>(manager,F("AlignmentManager","alignment"));if(!other)continue;
+            void* args[]{other};if(!Value<bool>(Method(alignment,"IsFoe",1),alignment,args))continue;
+            void* health=Get<void*>(actor,F("Actor","health"));if(!health)continue;
+            const auto hp=Get<float>(health,F("BaseHealth","currentHealth"));if(hp<=0)continue;
+            auto p=Position(actor);double x=p.x-start.x,z=p.z-start.z,d=x*x+z*z;
+            if(d<distance){distance=d;nearest=actor;}
+            if(comma)out<<',';comma=true;
+            out<<"{\"instance\":"<<Value<int>(M("Object","GetInstanceID",0,"UnityEngine","UnityEngine.CoreModule.dll"),actor)<<",\"health\":"<<hp<<",\"distance\":"<<std::sqrt(d)<<'}';
+        }
+        if(action=="near-enemy"){
+            if(!nearest)throw std::runtime_error("No live enemy in this test scene.");
+            auto p=Position(nearest);p.x-=5;void* agent=Get<void*>(c.actor,F("Actor","navMeshAgent"));void* args[]{&p};
+            if(!Value<bool>(Method(agent,"Warp",1),agent,args))throw std::runtime_error("Native NavMesh warp refused.");
+            return "{\"ok\":true,\"warped\":true}";
+        }
+        return out.str()+"]}";
     }
     if(action=="handlers"){
         std::ostringstream out;out<<"{\"ok\":true,\"handlers\":[";bool comma=false;
@@ -467,5 +751,5 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
     throw std::runtime_error("Unknown convenience check.");
 });}
 #endif
-void ReleaseRoots(){disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();saved.clear();typeRoots.clear();owner.Reset();active=false;}
+void ReleaseRoots(){monitorUntil=0;monitoredAllies.clear();damageOwner.Reset();disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();ClearInteractions();saved.clear();typeRoots.clear();owner.Reset();active=false;}
 }

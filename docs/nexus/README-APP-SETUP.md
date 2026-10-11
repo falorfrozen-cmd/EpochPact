@@ -3,6 +3,7 @@
 This is an alternative to manual native-DLL copying, not a required extra download. The EXE contains the same player loader and core as the Main manual ZIP and the Python runtime. No separate Python install is needed.
 
 1. Extract the ZIP to a writable folder and run EpochPact.exe.
+   Keep EpochPact.exe.config and, for a folder build, _internal beside the EXE.
 2. Game setup > Browse > select Last Epoch.exe. The picker opens in Steam's folder; other drives/libraries/custom folders are supported.
 3. Close Last Epoch. Press Install mod. If Windows denies file access, use the explicit Install as administrator action and approve the Windows prompt yourself.
 4. Launch offline and load an offline character.

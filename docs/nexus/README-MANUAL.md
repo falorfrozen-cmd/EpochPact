@@ -26,6 +26,7 @@ WebView2, if missing: https://developer.microsoft.com/microsoft-edge/webview2/
 For Steam, use Manage > Browse local files. Any Steam library or custom folder is supported. The default is `C:\Program Files (x86)\Steam\steamapps\common\Last Epoch`.
 
 5. Keep `EpochPactUI/EpochPact.exe` in a writable folder outside the game installation. Run it, open **Game setup**, press **Browse**, and select your installed `Last Epoch.exe`.
+   Keep `EpochPact.exe.config` and, for a folder build, `_internal` beside the EXE; extract the complete UI folder.
 6. The exact manually copied DLLs are detected as installed. You do not need to press **Install mod**. Press **Launch offline** and load an offline character. Game setup refuses an unknown GameAssembly.dll build.
 
 The game must be able to write its `EpochPact` IPC directory. If a protected game folder prevents this, use a Steam library in a writable folder. Do not run the whole interface as administrator by default. Grant Windows administrator permission only for an explicit installation when necessary.

@@ -59,10 +59,12 @@ def main():
         from epochpact_ui import main as ui_main
         ui_main()
         return 0
-    except Exception:
+    except Exception as exc:
         logging.exception('EpochPact could not start')
         if '--no-open' not in sys.argv:
-            message = 'EpochPact could not open. Check startup.log in your LocalAppData/EpochPact folder.\n\nIf WebView2 is missing, install Microsoft Edge WebView2 Runtime, then reopen EpochPact.'
+            message = 'EpochPact could not open. Check startup.log in your LocalAppData/EpochPact folder.'
+            if 'Python.Runtime.Loader.Initialize' in str(exc):
+                message += '\n\nExtract the entire ZIP into one folder. Keep EpochPact.exe.config and the _internal folder beside EpochPact.exe, then reopen the app.'
             ctypes.windll.user32.MessageBoxW(None, message, 'EpochPact', 0x10)
         return 1
     finally:

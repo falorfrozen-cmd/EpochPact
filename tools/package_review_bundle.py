@@ -36,6 +36,9 @@ def read_bundle(bundle):
             raise ValueError('Bundle digest mismatch: ' + item['path'])
     if sha(files['EpochPact.exe'].read_bytes()) != info['sha256']:
         raise ValueError('EXE digest mismatch')
+    from tools.desktop_config import NAME, validate
+    if validate(bundle / NAME) != validate(ROOT / NAME):
+        raise ValueError('Desktop CLR configuration mismatch')
     for name in files:
         if name.lower().endswith(('.zip', '.7z', '.jar', '.whl', '.tar', '.gz', '.log', '.sav', '.obj', '.pdb', '.lib', '.exp')):
             raise ValueError('Archive, log, save or development file in bundle: ' + name)

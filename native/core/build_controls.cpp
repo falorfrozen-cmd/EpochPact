@@ -2,6 +2,7 @@
 #include "build_rules.hpp"
 #include "managed.hpp"
 #include "hook.hpp"
+#include "progression.hpp"
 #include <array>
 #include <atomic>
 #include <cstring>
@@ -652,6 +653,49 @@ std::string Set(const std::string& key,double value) {
         }catch(...){s->value=previous;Checked([&]{if(s==&passive||s==&skills||s==&weaver||s==&weaverFlat)RefreshBudgets();});for(auto* back:fresh)if(!Needed(back))hook::Remove(back->ref->code,nullptr);throw;}
         return State();
     });
+}
+std::string Respec(const std::string& id,const std::string& kind) {
+    if(kind!="skills"&&kind!="passives"&&kind!="weaver")return "{\"ok\":false,\"error\":\"Unknown tree respec.\"}";
+    progression::SnapshotData snapshot;std::string why;game::Handle expectedActor;
+    if(!mainthread::Run([&]{snapshot=progression::CaptureSnapshotCurrent(id,("respec-"+kind).c_str());expectedActor.Set(Actor());},5000,&why))return "{\"ok\":false,\"error\":"+Json(why)+"}";
+    const auto backup=progression::WriteCapturedSnapshot(snapshot);
+    std::vector<std::unique_ptr<Root>> dataRoots;size_t index=0;int phase=0,refunded=0;
+    std::string result;
+    if(!mainthread::RunSteps([&]{try{
+        RequireSession(4);void* actor=Actor();void* tree=Tree(actor);if(!tree)throw std::runtime_error("Load an offline character first.");
+        if(actor!=expectedActor.Get())throw std::runtime_error("The loaded actor changed. No further points were refunded.");
+        void* character=Get<void*>(Get<void*>(actor,actorTracker),trackerData);
+        if(Text(Invoke(Method(character,"get_Id",0),character))!=id)throw std::runtime_error("The loaded character changed.");
+        if(Text(Get<void*>(character,Offset("CharacterData","<CharacterName>k__BackingField","LE.Data")))!=snapshot.name)throw std::runtime_error("The loaded character changed.");
+        if(phase==0){
+            if(kind=="skills"){for(void* data:Entries(Get<void*>(tree,treeSkills)))if(data)dataRoots.push_back(std::make_unique<Root>(data));}
+            else {void* data=Get<void*>(tree,kind=="passives"?treePassive:treeWeaver);if(!data)throw std::runtime_error("This tree is unavailable.");dataRoots.push_back(std::make_unique<Root>(data));}
+            for(auto& data:dataRoots)refunded+=Value<int>(Method(data->Get(),"numberOfPointsAllocated",0),data->Get());
+            if(refunded>5000)throw std::runtime_error("Tree allocations exceed the supported bound.");
+            phase=1;return false;
+        }
+        if(kind=="skills"&&phase==1){
+            // Use the game's refund operation without its skill-level/XP penalty.
+            // One point per frame keeps skill mutator updates off long frame stalls.
+            while(index<dataRoots.size()){
+                void* data=dataRoots[index]->Get();void* selected=nullptr;
+                for(void* node:Entries(Get<void*>(data,F("LocalTreeData.TreeData","nodes"))))if(Get<uint8_t>(node,F("LocalTreeData.NodeData","pointsAllocated"))){selected=node;break;}
+                if(!selected){++index;continue;}
+                void* ability=Get<void*>(data,F("LocalTreeData.SkillTreeData","ability"));bool loseLevel=false;void* args[]{ability,selected,data,&loseLevel};
+                Invoke(game::FindMethod("LE.dll","","LocalTreeData","respecSkillPoint",4),tree,args);return false;
+            }phase=4;
+        }else if(phase==1){
+            void* data=dataRoots[0]->Get();Root allocation(Invoke(Method(data,"getPointsAllocated",0),data));Invoke(Method(allocation.Get(),"Clear",0),allocation.Get());
+            if(kind=="passives"){void* args[]{allocation.Get()};Invoke(game::FindMethod("LE.dll","","LocalTreeData","ApplyBulkPassiveTreeUpdate",1),tree,args);}
+            else {Root globals(Invoke(game::FindMethod("LE.dll","LE.AssetManagement","GlobalAssets","get_GlobalTreeData",0)));void* key=Get<void*>(data,F("LocalTreeData.TreeData","treeID"));void* a[]{key};Root global(Invoke(Method(globals.Get(),"getTreeData",1),globals.Get(),a));void* args[]{allocation.Get(),global.Get()};Invoke(game::FindMethod("LE.dll","","LocalTreeData","ApplyBulkWeaverTreeUpdate",2),tree,args);}
+            phase=2;return false;
+        }
+        if(phase==2){if(kind=="passives")Invoke(game::FindMethod("LE.dll","","LocalTreeData","updateMasteryTotals",0),tree);phase=3;return false;}
+        if(phase==3){if(kind=="passives"){bool updateOtherMutators=true;void* args[]{&updateOtherMutators};Invoke(game::FindMethod("LE.dll","","LocalTreeData","updateCharacterMutator",1),tree,args);Invoke(game::FindMethod("LE.dll","","LocalTreeData","RecalculateKnownAbilitiesAndUnequipUnlearnedOnes",0),tree);}Invoke(game::FindMethod("LE.dll","","LocalTreeData",kind=="passives"?"savePassiveTreeData":"SaveWeaverTreeData",0),tree);phase=4;return false;}
+        for(auto& data:dataRoots)if(Value<int>(Method(data->Get(),"numberOfPointsAllocated",0),data->Get())!=0)throw std::runtime_error("The tree refund did not complete.");
+        progression::SaveCurrent(id);RefreshBudgets();result="{\"ok\":true,\"player\":{\"id\":"+Json(id)+",\"name\":"+Json(snapshot.name)+"},\"tree\":"+Json(kind)+",\"refunded\":"+std::to_string(refunded)+",\"backup\":"+Json(backup)+"}";
+    }catch(const std::exception& e){result="{\"ok\":false,\"error\":"+Json(e.what())+",\"backup\":"+Json(backup)+"}";}return true;},60000,&why))return "{\"ok\":false,\"error\":"+Json(why)+",\"backup\":"+Json(backup)+"}";
+    return result;
 }
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
 std::string Test(const std::string& id,const std::string& action) {

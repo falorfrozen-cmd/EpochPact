@@ -78,6 +78,7 @@ cl %CFLAGS% /EHa /Fo"%OUT%\tests\\" /Fe"%OUT%\game_read_test.exe" "%HERE%tests\g
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\stat_key_test.exe" "%HERE%tests\stat_key_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\density_test.exe" "%HERE%tests\density_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\build_rules_test.exe" "%HERE%tests\build_rules_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\convenience_rules_test.exe" "%HERE%tests\convenience_rules_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\monolith_test.exe" "%HERE%tests\monolith_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\cof_test.exe" "%HERE%tests\cof_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\loot_crafting_test.exe" "%HERE%tests\loot_crafting_test.cpp" || exit /b 1

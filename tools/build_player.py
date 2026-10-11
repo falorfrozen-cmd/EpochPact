@@ -62,7 +62,7 @@ def main():
     stage = args.stage.resolve()
     (stage / 'ui/assets').mkdir(parents=True, exist_ok=True)
     for name in ('index.html', 'app.js', 'style.css', 'stat-model.js', 'session.js',
-                 'collection-ui.js', 'collection.css', 'launcher.js', 'locale-en.json', 'supported-game-builds.json'):
+                 'collection-ui.js', 'collection.css', 'launcher.js', 'preferences.js', 'locale-en.json', 'supported-game-builds.json'):
         shutil.copy2(ROOT / 'ui' / name, stage / 'ui' / name)
     for name in ('chronoforge-art.png', 'chronoforge-reference.png', 'void-atlas-art.png',
                  'void-atlas-reference.png', 'inter.ttf', 'inter-OFL.txt', 'monster-density.svg'):
@@ -112,6 +112,10 @@ def main():
                     str(ROOT / 'EpochPact.spec')], cwd=ROOT, env=environment, check=True)
     bundle = output / 'EpochPact' if args.layout == 'onedir' else output
     exe = bundle / 'EpochPact.exe'
+    # CLR reads the host EXE's adjacent configuration before Python.NET can
+    # load. Putting this in _internal or inside a onefile EXE does not work.
+    from tools.desktop_config import NAME, validate
+    (bundle / NAME).write_bytes(validate(ROOT / NAME))
     info = {'file': exe.name, 'bytes': exe.stat().st_size, 'version': version, 'layout': args.layout,
             'sha256': hashlib.sha256(exe.read_bytes()).hexdigest(), 'nativePlayerSHA256': digest,
             'loaderSHA256': hashlib.sha256(loader.read_bytes()).hexdigest(),

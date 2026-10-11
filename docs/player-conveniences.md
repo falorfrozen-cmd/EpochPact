@@ -42,7 +42,11 @@ if that effect was already absent or disabled. Saved graphics preferences are ke
 
 The game inventory gains **Stash**, **Stash all** and **Vendor** buttons. The same
 actions are available on EpochPact's Inventory page. Stash and Vendor open the
-normal game panels outside town. EpochPact's buttons do not inherit the original
+normal game panels outside town, and pressing them again closes the respective
+window. Shortcuts sit in a separate vertical strip beside the inventory, avoid
+the resource footer and hide if there is no safe space. Both legacy UI.Text and
+TMP labels are set; localization is disabled only inside these cloned buttons.
+EpochPact's buttons do not inherit the original
 button's respec action or run it alongside the shortcut.
 
 Stash all creates an operation backup, then uses the game's quick-move routine
@@ -57,7 +61,13 @@ The Summons page refreshes once per second while visible and connected. It reads
 living allies owned by the player and their descendants, including companions,
 totems and temporary minions. Columns show current/max health, armour, seven
 uncapped resistances and global increased damage. **Increased damage is not DPS**
-and does not include every ability-specific conditional modifier.
+and does not include every ability-specific conditional modifier. Separate DPS
+and last-damage columns use actual native applied-damage events in a rolling
+five-second window, including target mitigation and critical hits. A saved
+baseline compares later samples for the same active ally. Compare under the same
+target/encounter conditions; an idle gear swap cannot establish exact combat DPS.
+When event capacity is reached, the UI labels the result as a lower bound until
+a fresh window has been collected. Column visibility is saved locally.
 The table reads actual current allies; it does not simulate hypothetical gear
 changes. Some creation-time bonuses become effective on re-summoning rather
 than changing an already-created ally, and the table reflects that distinction.
@@ -87,8 +97,8 @@ would reinstate the loader failure. See the [upstream report](https://github.com
 Compatibility of every third-party gameplay mod must be tested separately,
 especially when two mods change the same game function.
 
-See [the feedback validation report](player-feedback-validation-2026-10-11.md)
-for measured tests, the intermittent load crash and remaining coverage limits.
+See [the latest feedback validation report](player-feedback-validation-2026-10-12.md)
+for measured tests, shutdown comparisons and remaining coverage limits.
 
 To build the optional bridge, download the official MelonLoader **0.7.3** x64 SDK
 into a separate directory and run `dotnet build native/melon/EpochPact.MelonBridge.csproj

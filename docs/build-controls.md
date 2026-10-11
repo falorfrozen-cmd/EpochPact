@@ -21,6 +21,15 @@ edits do not compound. Lowering a budget preserves allocated nodes and clamps re
 points to zero. Bonus allocations are saved by the game; respec allocations beyond the
 normal budget before removing the mod. These controls do not change the chosen mastery.
 
+The three **Free respec** buttons refund allocated skill, passive or Weaver nodes
+without their usual currency cost. Skill respec retains levels, XP and equipment
+skill levels. Passive respec retains mastery and earned points; skills unlocked
+only by refunded allocations may be unequipped. Weaver respec retains earned
+rank/echo points. Each operation requires an explicit confirmation, captures a
+recovery snapshot first and checks the loaded character during its frame steps.
+The native command is `treerespec <save-id> skills|passives|weaver`; no startup,
+profile or theme action invokes it.
+
 ## Equipment
 
 - **Unrestricted offhand equipment:** allows native weapons, shields and catalysts in

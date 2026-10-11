@@ -53,3 +53,12 @@ dialog.stat-editor{max-width:740px;padding:0;scrollbar-color:var(--gold) var(--p
 .summon-table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
 .summon-table th,.summon-table td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--border,#665a3b)}
 .summon-table th{color:var(--accent,#8ce0b8);font-weight:600}
+/* Display preferences remain usable in both themes and narrow app windows. */
+.nav-customize{display:block;padding:12px 22px;font-size:.8rem;color:var(--muted);}
+.navigation-options>div{display:grid;grid-template-columns:minmax(140px,1fr) auto auto;gap:18px;align-items:center;padding:12px 0;border-bottom:1px solid #92734035;}
+.navigation-options label,.column-options label{display:flex;align-items:center;gap:8px;}
+.navigation-options input,.column-options input{width:auto;accent-color:#73deb0;}
+.display-options{margin:14px 0;}.column-options{display:flex;gap:16px;flex-wrap:wrap;padding:16px 0;}
+.search-recipes{display:grid;gap:10px;}.search-recipes article{display:grid;grid-template-columns:minmax(150px,1fr) minmax(180px,2fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid #92734035;border-radius:4px;}
+.search-recipes code{user-select:text;overflow-wrap:anywhere;}
+@media(max-width:700px){.search-recipes article{grid-template-columns:1fr auto;}.search-recipes article span{grid-column:1/-1;grid-row:2;}.navigation-options>div{gap:10px;grid-template-columns:minmax(80px,1fr) auto auto;}}

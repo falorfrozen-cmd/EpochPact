@@ -1,0 +1,83 @@
+# EpochPact {{VERSION}}
+
+Your timeline. Your rules. Last Epoch offline tools for Windows x64.
+
+## Requirements
+
+- Legitimate Steam Last Epoch **1.5.2.1**, build **25816319** (internal version 1.5.2.2). Unknown GameAssembly.dll builds are refused by Game setup.
+- Windows 10/11 x64, .NET Framework 4.8 and Microsoft Edge WebView2 Runtime. No separate Python installation is needed.
+- The included loader and core DLL are necessary. Do not remove runtime DLLs from the extracted app folder.
+- Offline characters only. Online play is unsupported.
+
+WebView2: https://developer.microsoft.com/microsoft-edge/webview2/
+
+## Install with the app
+
+1. Close Last Epoch. Extract the complete ZIP to a writable folder.
+2. Run **EpochPact/EpochPact.exe**. Keep **EpochPact.exe.config** and **_internal** beside it.
+3. Open **Game setup**, press **Browse**, select your installed **Last Epoch.exe**, then **Save path**. Another Steam library or custom path is supported.
+4. Press **Install mod**. If Windows denies the installation, use the explicit **Install as administrator** action and approve the Windows prompt yourself.
+5. Press **Launch offline** and load an offline character. Wait until an area has finished loading.
+
+An existing supported MelonLoader installation is preserved; the app installs its own included EpochPact bridge alongside it. This does not guarantee compatibility with every third-party gameplay hook. An unknown foreign loader is refused, rather than overwritten.
+
+## Manual installation (without another loader)
+
+1. Close the game and app. Back up your existing mod files and offline saves.
+2. Confirm the supported game version/hash in **supported-game-builds.json** before copying.
+3. Copy only the contents of **CopyToGame** into the folder containing **Last Epoch.exe**:
+
+```
+<game folder>/version.dll
+<game folder>/EpochPact/EpochPact.Core.dll
+```
+
+Never overwrite another loader's version.dll. Use the app's installation flow for supported MelonLoader coexistence.
+
+4. Keep the **EpochPact** app folder outside the game installation. Run its EXE, select the game path in **Game setup**, and press **Launch offline**. Exact manually copied DLLs are detected as installed.
+
+The game must be able to write its EpochPact IPC folder. A writable Steam library avoids requiring administrator rights for ordinary play. Do not disable security software to install this mod.
+
+## Update, rollback and removal
+
+Close the game and app before updating. Extract the new complete app folder, then use **Install mod** to update the owned runtime. Do not mix UI and DLL versions. Previous runtime files are backed up under **<game>/EpochPact/install-backups/<id>**; follow that backup's README with the matching older app to roll back.
+
+For manual updates, retain the previous two native DLLs and complete app folder outside the game, then replace them with the matching new versions.
+
+To remove a standalone manual installation, close both programs and remove only the EpochPact-owned **<game>/version.dll** and **<game>/EpochPact/EpochPact.Core.dll**. Compare manifest hashes if ownership is unclear. Never delete a foreign loader, shared mod folder or player saves. Removing the extracted app folder removes the UI. Recovery backups and local preferences may be retained.
+
+## Using the controls
+
+Session settings apply automatically after an edit. Campaign rewards, mastery selection, progression changes, material grants and free tree respec require their explicit action buttons. Opening the interface does not grant rewards or apply saved actions.
+
+Inventory shortcuts show **Stash**, **Stash all** and **Vendor**. Stash and Vendor toggle their windows. If there is no safe space beside the inventory, shortcuts are hidden; the Inventory page remains available.
+
+Settings includes navigation favorites and hidden sections. Character stats and the summon table support hiding unwanted entries/columns. Stash Assistant includes copyable search examples.
+
+Free tree respec refunds allocated points while retaining the selected mastery, skill levels and XP. Check the confirmation before applying a save action. A recovery backup is created first.
+
+Custom mixed crafting recipes require the mod and **<game>/EpochPact/workshop-recipes.txt** on every PC where those items are used. Back up that database with your saves. Steam Cloud alone does not make mixed recipes portable to an unmodded game. Restore original gear before removing this feature; never overwrite another PC's recipe database to merge independently created collections.
+
+On normal EpochPact app close, session modifications return to neutral values. Permanent quest rewards, progression and crafting-material grants remain. App close and full game exit are separate operations.
+
+## Known limits
+
+Not every encounter, summon family, hardware configuration or third-party mod has been certified. Larger pickup radii consider more loaded items and can cause more collection work; they do not load distant areas.
+
+Actual summon DPS requires combat and a sampling window; a percentage damage bonus is not DPS. Compare against the same target under the same conditions. Changing equipment while idle cannot establish its exact combat DPS.
+
+Intermittent full-game exit access violations (**0xC0000005**, UnityPlayer.dll) were observed in testing. The same module and fault offset also occurred in a vanilla game session with the EpochPact loader absent, after an automated window/accessibility query. This establishes an environment baseline, not a general cause or fix. Successful closes and feature tests do not establish a crash-free game-exit guarantee. See **docs/player-feedback-validation-2026-10-12.md** in the source repository for separate feature, installer and shutdown results.
+
+Merchant's Guild and unfinished Weaver faction management remain informational. Stash protection reminders do not lock items in the game. No antivirus or Nexus clearance is implied by this package.
+
+## Support and credits
+
+Discord: https://discord.gg/q6aexZZSAf
+
+Source, releases and validation: https://github.com/falorfrozen-cmd/EpochPact
+
+Report EpochPact **{{VERSION}}**, game/Steam build, Windows version, installation method, the exact action and error, and whether the issue occurred during gameplay, app close or game exit. Remove private names/paths before sharing log excerpts. Do not post saves publicly.
+
+Created by Falor. Community-made, not affiliated with Eleventh Hour Games. AI-assisted code/UI and AI-generated promotional artwork. Runtime and font credits are included. No game executable, GameAssembly.dll, game metadata, private logs or saves are distributed.
+
+**runtime-manifest.json** and **SHA256SUMS.txt** record every payload file's size and SHA-256. The separate outer ZIP hash verifies the complete download.

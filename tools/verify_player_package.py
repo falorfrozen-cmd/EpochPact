@@ -50,6 +50,9 @@ def main():
     args = parser.parse_args()
     exe = args.exe.resolve(strict=True)
     checks = []
+    from tools.desktop_config import NAME, validate
+    assert validate(exe.parent / NAME) == validate(ROOT / NAME)
+    checks.append('application-scoped CLR config is beside the EXE for Internet-marked managed DLLs')
     archive = CArchiveReader(str(exe))
     onedir = (exe.parent / '_internal').is_dir()
     if onedir:
@@ -83,7 +86,7 @@ def main():
     assert metadata['flavor'] == 'player' and metadata['sha256'] == sha(core)
     assert sha(exe.read_bytes()) == json.loads((exe.parent / 'build-info.json').read_text())['sha256']
     assert extract('ui/launcher.js') == (ROOT / 'ui/launcher.js').read_bytes()
-    for script in ('app.js', 'session.js'):
+    for script in ('app.js', 'session.js', 'preferences.js'):
         assert extract('ui/' + script) == (ROOT / 'ui' / script).read_bytes(), script
     checks.extend(['bundled Python runtime', 'verified player DLL only',
                    'no historical character snapshots', 'current launcher source in EXE'])
@@ -102,6 +105,7 @@ def main():
             exe = portable / 'EpochPact/EpochPact.exe'
         else:
             shutil.copy2(exe, portable / exe.name)
+            shutil.copy2(exe.parent / NAME, portable / NAME)
             exe = portable / exe.name
         custom = fixture(root, 'Custom install \u00fc', args.game_assembly)
         foreign = fixture(root, 'Other mod loader', args.game_assembly)
@@ -256,7 +260,7 @@ def main():
             checks.append('first launch performs no selection, installation or gameplay mutation')
             index = request('/').decode()
             assert 'setup-dialog' in index and 'launcher.js' in index
-            for resource in ('app.js', 'style.css', 'stat-model.js', 'session.js', 'collection-ui.js', 'collection.css', 'launcher.js',
+            for resource in ('app.js', 'style.css', 'stat-model.js', 'session.js', 'collection-ui.js', 'collection.css', 'launcher.js', 'preferences.js',
                              'assets/chronoforge-art.png', 'assets/void-atlas-art.png', 'assets/inter.ttf', 'assets/monster-density.svg'):
                 assert len(request('/ui/' + resource)) > 0, resource
             checks.append('compiled interface serves scripts, font and both theme assets')

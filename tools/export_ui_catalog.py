@@ -64,6 +64,13 @@ def controls():
     value = lambda low, high: parameter("value", "integer", low, high)
     add("build_read", "skills", "Build settings", "read", "buildread", "read_only",
         "Read current skill, passive and Weaver budgets and build settings.", doc="docs/build-controls.md")
+    for kind,label,description in (
+        ("skills","Refund all skill points","Refund all specialised skill tree allocations without losing skill levels or XP. Skill specialisations and gear levels are kept."),
+        ("passives","Refund all passive points","Refund all passive allocations for free. Class, mastery choice and earned points are kept. Skills unlocked only by those allocations may be unequipped, as in a normal respec."),
+        ("weaver","Refund all Weaver points","Refund all Weaver tree allocations without spending Memory Amber. Weaver rank and earned points are kept."),
+    ):
+        add("respec_"+kind,"skills",label,"button","treerespec {save_id} "+kind,"game_save",description,
+            params=[save_id],doc="docs/build-controls.md")
     for key, group, label, low, high, default, integer, description in (
         ("skillxp", "skills", "Skill XP multiplier", 1, 100, 1, False, "Multiply positive specialised skill XP gains. Character level XP is unchanged by this control."),
         ("passivepoints", "skills", "Passive points multiplier", 1, 10, 1, False, "Multiply points earned from levels; quest points stay unchanged. Fractional totals are rounded down, so 1.5× grants three points across two eligible levels."),
@@ -109,7 +116,7 @@ def controls():
         "Read each active player-owned summon: health, armour, uncapped resistances and global damage increase. These are actual live values; damage increase is not skill DPS.",doc="docs/player-conveniences.md")
     add("inventory_read","inventory","Live inventory","read","inventoryread","read_only",
         "Read the loaded character and inventory item count without changing items.",doc="docs/player-conveniences.md")
-    for action,label,lifetime in (("stash","Open stash","view"),("vendor","Open vendor","view"),("stashall","Stash all inventory items","game_save")):
+    for action,label,lifetime in (("stash","Toggle stash","view"),("vendor","Toggle vendor","view"),("stashall","Stash all inventory items","game_save")):
         add("inventory_"+action,"inventory",label,"button","inventoryaction {save_id} "+action,lifetime,
             "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.",
             params=[save_id],doc="docs/player-conveniences.md")
@@ -209,10 +216,10 @@ def controls():
     add("craft_forge", "crafting","Forge selected item","button","craftforge {save_id}","game_save",
         "Perform exactly one normal craft on the current game forge selection. Requires an eligible item/material and matching offline character; snapshot before craft.",
         params=[save_id], api="tools.loot_crafting_backend.forge(save_id)", requires=("loaded_actor",), doc="docs/ce-feature-additions.md")
-    add("craft_custom_catalog", "crafting", "Load workshop templates", "read", "atlasread", "read_only",
+    add("craft_custom_catalog", "crafting", "Load workshop templates", "read", "craftmods", "read_only",
         "Read the game's public Unique/Set templates and affix names. Does not create or modify items.",
         api="tools.build_backend.workshop_catalog()", requires=("loaded_actor",), doc="docs/build-controls.md")
-    add("craft_custom", "crafting", "Create custom gear", "button", "craftcustom {save_id} {template_id} {affixes} {perfect}", "game_save",
+    add("craft_custom", "crafting", "Create custom gear", "button", "craftmix {save_id} {template_id} {affixes} {perfect} {modifiers}", "game_save",
         "Replace the selected forge item with a recovery backup. Combine a template, regular T7 affixes and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling.",
         params=[save_id, parameter("template_id", "integer", -1, 65535), parameter("affixes", "single_token"), parameter("perfect", "integer", 0, 1),parameter("modifiers","optional_single_token")],
         api="tools.build_backend.custom(save_id, template_id, affixes, perfect, modifiers='none')", requires=("loaded_actor",), doc="docs/build-controls.md")
@@ -474,7 +481,7 @@ def validate(catalog):
     exposed = {c["commandTemplate"].split()[0] for c in controls if c["commandTemplate"]}
     # Private transport helpers used by existing backends, not additional user
     # features. Never expose a second travel/mutation button for these helpers.
-    internal = {"identityread", "frameread", "framereset", "monolithpanelready", "monolithrest"}
+    internal = {"identityread", "frameread", "framereset", "monolithpanelready", "monolithrest", "craftcustom"}
     if roots - exposed - internal: raise ValueError(f"UI kataloğunda eksik normal komut: {roots - exposed - internal}")
     player = catalog["liveState"]["progressread"]["player"]
     for cmd in ("cofread", "monolithread", "factionread"):

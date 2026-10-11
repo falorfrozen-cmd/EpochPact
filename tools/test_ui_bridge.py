@@ -203,6 +203,8 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})
+        if command.startswith('treerespec '):
+            return json.dumps({'ok': True, 'player': dict(self.player), 'refunded': 3, 'backup': 'test-only-snapshot'})
         return command.split()[0] + ': accepted'
 
     def test_bootstrap_does_not_touch_game_or_return_snapshot(self):
@@ -555,6 +557,13 @@ class HttpTests(unittest.TestCase):
         self.addCleanup(self.app.extensions['epoch_worker'].shutdown)
         self.client = self.app.test_client()
         self.headers = {'X-Epoch-Token':self.client.get('/api/bootstrap').json['token']}
+
+    def test_preferences_script_is_served_with_the_player_ui(self):
+        with self.client.get('/ui/preferences.js') as response:
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b'EpochPreferences', response.data)
+        with self.client.get('/') as response:
+            self.assertIn(b'/ui/preferences.js', response.data)
 
     def test_player_is_default_and_developer_requires_explicit_opt_in(self):
         self.assertFalse(self.client.get('/api/bootstrap').json['developer'])

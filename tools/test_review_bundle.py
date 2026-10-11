@@ -7,6 +7,7 @@ import unittest
 import zipfile
 from tools.package_nexus_release import sha, verify_archive, safe_archive_name
 from tools.package_review_bundle import read_bundle, package
+from tools.desktop_config import NAME, validate
 
 
 class ReviewBundleTests(unittest.TestCase):
@@ -31,6 +32,7 @@ class ReviewBundleTests(unittest.TestCase):
         (resources / 'ui/assets/inter-OFL.txt').write_text('isolated license fixture')
         (resources / 'THIRD-PARTY-NOTICES.txt').write_text('isolated notices fixture')
         (self.bundle / 'EpochPact.exe').write_bytes(b'MZ non-runnable application fixture')
+        (self.bundle / NAME).write_bytes(validate(Path(__file__).resolve().parents[1] / NAME))
         self.info = dict(version='fixture-review.1', layout='onedir', containsResearchBuild=False,
                          containsHistoricalSnapshots=False, sha256=sha((self.bundle / 'EpochPact.exe').read_bytes()),
                          nativePlayerSHA256=sha(core.read_bytes()), loaderSHA256=sha(loader.read_bytes()))
@@ -61,6 +63,25 @@ class ReviewBundleTests(unittest.TestCase):
             package(self.bundle, output)
         self.assertEqual(archive.read_bytes(), before)
 
+    def test_player_zip_keeps_matching_manual_runtime_and_preserves_existing_archive(self):
+        from tools.package_player_folder import package as player_package
+        result = player_package(self.bundle, self.root / 'player')
+        archive = self.root / 'player' / result['file']
+        before = archive.read_bytes()
+        with zipfile.ZipFile(archive) as entries:
+            self.assertNotIn('ManualReview', archive.name)
+            self.assertEqual(entries.read('CopyToGame/version.dll'),
+                             entries.read('EpochPact/_internal/native/build/version.dll'))
+            self.assertEqual(entries.read('CopyToGame/EpochPact/EpochPact.Core.dll'),
+                             entries.read('EpochPact/_internal/native/build/player/EpochPact.Core.dll'))
+            self.assertEqual(entries.read('EpochPact/' + NAME), (self.bundle / NAME).read_bytes())
+            self.assertNotIn(b'{{VERSION}}', entries.read('README.md'))
+            self.assertEqual(json.loads(entries.read('runtime-manifest.json'))['kind'], 'Player')
+        self.assertEqual(verify_archive(archive)['sha256'], result['sha256'])
+        with self.assertRaises(FileExistsError):
+            player_package(self.bundle, self.root / 'player')
+        self.assertEqual(archive.read_bytes(), before)
+
     def test_same_size_executable_tampering_is_rejected(self):
         exe = self.bundle / 'EpochPact.exe'
         exe.write_bytes(b'X' * exe.stat().st_size)
@@ -70,6 +91,19 @@ class ReviewBundleTests(unittest.TestCase):
     def test_unlisted_runtime_is_rejected(self):
         (self.bundle / 'unexpected.dll').write_bytes(b'non-runnable')
         with self.assertRaisesRegex(ValueError, 'Unexpected or missing'):
+            read_bundle(self.bundle)
+
+    def test_missing_clr_configuration_is_rejected_even_if_inventory_matches(self):
+        (self.bundle / NAME).unlink()
+        self.stamp()
+        with self.assertRaisesRegex(ValueError, 'Missing or invalid EpochPact.exe.config'):
+            read_bundle(self.bundle)
+
+    def test_disabled_clr_configuration_is_rejected_even_if_inventory_matches(self):
+        path = self.bundle / NAME
+        path.write_bytes(path.read_bytes().replace(b'enabled="true"', b'enabled="false"'))
+        self.stamp()
+        with self.assertRaisesRegex(ValueError, 'Invalid EpochPact.exe.config'):
             read_bundle(self.bundle)
 
     def test_jinja_template_predicates_remain_in_runtime(self):

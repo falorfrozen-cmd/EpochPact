@@ -80,6 +80,10 @@ def package(kind, output):
              'INTER-OFL.txt': ROOT / 'ui/assets/inter-OFL.txt',
              'DISTRIBUTION-PERMISSIONS.txt': ROOT / 'docs/nexus/DISTRIBUTION-PERMISSIONS.txt',
              'supported-game-builds.json': ROOT / 'ui/supported-game-builds.json'}
+    from tools.desktop_config import NAME, validate
+    if validate(exe.parent / NAME) != validate(ROOT / NAME):
+        raise ValueError('Desktop CLR configuration mismatch')
+    files[prefix + NAME] = exe.parent / NAME
     runtime = [prefix + 'EpochPact.exe']
     if kind == 'Manual':
         files['CopyToGame/version.dll'] = ROOT / 'native/build/version.dll'

@@ -1,7 +1,9 @@
 EpochPact - Windows x64 / Last Epoch offline
 
 1. Open EpochPact.exe. Python and separate mod loaders are not required.
-   Keep EpochPact.exe beside its _internal folder; extract the whole ZIP first.
+   Extract the whole ZIP first. Keep EpochPact.exe.config and the _internal
+   folder beside EpochPact.exe. The config lets this app load its managed UI
+   libraries after downloading; it does not change Windows or antivirus settings.
 2. Press Browse and select Last Epoch.exe. The picker starts in Steam's folder;
    you may select an installation on any other drive. Your choice is remembered.
 3. Close Last Epoch and press Install mod. If Windows needs administrator rights,
@@ -26,10 +28,14 @@ Loot & Pickup has a 0-60 game-unit radius. 0 collects all loaded drops. Inspecti
 an item pauses automatic collection. World & Exploration controls nearby chests
 and shrines; the portal switch arms one use and turns off after travelling.
 Display & Camera has zoom, angle and session graphics switches. Inventory has
-Stash / Stash all / Vendor shortcuts, also added to the game's inventory footer.
-Summons shows live health, armour, resistances and global increased damage.
-It is not an ability DPS calculator. Some minion bonuses require re-summoning,
+Stash / Stash all / Vendor shortcuts, placed beside the game's inventory.
+Stash and Vendor toggle their windows. Shortcuts hide if there is no safe space.
+Summons shows live health, armour, resistances, actual rolling combat DPS and
+last damage. Save a damage baseline to compare later samples on the same target.
+Idle gear swaps cannot establish exact combat DPS. Some minion bonuses require re-summoning,
 as in the game, before the living minion's actual stats change.
+Skills & Trees includes explicit, backed-up free respec actions for skills,
+passives and Weaver. Settings can favorite or hide navigation sections.
 
 Crafting Workshop can combine one whole Unique/Set template with individual
 modifier lines from multiple sources. Mixed recipes hold up to 64 lines and use
@@ -41,7 +47,7 @@ Restore original gear before uninstalling; never overwrite a different PC's
 recipe database to combine two independently created collections.
 
 Windows 10/11 x64 with Microsoft Edge WebView2 Runtime and .NET Framework 4.8
-is required. These are Windows components; Python is bundled inside the EXE.
+is required. These are Windows components; Python is bundled with the app.
 If WebView2 is absent: https://developer.microsoft.com/microsoft-edge/webview2/
 
 The game path, theme, profiles and interface logs live under:

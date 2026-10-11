@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
   "project": "EpochPact",
-  "gameVersion": "1.5.2",
-  "generatedAt": "2026-10-11T17:41:08+07:00",
+  "gameVersion": "1.5.2.2",
+  "generatedAt": "2026-10-12T01:22:59+07:00",
   "timezone": "Asia/Bangkok",
   "groups": [
     {
       "id": "general",
-      "label": "Genel oyun ayarlarÄ±"
+      "label": "Genel oyun ayarları"
     },
     {
       "id": "stats",
-      "label": "C ekranÄ± / karakter statlarÄ±"
+      "label": "C ekranı / karakter statları"
     },
     {
       "id": "loot",
@@ -39,7 +39,7 @@
     },
     {
       "id": "session",
-      "label": "BaÄŸlantÄ± ve karakter"
+      "label": "Bağlantı ve karakter"
     },
     {
       "id": "recovery",
@@ -100,6 +100,84 @@
       "documentation": "docs/build-controls.md"
     },
     {
+      "id": "respec_skills",
+      "group": "skills",
+      "label": "Refund all skill points",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "treerespec {save_id} skills",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "game_save",
+      "description": "Refund all specialised skill tree allocations without losing skill levels or XP. Skill specialisations and gear levels are kept.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
+      "id": "respec_passives",
+      "group": "skills",
+      "label": "Refund all passive points",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "treerespec {save_id} passives",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "game_save",
+      "description": "Refund all passive allocations for free. Class, mastery choice and earned points are kept. Skills unlocked only by those allocations may be unequipped, as in a normal respec.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
+      "id": "respec_weaver",
+      "group": "skills",
+      "label": "Refund all Weaver points",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "treerespec {save_id} weaver",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "game_save",
+      "description": "Refund all Weaver tree allocations without spending Memory Amber. Weaver rank and earned points are kept.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
       "id": "build_skillxp",
       "group": "skills",
       "label": "Skill XP multiplier",
@@ -146,7 +224,7 @@
       "default": 1,
       "resetCommand": "buildset passivepoints 1",
       "lifetime": "session",
-      "description": "Multiply points earned from levels; quest points stay unchanged. Fractional totals are rounded down, so 1.5Ã— grants three points across two eligible levels.",
+      "description": "Multiply points earned from levels; quest points stay unchanged. Fractional totals are rounded down, so 1.5× grants three points across two eligible levels.",
       "currentSource": "liveState.buildread.settings.passivepoints.value",
       "requirements": [
         "offline"
@@ -173,7 +251,7 @@
       "default": 1,
       "resetCommand": "buildset skillpoints 1",
       "lifetime": "session",
-      "description": "Multiply the skill's total point budget, including gear skill levels. Level 20 plus one gear level at 2Ã— provides 42 points.",
+      "description": "Multiply the skill's total point budget, including gear skill levels. Level 20 plus one gear level at 2× provides 42 points.",
       "currentSource": "liveState.buildread.settings.skillpoints.value",
       "requirements": [
         "offline"
@@ -389,7 +467,7 @@
       "default": 1,
       "resetCommand": "buildset zoom 1",
       "lifetime": "session",
-      "description": "Move the overhead camera farther away. This changes distance, not field of view; 1Ã— restores the normal distance.",
+      "description": "Move the overhead camera farther away. This changes distance, not field of view; 1× restores the normal distance.",
       "currentSource": "liveState.buildread.settings.zoom.value",
       "requirements": [
         "offline"
@@ -847,7 +925,7 @@
       "default": 0,
       "resetCommand": "pickupradius 0",
       "lifetime": "session",
-      "description": "Limit automatic collection to 1â€“60 game units. Zero collects all loaded drops, as in earlier versions. Item tooltips pause collection.",
+      "description": "Limit automatic collection to 1–60 game units. Zero collects all loaded drops, as in earlier versions. Item tooltips pause collection.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -917,7 +995,7 @@
     {
       "id": "inventory_stash",
       "group": "inventory",
-      "label": "Open stash",
+      "label": "Toggle stash",
       "widget": "button",
       "availability": "implemented",
       "commandTemplate": "inventoryaction {save_id} stash",
@@ -943,7 +1021,7 @@
     {
       "id": "inventory_vendor",
       "group": "inventory",
-      "label": "Open vendor",
+      "label": "Toggle vendor",
       "widget": "button",
       "availability": "implemented",
       "commandTemplate": "inventoryaction {save_id} vendor",
@@ -1135,7 +1213,7 @@
     {
       "id": "xp",
       "group": "general",
-      "label": "Ã–ldÃ¼rme / mote XP Ã§arpanÄ±",
+      "label": "Öldürme / mote XP çarpanı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "xp {value}",
@@ -1152,7 +1230,7 @@
       "default": 1,
       "resetCommand": "xp 1",
       "lifetime": "session",
-      "description": "GainExpFromEnemyOrMote kazancÄ±; gÃ¶rev XP Ã¶dÃ¼llerini Ã§arpmaz.",
+      "description": "GainExpFromEnemyOrMote kazancı; görev XP ödüllerini çarpmaz.",
       "currentSource": "currentValues.xp",
       "requirements": [
         "offline"
@@ -1162,7 +1240,7 @@
     {
       "id": "gold",
       "group": "general",
-      "label": "Yerden toplanan altÄ±n Ã§arpanÄ±",
+      "label": "Yerden toplanan altın çarpanı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "gold {value}",
@@ -1179,7 +1257,7 @@
       "default": 1,
       "resetCommand": "gold 1",
       "lifetime": "session",
-      "description": "Normal altÄ±n pickup kazancÄ±na uygulanÄ±r.",
+      "description": "Normal altın pickup kazancına uygulanır.",
       "currentSource": "currentValues.gold",
       "requirements": [
         "offline"
@@ -1189,7 +1267,7 @@
     {
       "id": "drops",
       "group": "general",
-      "label": "Genel eÅŸya drop adedi Ã§arpanÄ±",
+      "label": "Genel eşya drop adedi çarpanı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "drops {value}",
@@ -1206,7 +1284,7 @@
       "default": 1,
       "resetCommand": "drops 1",
       "lifetime": "session",
-      "description": "ItemDrop.itemMultiplier; CoF dÃ¼ÅŸman hook'u ile ortak dispatcher.",
+      "description": "ItemDrop.itemMultiplier; CoF düşman hook'u ile ortak dispatcher.",
       "currentSource": "currentValues.drops",
       "requirements": [
         "offline"
@@ -1233,7 +1311,7 @@
       "default": 1,
       "resetCommand": "density 1",
       "lifetime": "session",
-      "description": "Gelecekteki uygun normal paketlerin ortalama boyutu; mevcut paketler deÄŸiÅŸmez, boss/Ã¶zel spawn hariÃ§.",
+      "description": "Gelecekteki uygun normal paketlerin ortalama boyutu; mevcut paketler değişmez, boss/özel spawn hariç.",
       "currentSource": "currentValues.density",
       "requirements": [
         "offline"
@@ -1243,7 +1321,7 @@
     {
       "id": "rarity",
       "group": "general",
-      "label": "Temel rarity yÃ¼kseltme Ã§arpanÄ±",
+      "label": "Temel rarity yükseltme çarpanı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "rarity {value}",
@@ -1260,7 +1338,7 @@
       "default": 1,
       "resetCommand": "rarity 1",
       "lifetime": "session",
-      "description": "Her normal rarity roll'unu (xâˆ’1)/x ihtimalle bir kademe yÃ¼kseltir; Exalted/T7 kontrolÃ¼ ayrÄ±.",
+      "description": "Her normal rarity roll'unu (x−1)/x ihtimalle bir kademe yükseltir; Exalted/T7 kontrolü ayrı.",
       "currentSource": "currentValues.rarity",
       "requirements": [
         "offline"
@@ -1270,7 +1348,7 @@
     {
       "id": "speed",
       "group": "general",
-      "label": "Hareket hÄ±zÄ± Ã§arpanÄ±",
+      "label": "Hareket hızı çarpanı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "speed {value}",
@@ -1287,7 +1365,7 @@
       "default": 1,
       "resetCommand": "speed 1",
       "lifetime": "actor",
-      "description": "Movespeed increased katkÄ±sÄ± = xâˆ’1; movespeed alias/raw stat ile aynÄ± full key'i paylaÅŸÄ±r.",
+      "description": "Movespeed increased katkısı = x−1; movespeed alias/raw stat ile aynı full key'i paylaşır.",
       "currentSource": "currentValues.speed",
       "requirements": [
         "offline"
@@ -1306,7 +1384,7 @@
     {
       "id": "cooldown",
       "group": "general",
-      "label": "Cooldown / charge hÄ±z Ã§arpanÄ±",
+      "label": "Cooldown / charge hız çarpanı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "cooldown {value}",
@@ -1323,7 +1401,7 @@
       "default": 1,
       "resetCommand": "cooldown 1",
       "lifetime": "session",
-      "description": "Normal charge tick hÄ±zÄ±nÄ± ve cooldown sorgusunu Ã¶lÃ§ekler.",
+      "description": "Normal charge tick hızını ve cooldown sorgusunu ölçekler.",
       "currentSource": "currentValues.cooldown",
       "requirements": [
         "offline"
@@ -1350,7 +1428,7 @@
       "default": 0,
       "resetCommand": "autopickup 0",
       "lifetime": "session",
-      "description": "Normal pickup API'leri; eÅŸya, altÄ±n, potion, tome ve bone. Tarama aralÄ±ÄŸÄ± 0.75 saniye.",
+      "description": "Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0.75 saniye.",
       "currentSource": "currentValues.autopickup",
       "requirements": [
         "offline"
@@ -1360,7 +1438,7 @@
     {
       "id": "density_read",
       "group": "general",
-      "label": "Density Ã¶lÃ§Ã¼mÃ¼",
+      "label": "Density ölçümü",
       "widget": "read",
       "availability": "implemented",
       "commandTemplate": "densityread",
@@ -1370,7 +1448,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "Paket/generator/planlanan-gÃ¶zlenen spawn ve dÄ±ÅŸlama sayaÃ§larÄ±.",
+      "description": "Paket/generator/planlanan-gözlenen spawn ve dışlama sayaçları.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -1380,7 +1458,7 @@
     {
       "id": "loot_read",
       "group": "loot",
-      "label": "AkÄ±llÄ± toplama durumu / affix kataloÄŸu",
+      "label": "Akıllı toplama durumu / affix kataloğu",
       "widget": "read",
       "availability": "implemented",
       "commandTemplate": "lootread",
@@ -1390,7 +1468,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "SeÃ§imler ve sayaÃ§lar; runtime affix ID/ad listesi. acceptedRequests envantere giriÅŸ garantisi deÄŸildir.",
+      "description": "Seçimler ve sayaçlar; runtime affix ID/ad listesi. acceptedRequests envantere giriş garantisi değildir.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -1421,7 +1499,7 @@
       "default": "all",
       "resetCommand": "lootmode all",
       "lifetime": "session",
-      "description": "all: tÃ¼m eÅŸyalar; filter: mevcut loot filtresi; quality: Unique LP veya seÃ§ilen T7; materials: shard/rune/glyph. autopickup ayrÄ±ca aÃ§Ä±lÄ±r.",
+      "description": "all: tüm eşyalar; filter: mevcut loot filtresi; quality: Unique LP veya seçilen T7; materials: shard/rune/glyph. autopickup ayrıca açılır.",
       "currentSource": "liveState.lootread.mode",
       "requirements": [
         "offline"
@@ -1448,7 +1526,7 @@
       "default": 2,
       "resetCommand": "lootlp 2",
       "lifetime": "session",
-      "description": "YalnÄ±z quality modu; LP eÅŸiÄŸi ile T7 koÅŸulu OR olarak birleÅŸtirilir. Weaver's Will ayrÄ± bir LP koÅŸulu deÄŸildir.",
+      "description": "Yalnız quality modu; LP eşiği ile T7 koşulu OR olarak birleştirilir. Weaver's Will ayrı bir LP koşulu değildir.",
       "currentSource": "liveState.lootread.minimumLP",
       "requirements": [
         "offline"
@@ -1458,7 +1536,7 @@
     {
       "id": "loot_t7",
       "group": "loot",
-      "label": "T7 eÅŸya toplama",
+      "label": "T7 eşya toplama",
       "widget": "toggle",
       "availability": "implemented",
       "commandTemplate": "loott7 {value}",
@@ -1529,7 +1607,7 @@
       "default": "none",
       "resetCommand": "lootaffixes none",
       "lifetime": "session",
-      "description": "VirgÃ¼lle ayrÄ±lmÄ±ÅŸ en fazla 64 runtime affix ID; none herhangi bir T7 demektir. T7 aÃ§Ä±k olmalÄ±.",
+      "description": "Virgülle ayrılmış en fazla 64 runtime affix ID; none herhangi bir T7 demektir. T7 açık olmalı.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -1568,7 +1646,7 @@
       "default": 1,
       "resetCommand": "lootcategory {category} 1",
       "lifetime": "session",
-      "description": "Crafting materyali, altÄ±n, potion, XP/Favor tome ve bone ayrÄ± seÃ§ilir; kategori ayarÄ± auto pickup'Ä± aÃ§maz.",
+      "description": "Crafting materyali, altın, potion, XP/Favor tome ve bone ayrı seçilir; kategori ayarı auto pickup'ı açmaz.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -1578,7 +1656,7 @@
     {
       "id": "loot_reset",
       "group": "loot",
-      "label": "Toplama seÃ§imlerini sÄ±fÄ±rla",
+      "label": "Toplama seçimlerini sıfırla",
       "widget": "button",
       "availability": "implemented",
       "commandTemplate": "lootreset",
@@ -1588,7 +1666,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "session",
-      "description": "SeÃ§imler all/default olur; autopickup aÃ§Ä±k/kapalÄ± durumu ayrÄ±ca kontrol edilir.",
+      "description": "Seçimler all/default olur; autopickup açık/kapalı durumu ayrıca kontrol edilir.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -1598,7 +1676,7 @@
     {
       "id": "craft_read",
       "group": "crafting",
-      "label": "Crafting Ã¶nizleme / durum",
+      "label": "Crafting önizleme / durum",
       "widget": "read",
       "availability": "implemented",
       "commandTemplate": "craftread",
@@ -1608,7 +1686,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "Normal forge eligibility, eÅŸya/affix/FP, shard craft maliyet aralÄ±ÄŸÄ± ve glyph ihtimalleri; kesin RNG sonucu vermez. Rune/Insight maliyet aralÄ±ÄŸÄ± gÃ¶sterilmez.",
+      "description": "Normal forge eligibility, eşya/affix/FP, shard craft maliyet aralığı ve glyph ihtimalleri; kesin RNG sonucu vermez. Rune/Insight maliyet aralığı gösterilmez.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -1672,7 +1750,7 @@
     {
       "id": "craft_fp",
       "group": "crafting",
-      "label": "FP maliyet katsayÄ±sÄ±",
+      "label": "FP maliyet katsayısı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "craftfp {value}",
@@ -1689,7 +1767,7 @@
       "default": 1,
       "resetCommand": "craftfp 1",
       "lifetime": "session",
-      "description": "0 Ã¼cretsiz, 1 normal; Ã¶rnek 0.5 yarÄ± maliyet, yukarÄ± yuvarlanÄ±r. FP Ã¼retmez, native eligibility korunur.",
+      "description": "0 ücretsiz, 1 normal; örnek 0.5 yarı maliyet, yukarı yuvarlanır. FP üretmez, native eligibility korunur.",
       "currentSource": "liveState.craftread.fpFactor",
       "requirements": [
         "offline",
@@ -1717,7 +1795,7 @@
       "default": null,
       "resetCommand": "crafthope reset",
       "lifetime": "session",
-      "description": "YÃ¼zde 0â€“100 veya reset; native glyph/affix uygunluÄŸu gerekir. Despair T1â€“T4; Greater Hope ayrÄ± desteklenmez.",
+      "description": "Yüzde 0–100 veya reset; native glyph/affix uygunluğu gerekir. Despair T1–T4; Greater Hope ayrı desteklenmez.",
       "currentSource": "liveState.craftread.hopePercent",
       "requirements": [
         "offline",
@@ -1745,7 +1823,7 @@
       "default": null,
       "resetCommand": "craftdespair reset",
       "lifetime": "session",
-      "description": "YÃ¼zde 0â€“100 veya reset; native glyph/affix uygunluÄŸu gerekir. Despair T1â€“T4; Greater Hope ayrÄ± desteklenmez.",
+      "description": "Yüzde 0–100 veya reset; native glyph/affix uygunluğu gerekir. Despair T1–T4; Greater Hope ayrı desteklenmez.",
       "currentSource": "liveState.craftread.despairPercent",
       "requirements": [
         "offline",
@@ -1756,7 +1834,7 @@
     {
       "id": "craft_shards",
       "group": "crafting",
-      "label": "Craft sÄ±rasÄ±nda affix shard koru",
+      "label": "Craft sırasında affix shard koru",
       "widget": "toggle",
       "availability": "implemented",
       "commandTemplate": "craftshards {value}",
@@ -1773,7 +1851,7 @@
       "default": 0,
       "resetCommand": "craftshards 0",
       "lifetime": "session",
-      "description": "GerÃ§ekten tÃ¼ketilen bir shardÄ± normal AddShard API ile geri verir.",
+      "description": "Gerçekten tüketilen bir shardı normal AddShard API ile geri verir.",
       "currentSource": "liveState.craftread.preserveShards",
       "requirements": [
         "offline",
@@ -1898,7 +1976,7 @@
       "label": "Load workshop templates",
       "widget": "read",
       "availability": "implemented",
-      "commandTemplate": "atlasread",
+      "commandTemplate": "craftmods",
       "pythonApi": "tools.build_backend.workshop_catalog()",
       "responseFormat": "json",
       "parameters": [],
@@ -1919,7 +1997,7 @@
       "label": "Create custom gear",
       "widget": "button",
       "availability": "implemented",
-      "commandTemplate": "craftcustom {save_id} {template_id} {affixes} {perfect}",
+      "commandTemplate": "craftmix {save_id} {template_id} {affixes} {perfect} {modifiers}",
       "pythonApi": "tools.build_backend.custom(save_id, template_id, affixes, perfect, modifiers='none')",
       "responseFormat": "json",
       "parameters": [
@@ -2013,7 +2091,7 @@
     {
       "id": "craft_reset",
       "group": "crafting",
-      "label": "Crafting ayarlarÄ±nÄ± normale dÃ¶ndÃ¼r",
+      "label": "Crafting ayarlarını normale döndür",
       "widget": "button",
       "availability": "implemented",
       "commandTemplate": "craftreset",
@@ -2023,7 +2101,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "session",
-      "description": "FP=1, doÄŸal glyph ÅŸanslarÄ±, normal shard tÃ¼ketimi; tÃ¼m crafting hook'larÄ± kaldÄ±rÄ±lÄ±r.",
+      "description": "FP=1, doğal glyph şansları, normal shard tüketimi; tüm crafting hook'ları kaldırılır.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -2033,7 +2111,7 @@
     {
       "id": "sheet_catalog",
       "group": "stats",
-      "label": "TÃ¼m C satÄ±rlarÄ±nÄ± oku",
+      "label": "Tüm C satırlarını oku",
       "widget": "read",
       "availability": "implemented",
       "commandTemplate": "sheetstats",
@@ -2043,7 +2121,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "206 doÄŸrulanmÄ±ÅŸ satÄ±r; gÃ¼ncel sheet instance gerektiÄŸinde kullanÄ±labilir.",
+      "description": "206 doğrulanmış satır; güncel sheet instance gerektiğinde kullanılabilir.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -2053,7 +2131,7 @@
     {
       "id": "sheet_row",
       "group": "stats",
-      "label": "C satÄ±rÄ± dÃ¼zenleyici",
+      "label": "C satırı düzenleyici",
       "widget": "stat_editor",
       "availability": "implemented",
       "commandTemplate": "sheetstat {row} {mode} {value}",
@@ -2085,7 +2163,7 @@
       "default": 0,
       "resetCommand": "sheetstat {row} reset",
       "lifetime": "actor",
-      "description": "Mod katkÄ±sÄ±nÄ± deÄŸiÅŸtirir. Secondary modifier iÃ§in sheetstat {row} modifier {mode} {value}. Row ID instance'a aittir.",
+      "description": "Mod katkısını değiştirir. Secondary modifier için sheetstat {row} modifier {mode} {value}. Row ID instance'a aittir.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2097,7 +2175,7 @@
     {
       "id": "raw_stat",
       "group": "stats",
-      "label": "Full-key stat dÃ¼zenleyici",
+      "label": "Full-key stat düzenleyici",
       "widget": "stat_editor",
       "availability": "implemented",
       "commandTemplate": "statraw {sp} {tags} {special} {extra} {mode} {value}",
@@ -2146,7 +2224,7 @@
       "default": 0,
       "resetCommand": "statraw {sp} {tags} {special} {extra} reset",
       "lifetime": "actor",
-      "description": "134 SP; kimlik SP/tags/special/extra. increased/more >= âˆ’1; nÃ¶tr katkÄ± tÃ¼m modlarda 0. Player/AbilityProperty tags indeks olabilir.",
+      "description": "134 SP; kimlik SP/tags/special/extra. increased/more >= −1; nötr katkı tüm modlarda 0. Player/AbilityProperty tags indeks olabilir.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2158,7 +2236,7 @@
     {
       "id": "stat_alias",
       "group": "stats",
-      "label": "HazÄ±r stat adlarÄ±",
+      "label": "Hazır stat adları",
       "widget": "stat_editor",
       "availability": "implemented",
       "commandTemplate": "stat {name} {value}",
@@ -2180,7 +2258,7 @@
       "default": 0,
       "resetCommand": null,
       "lifetime": "actor",
-      "description": "characterStats.aliases iÃ§indeki isim/mode/birimleri kullan. Okumak iÃ§in stat {name}.",
+      "description": "characterStats.aliases içindeki isim/mode/birimleri kullan. Okumak için stat {name}.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2193,7 +2271,7 @@
     {
       "id": "stat_reset",
       "group": "stats",
-      "label": "TÃ¼m mod stat katkÄ±larÄ±nÄ± kaldÄ±r",
+      "label": "Tüm mod stat katkılarını kaldır",
       "widget": "button",
       "availability": "implemented",
       "commandTemplate": "statreset",
@@ -2203,7 +2281,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "actor",
-      "description": "YalnÄ±z EpochPact'in sahip olduÄŸu kayÄ±tlarÄ± kaldÄ±rÄ±r; aynÄ± key'i kullanan tÃ¼m UI kontrollerini yenile.",
+      "description": "Yalnız EpochPact'in sahip olduğu kayıtları kaldırır; aynı key'i kullanan tüm UI kontrollerini yenile.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2214,7 +2292,7 @@
     {
       "id": "sheet_open",
       "group": "stats",
-      "label": "C panelini aÃ§ / kapat",
+      "label": "C panelini aç / kapat",
       "widget": "toggle",
       "availability": "implemented",
       "commandTemplate": "sheetopen {value}",
@@ -2231,7 +2309,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "view",
-      "description": "Normal UIBase aÃ§/kapat; salt veri yenilemesi deÄŸildir.",
+      "description": "Normal UIBase aç/kapat; salt veri yenilemesi değildir.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2242,7 +2320,7 @@
     {
       "id": "resistance_labels",
       "group": "stats",
-      "label": "DirenÃ§ yazÄ±larÄ±nÄ± oku",
+      "label": "Direnç yazılarını oku",
       "widget": "read",
       "availability": "implemented",
       "commandTemplate": "sheetread",
@@ -2252,7 +2330,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "Yedi TMP_Text; sheet kapalÄ±/yoksa kullanÄ±lamaz, inactive label eski olabilir.",
+      "description": "Yedi TMP_Text; sheet kapalı/yoksa kullanılamaz, inactive label eski olabilir.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -2262,7 +2340,7 @@
     {
       "id": "progress_read",
       "group": "campaign",
-      "label": "GÃ¶rev / waypoint kataloÄŸu",
+      "label": "Görev / waypoint kataloğu",
       "widget": "read",
       "availability": "implemented",
       "commandTemplate": "progressread",
@@ -2272,7 +2350,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "YÃ¼klÃ¼ id, seviye/XP/Ã¶dÃ¼ller, eligibility ve gerÃ§ek waypoint sahneleri.",
+      "description": "Yüklü id, seviye/XP/ödüller, eligibility ve gerçek waypoint sahneleri.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -2310,7 +2388,7 @@
     {
       "id": "campaign_complete",
       "group": "campaign",
-      "label": "Ana + yan kampanyayÄ± tamamla, en az seviye 55",
+      "label": "Ana + yan kampanyayı tamamla, en az seviye 55",
       "widget": "button",
       "availability": "implemented",
       "commandTemplate": "questscomplete {save_id}",
@@ -2326,7 +2404,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "HenÃ¼z bitmemiÅŸ eligible kampanya gÃ¶revleri ve normal Ã¶dÃ¼lleri; minimum 55; End of Time, MonolithHub, M_Rest waypointleri. Tekrar Ã¶dÃ¼l vermez.",
+      "description": "Henüz bitmemiş eligible kampanya görevleri ve normal ödülleri; minimum 55; End of Time, MonolithHub, M_Rest waypointleri. Tekrar ödül vermez.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2338,7 +2416,7 @@
     {
       "id": "waypoints_unlock",
       "group": "campaign",
-      "label": "TÃ¼m gerÃ§ek waypointleri aÃ§",
+      "label": "Tüm gerçek waypointleri aç",
       "widget": "button",
       "availability": "implemented",
       "commandTemplate": "waypointsunlock {save_id}",
@@ -2354,7 +2432,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "GerÃ§ek waypoint sahnelerini aÃ§ar; Monolith timeline difficulty unlock ayrÄ± iÅŸlemdir.",
+      "description": "Gerçek waypoint sahnelerini açar; Monolith timeline difficulty unlock ayrı işlemdir.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2366,7 +2444,7 @@
     {
       "id": "monolith_read",
       "group": "monolith",
-      "label": "Monolith kataloÄŸu / gÃ¼ncel run",
+      "label": "Monolith kataloğu / güncel run",
       "widget": "read",
       "availability": "implemented",
       "commandTemplate": "monolithread",
@@ -2376,7 +2454,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "10 timeline / 20 difficulty; sÄ±nÄ±rlar, unlock/run, editable ve seÃ§im.",
+      "description": "10 timeline / 20 difficulty; sınırlar, unlock/run, editable ve seçim.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -2386,7 +2464,7 @@
     {
       "id": "monolith_unlock",
       "group": "monolith",
-      "label": "Normal + Empowered timeline'larÄ± aÃ§",
+      "label": "Normal + Empowered timeline'ları aç",
       "widget": "button",
       "availability": "implemented",
       "commandTemplate": "monolithunlock {save_id}",
@@ -2402,7 +2480,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "TÃ¼m normal/Empowered unlock; mevcutlarÄ± atlar.",
+      "description": "Tüm normal/Empowered unlock; mevcutları atlar.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2415,7 +2493,7 @@
     {
       "id": "monolith_select",
       "group": "monolith",
-      "label": "Timeline / difficulty seÃ§",
+      "label": "Timeline / difficulty seç",
       "widget": "selector",
       "availability": "implemented",
       "commandTemplate": "monolithselect {save_id} {timeline} {difficulty}",
@@ -2452,7 +2530,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "Normal panel seÃ§imi; echo baÅŸlatmaz/teleport etmez. Python empowered parametresi bool.",
+      "description": "Normal panel seçimi; echo başlatmaz/teleport etmez. Python empowered parametresi bool.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2509,7 +2587,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "SeÃ§ili run/difficulty iÃ§in mutlak deÄŸer; UI sÄ±nÄ±rlarÄ±nÄ± runtime asset'ten al. Python empowered bool.",
+      "description": "Seçili run/difficulty için mutlak değer; UI sınırlarını runtime asset'ten al. Python empowered bool.",
       "currentSource": "liveState.monolithread.timelines[id=timeline].difficulties[index=difficultyIndex].run.corruption",
       "requirements": [
         "offline",
@@ -2566,7 +2644,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "SeÃ§ili run/difficulty iÃ§in mutlak deÄŸer; UI sÄ±nÄ±rlarÄ±nÄ± runtime asset'ten al. Python empowered bool.",
+      "description": "Seçili run/difficulty için mutlak değer; UI sınırlarını runtime asset'ten al. Python empowered bool.",
       "currentSource": "liveState.monolithread.timelines[id=timeline].difficulties[index=difficultyIndex].run.stability",
       "requirements": [
         "offline",
@@ -2579,7 +2657,7 @@
     {
       "id": "stability_multiplier",
       "group": "monolith",
-      "label": "Stability kazanÄ±m Ã§arpanÄ±",
+      "label": "Stability kazanım çarpanı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "stabilitymult {value}",
@@ -2596,7 +2674,7 @@
       "default": 1,
       "resetCommand": "stabilitymult 1",
       "lifetime": "session",
-      "description": "Pozitif doÄŸal kazanÃ§; kayÄ±plarÄ±/elle mutlak deÄŸer ayarÄ±nÄ± Ã§arpmaz.",
+      "description": "Pozitif doğal kazanç; kayıpları/elle mutlak değer ayarını çarpmaz.",
       "currentSource": "liveState.monolithread.stabilityMultiplier",
       "requirements": [
         "offline"
@@ -2606,7 +2684,7 @@
     {
       "id": "cof_read",
       "group": "cof",
-      "label": "CoF kataloÄŸu / gÃ¼ncel durum",
+      "label": "CoF kataloğu / güncel durum",
       "widget": "read",
       "availability": "implemented",
       "commandTemplate": "cofread",
@@ -2616,7 +2694,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "Rank/Favor/Reputation/yuvalar/lensler/Ã¶dÃ¼l uygunluÄŸu ve tuning telemetrisi.",
+      "description": "Rank/Favor/Reputation/yuvalar/lensler/ödül uygunluğu ve tuning telemetrisi.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -2626,7 +2704,7 @@
     {
       "id": "cof_join",
       "group": "cof",
-      "label": "CoF'ye katÄ±l",
+      "label": "CoF'ye katıl",
       "widget": "button",
       "availability": "implemented",
       "commandTemplate": "cofjoin {save_id}",
@@ -2642,7 +2720,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "MG'den geÃ§iÅŸ ayrÄ± aÃ§Ä±k seÃ§im: cofjoin {save_id} switch; mevcut Ã¼yelik bÄ±rakÄ±lÄ±r.",
+      "description": "MG'den geçiş ayrı açık seçim: cofjoin {save_id} switch; mevcut üyelik bırakılır.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2676,7 +2754,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "Rank azaltma yuva/bonuslarÄ± kapatabilir; rank iÃ§i Reputation sÄ±fÄ±rlanÄ±r.",
+      "description": "Rank azaltma yuva/bonusları kapatabilir; rank içi Reputation sıfırlanır.",
       "currentSource": "liveState.cofread.cof.rank",
       "requirements": [
         "offline",
@@ -2710,7 +2788,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "Mutlak bakiye; prophecy/Rep kazancÄ± Ã¼retmez.",
+      "description": "Mutlak bakiye; prophecy/Rep kazancı üretmez.",
       "currentSource": "liveState.cofread.cof.favor",
       "requirements": [
         "offline",
@@ -2744,7 +2822,7 @@
       "default": 0,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "Eklenecek miktar; mutlak bakiye ayarÄ± deÄŸildir; gain Ã§arpanÄ±nÄ± bypass eder.",
+      "description": "Eklenecek miktar; mutlak bakiye ayarı değildir; gain çarpanını bypass eder.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2756,7 +2834,7 @@
     {
       "id": "cof_lenses_unlock",
       "group": "cof",
-      "label": "Rank'Ä±n izin verdiÄŸi lensleri aÃ§",
+      "label": "Rank'ın izin verdiği lensleri aç",
       "widget": "button",
       "availability": "implemented",
       "commandTemplate": "coflenses {save_id}",
@@ -2772,7 +2850,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "HenÃ¼z alÄ±nmamÄ±ÅŸ uygun lensleri normal satÄ±n alma yoluyla aÃ§ar.",
+      "description": "Henüz alınmamış uygun lensleri normal satın alma yoluyla açar.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2784,7 +2862,7 @@
     {
       "id": "cofpreview",
       "group": "cof",
-      "label": "Prophecy deÄŸiÅŸikliÄŸini Ã¶nizle",
+      "label": "Prophecy değişikliğini önizle",
       "widget": "preview",
       "availability": "implemented",
       "commandTemplate": "cofpreview {save_id} {slot} {reward} {lens}",
@@ -2821,7 +2899,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "none seÃ§imi kaldÄ±rÄ±r. Ã–dÃ¼l deÄŸiÅŸince ÅŸarj sÄ±fÄ±rlanÄ±r; lens deÄŸiÅŸikliÄŸini Ã¶nizle. AynÄ± Ã¶dÃ¼l/lens iki yuvada olamaz.",
+      "description": "none seçimi kaldırır. Ödül değişince şarj sıfırlanır; lens değişikliğini önizle. Aynı ödül/lens iki yuvada olamaz.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2832,7 +2910,7 @@
     {
       "id": "cofprophecy",
       "group": "cof",
-      "label": "Prophecy Ã¶dÃ¼l / lens seÃ§",
+      "label": "Prophecy ödül / lens seç",
       "widget": "selector",
       "availability": "implemented",
       "commandTemplate": "cofprophecy {save_id} {slot} {reward} {lens}",
@@ -2869,7 +2947,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "none seÃ§imi kaldÄ±rÄ±r. Ã–dÃ¼l deÄŸiÅŸince ÅŸarj sÄ±fÄ±rlanÄ±r; lens deÄŸiÅŸikliÄŸini Ã¶nizle. AynÄ± Ã¶dÃ¼l/lens iki yuvada olamaz.",
+      "description": "none seçimi kaldırır. Ödül değişince şarj sıfırlanır; lens değişikliğini önizle. Aynı ödül/lens iki yuvada olamaz.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -2881,7 +2959,7 @@
     {
       "id": "cof_charges",
       "group": "cof",
-      "label": "TamamlanmÄ±ÅŸ prophecy ÅŸarjlarÄ±",
+      "label": "Tamamlanmış prophecy şarjları",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "cofcharges {save_id} {slot} {value}",
@@ -2910,7 +2988,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "0â€“99 ÅŸarj; hemen eÅŸya Ã¼retmez. Azaltma kesirli ilerlemeyi de sÄ±fÄ±rlar.",
+      "description": "0–99 şarj; hemen eşya üretmez. Azaltma kesirli ilerlemeyi de sıfırlar.",
       "currentSource": "liveState.cofread.slots[index=slot].charges",
       "requirements": [
         "offline",
@@ -2922,7 +3000,7 @@
     {
       "id": "cof_favor_multiplier",
       "group": "cof",
-      "label": "Favor kazanÄ±m Ã§arpanÄ±",
+      "label": "Favor kazanım çarpanı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "coffavormult {value}",
@@ -2939,7 +3017,7 @@
       "default": 1,
       "resetCommand": "coffavormult 1",
       "lifetime": "session",
-      "description": "Normal pozitif Favor; doÄŸal tÃ¼retilen Reputation ve prophecy akÄ±ÅŸÄ± devam eder.",
+      "description": "Normal pozitif Favor; doğal türetilen Reputation ve prophecy akışı devam eder.",
       "currentSource": "liveState.cofread.favorMultiplier",
       "requirements": [
         "offline",
@@ -2950,7 +3028,7 @@
     {
       "id": "cof_reputation_multiplier",
       "group": "cof",
-      "label": "Reputation kazanÄ±m Ã§arpanÄ±",
+      "label": "Reputation kazanım çarpanı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "cofrepmult {value}",
@@ -2967,7 +3045,7 @@
       "default": 1,
       "resetCommand": "cofrepmult 1",
       "lifetime": "session",
-      "description": "Favor kazanÄ±m/harcamasÄ±ndan gelen Rep; elle ekleme hariÃ§. Favor kazancÄ±nda iki Ã§arpan birleÅŸir.",
+      "description": "Favor kazanım/harcamasından gelen Rep; elle ekleme hariç. Favor kazancında iki çarpan birleşir.",
       "currentSource": "liveState.cofread.reputationMultiplier",
       "requirements": [
         "offline",
@@ -2978,7 +3056,7 @@
     {
       "id": "cof_charge_multiplier",
       "group": "cof",
-      "label": "Prophecy ÅŸarj hÄ±zÄ±",
+      "label": "Prophecy şarj hızı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "cofchargemult {value}",
@@ -2995,7 +3073,7 @@
       "default": 1,
       "resetCommand": "cofchargemult 1",
       "lifetime": "session",
-      "description": "Favor/Rep bakiyesinden baÄŸÄ±msÄ±z; Tyranny harcama maliyetini artÄ±rmaz.",
+      "description": "Favor/Rep bakiyesinden bağımsız; Tyranny harcama maliyetini artırmaz.",
       "currentSource": "liveState.cofread.tuning.settings.charge",
       "requirements": [
         "offline",
@@ -3006,7 +3084,7 @@
     {
       "id": "cof_reward_multiplier",
       "group": "cof",
-      "label": "Prophecy Ã¶dÃ¼l adedi",
+      "label": "Prophecy ödül adedi",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "cofrewardmult {value}",
@@ -3023,7 +3101,7 @@
       "default": 1,
       "resetCommand": "cofrewardmult 1",
       "lifetime": "session",
-      "description": "Normal spawn baÅŸÄ±na temel adet Ã¼st sÄ±nÄ±rÄ± 250; rank12/Duplication birleÅŸir; ek ÅŸarj tÃ¼ketmez.",
+      "description": "Normal spawn başına temel adet üst sınırı 250; rank12/Duplication birleşir; ek şarj tüketmez.",
       "currentSource": "liveState.cofread.tuning.settings.reward",
       "requirements": [
         "offline",
@@ -3034,7 +3112,7 @@
     {
       "id": "cof_exalted_multiplier",
       "group": "cof",
-      "label": "Exalted roll katsayÄ±sÄ±",
+      "label": "Exalted roll katsayısı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "cofexaltedmult {value}",
@@ -3051,7 +3129,7 @@
       "default": 1,
       "resetCommand": "cofexaltedmult 1",
       "lifetime": "session",
-      "description": "Native coefficient Ã— ayar (rank12: 1.5); Rareâ†’Exalted gerÃ§ek ÅŸansÄ±na da uygulanÄ±r. YÃ¼zde deÄŸildir.",
+      "description": "Native coefficient × ayar (rank12: 1.5); Rare→Exalted gerçek şansına da uygulanır. Yüzde değildir.",
       "currentSource": "liveState.cofread.tuning.settings.exalted",
       "requirements": [
         "offline",
@@ -3062,7 +3140,7 @@
     {
       "id": "cof_t7_multiplier",
       "group": "cof",
-      "label": "T7 roll katsayÄ±sÄ±",
+      "label": "T7 roll katsayısı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "coft7mult {value}",
@@ -3079,7 +3157,7 @@
       "default": 1,
       "resetCommand": "coft7mult 1",
       "lifetime": "session",
-      "description": "Native coefficient Ã— ayar (rank12: 2); seviye/tier uygunluÄŸu oyunda kalÄ±r. YÃ¼zde deÄŸildir.",
+      "description": "Native coefficient × ayar (rank12: 2); seviye/tier uygunluğu oyunda kalır. Yüzde değildir.",
       "currentSource": "liveState.cofread.tuning.settings.t7",
       "requirements": [
         "offline",
@@ -3090,7 +3168,7 @@
     {
       "id": "cof_lp_multiplier",
       "group": "cof",
-      "label": "Unique LP roll katsayÄ±sÄ±",
+      "label": "Unique LP roll katsayısı",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "coflpmult {value}",
@@ -3107,7 +3185,7 @@
       "default": 1,
       "resetCommand": "coflpmult 1",
       "lifetime": "session",
-      "description": "YalnÄ±z native CoF bonusuna uygun Unique. LP 0â€“4; Weaver's Will istisnasÄ±; garanti LP adedi deÄŸildir.",
+      "description": "Yalnız native CoF bonusuna uygun Unique. LP 0–4; Weaver's Will istisnası; garanti LP adedi değildir.",
       "currentSource": "liveState.cofread.tuning.settings.lp",
       "requirements": [
         "offline",
@@ -3118,7 +3196,7 @@
     {
       "id": "cof_double_enemy",
       "group": "cof",
-      "label": "DÃ¼ÅŸman Ã§ift eÅŸya ihtimali (%)",
+      "label": "Düşman çift eşya ihtimali (%)",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "cofdouble enemy {value}",
@@ -3135,7 +3213,7 @@
       "default": null,
       "resetCommand": "cofdouble enemy reset",
       "lifetime": "session",
-      "description": "Ayar doÄŸrudan yÃ¼zde; 0 etkisiz Ã§ift ÅŸans, reset normal rank bonusu. Echo: eÅŸya Ã¶dÃ¼lÃ¼, Tomb/Gold/XP istisnalarÄ± normal.",
+      "description": "Ayar doğrudan yüzde; 0 etkisiz çift şans, reset normal rank bonusu. Echo: eşya ödülü, Tomb/Gold/XP istisnaları normal.",
       "currentSource": "liveState.cofread.tuning.settings.enemy",
       "requirements": [
         "offline",
@@ -3146,7 +3224,7 @@
     {
       "id": "cof_double_echo",
       "group": "cof",
-      "label": "Normal Monolith Ã§ift eÅŸya ihtimali (%)",
+      "label": "Normal Monolith çift eşya ihtimali (%)",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "cofdouble echo {value}",
@@ -3163,7 +3241,7 @@
       "default": null,
       "resetCommand": "cofdouble echo reset",
       "lifetime": "session",
-      "description": "Ayar doÄŸrudan yÃ¼zde; 0 etkisiz Ã§ift ÅŸans, reset normal rank bonusu. Echo: eÅŸya Ã¶dÃ¼lÃ¼, Tomb/Gold/XP istisnalarÄ± normal.",
+      "description": "Ayar doğrudan yüzde; 0 etkisiz çift şans, reset normal rank bonusu. Echo: eşya ödülü, Tomb/Gold/XP istisnaları normal.",
       "currentSource": "liveState.cofread.tuning.settings.echo",
       "requirements": [
         "offline",
@@ -3174,7 +3252,7 @@
     {
       "id": "cof_lens_celerity",
       "group": "cof",
-      "label": "Celerity lens gÃ¼cÃ¼",
+      "label": "Celerity lens gücü",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "coflensmult celerity {value}",
@@ -3191,7 +3269,7 @@
       "default": 1,
       "resetCommand": "coflensmult celerity 1",
       "lifetime": "session",
-      "description": "+%50 ekstra ÅŸarj katkÄ±sÄ±nÄ± Ã¶lÃ§ekler: x3 â†’ +%150 (toplam x2.5).",
+      "description": "+%50 ekstra şarj katkısını ölçekler: x3 → +%150 (toplam x2.5).",
       "currentSource": "liveState.cofread.tuning.settings.celerity",
       "requirements": [
         "offline",
@@ -3203,7 +3281,7 @@
     {
       "id": "cof_lens_charity",
       "group": "cof",
-      "label": "Charity lens gÃ¼cÃ¼",
+      "label": "Charity lens gücü",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "coflensmult charity {value}",
@@ -3220,7 +3298,7 @@
       "default": 1,
       "resetCommand": "coflensmult charity 1",
       "lifetime": "session",
-      "description": "DiÄŸer yuvaya +%10 ekstra ÅŸarj katkÄ±sÄ±: x5 â†’ +%50.",
+      "description": "Diğer yuvaya +%10 ekstra şarj katkısı: x5 → +%50.",
       "currentSource": "liveState.cofread.tuning.settings.charity",
       "requirements": [
         "offline",
@@ -3232,7 +3310,7 @@
     {
       "id": "cof_lens_duplication",
       "group": "cof",
-      "label": "Duplication lens gÃ¼cÃ¼",
+      "label": "Duplication lens gücü",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "coflensmult duplication {value}",
@@ -3249,7 +3327,7 @@
       "default": 1,
       "resetCommand": "coflensmult duplication 1",
       "lifetime": "session",
-      "description": "%40 ek Ã¶dÃ¼l ÅŸansÄ±nÄ± Ã¶lÃ§ekler; %100'e sÄ±nÄ±rlandÄ±rÄ±lÄ±r.",
+      "description": "%40 ek ödül şansını ölçekler; %100'e sınırlandırılır.",
       "currentSource": "liveState.cofread.tuning.settings.duplication",
       "requirements": [
         "offline",
@@ -3271,7 +3349,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "DÃ¶rt faction'Ä±n rank asset'leri/durumlarÄ±; Weaver earned points ve 13+40=53 sÄ±nÄ±rÄ±. MG/Weaver mutation API hazÄ±r deÄŸil.",
+      "description": "Dört faction'ın rank asset'leri/durumları; Weaver earned points ve 13+40=53 sınırı. MG/Weaver mutation API hazır değil.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -3281,7 +3359,7 @@
     {
       "id": "session_read",
       "group": "session",
-      "label": "BaÄŸlantÄ± / geÃ§iÅŸ durumu",
+      "label": "Bağlantı / geçiş durumu",
       "widget": "read",
       "availability": "implemented",
       "commandTemplate": "sessionread",
@@ -3291,7 +3369,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "InGame ve transitioning=false kontrolÃ¼.",
+      "description": "InGame ve transitioning=false kontrolü.",
       "currentSource": null,
       "requirements": [],
       "documentation": "GEMINI.md"
@@ -3299,7 +3377,7 @@
     {
       "id": "status",
       "group": "session",
-      "label": "TÃ¼m mod ayarlarÄ± / sayaÃ§lar",
+      "label": "Tüm mod ayarları / sayaçlar",
       "widget": "read",
       "availability": "implemented",
       "commandTemplate": "status",
@@ -3309,7 +3387,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "Offline gate, etkin Ã§arpanlar ve hata/hook durumlarÄ±.",
+      "description": "Offline gate, etkin çarpanlar ve hata/hook durumları.",
       "currentSource": null,
       "requirements": [],
       "documentation": "GEMINI.md"
@@ -3317,7 +3395,7 @@
     {
       "id": "player_read",
       "group": "session",
-      "label": "YÃ¼klÃ¼ karakter kimliÄŸi",
+      "label": "Yüklü karakter kimliği",
       "widget": "read",
       "availability": "implemented",
       "commandTemplate": "playerread",
@@ -3327,7 +3405,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "Ä°sim/seviye/IsOffline; save id iÃ§in progressread kullan.",
+      "description": "İsim/seviye/IsOffline; save id için progressread kullan.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -3337,7 +3415,7 @@
     {
       "id": "characters",
       "group": "session",
-      "label": "Ã‡evrimdÄ±ÅŸÄ± karakterler",
+      "label": "Çevrimdışı karakterler",
       "widget": "read",
       "availability": "implemented",
       "commandTemplate": "characters",
@@ -3347,7 +3425,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "read_only",
-      "description": "Normal karakter seÃ§im paneli okunur.",
+      "description": "Normal karakter seçim paneli okunur.",
       "currentSource": null,
       "requirements": [],
       "documentation": "GEMINI.md"
@@ -3365,7 +3443,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "view",
-      "description": "Normal Login paneli; geÃ§iÅŸ bittikten sonra Ã§alÄ±ÅŸÄ±r.",
+      "description": "Normal Login paneli; geçiş bittikten sonra çalışır.",
       "currentSource": null,
       "requirements": [
         "Login_and_not_transitioning"
@@ -3375,7 +3453,7 @@
     {
       "id": "load_character",
       "group": "session",
-      "label": "Ã‡evrimdÄ±ÅŸÄ± karakter yÃ¼kle",
+      "label": "Çevrimdışı karakter yükle",
       "widget": "selector",
       "availability": "implemented",
       "commandTemplate": "loadname {name} {level}",
@@ -3397,7 +3475,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "view",
-      "description": "Normal seÃ§im tile double-click; boÅŸluksuz tam isim, isteÄŸe baÄŸlÄ± seviye. Sonra yÃ¼klÃ¼ id'yi tekrar oku.",
+      "description": "Normal seçim tile double-click; boşluksuz tam isim, isteğe bağlı seviye. Sonra yüklü id'yi tekrar oku.",
       "currentSource": null,
       "requirements": [
         "CharacterSelect_and_not_transitioning"
@@ -3407,7 +3485,7 @@
     {
       "id": "undo",
       "group": "recovery",
-      "label": "Son iÅŸlemin yedeÄŸini geri yÃ¼kle",
+      "label": "Son işlemin yedeğini geri yükle",
       "widget": "button",
       "availability": "implemented",
       "commandTemplate": null,
@@ -3423,7 +3501,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "recovery",
-      "description": "Snapshot ve yÃ¼klÃ¼ karakteri doÄŸrular, oyunu normal kapatÄ±r, geri yÃ¼kler. UI kullanÄ±cÄ±nÄ±n seÃ§tiÄŸi iÅŸleme baÄŸlamalÄ±.",
+      "description": "Snapshot ve yüklü karakteri doğrular, oyunu normal kapatır, geri yükler. UI kullanıcının seçtiği işleme bağlamalı.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -27982,25 +28060,25 @@
   "researchOnly": [
     {
       "id": "merchants_guild_management",
-      "label": "Merchant's Guild yÃ¶netimi",
+      "label": "Merchant's Guild yönetimi",
       "availability": "read_only",
       "readCommand": "factionread",
       "documentation": "research/factions-1.5.md"
     },
     {
       "id": "weaver_rank_amber_tree",
-      "label": "Weaver rank / Amber / aÄŸaÃ§ yazma",
+      "label": "Weaver rank / Amber / ağaç yazma",
       "availability": "researched_not_implemented",
       "readCommand": "factionread",
       "documentation": "research/weaver-1.5.md",
-      "details": "Rank/puanlar okunuyor; Amber cÃ¼zdanÄ± ve rank/Amber/node/Woven yazma API'leri hazÄ±r deÄŸil. 13 rank puanÄ± + 40 echo puanÄ± = 53."
+      "details": "Rank/puanlar okunuyor; Amber cüzdanı ve rank/Amber/node/Woven yazma API'leri hazır değil. 13 rank puanı + 40 echo puanı = 53."
     },
     {
       "id": "permanent_profiles",
-      "label": "KalÄ±cÄ± mod profilleri",
+      "label": "Kalıcı mod profilleri",
       "availability": "ui_work_remaining",
       "documentation": "GEMINI.md",
-      "details": "Mevcut native ayarlar profil olarak kaydedilmez; kullanÄ±cÄ± UI katmanÄ±nda yapacak."
+      "details": "Mevcut native ayarlar profil olarak kaydedilmez; kullanıcı UI katmanında yapacak."
     }
   ],
   "referenceFiles": [
@@ -28029,7 +28107,7 @@
         "name": "Hidden Lost Spriggan EoT Easter Egg",
         "chapter": 0,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": false,
         "test": false,
@@ -28063,7 +28141,7 @@
         "name": "The Keepers",
         "chapter": 0,
         "type": 0,
-        "state": 1,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28080,7 +28158,7 @@
         "name": "The Keepers' Vault",
         "chapter": 0,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28097,7 +28175,7 @@
         "name": "The Shard",
         "chapter": 0,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28114,7 +28192,7 @@
         "name": "Storeroom Saboteurs",
         "chapter": 0,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28131,7 +28209,7 @@
         "name": "Missing in the Highlands",
         "chapter": 0,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28148,7 +28226,7 @@
         "name": "Forging Basics II",
         "chapter": 0,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28165,7 +28243,7 @@
         "name": "Forging Basics I",
         "chapter": 0,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28182,7 +28260,7 @@
         "name": "The Void Assault",
         "chapter": 1,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28199,7 +28277,7 @@
         "name": "Armory Aid",
         "chapter": 1,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28216,7 +28294,7 @@
         "name": "Erza's Ledger",
         "chapter": 1,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28233,7 +28311,7 @@
         "name": "Saving Last Refuge",
         "chapter": 1,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28250,7 +28328,7 @@
         "name": "An Ancient Path",
         "chapter": 1,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28267,7 +28345,7 @@
         "name": "The Power of Mastery",
         "chapter": 1,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28284,7 +28362,7 @@
         "name": "The Last Refuge",
         "chapter": 1,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28301,7 +28379,7 @@
         "name": "Evacuation",
         "chapter": 1,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28318,7 +28396,7 @@
         "name": "Finding Pannion",
         "chapter": 1,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28335,7 +28413,7 @@
         "name": "The Upper District",
         "chapter": 1,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28352,7 +28430,7 @@
         "name": "Artem's Stash",
         "chapter": 1,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28369,7 +28447,7 @@
         "name": "The Ruined World",
         "chapter": 2,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28386,7 +28464,7 @@
         "name": "The Lesser Refuge",
         "chapter": 2,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28403,7 +28481,7 @@
         "name": "The Fate of the Refuge",
         "chapter": 2,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28420,7 +28498,7 @@
         "name": "The Ruined Temple",
         "chapter": 2,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28437,7 +28515,7 @@
         "name": "The Last Imperial",
         "chapter": 2,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28454,7 +28532,7 @@
         "name": "An Ancient Hunt",
         "chapter": 2,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28471,7 +28549,7 @@
         "name": "Sanity in the Darkness",
         "chapter": 2,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28488,7 +28566,7 @@
         "name": "The Symbol of Hope",
         "chapter": 2,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28505,7 +28583,7 @@
         "name": "Clearing the Ruins",
         "chapter": 2,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28522,7 +28600,7 @@
         "name": "Lightless Arbor",
         "chapter": 2,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28539,7 +28617,7 @@
         "name": "A Study in Time",
         "chapter": 3,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28556,7 +28634,7 @@
         "name": "The Immortal Empire",
         "chapter": 3,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28573,7 +28651,7 @@
         "name": "The Admiral's Dreadnought",
         "chapter": 3,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28590,7 +28668,7 @@
         "name": "An Introduction to Crafting",
         "chapter": 3,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28607,7 +28685,7 @@
         "name": "The Corrupted Lake",
         "chapter": 3,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28624,7 +28702,7 @@
         "name": "Soul Warden Ambush",
         "chapter": 3,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28641,7 +28719,7 @@
         "name": "Soulfire Bastion",
         "chapter": 3,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28658,7 +28736,7 @@
         "name": "The Oracle's Aid",
         "chapter": 4,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28675,7 +28753,7 @@
         "name": "The Desert Waystation",
         "chapter": 4,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28692,7 +28770,7 @@
         "name": "Hidden Gems",
         "chapter": 4,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28709,7 +28787,7 @@
         "name": "The Sapphire Tablet",
         "chapter": 4,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28726,7 +28804,7 @@
         "name": "Temporal Sanctum",
         "chapter": 4,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28743,7 +28821,7 @@
         "name": "Journey to the Necropolis",
         "chapter": 5,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28760,7 +28838,7 @@
         "name": "The Immortal Citadel",
         "chapter": 5,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28777,7 +28855,7 @@
         "name": "Alric's Revenge",
         "chapter": 5,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28794,7 +28872,7 @@
         "name": "Rahyeh's Warpath",
         "chapter": 6,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28811,7 +28889,7 @@
         "name": "Wrath of the Wengari",
         "chapter": 6,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28828,7 +28906,7 @@
         "name": "The Temple of Heorot",
         "chapter": 6,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28845,7 +28923,7 @@
         "name": "The Lance of Heorot",
         "chapter": 6,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28862,7 +28940,7 @@
         "name": "Liberating the Nomads",
         "chapter": 6,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28879,7 +28957,7 @@
         "name": "A Heoborean Cure",
         "chapter": 6,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28896,7 +28974,7 @@
         "name": "A Heoborean Cure: Bitterwing Fang",
         "chapter": 6,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28913,7 +28991,7 @@
         "name": "A Heoborean Cure: Wengari Bile",
         "chapter": 6,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28930,7 +29008,7 @@
         "name": "A Heoborean Cure: Eber Liver",
         "chapter": 6,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -28947,7 +29025,7 @@
         "name": "Heorot's Last Blessing",
         "chapter": 7,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28964,7 +29042,7 @@
         "name": "Passage through Deep Harbor",
         "chapter": 7,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28981,7 +29059,7 @@
         "name": "Liath and Thetima",
         "chapter": 7,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -28998,7 +29076,7 @@
         "name": "Isle of Storms",
         "chapter": 7,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -29015,7 +29093,7 @@
         "name": "Sirens and Sailors",
         "chapter": 7,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29032,7 +29110,7 @@
         "name": "To Shell With It",
         "chapter": 7,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29049,7 +29127,7 @@
         "name": "Lagon",
         "chapter": 7,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -29066,7 +29144,7 @@
         "name": "Liath's Tower",
         "chapter": 7,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29083,7 +29161,7 @@
         "name": "Destroying the Siege Camp",
         "chapter": 7,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29100,7 +29178,7 @@
         "name": "Return to Yulia",
         "chapter": 7,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -29117,7 +29195,7 @@
         "name": "Journey to Maj'elka",
         "chapter": 8,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -29134,7 +29212,7 @@
         "name": "The Scalebane",
         "chapter": 8,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -29151,7 +29229,7 @@
         "name": "Arjani, the Ruby Commander",
         "chapter": 8,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29168,7 +29246,7 @@
         "name": "The Missing Merchant",
         "chapter": 8,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29185,7 +29263,7 @@
         "name": "Desert Treasure",
         "chapter": 8,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29202,7 +29280,7 @@
         "name": "Oasis Hunt",
         "chapter": 8,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29219,7 +29297,7 @@
         "name": "Harton's Idol",
         "chapter": 8,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29236,7 +29314,7 @@
         "name": "Too Greedily, Too Deep",
         "chapter": 8,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29253,7 +29331,7 @@
         "name": "Grand Theft Eagle",
         "chapter": 8,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -29270,7 +29348,7 @@
         "name": "Apophis and Majasa",
         "chapter": 8,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -29287,7 +29365,7 @@
         "name": "Merchants and Fortune Tellers",
         "chapter": 8,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29304,7 +29382,7 @@
         "name": "Circle of Fortune: Initiation",
         "chapter": 8,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29321,7 +29399,7 @@
         "name": "Merchant's Guild: Initiation",
         "chapter": 8,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29338,7 +29416,7 @@
         "name": "The Monolith of Fate",
         "chapter": 9,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29355,7 +29433,7 @@
         "name": "Chasing Apophis",
         "chapter": 9,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -29372,7 +29450,7 @@
         "name": "Escape the Draal",
         "chapter": 9,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -29389,7 +29467,7 @@
         "name": "Dragon Hunt",
         "chapter": 9,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29406,7 +29484,7 @@
         "name": "Temple of Eterra",
         "chapter": 9,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -29423,7 +29501,7 @@
         "name": "Ancient Power",
         "chapter": 9,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -29440,7 +29518,7 @@
         "name": "Finding Apophis",
         "chapter": 9,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": true,
         "visible": true,
         "test": false,
@@ -29457,7 +29535,7 @@
         "name": "Glittering Ambrosia",
         "chapter": 9,
         "type": 0,
-        "state": 0,
+        "state": 2,
         "main": false,
         "visible": true,
         "test": false,
@@ -29473,834 +29551,834 @@
     "waypoints": [
       {
         "scene": "A06",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "A10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "A30",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "A45",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "A50",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "A60",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "A60TR",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "A70",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "A80",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "A90",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "ArenaLobby",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "B10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "B1S10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "B1S40",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "B20",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "B25",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "B30",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "B33",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "B40",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "B40TR",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "B50",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "B60",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "B7S10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "B80",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "Bazaar",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "C10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "C20",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "C2S10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "C30",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "C35",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "C40",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "C40TR",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "C50",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "C5S10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "C60",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "C70",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "D05",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "D05TR",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "D20",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "D30",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "D35TR",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "D40",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "D60",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "D80",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "Dun1Q10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "Dun2Q10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "Dun3Q10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "E10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "E20",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "E20TR",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "E30",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "E40",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "E50",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "E60",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "E80",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "E90",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "EoT",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "F10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "F100",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "F110",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "F1S10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "F40",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "F50",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "F5S10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "F70",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "F80",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "F90",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "G110",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "G115",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "G1S10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "G2S10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "G40",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "G60",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "G70",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "G80",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "G90",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "G93",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "G96",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "H10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "H100",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "H110",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "H120",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "H40",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "H50",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "H70",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "H80",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "I10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "I100",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "I110",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "I120",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "I130",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "I140",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "I1S10",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "I20",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "I40",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "I50",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "I70",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "I80",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "M_Knight",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "M_Rest",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "MonolithHub",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": true,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "Observatory",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "WeaversHub",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "Z102",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
@@ -30313,34 +30391,34 @@
       },
       {
         "scene": "Z52",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "Z72",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "Z82",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       },
       {
         "scene": "Z92",
-        "unlocked": false,
+        "unlocked": true,
         "monolith": false,
         "always": false,
-        "active": false,
+        "active": true,
         "noWaypoint": false
       }
     ],
@@ -30356,7 +30434,13 @@
             "minCorruption": 0,
             "maxCorruption": 50,
             "maxStability": 500,
-            "run": null
+            "run": {
+              "timeline": 1,
+              "difficulty": 0,
+              "corruption": 0,
+              "stability": 400,
+              "maxStability": 500
+            }
           },
           {
             "index": 1,
@@ -31792,32 +31876,32 @@
           {
             "index": 0,
             "rankRequired": 1,
-            "charges": 2,
-            "chargeProgress": 86079,
+            "charges": 9,
+            "chargeProgress": 480353,
             "lens": 0,
             "rewardSelected": true
           },
           {
             "index": 1,
             "rankRequired": 3,
-            "charges": 0,
-            "chargeProgress": 57373,
+            "charges": 7,
+            "chargeProgress": 486855,
             "lens": 1,
             "rewardSelected": true
           },
           {
             "index": 2,
             "rankRequired": 6,
-            "charges": 0,
-            "chargeProgress": 52164,
+            "charges": 7,
+            "chargeProgress": 124420,
             "lens": 2,
             "rewardSelected": true
           },
           {
             "index": 3,
             "rankRequired": 9,
-            "charges": 0,
-            "chargeProgress": 57373,
+            "charges": 7,
+            "chargeProgress": 486855,
             "lens": 4,
             "rewardSelected": true
           }
@@ -32122,7 +32206,7 @@
     ]
   },
   "counts": {
-    "controls": 118,
+    "controls": 121,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

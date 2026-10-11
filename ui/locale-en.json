@@ -471,23 +471,35 @@
     ],
     "summons_read": [
       "Live summoned allies",
-      "Read each active player-owned summon: health, armour, uncapped resistances and global damage increase. These are actual live values; damage increase is not skill DPS."
+      "Read active player-owned allies: health, armour, resistances and measured damage. DPS uses recent applied hits; attack a target to collect a comparison."
     ],
     "inventory_read": [
       "Live inventory",
       "Read the loaded character and inventory item count without changing items."
     ],
     "inventory_stash": [
-      "Open stash",
+      "Toggle stash",
       "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory."
     ],
     "inventory_vendor": [
-      "Open vendor",
+      "Toggle vendor",
       "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory."
     ],
     "inventory_stashall": [
       "Stash all inventory items",
       "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory."
+    ],
+    "respec_skills": [
+      "Refund all skill points",
+      "Reset all specialized skill allocations for free. Skill levels and experience are preserved. Creates a recovery backup before refunding points."
+    ],
+    "respec_passives": [
+      "Refund all passive points",
+      "Reset passive allocations for free. Earned points, character level and mastery choice are preserved. Creates a recovery backup first."
+    ],
+    "respec_weaver": [
+      "Refund all Weaver points",
+      "Reset Weaver tree allocations for free. Earned points and faction progress are preserved. Creates a recovery backup first."
     ],
     "pickup_radius_read": [
       "Pickup radius status",

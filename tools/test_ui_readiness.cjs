@@ -390,9 +390,26 @@ test('camera world and inventory pages expose actual controls without sending mu
 test('live summon table shows real values and never presents historical or failed data as current',()=>{
  const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
  h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');cache.summons_read={player:{id:'0'},summons:[{name:'Skeleton(Clone)',health:50,maxHealth:100,armour:23,damageIncreased:150,resistances:{Poison:42}}]};`);
- let html=h.run('summonTable()');assert.ok(html.includes('50 / 100'));assert.ok(html.includes('150%'));assert.ok(html.includes('42%'));assert.ok(html.includes('not skill DPS'));
+ let html=h.run('summonTable()');assert.ok(html.includes('50 / 100'));assert.ok(html.includes('150%'));assert.ok(html.includes('42%'));assert.ok(html.includes('changing gear alone cannot reveal exact combat DPS'));
  h.run('cache.summons_read.player.id="another"');html=h.run('summonTable()');assert.ok(!html.includes('Skeleton'));
  h.run('cache.summons_read.player.id="0";cache.summons_read.readError=true');html=h.run('summonTable()');assert.ok(html.includes('unavailable'));assert.ok(!html.includes('Skeleton'));
+});
+
+test('summon damage columns expose measured events and clear comparisons for a restarted game',()=>{
+ const h=automaticHarness();h.run(`connected.sessionKey='10:1';cache.summons_read={player:{id:'0'},damageWindowSeconds:5,summons:[{instance:12,name:'Skeleton',measuredDps:450,lastDamage:150}]};summonBaselineOwner=automaticOwner();summonBaseline={12:300};`);
+ let html=h.run('summonTable()');assert.ok(html.includes('+150'));assert.ok(html.includes('450'));assert.ok(html.includes('5 seconds collected'));
+ h.run(`connected.sessionKey='11:2'`);html=h.run('summonTable()');assert.ok(!html.includes('+150'));assert.equal(h.run('Object.keys(summonBaseline).length'),0);
+ h.run(`cache.summons_read.damageSampleClipped=true`);assert.match(h.run('summonTable()'),/lower bound/);
+ h.run(`displayPreferences.summonColumns=['Poison','Measured DPS']`);html=h.run('summonTable()');assert.ok(!html.includes('<th>Poison</th>'));assert.ok(!html.includes('<th>Measured DPS</th>'));assert.equal(h.calls.length,0);
+});
+
+test('free respec requires a fresh matching read and rendering never refunds points',()=>{
+ const h=automaticHarness();h.run(`page='skills';cache.build_read={player:{id:'other'}}`);
+ for(const id of ['respec_skills','respec_passives','respec_weaver'])h.buttons.push({dataset:{controlId:id},closest:()=>null});
+ h.run('updateDisabled()');assert.ok(h.buttons.slice(-3).every(b=>b.disabled));
+ h.run(`cache.build_read={player:{id:'0'},passivePoints:68,weaverPoints:0};shippingRenderPage()`);
+ assert.match(h.element('#page-content').innerHTML,/Free respec/);assert.equal(h.calls.length,0);
+ h.run('updateDisabled()');assert.ok(h.buttons.slice(-3).every(b=>!b.disabled));
 });
 
 test('entering each reorganized page reads only its own live section and preserves cross-page drafts',async()=>{

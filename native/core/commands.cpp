@@ -83,6 +83,7 @@ std::string Execute(const std::string& line) {
     const std::string& cmd = parts[0];
     const std::vector<std::string> args(parts.begin() + 1, parts.end());
     if(cmd=="buildread")return args.empty()?builds::Read():"{\"ok\":false,\"error\":\"buildread expects no arguments\"}";
+    if(cmd=="treerespec")return args.size()==2?builds::Respec(args[0],args[1]):"{\"ok\":false,\"error\":\"use treerespec save-id skills|passives|weaver\"}";
     if(cmd=="inventoryread")return args.empty()?convenience::InventoryRead():"{\"ok\":false,\"error\":\"inventoryread expects no arguments\"}";
     if(cmd=="qolread")return args.empty()?convenience::Read():"{\"ok\":false,\"error\":\"qolread expects no arguments\"}";
     if(cmd=="summonread")return args.empty()?convenience::Summons():"{\"ok\":false,\"error\":\"summonread expects no arguments\"}";

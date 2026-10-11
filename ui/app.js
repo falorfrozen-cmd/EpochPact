@@ -2,6 +2,16 @@
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const clean = s => String(s ?? "").replace(/<[^>]*>/g, "");
+const preferencesApi=window.EpochPreferences;
+let displayPreferences;
+try{displayPreferences=preferencesApi?.load(localStorage);}catch{}
+displayPreferences??={favorites:[],hidden:[],summonColumns:[],hiddenStats:[]};
+let showHiddenStats=false;
+function saveDisplayPreference(name,id,enabled){
+ if(!preferencesApi)return;
+ displayPreferences=preferencesApi.toggle(displayPreferences,name,id,enabled);
+ try{if(!preferencesApi.save(localStorage,displayPreferences))notify("Display preferences could not be saved on this device.",true);}catch{notify("Display preferences could not be saved on this device.",true);}
+}
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const pages = {
  overview: ["Overview", "◈", "Your timeline. Your rules.", "Shape your journey, your loot and your character."],
@@ -164,7 +174,7 @@ function playerResult(payload,result){
   stability:`Stability set to ${a.value}.${where}`,corruption:`Corruption set to ${a.value}.${where}`,
   campaign_complete:result.mastery?.needsSelection?"Campaign completed with normal rewards. Use Choose Mastery to finish your character.":"Campaign completed with normal rewards.",waypoints_unlock:"All waypoints unlocked.",
   mastery_choose:"Mastery selection opened in the game. Choose and confirm your mastery there.",
-  inventory_stash:"Stash opened in the game.",inventory_vendor:"Vendor opened in the game.",
+  inventory_stash:result.opened===false?"Stash closed in the game.":"Stash opened in the game.",inventory_vendor:result.opened===false?"Vendor closed in the game.":"Vendor opened in the game.",
   inventory_stashall:`Moved ${result.moved??0} items to your stash. ${result.remaining??0} items remain in your inventory.`,
   monolith_unlock:"Normal and Empowered timelines unlocked.",monolith_select:`Timeline selected.${where}`,
   cof_rank:`Circle of Fortune rank set to ${a.value}.`,cof_favor:`Favor set to ${a.value}.`,
@@ -196,7 +206,7 @@ function confirmAction(title,message) {
 }
 function finishConfirm(value) {$("#confirm-dialog").close();if(confirmationResolve){confirmationResolve(value);confirmationResolve=null;}}
 function controlById(id){return catalog.controls.find(x=>x.id===id);}
-function saveSnapshot(c){return c.group==="inventory"?cache.inventory_read:c.id==="craft_materials"?cache.craft_materials_read:["craft_forge","craft_custom"].includes(c.id)?cache.craft_read?.forgePreview:cache[c.group==="campaign"?"progress_read":c.group==="monolith"?"monolith_read":"cof_read"];}
+function saveSnapshot(c){return c.group==="inventory"?cache.inventory_read:c.group==="skills"?cache.build_read:c.id==="craft_materials"?cache.craft_materials_read:["craft_forge","craft_custom"].includes(c.id)?cache.craft_read?.forgePreview:cache[c.group==="campaign"?"progress_read":c.group==="monolith"?"monolith_read":"cof_read"];}
 function eligible(control) {
  if(preview)return true;
  if(!connected.connected)return false;
@@ -362,7 +372,8 @@ function cachedSummary(id){
  const p=d.player;return `<div class="note">${preview?"Catalog snapshot · ":"Live reading · "}${esc(p?.name)}${developer?` · Save ${esc(p?.id)}`:""}${p?.level!=null?` · Level ${p.level}`:""}${developer&&p?.scene?` · ${esc(p.scene)}`:""}${d.editable===false?' · Monolith editing is unavailable in this area.':''}</div>`;
 }
 function navigation(){
- $("#nav").innerHTML=Object.entries(pages).map(([id,p])=>`<a class="nav-item" href="#${id}" ${page===id?'aria-current="page"':''}><span class="nav-symbol" aria-hidden="true">${p[1]}</span>${p[0]}</a>`).join("");
+ const ids=preferencesApi?preferencesApi.visiblePages(Object.keys(pages),displayPreferences,page):Object.keys(pages);
+ $("#nav").innerHTML=ids.map(id=>{const p=pages[id];return `<a class="nav-item" href="#${id}" ${page===id?'aria-current="page"':''}><span class="nav-symbol" aria-hidden="true">${displayPreferences.favorites.includes(id)?"★":p[1]}</span>${p[0]}</a>`;}).join("")+`<a class="nav-customize" href="#settings">Customize navigation</a>`;
 }
 function go(id){
  if(!(id in pages))id="overview";
@@ -411,13 +422,13 @@ function renderPage(){
    settingPanel("Crafting requirements",[controlById("craft_level")])+`<section class="panel"><h2>Restore normal crafting</h2>${actionCard(controlById("craft_reset"))}</section>`;
  }else if(page==="skills"){
   const ids=keys=>keys.map(key=>controlById("build_"+key));
-  content.innerHTML=cachedSummary("build_read")+`<section class="panel"><div class="section-head"><h2>Skill and point budgets</h2><button data-refresh="build_read" data-control-id="build_read">Refresh live</button></div><div class="summary-grid"><div class="summary"><strong>${cache.build_read?.passivePoints??"—"}</strong><span>Passive budget</span></div><div class="summary"><strong>${cache.build_read?.weaverPoints??"—"}</strong><span>Weaver budget</span></div></div><p class="note">Point multipliers are session settings. Individual node caps still apply. Existing allocations stay when you lower a budget. Available points stop at zero until the budget covers those allocations.</p></section>`+settingPanel("Experience and skill points",ids(["skillxp","skillpoints","passivepoints"]))+settingPanel("Weaver points",ids(["weaverpoints","weaverflat"]))+settingPanel("Tree connections",ids(["skillnodes","passivenodes","weavernodes"]))+settingPanel("Projectiles",ids(["projectiles","projectileflat"]));
+  content.innerHTML=cachedSummary("build_read")+`<section class="panel"><div class="section-head"><h2>Skill and point budgets</h2><button data-refresh="build_read" data-control-id="build_read">Refresh live</button></div><div class="summary-grid"><div class="summary"><strong>${cache.build_read?.passivePoints??"—"}</strong><span>Passive budget</span></div><div class="summary"><strong>${cache.build_read?.weaverPoints??"—"}</strong><span>Weaver budget</span></div></div><p class="note">Point multipliers are session settings. Individual node caps still apply. Existing allocations stay when you lower a budget. Available points stop at zero until the budget covers those allocations.</p></section>`+settingPanel("Experience and skill points",ids(["skillxp","skillpoints","passivepoints"]))+settingPanel("Weaver points",ids(["weaverpoints","weaverflat"]))+settingPanel("Tree connections",ids(["skillnodes","passivenodes","weavernodes"]))+settingPanel("Projectiles",ids(["projectiles","projectileflat"]))+`<section class="panel"><h2>Free respec</h2><p class="note">Refund points from the selected tree group. Levels and earned budgets stay. Each action creates a recovery backup and runs only after confirmation.</p><div class="control-grid">${["respec_skills","respec_passives","respec_weaver"].map(id=>actionCard(controlById(id))).join("")}</div></section>`;
  }else if(page==="equipment"){
   content.innerHTML=cachedSummary("build_read")+settingPanel("Equipment rules",["offhand","fullsets"].map(key=>controlById("build_"+key)));
  }else if(page==="summons"){
   const aliases=catalog.characterStats.aliases;
   const summonStats=aliases.map((row,index)=>({row,index})).filter(x=>/^minion|^maxcompanions/.test(x.row.name));
-  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Live summoned allies</h2><button data-refresh="summons_read" data-control-id="summons_read">Refresh allies</button></div><div id="summon-live">${summonTable()}</div></section>`+settingPanel("Summon lifetime",[controlById("build_summonduration")])+`<section class="panel"><h2>Minion and companion bonuses</h2><p class="muted">These controls use the existing character stat editor. Minion tags keep these bonuses separate from your own damage and health.</p><div class="control-grid">${summonStats.map(x=>`<button class="settings-card" data-summon-stat="${x.index}"><h3>${esc(ST.name(x.row,"aliases"))}</h3><p class="muted">Edit bonus →</p></button>`).join("")}</div></section>`;
+  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Live summoned allies</h2><button data-refresh="summons_read" data-control-id="summons_read">Refresh allies</button></div>${summonColumnPicker()}<div class="actions"><button id="summon-baseline">Save damage baseline</button><button id="summon-baseline-clear">Clear baseline</button></div><div id="summon-live">${summonTable()}</div></section>`+settingPanel("Summon lifetime",[controlById("build_summonduration")])+`<section class="panel"><h2>Minion and companion bonuses</h2><p class="muted">These controls use the existing character stat editor. Minion tags keep these bonuses separate from your own damage and health.</p><div class="control-grid">${summonStats.map(x=>`<button class="settings-card" data-summon-stat="${x.index}"><h3>${esc(ST.name(x.row,"aliases"))}</h3><p class="muted">Edit bonus →</p></button>`).join("")}</div></section>`;
  }else if(page==="stats")renderStats();
  else if(page==="campaign"){
   const mastery=window.EpochSession.current(cache.progress_read,connected,preview)?cache.progress_read?.mastery:null;
@@ -431,6 +442,7 @@ function renderPage(){
   content.innerHTML=`<section class="panel"><div class="section-head"><h2>Factions</h2><button data-refresh="factions_read" data-control-id="factions_read">Refresh live</button></div><div class="note">Merchant’s Guild and Weaver management actions are not implemented. This section reads information only.</div><div class="control-grid">${factions.map(f=>`<article class="control-card"><h3>${esc(f.name)}</h3><span class="badge">Information only</span><p class="muted">${f.member?"Member":"Not a member"} · Rank ${f.rank} · Favor ${f.favor} · Reputation ${f.reputation}</p>${f.weaverPoints?`<p>Weaver points: ${f.weaverPoints.earned} / ${f.weaverPoints.maxTotal} (${f.weaverPoints.maxRank} rank + ${f.weaverPoints.maxEchoes} echo)</p>`:""}<details><summary>Rank rewards</summary>${f.ranks.map(r=>`<p><b>${r.index+1} · ${esc(r.title)}</b><br>${esc(clean(r.description))}</p>`).join("")}</details></article>`).join("")||'<p class="empty">Live faction information has not been read yet.</p>'}</div>${developer?`<details><summary>Management features in development</summary>${catalog.researchOnly.map(r=>`<p><b>${esc(r.label)}</b><br>${esc(r.details||r.availability)}</p>`).join("")}</details>`:""}</section>`;
  }else renderSettings();
  if(page==="monolith"){content.insertAdjacentHTML("beforeend",navigatorPanel());renderEchoResults();}
+ if(page==="stash"||page==="inventory")content.insertAdjacentHTML("beforeend",stashSearchHelp());
  window.EpochLauncher?.mount(page);
  updateDisabled();
 }
@@ -466,13 +478,14 @@ function renderStats(){
 function renderStatResults(){
  const rows=statSource().map((row,index)=>({row,index})).filter(({row})=>{
   const match=(ST.name(row,statsTab)+" "+ST.category(row,statsTab)+" "+JSON.stringify(row)).toLowerCase().includes(statsQuery.toLowerCase());
-  return match&&(statsCategory==="All"||ST.category(row,statsTab)===statsCategory)&&(!statsFavoritesOnly||statFavorites.has(ST.favoriteId(row,statsTab)));
+  return match&&(statsCategory==="All"||ST.category(row,statsTab)===statsCategory)&&(!statsFavoritesOnly||statFavorites.has(ST.favoriteId(row,statsTab)))&&(showHiddenStats||!displayPreferences.hiddenStats.includes(ST.favoriteId(row,statsTab)));
  });
  const totalPages=Math.max(1,Math.ceil(rows.length/24));statsPage=Math.min(statsPage,totalPages-1);
  $("#stat-count").textContent=rows.length+(rows.length===1?" stat":" stats");
- $("#stat-results").innerHTML=`<div class="stat-list">${rows.slice(statsPage*24,statsPage*24+24).map(({row:r,index:i})=>{
+ $("#stat-results").innerHTML=`<div class="actions"><button id="stat-hidden-filter" aria-pressed="${showHiddenStats}">${showHiddenStats?"Hide hidden stats":"Show hidden stats"} (${displayPreferences.hiddenStats.length})</button></div><div class="stat-list">${rows.slice(statsPage*24,statsPage*24+24).map(({row:r,index:i})=>{
   const name=ST.name(r,statsTab),favorite=statFavorites.has(ST.favoriteId(r,statsTab));
-  return `<div class="stat-entry"><button class="stat-open" data-stat-index="${i}"><strong>${esc(name)}</strong><small>${ST.category(r,statsTab)}${r.derived?" · Calculated by the game":""}</small></button>${r.modifierKey?`<button class="secondary" data-stat-index="${i}" data-secondary="true" title="Edit the secondary modifier">Extra</button>`:""}<button class="stat-star ${favorite?"selected":""}" data-stat-favorite="${i}" aria-pressed="${favorite}" aria-label="${favorite?"Remove":"Add"} ${esc(name)} ${favorite?"from":"to"} favorites">${favorite?"★":"☆"}</button><span aria-hidden="true">›</span></div>`;
+  const hidden=displayPreferences.hiddenStats.includes(ST.favoriteId(r,statsTab));
+  return `<div class="stat-entry"><button class="stat-open" data-stat-index="${i}"><strong>${esc(name)}</strong><small>${ST.category(r,statsTab)}${r.derived?" · Calculated by the game":""}</small></button>${r.modifierKey?`<button class="secondary" data-stat-index="${i}" data-secondary="true" title="Edit the secondary modifier">Extra</button>`:""}<button class="stat-star ${favorite?"selected":""}" data-stat-favorite="${i}" aria-pressed="${favorite}" aria-label="${favorite?"Remove":"Add"} ${esc(name)} ${favorite?"from":"to"} favorites">${favorite?"★":"☆"}</button><button class="quiet" data-stat-hide="${i}" aria-label="${hidden?"Show":"Hide"} ${esc(name)}">${hidden?"Show":"Hide"}</button></div>`;
  }).join("")||`<div class="empty"><strong>${statsFavoritesOnly?"No matching favorites":"No matching stats"}</strong><p>${statsFavoritesOnly?"Use the star beside a stat to save it here.":"Try another name or choose All categories."}</p><button id="stat-clear-filters">Show all stats</button></div>`}</div><div class="pagination"><button data-stat-page="-1" ${statsPage===0?"disabled":""} aria-label="Previous stat page">←</button><span>${statsPage+1} / ${totalPages}</span><button data-stat-page="1" ${statsPage===totalPages-1?"disabled":""} aria-label="Next stat page">→</button></div>`;
 }
 function toggleStatFavorite(index){
@@ -588,6 +601,7 @@ function renderSettings(){
  let profiles={};try{profiles=JSON.parse(localStorage.getItem(profileKey)||"{}");}catch{}
  const theme=document.documentElement.dataset.theme;
  content.innerHTML=`<section class="panel"><h2>Appearance · Theme</h2><p class="muted">Both themes use the same settings. Switching themes sends no game commands, and your choice is remembered.</p><div class="control-grid theme-grid">${[["chronoforge","Chronoforge","Jade time crystal · aged gold · ancient temple"],["void-atlas","Void Atlas","Violet time rift · horizontal navigation · Void observatory"]].map(([id,title,note])=>`<button data-theme-pick="${id}" class="settings-card ${theme===id?"selected":""}" aria-pressed="${theme===id}"><img src="/ui/assets/${id}-reference.png" alt="${title} design reference"><h3>${title}</h3><p class="muted">${note}</p></button>`).join("")}</div></section><section class="panel"><h2>Draft profiles</h2><div class="note">Profiles load settings into a draft. Quests, rewards, balances and save actions are not stored or automatically applied.</div><div class="form-grid"><label>Profile name<input id="profile-name" placeholder="Example: Balanced"></label><label>Saved draft<select id="profile-select">${Object.keys(profiles).map(name=>`<option>${esc(name)}</option>`).join("")}</select></label></div><div class="actions"><button id="profile-save">Save draft</button><button id="profile-load">Load draft</button><button id="profile-delete">Delete profile</button></div></section>${developer?`<section class="panel"><h2>Game connection</h2><div class="control-grid">${["session_read","status","player_read","characters","play_offline","load_character"].map(id=>actionCard(controlById(id))).join("")}</div></section>`:""}<section class="panel"><h2>Recovery backups</h2><p class="muted">Changes to your game save create a backup. Restore a selected backup to undo that change; the game closes normally first.</p>${history.length?`<div class="table-wrap"><table><thead><tr><th>Action</th><th>Time</th><th>Result</th></tr></thead><tbody>${history.map(x=>`<tr><td>${esc(controlById(x.control)?.label)}</td><td>${new Date(x.time*1000).toLocaleTimeString("en-GB")}</td><td>${x.ok?"Complete":"Error / backup available"}</td></tr>`).join("")}</tbody></table></div>`:'<p class="empty">No save actions have been performed in this session.</p>'}${actionCard(controlById("undo"))}</section>`;
+ content.insertAdjacentHTML("beforeend",navigationPicker());
 }
 async function refreshSection(id,{refreshConnectionFirst=true}={}){
  if(busy)return;
@@ -641,10 +655,28 @@ function summonTable(){
  if(!window.EpochSession.current(data,connected))return '<p class="note">Waiting for live summoned allies…</p>';
  if(data.readError)return '<p class="note">Live summon data is unavailable. Previous values are not shown as current.</p>';
  if(!data.summons?.length)return '<p class="note">No active summoned allies found.</p>';
+ if(summonBaselineOwner&&summonBaselineOwner!==automaticOwner()){summonBaseline={};summonBaselineOwner="";}
  const fmt=n=>Number.isFinite(Number(n))?Number(n).toLocaleString("en-US",{maximumFractionDigits:1}):"—";
- const res=["Physical","Fire","Cold","Lightning","Void","Necrotic","Poison"];
- return `<div class="table-scroll"><table class="summon-table"><thead><tr><th>Ally</th><th>Health</th><th>Armour</th><th>Damage increase</th>${res.map(n=>`<th>${n}</th>`).join("")}</tr></thead><tbody>${data.summons.map(s=>`<tr><td>${esc(clean(s.name).replace(/\(Clone\)/g,"").trim())}</td><td>${fmt(s.health)} / ${fmt(s.maxHealth)}</td><td>${fmt(s.armour)}</td><td>${fmt(s.damageIncreased)}%</td>${res.map(n=>`<td>${fmt(s.resistances?.[n])}%</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="muted">Live health, armour and uncapped resistances. Damage increase is a global stat bonus, not skill DPS. Updates once per second while this page is visible.</p>`;
+ const columns=summonColumns.filter(n=>!displayPreferences.summonColumns.includes(n));
+ const cell=(s,n)=>n==="Measured DPS"?fmt(s.measuredDps):n==="Last damage"?fmt(s.lastDamage):n==="DPS change"?(summonBaseline[s.instance]==null?"—":`${s.measuredDps>=summonBaseline[s.instance]?"+":""}${fmt(s.measuredDps-summonBaseline[s.instance])}`):n==="Health"?`${fmt(s.health)} / ${fmt(s.maxHealth)}`:n==="Armour"?fmt(s.armour):n==="Damage increase"?fmt(s.damageIncreased)+"%":fmt(s.resistances?.[n])+"%";
+ return `${data.damageSampleClipped?'<p class="note">Damage event capacity was reached. These numbers are a lower bound until a fresh five-second window is collected.</p>':""}<div class="table-scroll"><table class="summon-table"><thead><tr><th>Ally</th>${columns.map(n=>`<th>${n}</th>`).join("")}</tr></thead><tbody>${data.summons.map(s=>`<tr><td>${esc(clean(s.name).replace(/\(Clone\)/g,"").trim())}</td>${columns.map(n=>`<td>${cell(s,n)}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="muted">Measured DPS uses damage actually applied in a rolling five-second window (${fmt(data.damageWindowSeconds)} seconds collected), including mitigation and critical hits. Attack a target to measure damage; changing gear alone cannot reveal exact combat DPS. Compare on the same target and encounter. Damage increase remains a separate bonus. Updates once per second while visible.</p>`;
 }
+let summonBaseline={};
+let summonBaselineOwner="";
+const summonColumns=["Measured DPS","Last damage","DPS change","Health","Armour","Damage increase","Physical","Fire","Cold","Lightning","Void","Necrotic","Poison"];
+function summonColumnPicker(){return `<details class="display-options"><summary>Visible columns</summary><div class="column-options">${summonColumns.map(n=>`<label><input type="checkbox" data-summon-column="${esc(n)}" ${displayPreferences.summonColumns.includes(n)?"":"checked"}>${n}</label>`).join("")}</div></details>`;}
+function navigationPicker(){return `<section class="panel"><h2>Navigation and favorites</h2><p class="muted">Choose visible sections and pin favorites to the top. These choices stay on this device.</p><div class="navigation-options">${Object.entries(pages).map(([id,p])=>`<div><strong>${p[0]}</strong><label><input type="checkbox" data-nav-visible="${id}" ${displayPreferences.hidden.includes(id)?"":"checked"} ${["overview","settings"].includes(id)?"disabled":""}>Visible</label><label><input type="checkbox" data-nav-favorite="${id}" ${displayPreferences.favorites.includes(id)?"checked":""}>Favorite</label></div>`).join("")}</div><button id="display-preferences-reset">Restore all sections and stats</button></section>`;}
+const stashQueries=[
+ ["LP2+","Uniques with at least 2 Legendary Potential"],
+ ["WW18+","Weaver uniques with at least 18 Weaver’s Will"],
+ ["FP30+","Equipment with at least 30 Forging Potential"],
+ ["exalted&2T6+","Exalted equipment with at least two tier 6 or higher affixes"],
+ ["2T7","Items with at least two tier 7 affixes"],
+ ["LP1+&boots","Boots with at least 1 Legendary Potential"],
+ ["CoF&unique","Circle of Fortune tagged uniques"],
+ ["2hsword&exalted","Exalted two-handed swords"]
+];
+function stashSearchHelp(){return `<section class="panel"><h2>In-game stash search</h2><p class="muted">Copy a query and paste it into the game’s stash search box. These are search expressions, not gameplay commands.</p><div class="search-recipes">${stashQueries.map(([query,note],i)=>`<article><code>${esc(query)}</code><span>${esc(note)}</span><button type="button" data-copy-stash-query="${i}">Copy</button></article>`).join("")}</div><p class="muted"><code>&amp;</code> combines requirements; <code>|</code> accepts either condition. Tooltip text searches use the game’s current language.</p><a href="https://support.lastepoch.com/hc/en-us/articles/46361652732955-Stash-Searching" target="_blank" rel="noopener">Official stash search reference</a></section>`;}
 async function pollConveniences(){
  if(!catalog||preview||document.hidden||busy||liveReading||autoRunning||autoPending.size||activeStat)return;
  const id=page==="summons"?"summons_read":page==="world"?"qol_read":null;
@@ -700,7 +732,7 @@ async function formAction(form,override){
  }
  else if(c.lifetime==="game_save"){
   if(["corruption","stability"].includes(c.id)&&monoDrafts[draftKey]===submittedDraft)delete monoDrafts[draftKey];
-  const readId={campaign:"progress_read",monolith:"monolith_read",cof:"cof_read"}[c.group];delete cache[readId];if(readId)await refreshSection(readId);
+  const readId={campaign:"progress_read",monolith:"monolith_read",cof:"cof_read",skills:"build_read"}[c.group];delete cache[readId];if(readId)await refreshSection(readId);
  }
 }
 function settingChanged(id,value,delay=0){
@@ -738,6 +770,11 @@ content.addEventListener("submit",e=>{if(e.target.matches(".control-form")){e.pr
 content.addEventListener("click",async e=>{
  const b=e.target.closest("button");if(!b||b.disabled)return;
  if(b.dataset.go)go(b.dataset.go);
+ else if(b.id==="summon-baseline"){
+  const data=cache.summons_read;if(!window.EpochSession.current(data,connected)||!data.summons?.length){notify("Refresh live summons before saving a damage baseline.",true);return;}
+  summonBaselineOwner=automaticOwner();summonBaseline=Object.fromEntries(data.summons.map(s=>[s.instance,s.measuredDps]));$("#summon-live").innerHTML=summonTable();notify("Damage baseline saved for these active allies. Compare against the same target.");
+ }
+ else if(b.id==="summon-baseline-clear"){summonBaseline={};summonBaselineOwner="";$("#summon-live").innerHTML=summonTable();}
  else if(b.dataset.refresh)await refreshSection(b.dataset.refresh);
  else if(b.dataset.themePick)setTheme(b.dataset.themePick);
  else if(b.dataset.autoRetry){const id=b.dataset.autoRetry;queueAutomatic(id,values[id],0);}
@@ -746,6 +783,10 @@ content.addEventListener("click",async e=>{
  else if(b.dataset.statTab){statsTab=b.dataset.statTab;statsPage=0;renderStats();updateDisabled();}
  else if(b.dataset.statCategory){statsCategory=b.dataset.statCategory;statsPage=0;renderStats();updateDisabled();}
  else if(b.dataset.statFavorite!==undefined)toggleStatFavorite(Number(b.dataset.statFavorite));
+ else if(b.dataset.statHide!==undefined){const id=ST.favoriteId(statSource()[Number(b.dataset.statHide)],statsTab);saveDisplayPreference("hiddenStats",id,!displayPreferences.hiddenStats.includes(id));renderStatResults();}
+ else if(b.id==="stat-hidden-filter"){showHiddenStats=!showHiddenStats;statsPage=0;renderStatResults();}
+ else if(b.id==="display-preferences-reset"){displayPreferences=preferencesApi?.defaults()||displayPreferences;try{preferencesApi?.save(localStorage,displayPreferences);}catch{}renderSettings();navigation();notify("All sections and stats are visible again.");}
+ else if(b.dataset.copyStashQuery!==undefined){const query=stashQueries[Number(b.dataset.copyStashQuery)]?.[0];if(query)try{await navigator.clipboard.writeText(query);notify("Copied. Paste into the game’s stash search box.");}catch{notify("Clipboard unavailable. Select the query text and copy it manually.",true);}}
  else if(b.id==="stat-favorites-filter"){statsFavoritesOnly=!statsFavoritesOnly;statsPage=0;renderStats();updateDisabled();}
  else if(b.id==="stat-clear-filters"){statsFavoritesOnly=false;statsCategory="All";statsQuery="";statsPage=0;renderStats();updateDisabled();}
  else if(b.dataset.statIndex!==undefined)openStat(Number(b.dataset.statIndex),b.dataset.secondary==="true");
@@ -809,6 +850,9 @@ content.addEventListener("input",e=>{
  }
 });
 content.addEventListener("change",e=>{
+ if(e.target.dataset.navVisible){saveDisplayPreference("hidden",e.target.dataset.navVisible,!e.target.checked);navigation();return;}
+ if(e.target.dataset.navFavorite){saveDisplayPreference("favorites",e.target.dataset.navFavorite,e.target.checked);navigation();return;}
+ if(e.target.dataset.summonColumn){saveDisplayPreference("summonColumns",e.target.dataset.summonColumn,!e.target.checked);$("#summon-live").innerHTML=summonTable();return;}
  const t=e.target;rememberMonolithInput(t);
  if(t.name==="value"&&t.closest('form')?.dataset.id==="craft_materials")materialTarget=t.value;
  if(t.closest('form')?.dataset.id==="craft_custom")workshopDraft[t.name]=["affixes","modifiers"].includes(t.name)?Array.from(t.selectedOptions,x=>x.value):t.value;

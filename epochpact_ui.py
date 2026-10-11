@@ -68,7 +68,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
 
     @app.get("/ui/<path:path>")
     def assets(path):
-        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js"):
+        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js"):
             return send_from_directory(ROOT / "ui", path)
         if path.startswith("assets/"):
             return send_from_directory(ROOT / "ui/assets", path.removeprefix("assets/"))
@@ -256,6 +256,7 @@ def main():
                         "EpochPact", 0x10)
                     return False
             dialogs._window.events.closing += closing
+            dialogs._window.events.loaded += lambda: logging.getLogger(__name__).info('Desktop window loaded using Edge WebView2.')
             webview.start(gui='edgechromium', private_mode=False, storage_path=str(user_root() / 'webview'))
         finally:
             server.shutdown()

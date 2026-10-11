@@ -10,12 +10,13 @@ layout, build/test/live workflow, the current state and the traps) and
 `research/HANDOFF.md` (the full handoff report).
 
 Building the owner's UI? Start with [the complete UI catalog](docs/ui-catalog.md)
-and its machine-readable [ui/catalog.json](ui/catalog.json): all 118 implemented
+and its machine-readable [ui/catalog.json](ui/catalog.json): all 121 implemented
 controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest changes: [0.1.2-dev.6 release notes](docs/releases/0.1.2-dev.6.md),
+Latest changes: [0.1.2-dev.9 release notes](docs/patch-notes-0.1.2-dev.9.md),
+[inventory, interaction, respec and summon-DPS validation](docs/player-feedback-validation-2026-10-12.md),
 [remaining-three validation](docs/remaining-three-validation-2026-10-11.md), and
 [player-feedback validation](docs/player-feedback-validation-2026-10-11.md).
 These separate measured gameplay, installer checks, and outstanding coverage limits.
@@ -32,8 +33,9 @@ scoped evidence for these changed paths.
 
 ## Player installation
 
-Download [the current Windows development package](https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.6)
-and open `EpochPact.exe`; no Python installation is
+Download [the current Windows development package](https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.9),
+extract the complete ZIP and open `EpochPact/EpochPact.exe`. Keep
+`EpochPact.exe.config` and `_internal` beside it; no Python installation is
 needed. Choose `Last Epoch.exe` with **Browse** (the picker starts in Steam's folder,
 and other installations are supported). With the game closed, press **Install mod**,
 then **Launch offline**. The selected location is remembered and can be changed in
@@ -107,7 +109,16 @@ To package the player UI after building the native player artifact, install
 `requirements-build.txt` into an isolated Python environment and run
 `python -m tools.build_player`. The output is `dist/EpochPact.exe` with a quick
 start, dependency notices and SHA256 build record. Python is bundled; the package
-excludes research builds and historical character snapshots.
+excludes research builds and historical character snapshots. For the standard
+folder ZIP used by 0.1.2-dev.9, build with `--layout onedir`, then use:
+
+```
+python -m tools.package_player_folder --bundle dist/EpochPact --output dist/share
+```
+
+The packager verifies the complete input inventory, keeps matching DLLs in its
+manual CopyToGame option, and records file/ZIP hashes. It refuses to overwrite
+an existing archive.
 
 ```
 native\build.bat player     # player core, loader and tests
