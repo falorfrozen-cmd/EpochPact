@@ -8,6 +8,20 @@ from unittest.mock import patch
 from tools import progression_backend as backend
 
 
+class MasteryTests(unittest.TestCase):
+    def test_opens_native_screen_for_verified_id_only(self):
+        with patch.object(backend, "request", return_value={"ok": True, "opened": True}) as send:
+            self.assertTrue(backend.open_mastery("42")["opened"])
+            send.assert_called_once_with("masteryopen 42")
+
+    def test_rejects_missing_or_injected_identity_without_ipc(self):
+        with patch.object(backend, "request") as send:
+            for value in (None, 42, "", "-1", "42;questscomplete 42", "42\nstatus"):
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    backend.open_mastery(value)
+            send.assert_not_called()
+
+
 class RecoveryTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -61,6 +75,15 @@ class RecoveryTests(unittest.TestCase):
         self.restore()
         self.assertEqual(backend._json(self.saves/'1CHARACTERSLOT_BETA_1')['savedItems'],self.character['savedItems'])
         self.assertEqual((self.saves/'1CHARACTERSLOT_BETA_0').read_text(),'new play state')
+
+    def test_material_stock_snapshot_restores_exact_shards_runes_and_glyphs_only(self):
+        self.manifest['operation']='maximize-crafting-materials';self.write('manifest.json',self.manifest)
+        stash={'id':self.manifest['stashId'],'savedShards':[{'shardType':9,'quantity':3}],
+               'materialsList':[{'data':[6,1,2,3,4,102,0],'quantity':7},{'data':[6,1,2,3,4,103,0],'quantity':11}]}
+        self.write('live-stash.json',stash);self.restore()
+        self.assertEqual(backend._json(self.saves/self.manifest['stashId']),stash)
+        self.assertEqual((self.saves/'1CHARACTERSLOT_BETA_0').read_text(),'new play state')
+        self.assertEqual((self.saves/'STASH_CYCLE_8_0').read_text(),'new play state')
 
     def test_preserves_other_character_stash_and_tabs(self):
         self.restore()

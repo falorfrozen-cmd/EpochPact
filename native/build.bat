@@ -46,7 +46,7 @@ if "%~1"=="loader" goto :done
 echo [2/3] core (EpochPact.Core.dll)
 rem EPOCHPACT_RESEARCH: the metadata dump, capture hooks and research commands (not for players).
 ml64 /nologo /c /Fo"%OUT%\stat_thunk.obj" "%HERE%core\stat_thunk.asm" || exit /b 1
-set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread lifecycle xp loot density items smart_loot crafting map_view collection player stat_editor progression monolith factions cof cof_tuning commands research"
+set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread lifecycle xp loot density items smart_loot crafting workshop map_view collection player stat_editor progression monolith factions cof cof_tuning build_controls convenience commands research"
 set "CORE_CPP="
 set "CORE_OBJ="
 for %%f in (%CORE_SRC%) do call set "CORE_CPP=%%CORE_CPP%% "%CORE%\%%f.cpp""
@@ -77,6 +77,7 @@ cl %CFLAGS% /EHa /Fo"%OUT%\tests\\" /Fe"%OUT%\game_read_test.exe" "%HERE%tests\g
 
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\stat_key_test.exe" "%HERE%tests\stat_key_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\density_test.exe" "%HERE%tests\density_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\build_rules_test.exe" "%HERE%tests\build_rules_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\monolith_test.exe" "%HERE%tests\monolith_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\cof_test.exe" "%HERE%tests\cof_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\loot_crafting_test.exe" "%HERE%tests\loot_crafting_test.cpp" || exit /b 1

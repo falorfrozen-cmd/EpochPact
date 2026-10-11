@@ -691,6 +691,12 @@ std::string Waypoints(const std::string& target, const std::string& expectedId) 
             destination = target.substr(0, colon); gateFilter = static_cast<int>(gate);
         }
         void* data = nullptr; Player(&data); // environment AND loaded character must be offline
+        void* actor=Invoke(m_actor,nullptr);
+        if(!target.empty()){
+            auto healthOffset=game::FieldOffset("LE.dll","","Actor","health"),currentOffset=game::FieldOffset("LE.dll","","BaseHealth","currentHealth");
+            if(!healthOffset||!currentOffset||!At<void*>(actor,healthOffset)||At<float>(At<void*>(actor,healthOffset),currentOffset)<=0)
+                return std::string("travel: refused: respawn before travelling to another area");
+        }
         if (!expectedId.empty() && String(Invoke(managed::Method(data, "get_Id", 0), data)) != expectedId)
             return std::string("travel: refused: loaded offline save id changed; refresh live data");
         const size_t unlocked = game::FieldOffset("LE.dll", "LE.Data", "CharacterData", "<UnlockedWaypointScenes>k__BackingField");
@@ -737,7 +743,12 @@ std::string Waypoints(const std::string& target, const std::string& expectedId) 
 }
 std::string Exits(const std::string& target) {
     return Run([target] {
-        Player();
+        Player();void* loadedActor=Invoke(m_actor,nullptr);
+        if(!target.empty()){
+            auto health=game::FieldOffset("LE.dll","","Actor","health"),current=game::FieldOffset("LE.dll","","BaseHealth","currentHealth");
+            if(!health||!current||!At<void*>(loadedActor,health)||At<float>(At<void*>(loadedActor,health),current)<=0)
+                return std::string("exit: refused: respawn before travelling to another area");
+        }
         const size_t scene = game::FieldOffset("LE.dll", "", "TransitionOrGateInteraction", "sceneName");
         const size_t handler = game::FieldOffset("LE.dll", "", "BaseInteraction", "conditionHandler");
         const auto* cls = game::FindClass("LE.dll", "", "LoadSceneInteraction");

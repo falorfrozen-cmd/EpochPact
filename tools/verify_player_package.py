@@ -73,7 +73,7 @@ def main():
     assert any(name.lower().startswith('python') and name.lower().endswith('.dll') for name in entries)
     native_files = {name for name in entries if name.startswith('native/')}
     assert native_files == {'native/build/version.dll', 'native/build/player/EpochPact.Core.dll',
-                            'native/build/player/build-info.json'}, native_files
+                            'native/build/player/build-info.json', 'native/build/melon/EpochPact.MelonBridge.dll'}, native_files
     assert not any(name.startswith(('research/', 'live/', 'docs/')) for name in entries)
     catalog = json.loads(extract('ui/catalog.json'))
     assert catalog['liveState'] == {} and catalog['currentValues'] == {}

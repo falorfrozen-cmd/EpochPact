@@ -12,7 +12,13 @@
     "session": "Connection / character",
     "recovery": "Backups / recovery",
     "atlas": "Unique Atlas",
-    "stash": "Stash Assistant"
+    "stash": "Stash Assistant",
+    "skills": "Skills & Trees",
+    "equipment": "Equipment",
+    "summons": "Summons",
+    "display": "Display & Camera",
+    "world": "World & Exploration",
+    "inventory": "Inventory shortcuts"
   },
   "controls": {
     "loot_read": [
@@ -51,12 +57,30 @@
       "Crafting preview / status",
       "Read native forge eligibility, item FP and affixes, shard craft cost ranges and glyph chances. Exact RNG outcomes are unknown."
     ],
-    "craft_runes": ["Preserve crafting runes", "Return only the rune actually consumed by a normal forge attempt. You still need a rune to start; other item rules remain."],
-    "craft_glyphs": ["Preserve crafting glyphs", "Return only the glyph actually consumed by a normal forge attempt. Does not add materials or override item eligibility."],
-    "craft_level": ["Ignore affix crafting level requirement", "Ignore the selected affix upgrade's level check in the local forge. Character level, equipment requirements and other forge rules remain unchanged."],
-    "craft_forge": ["Forge selected item once", "Select the item, shard or rune and optional glyph in the game's forge first. This button performs one eligible craft and creates a backup. It never repeats automatically."],
-    "map_reveal": ["Reveal zone map", "Show the full minimap and overlay. Switch off to restore normal fog of war. Exploration saves, monsters and quests remain unchanged."],
-    "map_read": ["Map display status", "Read whether the zone map is available, revealed and using active hooks."],
+    "craft_runes": [
+      "Preserve crafting runes",
+      "Return only the rune actually consumed by a normal forge attempt. You still need a rune to start; other item rules remain."
+    ],
+    "craft_glyphs": [
+      "Preserve crafting glyphs",
+      "Return only the glyph actually consumed by a normal forge attempt. Does not add materials or override item eligibility."
+    ],
+    "craft_level": [
+      "Ignore affix crafting level requirement",
+      "Ignore the selected affix upgrade's level check in the local forge. Character level, equipment requirements and other forge rules remain unchanged."
+    ],
+    "craft_forge": [
+      "Forge selected item once",
+      "Select the item, shard or rune and optional glyph in the game's forge first. This button performs one eligible craft and creates a backup. It never repeats automatically."
+    ],
+    "map_reveal": [
+      "Reveal zone map",
+      "Show the full minimap and overlay. Switch off to restore normal fog of war. Exploration saves, monsters and quests remain unchanged."
+    ],
+    "map_read": [
+      "Map display status",
+      "Read whether the zone map is available, revealed and using active hooks."
+    ],
     "craft_fp": [
       "Forging Potential cost factor",
       "0 is free, 1 is normal. Fractional loss rounds upward. Native crafting eligibility remains in effect."
@@ -147,7 +171,11 @@
     ],
     "campaign_complete": [
       "Complete main + side campaign · level 55 minimum",
-      "Completes unfinished eligible campaign quests with their normal rewards and raises the character to at least level 55. Unlocks End of Time, MonolithHub and M_Rest waypoints. Completed quests do not grant rewards again."
+      "Completes unfinished eligible campaign quests with their normal rewards and raises the character to at least level 55. Unlocks End of Time, MonolithHub and M_Rest waypoints. Completed quests do not grant rewards again. If you have no mastery, use Choose Mastery afterward."
+    ],
+    "mastery_choose": [
+      "Choose Mastery",
+      "Open the game's mastery selection screen, then choose and confirm in the game. Available after The Power of Mastery is completed. An existing mastery is never replaced by this action."
     ],
     "waypoints_unlock": [
       "Unlock all waypoints",
@@ -308,6 +336,162 @@
     "echo_focus": [
       "Show in game",
       "Focus a visible Echo in the normal game map without starting it. Opens from Traveler's Rest; an explicit action travels there through the normal unlocked waypoint first. It does not start an Echo."
+    ],
+    "build_read": [
+      "Build settings",
+      "Read current skill, passive and Weaver budgets and build settings."
+    ],
+    "build_skillxp": [
+      "Skill XP multiplier",
+      "Multiply positive specialised skill XP gains. Character level XP is unchanged by this control."
+    ],
+    "build_passivepoints": [
+      "Passive points multiplier",
+      "Multiply points earned from levels; quest points stay unchanged. Fractional totals are rounded down, so 1.5× grants three points across two eligible levels."
+    ],
+    "build_skillpoints": [
+      "Skill points multiplier",
+      "Multiply the skill's total point budget, including gear skill levels. Level 20 plus one gear level at 2× provides 42 points."
+    ],
+    "build_weaverpoints": [
+      "Weaver points multiplier",
+      "Multiply earned Weaver points from rank and Woven Echo progress."
+    ],
+    "build_weaverflat": [
+      "Extra Weaver points",
+      "Add a fixed number of Weaver points after applying the multiplier."
+    ],
+    "build_skillnodes": [
+      "Ignore skill node connections",
+      "Allow allocation without the preceding skill nodes. Point budgets and individual node caps still apply."
+    ],
+    "build_passivenodes": [
+      "Ignore passive connections and mastery gates",
+      "Allocate passive nodes without their preceding connections or mastery thresholds. Actual mastery totals, point budgets and node caps are kept."
+    ],
+    "build_weavernodes": [
+      "Ignore Weaver node connections",
+      "Allow allocation without preceding Weaver nodes. Point budgets and node caps still apply."
+    ],
+    "build_offhand": [
+      "Unrestricted offhand equipment",
+      "Allow weapons in the offhand and remove linked two-handed equipment conflicts. Normal level and class requirements still apply."
+    ],
+    "build_fullsets": [
+      "Full set bonuses from one piece",
+      "Activate the missing bonuses of each equipped set. Removing its last piece removes the bonuses."
+    ],
+    "build_zoom": [
+      "Camera distance",
+      "Move the overhead camera farther away. This changes distance, not field of view; 1× restores the normal distance."
+    ],
+    "build_projectiles": [
+      "Projectile count multiplier",
+      "Multiply player-owned projectile volleys and moving projectile emissions that lack a native extra-projectile component. Each emission group is capped at 64. Beams, stationary areas, summons and enemy attacks are excluded."
+    ],
+    "build_projectileflat": [
+      "Extra projectiles",
+      "Add extra projectiles after the multiplier in each projectile emission group. Supports native volleys and retrofitted moving projectiles; does not duplicate beams or stationary areas."
+    ],
+    "build_summonduration": [
+      "Summon lifetime multiplier",
+      "Extend player-owned summon expiry timers and slow native health decay, including Wraith/Abomination paths. AI, attacks and combat damage remain normal. Permanent minions remain permanent."
+    ],
+    "build_blessingoptions": [
+      "Blessing choices",
+      "Choose Normal, 3, 4 or 5 options for newly generated Monolith boss rewards. This does not change existing rewards."
+    ],
+    "build_blessingrolls": [
+      "Maximum blessing rolls",
+      "Use the upper roll limit on newly generated boss blessing options. Existing blessings are kept."
+    ],
+    "craft_custom_catalog": [
+      "Load workshop templates",
+      "Read public Unique/Set templates, regular affixes and individual modifier lines. Does not create or modify items."
+    ],
+    "craft_custom": [
+      "Create custom gear",
+      "Replace the selected forge item with a recovery backup. Combine a template, regular T7 affixes and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling."
+    ],
+    "craft_materials_read": [
+      "Crafting material stock",
+      "Read your current affix shard, rune and glyph quantities."
+    ],
+    "craft_materials": [
+      "Maximize crafting materials",
+      "Raise every current crafting shard, rune and glyph to at least the chosen quantity. Higher quantities are kept. Creates a recovery backup. Saved materials remain available without EpochPact and are shared by characters using the same stash."
+    ],
+    "build_cameraangle": [
+      "Camera angle",
+      "Set the overhead camera pitch in degrees. Zero uses the game's normal angle. Your saved camera preferences are kept."
+    ],
+    "qol_read": [
+      "Convenience settings",
+      "Read the current world and display controls."
+    ],
+    "qol_chests": [
+      "Open nearby chests",
+      "Open eligible world chests within 3 game units, through the normal interaction. Locked and used chests are skipped."
+    ],
+    "qol_shrines": [
+      "Activate nearby shrines",
+      "Activate eligible shrines within 3 game units. Native conditions and the normal shrine buff are kept."
+    ],
+    "qol_portals": [
+      "Use the next nearby portal",
+      "Arm a single automatic portal interaction within 3 game units. Waits 10 seconds after loading and turns off after use to prevent travel loops."
+    ],
+    "qol_shadows": [
+      "Disable shadows",
+      "Disable rendered shadows for this session. Your saved graphics settings are kept."
+    ],
+    "qol_reflections": [
+      "Disable reflections",
+      "Disable real-time reflection probes and screen-space reflection effects. Existing graphics preferences are restored when disabled."
+    ],
+    "qol_bloom": [
+      "Disable bloom",
+      "Disable bloom in active scene post-processing profiles, without changing saved graphics preferences."
+    ],
+    "qol_motionblur": [
+      "Disable motion blur",
+      "Disable motion blur in scene post-processing profiles."
+    ],
+    "qol_occlusion": [
+      "Disable ambient occlusion",
+      "Disable ambient occlusion in scene post-processing profiles."
+    ],
+    "qol_fog": [
+      "Disable volumetric fog",
+      "Disable the game's Hx volumetric camera effect for this session. Normal gameplay visibility and saved settings are kept."
+    ],
+    "pickup_radius": [
+      "Auto pickup radius",
+      "Limit automatic collection to 1–60 game units. Zero collects all loaded drops, as in earlier versions. Item tooltips pause collection."
+    ],
+    "summons_read": [
+      "Live summoned allies",
+      "Read each active player-owned summon: health, armour, uncapped resistances and global damage increase. These are actual live values; damage increase is not skill DPS."
+    ],
+    "inventory_read": [
+      "Live inventory",
+      "Read the loaded character and inventory item count without changing items."
+    ],
+    "inventory_stash": [
+      "Open stash",
+      "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory."
+    ],
+    "inventory_vendor": [
+      "Open vendor",
+      "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory."
+    ],
+    "inventory_stashall": [
+      "Stash all inventory items",
+      "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory."
+    ],
+    "pickup_radius_read": [
+      "Pickup radius status",
+      "Read the current pickup radius."
     ]
   },
   "researchOnly": {

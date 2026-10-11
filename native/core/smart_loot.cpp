@@ -1,6 +1,10 @@
 #include "smart_loot.hpp"
+#include "workshop.hpp"
 #include "managed.hpp"
 #include "loot_crafting_rules.hpp"
+#ifdef EPOCHPACT_RESEARCH
+#include "items.hpp"
+#endif
 #include <charconv>
 #include <sstream>
 #include <set>
@@ -78,7 +82,7 @@ std::vector<std::pair<int,std::string>> AffixCatalog() {
     Root list(Invoke(Method(data.Get(), "get_AllAffixes", 0), data.Get()));
     std::vector<std::pair<int,std::string>> result;
     const auto id=Offset("AffixList.Affix","affixId");
-    for (void* a : Entries(list.Get())) if (a) result.emplace_back(Get<int>(a,id), Text(Invoke(Method(a,"getAffixDisplayName",0),a)));
+    for (void* a : Entries(list.Get())) if (a && !workshop::Owns(Get<int>(a,id))) result.emplace_back(Get<int>(a,id), Text(Invoke(Method(a,"getAffixDisplayName",0),a)));
     return result;
 }
 }
@@ -157,8 +161,47 @@ std::string Test(const std::string& id,const std::string& action) {
         if(!CanCollect()) throw std::runtime_error("isolated offline character required");
         void* actor=Invoke(getActor); void* character=Get<void*>(Get<void*>(actor,actorTracker),trackerData);
         if(Text(Invoke(Method(character,"get_Id",0),character))!=id ||
-           Text(Get<void*>(character,Offset("CharacterData","<CharacterName>k__BackingField","LE.Data")))!="EpCraftTest")
+           (Text(Get<void*>(character,Offset("CharacterData","<CharacterName>k__BackingField","LE.Data")))!="EpCraftTest"&&Text(Get<void*>(character,Offset("CharacterData","<CharacterName>k__BackingField","LE.Data")))!="EpFeedbackTest"))
             throw std::runtime_error("loot probe requires matching isolated EpCraftTest");
+        if(action=="tooltip-open" || action=="tooltip-read" || action=="tooltip-close") {
+            void* ui=game::StaticObject(game::FindStaticField("LE.dll","","UIBase","instance"));
+            void* system=Get<void*>(ui,Offset("UIBase","_tooltipSystem"));
+            if(!game::IsAlive(system)) throw std::runtime_error("native tooltip system unavailable");
+            if(action=="tooltip-close") {
+                bool locked=false;void* args[]{&locked};
+                Invoke(Method(system,"set_TooltipLockActive",1),system,args);
+                // Model the normal pointer-exit state, not only the visual hide.
+                void* empty=nullptr;
+                auto* cls=il2cpp::api().object_get_class(system);
+                il2cpp::api().field_set_value(system,il2cpp::api().class_get_field_from_name(cls,"_activeHoveredItemRect"),&empty);
+                il2cpp::api().field_set_value(system,il2cpp::api().class_get_field_from_name(cls,"_activeItemTooltipInfo"),&empty);
+                Invoke(Method(system,"CloseAllTooltips",0),system);
+            }
+            if(action=="tooltip-open") {
+                void* dlist=game::StaticObject(game::FindStaticField("LE.dll","","ItemTooltipOrganizer","pickableGroundLabelList"));
+                if(!dlist)throw std::runtime_error("ground label list unavailable");
+                const auto* listField=il2cpp::api().class_get_field_from_name(il2cpp::api().object_get_class(dlist),"_list");
+                if(!listField)throw std::runtime_error("ground label list metadata unavailable");
+                void* labels=Get<void*>(dlist,il2cpp::api().field_get_offset(listField));
+                void* selected=nullptr;
+                for(void* label:Entries(labels)) if(label && il2cpp::api().object_get_class(label)==game::FindClass("LE.dll","","GroundItemLabel") && game::IsAlive(label)){selected=label;break;}
+                if(!selected)throw std::runtime_error("drop a real equipment item first");
+                Root label(selected),item(Invoke(getItem,selected));
+                Root rect(Invoke(game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Component","get_transform",0),selected));
+                Root go(Invoke(game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Component","get_gameObject",0),selected));
+                struct Vec2{float x=0,y=0;} offset,size;struct Vec3{float x=0,y=0,z=0;};
+                auto position=Value<Vec3>(game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Transform","get_position",0),rect.Get());
+                int slot=2; // TooltipItemManager.SlotType.GROUND in the supported metadata.
+                void* args[]{rect.Get(),item.Get(),&slot,&offset,&position,go.Get(),&size};
+                if(!Value<bool>(Method(system,"OpenItemTooltip",7),system,args))throw std::runtime_error("native tooltip open rejected");
+                bool locked=true;void* lockArgs[]{&locked};Invoke(Method(system,"set_TooltipLockActive",1),system,lockArgs);
+            }
+            void* active=Invoke(Method(system,"get_ActiveItemTooltipItem",0),system);
+            void* legacy=game::StaticObject(game::FindStaticField("LE.dll","","TooltipItem","highlightedTooltipItem"));
+            return std::string("{\"ok\":true,\"activeItem\":")+Json(std::to_string(reinterpret_cast<uintptr_t>(active)))+
+                ",\"legacyHoverAlive\":"+Boolean(game::IsAlive(legacy))+",\"ready\":"+Boolean(Value<bool>(Method(system,"get_IsItemTooltipReady",0),system))+
+                ",\"locked\":"+Boolean(Value<bool>(Method(system,"get_TooltipLockActive",0),system))+",\"pickupStatus\":"+Json(items::AutoPickupStatus())+"}";
+        }
         const auto generator=Get<void*>(actor,Offset("Actor","generateItems"));
         if(action=="filterprobe") {
             bool compatible=false; int level=8; void* args[]{&compatible,&level};
@@ -174,9 +217,10 @@ std::string Test(const std::string& id,const std::string& action) {
             };
             return std::string("{\"ok\":true,\"show\":")+Boolean(query(0))+",\"hide\":"+Boolean(query(1))+"}";
         }
-        if(action=="drop" || action=="materials") {
+        if(action=="drop" || action=="drop-far" || action=="materials") {
             Root transform(Invoke(game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Component","get_transform",0),actor));
             struct Position {float x,y,z;} position=Value<Position>(game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Transform","get_position",0),transform.Get());
+            if(action=="drop-far")position.x+=20;
             int level=8; bool notify=false;
             if(action=="materials") {void* args[]{&level,&position,&notify}; for(int i=0;i<8;++i) Invoke(Resolve("GenerateItems","SpawnCraftingItem",3),generator,args);}
             else {

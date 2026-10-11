@@ -77,7 +77,19 @@ def main():
     shutil.copy2(loader, stage / 'native/build/version.dll')
     shutil.copy2(core, stage / 'native/build/player/EpochPact.Core.dll')
     shutil.copy2(core.parent / 'build-info.json', stage / 'native/build/player/build-info.json')
+    bridge = le.BUILD / 'melon/EpochPact.MelonBridge.dll'
+    from tools import melon_compat
+    if not melon_compat.owned_bridge(bridge):
+        raise ValueError('Build the MelonLoader bridge before packaging this version.')
+    (stage / 'native/build/melon').mkdir(parents=True, exist_ok=True)
+    shutil.copy2(bridge, stage / 'native/build/melon' / bridge.name)
     notices = ['EpochPact third-party notices\nPython runtime: https://docs.python.org/3/license.html\n']
+    notices.append('\nOptional MelonLoader integration: https://github.com/LavaGang/MelonLoader\n'
+                   'MelonLoader is a separate third-party loader; its SDK/runtime is not included.\n'
+                   'EpochPact.MelonBridge is built against the official MelonLoader 0.7.3 API.\n')
+    notices.append('Optional bridge also references the loader-provided AsmResolver libraries (MIT).\n'
+                   'https://github.com/Washi1337/AsmResolver/blob/master/LICENSE.md\n'
+                   'These SDK libraries are not redistributed with EpochPact.\n')
     python_license = Path(sys.base_prefix) / 'LICENSE.txt'
     notices.append(python_license.read_text(encoding='utf-8'))
     for name in ('Flask', 'Werkzeug', 'Jinja2', 'MarkupSafe', 'click', 'itsdangerous', 'blinker',
@@ -106,6 +118,8 @@ def main():
             'python': sys.version, 'gameVersion': catalog.get('gameVersion'),
             'containsResearchBuild': False, 'containsHistoricalSnapshots': False}
     if args.layout == 'onedir':
+        shutil.copy2(ROOT / 'docs/player-quickstart.txt', bundle / 'START-HERE.txt')
+        shutil.copy2(stage / 'THIRD-PARTY-NOTICES.txt', bundle / 'THIRD-PARTY-NOTICES.txt')
         info['files'] = [{'path': file.relative_to(bundle).as_posix(), 'bytes': file.stat().st_size,
                           'sha256': hashlib.sha256(file.read_bytes()).hexdigest()}
                          for file in sorted(bundle.rglob('*')) if file.is_file()]

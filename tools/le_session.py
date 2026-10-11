@@ -33,6 +33,10 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+try:
+    from . import melon_compat
+except ImportError:
+    import melon_compat
 
 try:
     from .app_paths import resource_root, runtime_root
@@ -265,9 +269,22 @@ def cmd_install(args: argparse.Namespace) -> int:
         print('refused: loader build or game executable missing')
         return 2
     target = GAME / "version.dll"
-    if target.exists() and not is_ours(target):
+    melon = target.exists() and not is_ours(target) and melon_compat.detected(GAME)
+    preserved_proxy_hash = hashlib.sha256(target.read_bytes()).hexdigest() if melon else None
+    if target.exists() and not is_ours(target) and not melon:
         print("refused: the game folder has a version.dll that is not EpochPact's (another mod loader?)")
         return 2
+    if melon:
+        loader = BUILD / 'melon' / melon_compat.BRIDGE_NAME
+        target = GAME / 'Mods' / melon_compat.BRIDGE_NAME
+        if not melon_compat.owned_bridge(loader):
+            print('refused: this download does not contain the optional MelonLoader bridge')
+            return 2
+        if ((target.parent.exists() and _linked(target.parent)) or
+            (target.exists() and (_linked(target) or not melon_compat.owned_bridge(target)))):
+            print('refused: linked Mods folder or unrecognized EpochPact bridge; left alone')
+            return 2
+        target.parent.mkdir(exist_ok=True)
     mod_dir = GAME / 'EpochPact'
     old_core = mod_dir / 'EpochPact.Core.dll'
     if ((mod_dir.exists() and _linked(mod_dir)) or
@@ -277,7 +294,8 @@ def cmd_install(args: argparse.Namespace) -> int:
         print('refused: linked mod path or unrecognized core file; left alone')
         return 2
     mod_dir.mkdir(exist_ok=True)
-    record = {'flavor': flavor, 'sha256': digest, 'source': str(core_src), 'time': time.time()}
+    record = {'flavor': flavor, 'sha256': digest, 'source': str(core_src), 'time': time.time(),
+              'loaderMode': 'melon' if melon else 'standalone'}
     # Prepare every file and its previous version before changing the installed
     # mod. Publish the loader last; a denied copy must not leave mixed versions.
     stage = mod_dir / ('.install-' + secrets.token_hex(16))
@@ -293,7 +311,7 @@ def cmd_install(args: argparse.Namespace) -> int:
         if hashlib.sha256((stage / 'new-0').read_bytes()).hexdigest() != digest:
             raise ValueError('Staged core DLL failed SHA-256 verification.')
         (stage / 'new-1').write_text(json.dumps(record) + '\n', encoding='utf-8')
-        step = 'copy version.dll'
+        step = 'copy ' + loader.name
         loader_digest = hashlib.sha256(loader.read_bytes()).hexdigest()
         _copy_install_file(loader, stage / 'new-2')
         if hashlib.sha256((stage / 'new-2').read_bytes()).hexdigest() != loader_digest:
@@ -312,12 +330,15 @@ def cmd_install(args: argparse.Namespace) -> int:
             for index, destination in old_files:
                 _copy_install_file(stage / f'old-{index}', recovery / destination.name)
             (recovery / 'README.txt').write_text(
-                'Close Last Epoch first. To restore this previous mod installation, copy version.dll\n'
-                'to the game root, and EpochPact.Core.dll / installed-build.json to its EpochPact folder.\n'
+                'Close Last Epoch first. To restore this previous mod installation, copy '+loader.name+'\n'
+                +('to the game Mods folder' if melon else 'to the game root')+', and EpochPact.Core.dll / installed-build.json to its EpochPact folder.\n'
                 'Only restore files present in this backup. Player saves are not included or changed.\n', encoding='utf-8')
         if refuse_if_running():
             return 2
-        if target.exists() and not is_ours(target):
+        if melon and hashlib.sha256((GAME / 'version.dll').read_bytes()).hexdigest() != preserved_proxy_hash:
+            print('refused: MelonLoader changed during installation; retry with the game closed')
+            return 2
+        if target.exists() and not (melon_compat.owned_bridge(target) if melon else is_ours(target)):
             print('refused: another loader appeared during installation; left alone')
             return 2
         for index, destination in enumerate(destinations):
@@ -364,6 +385,12 @@ def cmd_uninstall(_: argparse.Namespace) -> int:
     if refuse_if_running():
         return 2
     target = GAME / "version.dll"
+    if target.exists() and not is_ours(target) and melon_compat.detected(GAME):
+        target = GAME / 'Mods' / melon_compat.BRIDGE_NAME
+        if ((target.parent.exists() and _linked(target.parent)) or
+                (target.exists() and not melon_compat.owned_bridge(target))):
+            print('refused: linked Mods folder or unrecognized EpochPact bridge; left alone')
+            return 2
     core = GAME / "EpochPact" / "EpochPact.Core.dll"
     if ((core.parent.exists() and _linked(core.parent)) or
         (target.exists() and _linked(target)) or
@@ -371,7 +398,7 @@ def cmd_uninstall(_: argparse.Namespace) -> int:
         print('refused: linked mod path or unrecognized core file; left alone')
         return 2
     if target.exists():
-        if not is_ours(target):
+        if not (melon_compat.owned_bridge(target) if target.name == melon_compat.BRIDGE_NAME else is_ours(target)):
             print("refused: version.dll is not EpochPact's; left alone")
             return 2
         _make_install_writable(target)

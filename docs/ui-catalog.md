@@ -5,7 +5,7 @@ Ana veri dosyası: [ui/catalog.json](../ui/catalog.json). Bu rehber ve JSON,
 Native komutlar, Python API'leri, parametre sınırları, nötr başlangıç değerleri,
 kalıcılık, gerçek seçenek ID'leri ve kaynak dosyalar burada bir arada.
 
-Üretim: `2026-10-09T18:02:52+07:00`; oyun okumalarının zamanı: `2026-10-09T14:49:57+07:00` (Asia/Bangkok).
+Üretim: `2026-10-11T17:41:08+07:00`; oyun okumalarının zamanı: `2026-10-08T11:35:03+07:00` (Asia/Bangkok).
 `default` nötr/başlangıç değeridir; `liveState`/`currentValues` yalnız tarihli okumadır.
 JSON yüklemek hiçbir ayarı oyuna uygulamaz; kayıtlı mod profili oluşturmaz.
 
@@ -13,7 +13,7 @@ JSON yüklemek hiçbir ayarı oyuna uygulamaz; kayıtlı mod profili oluşturmaz
 
 | Katalog | Adet |
 |---|---:|
-| Panel kontrolü / işlem | 78 |
+| Panel kontrolü / işlem | 118 |
 | SP stat türü | 134 |
 | Hazır stat adı | 72 |
 | Doğrulanmış C satırı | 206 |
@@ -58,7 +58,7 @@ Kontrolün `requirements` alanını kullan; tüm kontrolleri yalnız InGame duru
 
 ### C satırlarının durumu
 
-Eşlemeler bu snapshot'taki canlı C ekranından okundu.
+206 eşleme son doğrulanmış C ekranı çıktısından alındı. Son okumada C sheet instance'ı mevcut değildi.
 `sheetSource.kind` ve `rowIdsValidForCurrentPlayer` kaynağı açıkça taşır.
 Önceki satırların cached yazıları canlı değer gibi verilmez.
 `setCommand`/`readCommand` full key ile `statraw` kullanır.
@@ -95,179 +95,193 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
-| `xp` — Öldürme / mote XP çarpanı | `xp {value}` | value: 1…100 | 1 | Oturum |
-| `gold` — Yerden toplanan altın çarpanı | `gold {value}` | value: 1…100 | 1 | Oturum |
-| `drops` — Genel eşya drop adedi çarpanı | `drops {value}` | value: 1…25 | 1 | Oturum |
+| `xp` — Ã–ldÃ¼rme / mote XP Ã§arpanÄ± | `xp {value}` | value: 1…100 | 1 | Oturum |
+| `gold` — Yerden toplanan altÄ±n Ã§arpanÄ± | `gold {value}` | value: 1…100 | 1 | Oturum |
+| `drops` — Genel eÅŸya drop adedi Ã§arpanÄ± | `drops {value}` | value: 1…25 | 1 | Oturum |
 | `density` — Monster density | `density {value}` | value: 1…5 | 1 | Oturum |
-| `rarity` — Temel rarity yükseltme çarpanı | `rarity {value}` | value: 1…10 | 1 | Oturum |
-| `speed` — Hareket hızı çarpanı | `speed {value}` | value: 1…5 | 1 | Yüklü aktör |
-| `cooldown` — Cooldown / charge hız çarpanı | `cooldown {value}` | value: 1…10 | 1 | Oturum |
-| `density_read` — Density ölçümü | `densityread` | — | — | Okuma |
-| `map_reveal` — Reveal zone map | `mapreveal {value}` | value: 0…1 | 0 | Oturum |
-| `map_read` — Map display status | `mapread` | — | — | Okuma |
+| `rarity` — Temel rarity yÃ¼kseltme Ã§arpanÄ± | `rarity {value}` | value: 1…10 | 1 | Oturum |
+| `speed` — Hareket hÄ±zÄ± Ã§arpanÄ± | `speed {value}` | value: 1…5 | 1 | Yüklü aktör |
+| `cooldown` — Cooldown / charge hÄ±z Ã§arpanÄ± | `cooldown {value}` | value: 1…10 | 1 | Oturum |
+| `density_read` — Density Ã¶lÃ§Ã¼mÃ¼ | `densityread` | — | — | Okuma |
 
-- **Öldürme / mote XP çarpanı:** GainExpFromEnemyOrMote kazancı; görev XP ödüllerini çarpmaz. Reset: `xp 1`.
-- **Yerden toplanan altın çarpanı:** Normal altın pickup kazancına uygulanır. Reset: `gold 1`.
-- **Genel eşya drop adedi çarpanı:** ItemDrop.itemMultiplier; CoF düşman hook'u ile ortak dispatcher. Reset: `drops 1`.
-- **Monster density:** Gelecekteki uygun normal paketlerin ortalama boyutu; mevcut paketler değişmez, boss/özel spawn hariç. Reset: `density 1`.
-- **Temel rarity yükseltme çarpanı:** Her normal rarity roll'unu (x−1)/x ihtimalle bir kademe yükseltir; Exalted/T7 kontrolü ayrı. Reset: `rarity 1`.
-- **Hareket hızı çarpanı:** Movespeed increased katkısı = x−1; movespeed alias/raw stat ile aynı full key'i paylaşır. Reset: `speed 1`.
-- **Cooldown / charge hız çarpanı:** Normal charge tick hızını ve cooldown sorgusunu ölçekler. Reset: `cooldown 1`.
-- **Density ölçümü:** Paket/generator/planlanan-gözlenen spawn ve dışlama sayaçları.
-- **Reveal zone map:** Display the whole minimap/overlay using a fog shader substitution. Does not change exploration saves or spawn enemies. Off restores the current native fog texture. API: `tools.loot_crafting_backend.reveal_map(value)`. Reset: `mapreveal 0`.
-- **Map display status:** Read map visibility and active hooks. API: `tools.loot_crafting_backend.map_read()`.
+- **Ã–ldÃ¼rme / mote XP Ã§arpanÄ±:** GainExpFromEnemyOrMote kazancÄ±; gÃ¶rev XP Ã¶dÃ¼llerini Ã§arpmaz. Reset: `xp 1`.
+- **Yerden toplanan altÄ±n Ã§arpanÄ±:** Normal altÄ±n pickup kazancÄ±na uygulanÄ±r. Reset: `gold 1`.
+- **Genel eÅŸya drop adedi Ã§arpanÄ±:** ItemDrop.itemMultiplier; CoF dÃ¼ÅŸman hook'u ile ortak dispatcher. Reset: `drops 1`.
+- **Monster density:** Gelecekteki uygun normal paketlerin ortalama boyutu; mevcut paketler deÄŸiÅŸmez, boss/Ã¶zel spawn hariÃ§. Reset: `density 1`.
+- **Temel rarity yÃ¼kseltme Ã§arpanÄ±:** Her normal rarity roll'unu (xâˆ’1)/x ihtimalle bir kademe yÃ¼kseltir; Exalted/T7 kontrolÃ¼ ayrÄ±. Reset: `rarity 1`.
+- **Hareket hÄ±zÄ± Ã§arpanÄ±:** Movespeed increased katkÄ±sÄ± = xâˆ’1; movespeed alias/raw stat ile aynÄ± full key'i paylaÅŸÄ±r. Reset: `speed 1`.
+- **Cooldown / charge hÄ±z Ã§arpanÄ±:** Normal charge tick hÄ±zÄ±nÄ± ve cooldown sorgusunu Ã¶lÃ§ekler. Reset: `cooldown 1`.
+- **Density Ã¶lÃ§Ã¼mÃ¼:** Paket/generator/planlanan-gÃ¶zlenen spawn ve dÄ±ÅŸlama sayaÃ§larÄ±.
 
 ## C ekranı / karakter statları
 
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
-| `sheet_catalog` — Tüm C satırlarını oku | `sheetstats` | — | — | Okuma |
-| `sheet_row` — C satırı düzenleyici | `sheetstat {row} {mode} {value}` | row: fresh sheetstats row ID; mode: added/increased/more; value: -3.4028234663852886e+38…3.4028234663852886e+38 | 0 | Yüklü aktör |
-| `raw_stat` — Full-key stat düzenleyici | `statraw {sp} {tags} {special} {extra} {mode} {value}` | sp: characterStats.properties.id; tags: -2147483648…2147483647; special: 0…255; extra: -2147483648…2147483647; mode: added/increased/more; value: -3.4028234663852886e+38…3.4028234663852886e+38 | 0 | Yüklü aktör |
-| `stat_alias` — Hazır stat adları | `stat {name} {value}` | value: -3.4028234663852886e+38…3.4028234663852886e+38 | 0 | Yüklü aktör |
-| `stat_reset` — Tüm mod stat katkılarını kaldır | `statreset` | — | — | Yüklü aktör |
-| `sheet_open` — C panelini aç / kapat | `sheetopen {value}` | value: 0…1 | — | Görünüm |
-| `resistance_labels` — Direnç yazılarını oku | `sheetread` | — | — | Okuma |
+| `sheet_catalog` — TÃ¼m C satÄ±rlarÄ±nÄ± oku | `sheetstats` | — | — | Okuma |
+| `sheet_row` — C satÄ±rÄ± dÃ¼zenleyici | `sheetstat {row} {mode} {value}` | row: fresh sheetstats row ID; mode: added/increased/more; value: -3.4028234663852886e+38…3.4028234663852886e+38 | 0 | Yüklü aktör |
+| `raw_stat` — Full-key stat dÃ¼zenleyici | `statraw {sp} {tags} {special} {extra} {mode} {value}` | sp: characterStats.properties.id; tags: -2147483648…2147483647; special: 0…255; extra: -2147483648…2147483647; mode: added/increased/more; value: -3.4028234663852886e+38…3.4028234663852886e+38 | 0 | Yüklü aktör |
+| `stat_alias` — HazÄ±r stat adlarÄ± | `stat {name} {value}` | value: -3.4028234663852886e+38…3.4028234663852886e+38 | 0 | Yüklü aktör |
+| `stat_reset` — TÃ¼m mod stat katkÄ±larÄ±nÄ± kaldÄ±r | `statreset` | — | — | Yüklü aktör |
+| `sheet_open` — C panelini aÃ§ / kapat | `sheetopen {value}` | value: 0…1 | — | Görünüm |
+| `resistance_labels` — DirenÃ§ yazÄ±larÄ±nÄ± oku | `sheetread` | — | — | Okuma |
 
-- **Tüm C satırlarını oku:** 206 doğrulanmış satır; güncel sheet instance gerektiğinde kullanılabilir.
-- **C satırı düzenleyici:** Mod katkısını değiştirir. Secondary modifier için sheetstat {row} modifier {mode} {value}. Row ID instance'a aittir. Reset: `sheetstat {row} reset`.
-- **Full-key stat düzenleyici:** 134 SP; kimlik SP/tags/special/extra. increased/more >= −1; nötr katkı tüm modlarda 0. Player/AbilityProperty tags indeks olabilir. Reset: `statraw {sp} {tags} {special} {extra} reset`.
-- **Hazır stat adları:** characterStats.aliases içindeki isim/mode/birimleri kullan. Okumak için stat {name}. Reset kaynağı: `characterStats.aliases[name].resetCommand`.
-- **Tüm mod stat katkılarını kaldır:** Yalnız EpochPact'in sahip olduğu kayıtları kaldırır; aynı key'i kullanan tüm UI kontrollerini yenile.
-- **C panelini aç / kapat:** Normal UIBase aç/kapat; salt veri yenilemesi değildir.
-- **Direnç yazılarını oku:** Yedi TMP_Text; sheet kapalı/yoksa kullanılamaz, inactive label eski olabilir.
+- **TÃ¼m C satÄ±rlarÄ±nÄ± oku:** 206 doÄŸrulanmÄ±ÅŸ satÄ±r; gÃ¼ncel sheet instance gerektiÄŸinde kullanÄ±labilir.
+- **C satÄ±rÄ± dÃ¼zenleyici:** Mod katkÄ±sÄ±nÄ± deÄŸiÅŸtirir. Secondary modifier iÃ§in sheetstat {row} modifier {mode} {value}. Row ID instance'a aittir. Reset: `sheetstat {row} reset`.
+- **Full-key stat dÃ¼zenleyici:** 134 SP; kimlik SP/tags/special/extra. increased/more >= âˆ’1; nÃ¶tr katkÄ± tÃ¼m modlarda 0. Player/AbilityProperty tags indeks olabilir. Reset: `statraw {sp} {tags} {special} {extra} reset`.
+- **HazÄ±r stat adlarÄ±:** characterStats.aliases iÃ§indeki isim/mode/birimleri kullan. Okumak iÃ§in stat {name}. Reset kaynağı: `characterStats.aliases[name].resetCommand`.
+- **TÃ¼m mod stat katkÄ±larÄ±nÄ± kaldÄ±r:** YalnÄ±z EpochPact'in sahip olduÄŸu kayÄ±tlarÄ± kaldÄ±rÄ±r; aynÄ± key'i kullanan tÃ¼m UI kontrollerini yenile.
+- **C panelini aÃ§ / kapat:** Normal UIBase aÃ§/kapat; salt veri yenilemesi deÄŸildir.
+- **DirenÃ§ yazÄ±larÄ±nÄ± oku:** Yedi TMP_Text; sheet kapalÄ±/yoksa kullanÄ±lamaz, inactive label eski olabilir.
 
 ## Loot ve toplama
 
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
+| `pickup_radius` — Auto pickup radius | `pickupradius {value}` | value: 0…60 | 0 | Oturum |
+| `pickup_radius_read` — Pickup radius status | `pickupradius` | — | — | Okuma |
 | `autopickup` — Otomatik pickup | `autopickup {value}` | value: 0…1 | 0 | Oturum |
-| `loot_read` — Akıllı toplama durumu / affix kataloğu | `lootread` | — | — | Okuma |
+| `loot_read` — AkÄ±llÄ± toplama durumu / affix kataloÄŸu | `lootread` | — | — | Okuma |
 | `loot_mode` — Toplama modu | `lootmode {mode}` | mode: all/filter/quality/materials | all | Oturum |
 | `loot_lp` — Unique minimum LP | `lootlp {value}` | value: 0…4 | 2 | Oturum |
-| `loot_t7` — T7 eşya toplama | `loott7 {value}` | value: 0…1 | 1 | Oturum |
+| `loot_t7` — T7 eÅŸya toplama | `loott7 {value}` | value: 0…1 | 1 | Oturum |
 | `loot_filter` — Quality modunda loot filtresine uy | `lootfilter {value}` | value: 0…1 | 1 | Oturum |
 | `loot_affixes` — Aranan T7 affix ID'leri | `lootaffixes {ids}` | ids: liveState.lootread.affixes.id | none | Oturum |
 | `loot_category` — Toplama kategorisi | `lootcategory {category} {value}` | category: materials/gold/potions/xp/favor/bones; value: 0…1 | 1 | Oturum |
-| `loot_reset` — Toplama seçimlerini sıfırla | `lootreset` | — | — | Oturum |
+| `loot_reset` — Toplama seÃ§imlerini sÄ±fÄ±rla | `lootreset` | — | — | Oturum |
 
-- **Otomatik pickup:** Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0.75 saniye. Reset: `autopickup 0`.
-- **Akıllı toplama durumu / affix kataloğu:** Seçimler ve sayaçlar; runtime affix ID/ad listesi. acceptedRequests envantere giriş garantisi değildir. API: `tools.loot_crafting_backend.loot_read()`.
-- **Toplama modu:** all: tüm eşyalar; filter: mevcut loot filtresi; quality: Unique LP veya seçilen T7; materials: shard/rune/glyph. autopickup ayrıca açılır. API: `tools.loot_crafting_backend.loot_mode(mode)`. Reset: `lootmode all`.
-- **Unique minimum LP:** Yalnız quality modu; LP eşiği ile T7 koşulu OR olarak birleştirilir. Weaver's Will ayrı bir LP koşulu değildir. API: `tools.loot_crafting_backend.minimum_lp(value)`. Reset: `lootlp 2`.
-- **T7 eşya toplama:** Quality moduna aittir; filter modu filtreye her zaman uyar. API: `tools.loot_crafting_backend.t7(value)`. Reset: `loott7 1`.
+- **Auto pickup radius:** Limit automatic collection to 1â€“60 game units. Zero collects all loaded drops, as in earlier versions. Item tooltips pause collection. Reset: `pickupradius 0`.
+- **Pickup radius status:** Read the current pickup radius.
+- **Otomatik pickup:** Normal pickup API'leri; eÅŸya, altÄ±n, potion, tome ve bone. Tarama aralÄ±ÄŸÄ± 0.75 saniye. Reset: `autopickup 0`.
+- **AkÄ±llÄ± toplama durumu / affix kataloÄŸu:** SeÃ§imler ve sayaÃ§lar; runtime affix ID/ad listesi. acceptedRequests envantere giriÅŸ garantisi deÄŸildir. API: `tools.loot_crafting_backend.loot_read()`.
+- **Toplama modu:** all: tÃ¼m eÅŸyalar; filter: mevcut loot filtresi; quality: Unique LP veya seÃ§ilen T7; materials: shard/rune/glyph. autopickup ayrÄ±ca aÃ§Ä±lÄ±r. API: `tools.loot_crafting_backend.loot_mode(mode)`. Reset: `lootmode all`.
+- **Unique minimum LP:** YalnÄ±z quality modu; LP eÅŸiÄŸi ile T7 koÅŸulu OR olarak birleÅŸtirilir. Weaver's Will ayrÄ± bir LP koÅŸulu deÄŸildir. API: `tools.loot_crafting_backend.minimum_lp(value)`. Reset: `lootlp 2`.
+- **T7 eÅŸya toplama:** Quality moduna aittir; filter modu filtreye her zaman uyar. API: `tools.loot_crafting_backend.t7(value)`. Reset: `loott7 1`.
 - **Quality modunda loot filtresine uy:** Quality moduna aittir; filter modu filtreye her zaman uyar. API: `tools.loot_crafting_backend.respect_filter(value)`. Reset: `lootfilter 1`.
-- **Aranan T7 affix ID'leri:** Virgülle ayrılmış en fazla 64 runtime affix ID; none herhangi bir T7 demektir. T7 açık olmalı. API: `tools.loot_crafting_backend.affixes_csv(ids)`. Reset: `lootaffixes none`.
-- **Toplama kategorisi:** Crafting materyali, altın, potion, XP/Favor tome ve bone ayrı seçilir; kategori ayarı auto pickup'ı açmaz. API: `tools.loot_crafting_backend.category(category, value)`. Reset: `lootcategory {category} 1`.
-- **Toplama seçimlerini sıfırla:** Seçimler all/default olur; autopickup açık/kapalı durumu ayrıca kontrol edilir. API: `tools.loot_crafting_backend.reset_loot()`.
+- **Aranan T7 affix ID'leri:** VirgÃ¼lle ayrÄ±lmÄ±ÅŸ en fazla 64 runtime affix ID; none herhangi bir T7 demektir. T7 aÃ§Ä±k olmalÄ±. API: `tools.loot_crafting_backend.affixes_csv(ids)`. Reset: `lootaffixes none`.
+- **Toplama kategorisi:** Crafting materyali, altÄ±n, potion, XP/Favor tome ve bone ayrÄ± seÃ§ilir; kategori ayarÄ± auto pickup'Ä± aÃ§maz. API: `tools.loot_crafting_backend.category(category, value)`. Reset: `lootcategory {category} 1`.
+- **Toplama seÃ§imlerini sÄ±fÄ±rla:** SeÃ§imler all/default olur; autopickup aÃ§Ä±k/kapalÄ± durumu ayrÄ±ca kontrol edilir. API: `tools.loot_crafting_backend.reset_loot()`.
 
 ## Crafting
 
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
-| `craft_read` — Crafting önizleme / durum | `craftread` | — | — | Okuma |
-| `craft_fp` — FP maliyet katsayısı | `craftfp {value}` | value: 0…1 | 1 | Oturum |
+| `craft_read` — Crafting Ã¶nizleme / durum | `craftread` | — | — | Okuma |
+| `craft_materials_read` — Crafting material stock | `craftmaterialsread` | — | — | Okuma |
+| `craft_materials` — Maximize crafting materials | `craftmaterials {save_id} {value}` | value: 1…1000000 | 10000 | Oyun kaydı |
+| `craft_fp` — FP maliyet katsayÄ±sÄ± | `craftfp {value}` | value: 0…1 | 1 | Oturum |
 | `craft_hope` — Glyph of Hope FP koruma ihtimali | `crafthope {value}` | value: 0…100/reset | — | Oturum |
 | `craft_despair` — Glyph of Despair seal ihtimali | `craftdespair {value}` | value: 0…100/reset | — | Oturum |
-| `craft_shards` — Craft sırasında affix shard koru | `craftshards {value}` | value: 0…1 | 0 | Oturum |
+| `craft_shards` — Craft sÄ±rasÄ±nda affix shard koru | `craftshards {value}` | value: 0…1 | 0 | Oturum |
 | `craft_runes` — Craft runes | `craftrunes {value}` | value: 0…1 | 0 | Oturum |
 | `craft_glyphs` — Craft glyphs | `craftglyphs {value}` | value: 0…1 | 0 | Oturum |
 | `craft_level` — Craft level | `craftlevel {value}` | value: 0…1 | 0 | Oturum |
 | `craft_forge` — Forge selected item | `craftforge {save_id}` | — | — | Oyun kaydı |
-| `craft_reset` — Crafting ayarlarını normale döndür | `craftreset` | — | — | Oturum |
+| `craft_custom_catalog` — Load workshop templates | `atlasread` | — | — | Okuma |
+| `craft_custom` — Create custom gear | `craftcustom {save_id} {template_id} {affixes} {perfect}` | template_id: -1…65535; affixes: single_token; perfect: 0…1; modifiers: optional_single_token | — | Oyun kaydı |
+| `craft_reset` — Crafting ayarlarÄ±nÄ± normale dÃ¶ndÃ¼r | `craftreset` | — | — | Oturum |
 
-- **Crafting önizleme / durum:** Normal forge eligibility, eşya/affix/FP, shard craft maliyet aralığı ve glyph ihtimalleri; kesin RNG sonucu vermez. Rune/Insight maliyet aralığı gösterilmez. API: `tools.loot_crafting_backend.craft_read()`.
-- **FP maliyet katsayısı:** 0 ücretsiz, 1 normal; örnek 0.5 yarı maliyet, yukarı yuvarlanır. FP üretmez, native eligibility korunur. API: `tools.loot_crafting_backend.fp_factor(value)`. Reset: `craftfp 1`.
-- **Glyph of Hope FP koruma ihtimali:** Yüzde 0–100 veya reset; native glyph/affix uygunluğu gerekir. Despair T1–T4; Greater Hope ayrı desteklenmez. API: `tools.loot_crafting_backend.glyph_chance("hope", value)`. Reset: `crafthope reset`.
-- **Glyph of Despair seal ihtimali:** Yüzde 0–100 veya reset; native glyph/affix uygunluğu gerekir. Despair T1–T4; Greater Hope ayrı desteklenmez. API: `tools.loot_crafting_backend.glyph_chance("despair", value)`. Reset: `craftdespair reset`.
-- **Craft sırasında affix shard koru:** Gerçekten tüketilen bir shardı normal AddShard API ile geri verir. API: `tools.loot_crafting_backend.preserve_shards(value)`. Reset: `craftshards 0`.
+- **Crafting Ã¶nizleme / durum:** Normal forge eligibility, eÅŸya/affix/FP, shard craft maliyet aralÄ±ÄŸÄ± ve glyph ihtimalleri; kesin RNG sonucu vermez. Rune/Insight maliyet aralÄ±ÄŸÄ± gÃ¶sterilmez. API: `tools.loot_crafting_backend.craft_read()`.
+- **Crafting material stock:** Read current native affix shard, rune and glyph quantities. Legacy/obsolete materials and affixes without a shard are excluded. API: `tools.loot_crafting_backend.materials_read()`.
+- **Maximize crafting materials:** Raise each current crafting shard, rune and glyph to at least the chosen quantity. Existing higher quantities are kept. Creates a recovery backup; the normal offline stash save retains these quantities without the mod. Shared stash characters share this stock. API: `tools.loot_crafting_backend.maximize_materials(save_id, value)`.
+- **FP maliyet katsayÄ±sÄ±:** 0 Ã¼cretsiz, 1 normal; Ã¶rnek 0.5 yarÄ± maliyet, yukarÄ± yuvarlanÄ±r. FP Ã¼retmez, native eligibility korunur. API: `tools.loot_crafting_backend.fp_factor(value)`. Reset: `craftfp 1`.
+- **Glyph of Hope FP koruma ihtimali:** YÃ¼zde 0â€“100 veya reset; native glyph/affix uygunluÄŸu gerekir. Despair T1â€“T4; Greater Hope ayrÄ± desteklenmez. API: `tools.loot_crafting_backend.glyph_chance("hope", value)`. Reset: `crafthope reset`.
+- **Glyph of Despair seal ihtimali:** YÃ¼zde 0â€“100 veya reset; native glyph/affix uygunluÄŸu gerekir. Despair T1â€“T4; Greater Hope ayrÄ± desteklenmez. API: `tools.loot_crafting_backend.glyph_chance("despair", value)`. Reset: `craftdespair reset`.
+- **Craft sÄ±rasÄ±nda affix shard koru:** GerÃ§ekten tÃ¼ketilen bir shardÄ± normal AddShard API ile geri verir. API: `tools.loot_crafting_backend.preserve_shards(value)`. Reset: `craftshards 0`.
 - **Craft runes:** Local normal forge only; other item and equipment rules remain. API: `tools.loot_crafting_backend.preserve_runes(value)`. Reset: `craftrunes 0`.
 - **Craft glyphs:** Local normal forge only; other item and equipment rules remain. API: `tools.loot_crafting_backend.preserve_glyphs(value)`. Reset: `craftglyphs 0`.
 - **Craft level:** Local normal forge only; other item and equipment rules remain. API: `tools.loot_crafting_backend.bypass_level(value)`. Reset: `craftlevel 0`.
 - **Forge selected item:** Perform exactly one normal craft on the current game forge selection. Requires an eligible item/material and matching offline character; snapshot before craft. API: `tools.loot_crafting_backend.forge(save_id)`.
-- **Crafting ayarlarını normale döndür:** FP=1, doğal glyph şansları, normal shard tüketimi; tüm crafting hook'ları kaldırılır. API: `tools.loot_crafting_backend.reset_craft()`.
+- **Load workshop templates:** Read the game's public Unique/Set templates and affix names. Does not create or modify items. API: `tools.build_backend.workshop_catalog()`.
+- **Create custom gear:** Replace the selected forge item with a recovery backup. Combine a template, regular T7 affixes and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling. API: `tools.build_backend.custom(save_id, template_id, affixes, perfect, modifiers='none')`.
+- **Crafting ayarlarÄ±nÄ± normale dÃ¶ndÃ¼r:** FP=1, doÄŸal glyph ÅŸanslarÄ±, normal shard tÃ¼ketimi; tÃ¼m crafting hook'larÄ± kaldÄ±rÄ±lÄ±r. API: `tools.loot_crafting_backend.reset_craft()`.
 
 ## Kampanya ve waypoint
 
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
-| `progress_read` — Görev / waypoint kataloğu | `progressread` | — | — | Okuma |
-| `campaign_complete` — Ana + yan kampanyayı tamamla, en az seviye 55 | `questscomplete {save_id}` | — | — | Oyun kaydı |
-| `waypoints_unlock` — Tüm gerçek waypointleri aç | `waypointsunlock {save_id}` | — | — | Oyun kaydı |
+| `progress_read` — GÃ¶rev / waypoint kataloÄŸu | `progressread` | — | — | Okuma |
+| `mastery_choose` — Choose Mastery | `masteryopen {save_id}` | — | — | Görünüm |
+| `campaign_complete` — Ana + yan kampanyayÄ± tamamla, en az seviye 55 | `questscomplete {save_id}` | — | — | Oyun kaydı |
+| `waypoints_unlock` — TÃ¼m gerÃ§ek waypointleri aÃ§ | `waypointsunlock {save_id}` | — | — | Oyun kaydı |
 
-- **Görev / waypoint kataloğu:** Yüklü id, seviye/XP/ödüller, eligibility ve gerçek waypoint sahneleri. API: `tools.progression_backend.read()`.
-- **Ana + yan kampanyayı tamamla, en az seviye 55:** Henüz bitmemiş eligible kampanya görevleri ve normal ödülleri; minimum 55; End of Time, MonolithHub, M_Rest waypointleri. Tekrar ödül vermez. API: `tools.progression_backend.apply("questscomplete", save_id)`.
-- **Tüm gerçek waypointleri aç:** Gerçek waypoint sahnelerini açar; Monolith timeline difficulty unlock ayrı işlemdir. API: `tools.progression_backend.apply("waypointsunlock", save_id)`.
+- **GÃ¶rev / waypoint kataloÄŸu:** YÃ¼klÃ¼ id, seviye/XP/Ã¶dÃ¼ller, eligibility ve gerÃ§ek waypoint sahneleri. API: `tools.progression_backend.read()`.
+- **Choose Mastery:** Open the game's first mastery selection screen after the mastery quest is completed. Choose and confirm in the game. Existing masteries, passive allocations and rewards are unchanged by opening the screen. API: `tools.progression_backend.open_mastery(save_id)`.
+- **Ana + yan kampanyayÄ± tamamla, en az seviye 55:** HenÃ¼z bitmemiÅŸ eligible kampanya gÃ¶revleri ve normal Ã¶dÃ¼lleri; minimum 55; End of Time, MonolithHub, M_Rest waypointleri. Tekrar Ã¶dÃ¼l vermez. API: `tools.progression_backend.apply("questscomplete", save_id)`.
+- **TÃ¼m gerÃ§ek waypointleri aÃ§:** GerÃ§ek waypoint sahnelerini aÃ§ar; Monolith timeline difficulty unlock ayrÄ± iÅŸlemdir. API: `tools.progression_backend.apply("waypointsunlock", save_id)`.
 
 ## Monolith / endgame
 
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
+| `build_blessingoptions` — Blessing choices | `buildset blessingoptions {value}` | value: 0/3/4/5 | 0 | Oturum |
+| `build_blessingrolls` — Maximum blessing rolls | `buildset blessingrolls {value}` | value: 0…1 | 0 | Oturum |
 | `echo_read` — Monolith Navigator | `echoread {save_id} {timeline} {difficulty}` | timeline: 1…254; difficulty: normal/empowered | — | Okuma |
 | `echo_focus` — Show Echo in game | `echofocus {save_id} {timeline} {difficulty} {index}` | timeline: 1…254; difficulty: normal/empowered; index: 0…2147483647 | — | Görünüm |
-| `monolith_read` — Monolith kataloğu / güncel run | `monolithread` | — | — | Okuma |
-| `monolith_unlock` — Normal + Empowered timeline'ları aç | `monolithunlock {save_id}` | — | — | Oyun kaydı |
-| `monolith_select` — Timeline / difficulty seç | `monolithselect {save_id} {timeline} {difficulty}` | timeline: 1…254; difficulty: normal/empowered | — | Oyun kaydı |
+| `monolith_read` — Monolith kataloÄŸu / gÃ¼ncel run | `monolithread` | — | — | Okuma |
+| `monolith_unlock` — Normal + Empowered timeline'larÄ± aÃ§ | `monolithunlock {save_id}` | — | — | Oyun kaydı |
+| `monolith_select` — Timeline / difficulty seÃ§ | `monolithselect {save_id} {timeline} {difficulty}` | timeline: 1…254; difficulty: normal/empowered | — | Oyun kaydı |
 | `corruption` — Corruption | `corruption {save_id} {timeline} {difficulty} {value}` | timeline: 1…254; difficulty: normal/empowered; value: 0…65535 (runtime sınırı) | — | Oyun kaydı |
 | `stability` — Stability | `stability {save_id} {timeline} {difficulty} {value}` | timeline: 1…254; difficulty: normal/empowered; value: 0…2147483647 (runtime sınırı) | — | Oyun kaydı |
-| `stability_multiplier` — Stability kazanım çarpanı | `stabilitymult {value}` | value: 1…100 | 1 | Oturum |
+| `stability_multiplier` — Stability kazanÄ±m Ã§arpanÄ± | `stabilitymult {value}` | value: 1…100 | 1 | Oturum |
 
+- **Blessing choices:** Choose Normal, 3, 4 or 5 options for newly generated Monolith boss rewards. This does not change existing rewards. Reset: `buildset blessingoptions 0`.
+- **Maximum blessing rolls:** Use the upper roll limit on newly generated boss blessing options. Existing blessings are kept. Reset: `buildset blessingrolls 0`.
 - **Monolith Navigator:** Search rewards on an existing Echo web. This does not generate new Echoes. API: `tools.monolith_backend.echoes(save_id, timeline, empowered)`.
 - **Show Echo in game:** Focus a visible Echo in the normal game map. Does not start or complete it. API: `tools.monolith_backend.focus_echo(save_id, timeline, empowered, index)`.
-- **Monolith kataloğu / güncel run:** 10 timeline / 20 difficulty; sınırlar, unlock/run, editable ve seçim. API: `tools.monolith_backend.read()`.
-- **Normal + Empowered timeline'ları aç:** Tüm normal/Empowered unlock; mevcutları atlar. API: `tools.monolith_backend.unlock(save_id)`.
-- **Timeline / difficulty seç:** Normal panel seçimi; echo başlatmaz/teleport etmez. Python empowered parametresi bool. API: `tools.monolith_backend.select(save_id, timeline, empowered)`.
-- **Corruption:** Seçili run/difficulty için mutlak değer; UI sınırlarını runtime asset'ten al. Python empowered bool. API: `tools.monolith_backend.corruption(save_id, timeline, empowered, value)`.
-- **Stability:** Seçili run/difficulty için mutlak değer; UI sınırlarını runtime asset'ten al. Python empowered bool. API: `tools.monolith_backend.stability(save_id, timeline, empowered, value)`.
-- **Stability kazanım çarpanı:** Pozitif doğal kazanç; kayıpları/elle mutlak değer ayarını çarpmaz. API: `tools.monolith_backend.multiplier(value)`. Reset: `stabilitymult 1`.
+- **Monolith kataloÄŸu / gÃ¼ncel run:** 10 timeline / 20 difficulty; sÄ±nÄ±rlar, unlock/run, editable ve seÃ§im. API: `tools.monolith_backend.read()`.
+- **Normal + Empowered timeline'larÄ± aÃ§:** TÃ¼m normal/Empowered unlock; mevcutlarÄ± atlar. API: `tools.monolith_backend.unlock(save_id)`.
+- **Timeline / difficulty seÃ§:** Normal panel seÃ§imi; echo baÅŸlatmaz/teleport etmez. Python empowered parametresi bool. API: `tools.monolith_backend.select(save_id, timeline, empowered)`.
+- **Corruption:** SeÃ§ili run/difficulty iÃ§in mutlak deÄŸer; UI sÄ±nÄ±rlarÄ±nÄ± runtime asset'ten al. Python empowered bool. API: `tools.monolith_backend.corruption(save_id, timeline, empowered, value)`.
+- **Stability:** SeÃ§ili run/difficulty iÃ§in mutlak deÄŸer; UI sÄ±nÄ±rlarÄ±nÄ± runtime asset'ten al. Python empowered bool. API: `tools.monolith_backend.stability(save_id, timeline, empowered, value)`.
+- **Stability kazanÄ±m Ã§arpanÄ±:** Pozitif doÄŸal kazanÃ§; kayÄ±plarÄ±/elle mutlak deÄŸer ayarÄ±nÄ± Ã§arpmaz. API: `tools.monolith_backend.multiplier(value)`. Reset: `stabilitymult 1`.
 
 ## Circle of Fortune
 
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
-| `cof_read` — CoF kataloğu / güncel durum | `cofread` | — | — | Okuma |
-| `cof_join` — CoF'ye katıl | `cofjoin {save_id}` | — | — | Oyun kaydı |
+| `cof_read` — CoF kataloÄŸu / gÃ¼ncel durum | `cofread` | — | — | Okuma |
+| `cof_join` — CoF'ye katÄ±l | `cofjoin {save_id}` | — | — | Oyun kaydı |
 | `cof_rank` — CoF rank | `cofrank {save_id} {value}` | value: 1…12 | — | Oyun kaydı |
 | `cof_favor` — Favor bakiyesi | `coffavor {save_id} {value}` | value: 0…999999 | — | Oyun kaydı |
 | `cof_reputation_grant` — Reputation EKLE | `cofreputation {save_id} {value}` | value: 0…1000000 | 0 | Oyun kaydı |
-| `cof_lenses_unlock` — Rank'ın izin verdiği lensleri aç | `coflenses {save_id}` | — | — | Oyun kaydı |
-| `cofpreview` — Prophecy değişikliğini önizle | `cofpreview {save_id} {slot} {reward} {lens}` | slot: 0…3; reward: 0…65535/none; lens: 0…11/none | — | Okuma |
-| `cofprophecy` — Prophecy ödül / lens seç | `cofprophecy {save_id} {slot} {reward} {lens}` | slot: 0…3; reward: 0…65535/none; lens: 0…11/none | — | Oyun kaydı |
-| `cof_charges` — Tamamlanmış prophecy şarjları | `cofcharges {save_id} {slot} {value}` | slot: 0…3; value: 0…99 | — | Oyun kaydı |
-| `cof_favor_multiplier` — Favor kazanım çarpanı | `coffavormult {value}` | value: 1…100 | 1 | Oturum |
-| `cof_reputation_multiplier` — Reputation kazanım çarpanı | `cofrepmult {value}` | value: 1…100 | 1 | Oturum |
-| `cof_charge_multiplier` — Prophecy şarj hızı | `cofchargemult {value}` | value: 1…100 | 1 | Oturum |
-| `cof_reward_multiplier` — Prophecy ödül adedi | `cofrewardmult {value}` | value: 1…25 | 1 | Oturum |
-| `cof_exalted_multiplier` — Exalted roll katsayısı | `cofexaltedmult {value}` | value: 1…100 | 1 | Oturum |
-| `cof_t7_multiplier` — T7 roll katsayısı | `coft7mult {value}` | value: 1…100 | 1 | Oturum |
-| `cof_lp_multiplier` — Unique LP roll katsayısı | `coflpmult {value}` | value: 1…100 | 1 | Oturum |
-| `cof_double_enemy` — Düşman çift eşya ihtimali (%) | `cofdouble enemy {value}` | value: 0…100/reset | normal rank | Oturum |
-| `cof_double_echo` — Normal Monolith çift eşya ihtimali (%) | `cofdouble echo {value}` | value: 0…100/reset | normal rank | Oturum |
-| `cof_lens_celerity` — Celerity lens gücü | `coflensmult celerity {value}` | value: 1…100 | 1 | Oturum |
-| `cof_lens_charity` — Charity lens gücü | `coflensmult charity {value}` | value: 1…100 | 1 | Oturum |
-| `cof_lens_duplication` — Duplication lens gücü | `coflensmult duplication {value}` | value: 1…100 | 1 | Oturum |
+| `cof_lenses_unlock` — Rank'Ä±n izin verdiÄŸi lensleri aÃ§ | `coflenses {save_id}` | — | — | Oyun kaydı |
+| `cofpreview` — Prophecy deÄŸiÅŸikliÄŸini Ã¶nizle | `cofpreview {save_id} {slot} {reward} {lens}` | slot: 0…3; reward: 0…65535/none; lens: 0…11/none | — | Okuma |
+| `cofprophecy` — Prophecy Ã¶dÃ¼l / lens seÃ§ | `cofprophecy {save_id} {slot} {reward} {lens}` | slot: 0…3; reward: 0…65535/none; lens: 0…11/none | — | Oyun kaydı |
+| `cof_charges` — TamamlanmÄ±ÅŸ prophecy ÅŸarjlarÄ± | `cofcharges {save_id} {slot} {value}` | slot: 0…3; value: 0…99 | — | Oyun kaydı |
+| `cof_favor_multiplier` — Favor kazanÄ±m Ã§arpanÄ± | `coffavormult {value}` | value: 1…100 | 1 | Oturum |
+| `cof_reputation_multiplier` — Reputation kazanÄ±m Ã§arpanÄ± | `cofrepmult {value}` | value: 1…100 | 1 | Oturum |
+| `cof_charge_multiplier` — Prophecy ÅŸarj hÄ±zÄ± | `cofchargemult {value}` | value: 1…100 | 1 | Oturum |
+| `cof_reward_multiplier` — Prophecy Ã¶dÃ¼l adedi | `cofrewardmult {value}` | value: 1…25 | 1 | Oturum |
+| `cof_exalted_multiplier` — Exalted roll katsayÄ±sÄ± | `cofexaltedmult {value}` | value: 1…100 | 1 | Oturum |
+| `cof_t7_multiplier` — T7 roll katsayÄ±sÄ± | `coft7mult {value}` | value: 1…100 | 1 | Oturum |
+| `cof_lp_multiplier` — Unique LP roll katsayÄ±sÄ± | `coflpmult {value}` | value: 1…100 | 1 | Oturum |
+| `cof_double_enemy` — DÃ¼ÅŸman Ã§ift eÅŸya ihtimali (%) | `cofdouble enemy {value}` | value: 0…100/reset | normal rank | Oturum |
+| `cof_double_echo` — Normal Monolith Ã§ift eÅŸya ihtimali (%) | `cofdouble echo {value}` | value: 0…100/reset | normal rank | Oturum |
+| `cof_lens_celerity` — Celerity lens gÃ¼cÃ¼ | `coflensmult celerity {value}` | value: 1…100 | 1 | Oturum |
+| `cof_lens_charity` — Charity lens gÃ¼cÃ¼ | `coflensmult charity {value}` | value: 1…100 | 1 | Oturum |
+| `cof_lens_duplication` — Duplication lens gÃ¼cÃ¼ | `coflensmult duplication {value}` | value: 1…100 | 1 | Oturum |
 
-- **CoF kataloğu / güncel durum:** Rank/Favor/Reputation/yuvalar/lensler/ödül uygunluğu ve tuning telemetrisi. API: `tools.cof_backend.read()`.
-- **CoF'ye katıl:** MG'den geçiş ayrı açık seçim: cofjoin {save_id} switch; mevcut üyelik bırakılır. API: `tools.cof_backend.join(save_id, switch_from_merchant=False)`.
-- **CoF rank:** Rank azaltma yuva/bonusları kapatabilir; rank içi Reputation sıfırlanır. API: `tools.cof_backend.rank(save_id, value)`.
-- **Favor bakiyesi:** Mutlak bakiye; prophecy/Rep kazancı üretmez. API: `tools.cof_backend.favor(save_id, value)`.
-- **Reputation EKLE:** Eklenecek miktar; mutlak bakiye ayarı değildir; gain çarpanını bypass eder. API: `tools.cof_backend.reputation(save_id, value)`.
-- **Rank'ın izin verdiği lensleri aç:** Henüz alınmamış uygun lensleri normal satın alma yoluyla açar. API: `tools.cof_backend.unlock_lenses(save_id)`.
-- **Prophecy değişikliğini önizle:** none seçimi kaldırır. Ödül değişince şarj sıfırlanır; lens değişikliğini önizle. Aynı ödül/lens iki yuvada olamaz. API: `tools.cof_backend.prophecy(save_id, slot, reward_id, lens_id, preview=True)`.
-- **Prophecy ödül / lens seç:** none seçimi kaldırır. Ödül değişince şarj sıfırlanır; lens değişikliğini önizle. Aynı ödül/lens iki yuvada olamaz. API: `tools.cof_backend.prophecy(save_id, slot, reward_id, lens_id, preview=False)`.
-- **Tamamlanmış prophecy şarjları:** 0–99 şarj; hemen eşya üretmez. Azaltma kesirli ilerlemeyi de sıfırlar. API: `tools.cof_backend.charges(save_id, slot, value)`.
-- **Favor kazanım çarpanı:** Normal pozitif Favor; doğal türetilen Reputation ve prophecy akışı devam eder. API: `tools.cof_backend.favor_multiplier(value)`. Reset: `coffavormult 1`.
-- **Reputation kazanım çarpanı:** Favor kazanım/harcamasından gelen Rep; elle ekleme hariç. Favor kazancında iki çarpan birleşir. API: `tools.cof_backend.reputation_multiplier(value)`. Reset: `cofrepmult 1`.
-- **Prophecy şarj hızı:** Favor/Rep bakiyesinden bağımsız; Tyranny harcama maliyetini artırmaz. API: `tools.cof_backend.charge_multiplier(value)`. Reset: `cofchargemult 1`.
-- **Prophecy ödül adedi:** Normal spawn başına temel adet üst sınırı 250; rank12/Duplication birleşir; ek şarj tüketmez. API: `tools.cof_backend.reward_multiplier(value)`. Reset: `cofrewardmult 1`.
-- **Exalted roll katsayısı:** Native coefficient × ayar (rank12: 1.5); Rare→Exalted gerçek şansına da uygulanır. Yüzde değildir. API: `tools.cof_backend.exalted_multiplier(value)`. Reset: `cofexaltedmult 1`.
-- **T7 roll katsayısı:** Native coefficient × ayar (rank12: 2); seviye/tier uygunluğu oyunda kalır. Yüzde değildir. API: `tools.cof_backend.t7_multiplier(value)`. Reset: `coft7mult 1`.
-- **Unique LP roll katsayısı:** Yalnız native CoF bonusuna uygun Unique. LP 0–4; Weaver's Will istisnası; garanti LP adedi değildir. API: `tools.cof_backend.lp_multiplier(value)`. Reset: `coflpmult 1`.
-- **Düşman çift eşya ihtimali (%):** Ayar doğrudan yüzde; 0 etkisiz çift şans, reset normal rank bonusu. Echo: eşya ödülü, Tomb/Gold/XP istisnaları normal. API: `tools.cof_backend.double_drop_chance("enemy", percent_or_None)`. Reset: `cofdouble enemy reset`.
-- **Normal Monolith çift eşya ihtimali (%):** Ayar doğrudan yüzde; 0 etkisiz çift şans, reset normal rank bonusu. Echo: eşya ödülü, Tomb/Gold/XP istisnaları normal. API: `tools.cof_backend.double_drop_chance("echo", percent_or_None)`. Reset: `cofdouble echo reset`.
-- **Celerity lens gücü:** +%50 ekstra şarj katkısını ölçekler: x3 → +%150 (toplam x2.5). API: `tools.cof_backend.lens_multiplier("celerity", value)`. Reset: `coflensmult celerity 1`.
-- **Charity lens gücü:** Diğer yuvaya +%10 ekstra şarj katkısı: x5 → +%50. API: `tools.cof_backend.lens_multiplier("charity", value)`. Reset: `coflensmult charity 1`.
-- **Duplication lens gücü:** %40 ek ödül şansını ölçekler; %100'e sınırlandırılır. API: `tools.cof_backend.lens_multiplier("duplication", value)`. Reset: `coflensmult duplication 1`.
+- **CoF kataloÄŸu / gÃ¼ncel durum:** Rank/Favor/Reputation/yuvalar/lensler/Ã¶dÃ¼l uygunluÄŸu ve tuning telemetrisi. API: `tools.cof_backend.read()`.
+- **CoF'ye katÄ±l:** MG'den geÃ§iÅŸ ayrÄ± aÃ§Ä±k seÃ§im: cofjoin {save_id} switch; mevcut Ã¼yelik bÄ±rakÄ±lÄ±r. API: `tools.cof_backend.join(save_id, switch_from_merchant=False)`.
+- **CoF rank:** Rank azaltma yuva/bonuslarÄ± kapatabilir; rank iÃ§i Reputation sÄ±fÄ±rlanÄ±r. API: `tools.cof_backend.rank(save_id, value)`.
+- **Favor bakiyesi:** Mutlak bakiye; prophecy/Rep kazancÄ± Ã¼retmez. API: `tools.cof_backend.favor(save_id, value)`.
+- **Reputation EKLE:** Eklenecek miktar; mutlak bakiye ayarÄ± deÄŸildir; gain Ã§arpanÄ±nÄ± bypass eder. API: `tools.cof_backend.reputation(save_id, value)`.
+- **Rank'Ä±n izin verdiÄŸi lensleri aÃ§:** HenÃ¼z alÄ±nmamÄ±ÅŸ uygun lensleri normal satÄ±n alma yoluyla aÃ§ar. API: `tools.cof_backend.unlock_lenses(save_id)`.
+- **Prophecy deÄŸiÅŸikliÄŸini Ã¶nizle:** none seÃ§imi kaldÄ±rÄ±r. Ã–dÃ¼l deÄŸiÅŸince ÅŸarj sÄ±fÄ±rlanÄ±r; lens deÄŸiÅŸikliÄŸini Ã¶nizle. AynÄ± Ã¶dÃ¼l/lens iki yuvada olamaz. API: `tools.cof_backend.prophecy(save_id, slot, reward_id, lens_id, preview=True)`.
+- **Prophecy Ã¶dÃ¼l / lens seÃ§:** none seÃ§imi kaldÄ±rÄ±r. Ã–dÃ¼l deÄŸiÅŸince ÅŸarj sÄ±fÄ±rlanÄ±r; lens deÄŸiÅŸikliÄŸini Ã¶nizle. AynÄ± Ã¶dÃ¼l/lens iki yuvada olamaz. API: `tools.cof_backend.prophecy(save_id, slot, reward_id, lens_id, preview=False)`.
+- **TamamlanmÄ±ÅŸ prophecy ÅŸarjlarÄ±:** 0â€“99 ÅŸarj; hemen eÅŸya Ã¼retmez. Azaltma kesirli ilerlemeyi de sÄ±fÄ±rlar. API: `tools.cof_backend.charges(save_id, slot, value)`.
+- **Favor kazanÄ±m Ã§arpanÄ±:** Normal pozitif Favor; doÄŸal tÃ¼retilen Reputation ve prophecy akÄ±ÅŸÄ± devam eder. API: `tools.cof_backend.favor_multiplier(value)`. Reset: `coffavormult 1`.
+- **Reputation kazanÄ±m Ã§arpanÄ±:** Favor kazanÄ±m/harcamasÄ±ndan gelen Rep; elle ekleme hariÃ§. Favor kazancÄ±nda iki Ã§arpan birleÅŸir. API: `tools.cof_backend.reputation_multiplier(value)`. Reset: `cofrepmult 1`.
+- **Prophecy ÅŸarj hÄ±zÄ±:** Favor/Rep bakiyesinden baÄŸÄ±msÄ±z; Tyranny harcama maliyetini artÄ±rmaz. API: `tools.cof_backend.charge_multiplier(value)`. Reset: `cofchargemult 1`.
+- **Prophecy Ã¶dÃ¼l adedi:** Normal spawn baÅŸÄ±na temel adet Ã¼st sÄ±nÄ±rÄ± 250; rank12/Duplication birleÅŸir; ek ÅŸarj tÃ¼ketmez. API: `tools.cof_backend.reward_multiplier(value)`. Reset: `cofrewardmult 1`.
+- **Exalted roll katsayÄ±sÄ±:** Native coefficient Ã— ayar (rank12: 1.5); Rareâ†’Exalted gerÃ§ek ÅŸansÄ±na da uygulanÄ±r. YÃ¼zde deÄŸildir. API: `tools.cof_backend.exalted_multiplier(value)`. Reset: `cofexaltedmult 1`.
+- **T7 roll katsayÄ±sÄ±:** Native coefficient Ã— ayar (rank12: 2); seviye/tier uygunluÄŸu oyunda kalÄ±r. YÃ¼zde deÄŸildir. API: `tools.cof_backend.t7_multiplier(value)`. Reset: `coft7mult 1`.
+- **Unique LP roll katsayÄ±sÄ±:** YalnÄ±z native CoF bonusuna uygun Unique. LP 0â€“4; Weaver's Will istisnasÄ±; garanti LP adedi deÄŸildir. API: `tools.cof_backend.lp_multiplier(value)`. Reset: `coflpmult 1`.
+- **DÃ¼ÅŸman Ã§ift eÅŸya ihtimali (%):** Ayar doÄŸrudan yÃ¼zde; 0 etkisiz Ã§ift ÅŸans, reset normal rank bonusu. Echo: eÅŸya Ã¶dÃ¼lÃ¼, Tomb/Gold/XP istisnalarÄ± normal. API: `tools.cof_backend.double_drop_chance("enemy", percent_or_None)`. Reset: `cofdouble enemy reset`.
+- **Normal Monolith Ã§ift eÅŸya ihtimali (%):** Ayar doÄŸrudan yÃ¼zde; 0 etkisiz Ã§ift ÅŸans, reset normal rank bonusu. Echo: eÅŸya Ã¶dÃ¼lÃ¼, Tomb/Gold/XP istisnalarÄ± normal. API: `tools.cof_backend.double_drop_chance("echo", percent_or_None)`. Reset: `cofdouble echo reset`.
+- **Celerity lens gÃ¼cÃ¼:** +%50 ekstra ÅŸarj katkÄ±sÄ±nÄ± Ã¶lÃ§ekler: x3 â†’ +%150 (toplam x2.5). API: `tools.cof_backend.lens_multiplier("celerity", value)`. Reset: `coflensmult celerity 1`.
+- **Charity lens gÃ¼cÃ¼:** DiÄŸer yuvaya +%10 ekstra ÅŸarj katkÄ±sÄ±: x5 â†’ +%50. API: `tools.cof_backend.lens_multiplier("charity", value)`. Reset: `coflensmult charity 1`.
+- **Duplication lens gÃ¼cÃ¼:** %40 ek Ã¶dÃ¼l ÅŸansÄ±nÄ± Ã¶lÃ§ekler; %100'e sÄ±nÄ±rlandÄ±rÄ±lÄ±r. API: `tools.cof_backend.lens_multiplier("duplication", value)`. Reset: `coflensmult duplication 1`.
 
 ## Faction / Weaver bilgileri
 
@@ -275,33 +289,33 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 |---|---|---|---|---|
 | `factions_read` — CoF / MG / Knights / Weaver bilgileri | `factionread` | — | — | Okuma |
 
-- **CoF / MG / Knights / Weaver bilgileri:** Dört faction'ın rank asset'leri/durumları; Weaver earned points ve 13+40=53 sınırı. MG/Weaver mutation API hazır değil. API: `tools.progression_backend.request("factionread")`.
+- **CoF / MG / Knights / Weaver bilgileri:** DÃ¶rt faction'Ä±n rank asset'leri/durumlarÄ±; Weaver earned points ve 13+40=53 sÄ±nÄ±rÄ±. MG/Weaver mutation API hazÄ±r deÄŸil. API: `tools.progression_backend.request("factionread")`.
 
 ## Bağlantı ve karakter
 
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
-| `session_read` — Bağlantı / geçiş durumu | `sessionread` | — | — | Okuma |
-| `status` — Tüm mod ayarları / sayaçlar | `status` | — | — | Okuma |
-| `player_read` — Yüklü karakter kimliği | `playerread` | — | — | Okuma |
-| `characters` — Çevrimdışı karakterler | `characters` | — | — | Okuma |
+| `session_read` — BaÄŸlantÄ± / geÃ§iÅŸ durumu | `sessionread` | — | — | Okuma |
+| `status` — TÃ¼m mod ayarlarÄ± / sayaÃ§lar | `status` | — | — | Okuma |
+| `player_read` — YÃ¼klÃ¼ karakter kimliÄŸi | `playerread` | — | — | Okuma |
+| `characters` — Ã‡evrimdÄ±ÅŸÄ± karakterler | `characters` | — | — | Okuma |
 | `play_offline` — Play Offline | `playoffline` | — | — | Görünüm |
-| `load_character` — Çevrimdışı karakter yükle | `loadname {name} {level}` | level: 1…100 | — | Görünüm |
+| `load_character` — Ã‡evrimdÄ±ÅŸÄ± karakter yÃ¼kle | `loadname {name} {level}` | level: 1…100 | — | Görünüm |
 
-- **Bağlantı / geçiş durumu:** InGame ve transitioning=false kontrolü.
-- **Tüm mod ayarları / sayaçlar:** Offline gate, etkin çarpanlar ve hata/hook durumları.
-- **Yüklü karakter kimliği:** İsim/seviye/IsOffline; save id için progressread kullan.
-- **Çevrimdışı karakterler:** Normal karakter seçim paneli okunur.
-- **Play Offline:** Normal Login paneli; geçiş bittikten sonra çalışır.
-- **Çevrimdışı karakter yükle:** Normal seçim tile double-click; boşluksuz tam isim, isteğe bağlı seviye. Sonra yüklü id'yi tekrar oku.
+- **BaÄŸlantÄ± / geÃ§iÅŸ durumu:** InGame ve transitioning=false kontrolÃ¼.
+- **TÃ¼m mod ayarlarÄ± / sayaÃ§lar:** Offline gate, etkin Ã§arpanlar ve hata/hook durumlarÄ±.
+- **YÃ¼klÃ¼ karakter kimliÄŸi:** Ä°sim/seviye/IsOffline; save id iÃ§in progressread kullan.
+- **Ã‡evrimdÄ±ÅŸÄ± karakterler:** Normal karakter seÃ§im paneli okunur.
+- **Play Offline:** Normal Login paneli; geÃ§iÅŸ bittikten sonra Ã§alÄ±ÅŸÄ±r.
+- **Ã‡evrimdÄ±ÅŸÄ± karakter yÃ¼kle:** Normal seÃ§im tile double-click; boÅŸluksuz tam isim, isteÄŸe baÄŸlÄ± seviye. Sonra yÃ¼klÃ¼ id'yi tekrar oku.
 
 ## Yedek / geri alma
 
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
-| `undo` — Son işlemin yedeğini geri yükle | Python API | — | — | Geri alma |
+| `undo` — Son iÅŸlemin yedeÄŸini geri yÃ¼kle | Python API | — | — | Geri alma |
 
-- **Son işlemin yedeğini geri yükle:** Snapshot ve yüklü karakteri doğrular, oyunu normal kapatır, geri yükler. UI kullanıcının seçtiği işleme bağlamalı. API: `tools.progression_backend.undo(Path(backup))`.
+- **Son iÅŸlemin yedeÄŸini geri yÃ¼kle:** Snapshot ve yÃ¼klÃ¼ karakteri doÄŸrular, oyunu normal kapatÄ±r, geri yÃ¼kler. UI kullanÄ±cÄ±nÄ±n seÃ§tiÄŸi iÅŸleme baÄŸlamalÄ±. API: `tools.progression_backend.undo(Path(backup))`.
 
 ## Unique Atlas
 
@@ -318,6 +332,108 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `stash_read` — Stash Assistant | `stashread` | — | — | Okuma |
 
 - **Stash Assistant:** Compare owned equipment and duplicate uniques. Protection is a local reminder; no items are changed. API: `tools.collection_backend.stash()`.
+
+## Skills & Trees
+
+| Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
+|---|---|---|---|---|
+| `build_read` — Build settings | `buildread` | — | — | Okuma |
+| `build_skillxp` — Skill XP multiplier | `buildset skillxp {value}` | value: 1…100 | 1 | Oturum |
+| `build_passivepoints` — Passive points multiplier | `buildset passivepoints {value}` | value: 1…10 | 1 | Oturum |
+| `build_skillpoints` — Skill points multiplier | `buildset skillpoints {value}` | value: 1…10 | 1 | Oturum |
+| `build_weaverpoints` — Weaver points multiplier | `buildset weaverpoints {value}` | value: 1…10 | 1 | Oturum |
+| `build_weaverflat` — Extra Weaver points | `buildset weaverflat {value}` | value: 0…500 | 0 | Oturum |
+| `build_skillnodes` — Ignore skill node connections | `buildset skillnodes {value}` | value: 0…1 | 0 | Oturum |
+| `build_passivenodes` — Ignore passive connections and mastery gates | `buildset passivenodes {value}` | value: 0…1 | 0 | Oturum |
+| `build_weavernodes` — Ignore Weaver node connections | `buildset weavernodes {value}` | value: 0…1 | 0 | Oturum |
+| `build_projectiles` — Projectile count multiplier | `buildset projectiles {value}` | value: 1…8 | 1 | Oturum |
+| `build_projectileflat` — Extra projectiles | `buildset projectileflat {value}` | value: 0…32 | 0 | Oturum |
+
+- **Build settings:** Read current skill, passive and Weaver budgets and build settings.
+- **Skill XP multiplier:** Multiply positive specialised skill XP gains. Character level XP is unchanged by this control. Reset: `buildset skillxp 1`.
+- **Passive points multiplier:** Multiply points earned from levels; quest points stay unchanged. Fractional totals are rounded down, so 1.5Ã— grants three points across two eligible levels. Reset: `buildset passivepoints 1`.
+- **Skill points multiplier:** Multiply the skill's total point budget, including gear skill levels. Level 20 plus one gear level at 2Ã— provides 42 points. Reset: `buildset skillpoints 1`.
+- **Weaver points multiplier:** Multiply earned Weaver points from rank and Woven Echo progress. Reset: `buildset weaverpoints 1`.
+- **Extra Weaver points:** Add a fixed number of Weaver points after applying the multiplier. Reset: `buildset weaverflat 0`.
+- **Ignore skill node connections:** Allow allocation without the preceding skill nodes. Point budgets and individual node caps still apply. Reset: `buildset skillnodes 0`.
+- **Ignore passive connections and mastery gates:** Allocate passive nodes without their preceding connections or mastery thresholds. Actual mastery totals, point budgets and node caps are kept. Reset: `buildset passivenodes 0`.
+- **Ignore Weaver node connections:** Allow allocation without preceding Weaver nodes. Point budgets and node caps still apply. Reset: `buildset weavernodes 0`.
+- **Projectile count multiplier:** Multiply player-owned projectile volleys and moving projectile emissions that lack a native extra-projectile component. Each emission group is capped at 64. Beams, stationary areas, summons and enemy attacks are excluded. Reset: `buildset projectiles 1`.
+- **Extra projectiles:** Add extra projectiles after the multiplier in each projectile emission group. Supports native volleys and retrofitted moving projectiles; does not duplicate beams or stationary areas. Reset: `buildset projectileflat 0`.
+
+## Equipment
+
+| Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
+|---|---|---|---|---|
+| `build_offhand` — Unrestricted offhand equipment | `buildset offhand {value}` | value: 0…1 | 0 | Oturum |
+| `build_fullsets` — Full set bonuses from one piece | `buildset fullsets {value}` | value: 0…1 | 0 | Oturum |
+
+- **Unrestricted offhand equipment:** Allow weapons in the offhand and remove linked two-handed equipment conflicts. Normal level and class requirements still apply. Reset: `buildset offhand 0`.
+- **Full set bonuses from one piece:** Activate the missing bonuses of each equipped set. Removing its last piece removes the bonuses. Reset: `buildset fullsets 0`.
+
+## Summons
+
+| Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
+|---|---|---|---|---|
+| `build_summonduration` — Summon lifetime multiplier | `buildset summonduration {value}` | value: 1…10 | 1 | Oturum |
+| `summons_read` — Live summoned allies | `summonread` | — | — | Okuma |
+
+- **Summon lifetime multiplier:** Extend player-owned summon expiry timers and slow native health decay, including Wraith/Abomination paths. AI, attacks and combat damage remain normal. Permanent minions remain permanent. Reset: `buildset summonduration 1`.
+- **Live summoned allies:** Read each active player-owned summon: health, armour, uncapped resistances and global damage increase. These are actual live values; damage increase is not skill DPS.
+
+## Display & Camera
+
+| Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
+|---|---|---|---|---|
+| `build_zoom` — Camera distance | `buildset zoom {value}` | value: 1…2 | 1 | Oturum |
+| `build_cameraangle` — Camera angle | `buildset cameraangle {value}` | value: 0…85 | 0 | Oturum |
+| `qol_shadows` — Disable shadows | `qolset shadows {value}` | value: 0…1 | 0 | Oturum |
+| `qol_reflections` — Disable reflections | `qolset reflections {value}` | value: 0…1 | 0 | Oturum |
+| `qol_bloom` — Disable bloom | `qolset bloom {value}` | value: 0…1 | 0 | Oturum |
+| `qol_motionblur` — Disable motion blur | `qolset motionblur {value}` | value: 0…1 | 0 | Oturum |
+| `qol_occlusion` — Disable ambient occlusion | `qolset occlusion {value}` | value: 0…1 | 0 | Oturum |
+| `qol_fog` — Disable volumetric fog | `qolset fog {value}` | value: 0…1 | 0 | Oturum |
+
+- **Camera distance:** Move the overhead camera farther away. This changes distance, not field of view; 1Ã— restores the normal distance. Reset: `buildset zoom 1`.
+- **Camera angle:** Set the overhead camera pitch in degrees. Zero uses the game's normal angle. Your saved camera preferences are kept. Reset: `buildset cameraangle 0`.
+- **Disable shadows:** Disable rendered shadows for this session. Your saved graphics settings are kept. Reset: `qolset shadows 0`.
+- **Disable reflections:** Disable real-time reflection probes and screen-space reflection effects. Existing graphics preferences are restored when disabled. Reset: `qolset reflections 0`.
+- **Disable bloom:** Disable bloom in active scene post-processing profiles, without changing saved graphics preferences. Reset: `qolset bloom 0`.
+- **Disable motion blur:** Disable motion blur in scene post-processing profiles. Reset: `qolset motionblur 0`.
+- **Disable ambient occlusion:** Disable ambient occlusion in scene post-processing profiles. Reset: `qolset occlusion 0`.
+- **Disable volumetric fog:** Disable the game's Hx volumetric camera effect for this session. Normal gameplay visibility and saved settings are kept. Reset: `qolset fog 0`.
+
+## World & Exploration
+
+| Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
+|---|---|---|---|---|
+| `qol_read` — Convenience settings | `qolread` | — | — | Okuma |
+| `qol_chests` — Open nearby chests | `qolset chests {value}` | value: 0…1 | 0 | Oturum |
+| `qol_shrines` — Activate nearby shrines | `qolset shrines {value}` | value: 0…1 | 0 | Oturum |
+| `qol_portals` — Use the next nearby portal | `qolset portals {value}` | value: 0…1 | 0 | Oturum |
+| `map_reveal` — Reveal zone map | `mapreveal {value}` | value: 0…1 | 0 | Oturum |
+| `map_read` — Map display status | `mapread` | — | — | Okuma |
+
+- **Convenience settings:** Read the current world and display controls.
+- **Open nearby chests:** Open eligible world chests within 3 game units, through the normal interaction. Locked and used chests are skipped. Reset: `qolset chests 0`.
+- **Activate nearby shrines:** Activate eligible shrines within 3 game units. Native conditions and the normal shrine buff are kept. Reset: `qolset shrines 0`.
+- **Use the next nearby portal:** Arm a single automatic portal interaction within 3 game units. Waits 10 seconds after loading and turns off after use to prevent travel loops. Reset: `qolset portals 0`.
+- **Reveal zone map:** Display the whole minimap/overlay using a fog shader substitution. Does not change exploration saves or spawn enemies. Off restores the current native fog texture. API: `tools.loot_crafting_backend.reveal_map(value)`. Reset: `mapreveal 0`.
+- **Map display status:** Read map visibility and active hooks. API: `tools.loot_crafting_backend.map_read()`.
+
+## Inventory shortcuts
+
+| Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
+|---|---|---|---|---|
+| `inventory_read` — Live inventory | `inventoryread` | — | — | Okuma |
+| `inventory_stash` — Open stash | `inventoryaction {save_id} stash` | — | — | Görünüm |
+| `inventory_vendor` — Open vendor | `inventoryaction {save_id} vendor` | — | — | Görünüm |
+| `inventory_stashall` — Stash all inventory items | `inventoryaction {save_id} stashall` | — | — | Oyun kaydı |
+
+- **Live inventory:** Read the loaded character and inventory item count without changing items.
+- **Open stash:** Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.
+- **Open vendor:** Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.
+- **Stash all inventory items:** Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.
 
 ## Seçenek listeleri ve kalıcılık
 

@@ -4,6 +4,7 @@ build/
 *.ilk
 *.exp
 *.lib
+**/obj/
 __pycache__/
 /research-out/
 /research/game-data/

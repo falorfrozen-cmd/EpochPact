@@ -16,6 +16,18 @@ def craft_read() -> dict:
     return ipc.request("craftread")
 
 
+def materials_read() -> dict:
+    return ipc.request("craftmaterialsread")
+
+
+def maximize_materials(save_id: str, target: int) -> dict:
+    if not isinstance(save_id, str) or not re.fullmatch(r"[0-9]+", save_id):
+        raise ValueError("A loaded offline save ID is required.")
+    if isinstance(target, bool) or not isinstance(target, int) or not 1 <= target <= 1_000_000:
+        raise ValueError("Choose a whole material quantity from 1 to 1000000.")
+    return ipc.request(f"craftmaterials {save_id} {target}")
+
+
 def loot_mode(mode: str) -> dict:
     if mode not in ("all", "filter", "quality", "materials"):
         raise ValueError("Toplama modu all/filter/quality/materials olmalı.")

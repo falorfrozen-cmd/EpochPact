@@ -106,6 +106,7 @@ MethodRef m_gainDirect, m_levelXp;
 MethodRef m_currentScene;
 MethodRef m_refreshDisplay;
 MethodRef m_recordAnalytics;
+MethodRef m_chosenMastery, m_masteryOpen, m_masteryIsOpen;
 using DisplayFn = void (*)(void*, const Method*);
 DisplayFn originalDisplay = nullptr;
 thread_local void* batchedQuestList = nullptr;
@@ -254,6 +255,37 @@ std::vector<QuestInfo> Quests(const Player& player) {
     return result;
 }
 struct WaypointInfo { void* string = nullptr; std::string scene; bool unlocked = false, monolith = false, always = false, noWaypoint = false, active = false; };
+struct MasteryInfo {
+    int chosen = -1;
+    bool questCompleted = false, available = false, panelOpen = false;
+    std::string reason;
+};
+MasteryInfo Mastery(const Player& player, const std::vector<QuestInfo>& quests) {
+    MasteryInfo result;
+    if (!m_chosenMastery || !m_masteryOpen || !m_masteryIsOpen) {
+        result.reason = "Mastery selection is unavailable in this game build.";
+        return result;
+    }
+    result.chosen = Value<uint8_t>(m_chosenMastery, player.data);
+    const auto quest = std::find_if(quests.begin(), quests.end(), [](const QuestInfo& q) {
+        return q.eligible && q.main && q.name == "The Power of Mastery";
+    });
+    result.questCompleted = quest != quests.end() && quest->state == questStates.at("Completed");
+    void* ui = game::StaticObject(f_ui);
+    if (ui && game::IsAlive(ui)) result.panelOpen = Value<bool>(m_masteryIsOpen, ui);
+    if (result.chosen > 0 && result.chosen <= 3) result.reason = "A mastery is already selected. Use the game's respec NPC to change it.";
+    else if (result.chosen != 0) result.reason = "The character's mastery state is not recognized.";
+    else if (quest == quests.end()) result.reason = "The mastery quest was not found in this game build.";
+    else if (!result.questCompleted) result.reason = "Complete The Power of Mastery first, or use Complete campaign.";
+    else if (!ui || !game::IsAlive(ui)) result.reason = "Wait for the game interface to finish loading.";
+    else result.available = true;
+    return result;
+}
+std::string MasteryJson(const MasteryInfo& state) {
+    return "{\"chosen\":" + std::to_string(state.chosen) + ",\"needsSelection\":" + Boolean(state.chosen == 0) +
+        ",\"questCompleted\":" + Boolean(state.questCompleted) + ",\"available\":" + Boolean(state.available) +
+        ",\"panelOpen\":" + Boolean(state.panelOpen) + ",\"reason\":" + Json(state.reason) + "}";
+}
 std::vector<WaypointInfo> Waypoints(const Player& player) {
     void* ui = game::StaticObject(f_ui);
     if (!ui || !game::IsAlive(ui)) throw std::runtime_error("world map unavailable");
@@ -461,6 +493,9 @@ bool Init() {
         m_currentScene = game::FindMethod("LE.dll", "", "SceneList", "GetCurrentSceneDetails", 0);
         m_refreshDisplay = game::FindMethod("LE.dll", "", "StatefulQuestList", "refreshDisplay", 0);
         m_recordAnalytics = game::FindMethod("LE.dll", "LE.Telemetry", "ClientSessionAnalytics", "RecordEvent", 4);
+        m_chosenMastery = game::FindMethod("LE.dll", "LE.Data", "CharacterData", "get_ChosenMastery", 0);
+        m_masteryOpen = game::FindMethod("LE.dll", "", "UIBase", "openMasteryPanel", 2);
+        m_masteryIsOpen = game::FindMethod("LE.dll", "", "UIBase", "IsMasteryPanelOpen", 0);
         c_waypoint = game::FindClass("LE.dll", "", "UIWaypointStandard");
         f_ui = game::FindStaticField("LE.dll", "", "UIBase", "instance");
         questTypes = Enum("QuestType"); questStates = Enum("QuestState"); chapters = Enum("ZoneChapterManager.Chapter");
@@ -486,7 +521,8 @@ std::string Read() {
             << ",\"scene\":" << Json(scene ? Text(Get<void*>(scene, Offset("SceneDetails", "Name"))) : "")
             << ",\"level\":" << Get<int>(player.data, Offset("CharacterData", "<Level>k__BackingField", "LE.Data"))
             << ",\"xp\":" << Get<int64_t>(player.data, Offset("CharacterData", "<CurrentExp>k__BackingField", "LE.Data"))
-            << "},\"rewards\":" << RewardJson(Rewards(player)) << ",\"passivePoints\":" << Value<int>(m_passives, player.quests)
+            << "},\"mastery\":" << MasteryJson(Mastery(player, quests))
+            << ",\"rewards\":" << RewardJson(Rewards(player)) << ",\"passivePoints\":" << Value<int>(m_passives, player.quests)
             << ",\"idolUnlock\":" << static_cast<int>(Value<uint8_t>(m_idols, player.quests, args))
             << ",\"allAttributes\":" << Value<int>(m_attributes, player.quests) << ",\"quests\":[";
         bool comma = false;
@@ -528,6 +564,7 @@ std::string Perform(const std::string& expectedId, bool campaign) {
     SnapshotData snapshot;
     RewardState before, after;
     std::string why, error, backup;
+    std::string mastery = "null";
     int prepare = 0, pending = 0, pointPending = 0;
     double prepareMax[4]{}, phaseMax[6]{};
     const auto check = [&] {
@@ -547,6 +584,7 @@ std::string Perform(const std::string& expectedId, bool campaign) {
                 check();
                 if (prepare == 1 && campaign) {
                     quests = Quests(player);
+                    mastery = MasteryJson(Mastery(player, quests));
                     for (const auto& q : quests) if (q.eligible && q.state != questStates.at("Completed")) {
                         if (!q.reason.empty()) throw std::runtime_error("quest " + std::to_string(q.id) + ": " + q.reason);
                         ++pending;
@@ -639,6 +677,7 @@ std::string Perform(const std::string& expectedId, bool campaign) {
             if (phase == 4) {
                 // The normal map opens will refresh their buttons themselves.
                 // No map popup or extra prefab rebuild is needed for this save.
+                if (campaign) mastery = MasteryJson(Mastery(player, Quests(player)));
                 phase = 5; return false;
             }
             if (pending) {
@@ -679,6 +718,7 @@ std::string Perform(const std::string& expectedId, bool campaign) {
         ",\"added\":" + std::to_string(added) + ",\"endgameWaypointsAdded\":" + std::to_string(campaign ? added : 0) +
         ",\"expectedQuestXp\":" + std::to_string(expectedXp) + ",\"levelTopUpXp\":" + std::to_string(topUpXp) +
         ",\"before\":" + RewardJson(before) + ",\"after\":" + RewardJson(after) +
+        ",\"mastery\":" + mastery +
         ",\"backup\":" + Json(backup) + ",\"steps\":" + std::to_string(steps) +
         ",\"deferredDisplays\":" + std::to_string(displayCalls) + ",\"skippedSyntheticAnalytics\":" + std::to_string(analyticsCalls) + ",\"timingMaxMs\":{\"identity\":" + std::to_string(prepareMax[0]) +
         ",\"catalog\":" + std::to_string(prepareMax[1]) + ",\"waypointCatalog\":" + std::to_string(prepareMax[2]) +
@@ -689,9 +729,96 @@ std::string Perform(const std::string& expectedId, bool campaign) {
 }
 std::string Complete(const std::string& expectedId) { return Perform(expectedId, true); }
 std::string UnlockWaypoints(const std::string& expectedId) { return Perform(expectedId, false); }
+std::string OpenMastery(const std::string& expectedId) {
+    std::string error, why, stateJson = "null", name, id;
+    std::unique_ptr<Root> uiRoot;
+    bool requested = false, opened = false;
+    const bool ran = mainthread::RunSteps([&] {
+        try {
+            const auto player = Current(); CheckId(player, expectedId);
+            if (!requested) {
+                const auto state = Mastery(player, Quests(player));
+                stateJson = MasteryJson(state);
+                if (!state.available) throw std::runtime_error(state.reason);
+                name = player.name; id = player.id;
+                uiRoot = std::make_unique<Root>(game::StaticObject(f_ui));
+                requested = true;
+                if (!state.panelOpen) {
+                    // This is the normal FIRST-choice screen. Never call the
+                    // respec path, assign ChosenMastery or alter passive points.
+                    bool showNotification = false, respec = false;
+                    void* args[]{&showNotification, &respec};
+                    Invoke(m_masteryOpen, uiRoot->Get(), args);
+                }
+                return false; // Lazy panel assets can load on subsequent frames.
+            }
+            if (player.name != name || Value<uint8_t>(m_chosenMastery, player.data) != 0)
+                throw std::runtime_error("The character or mastery changed while opening the panel.");
+            if (!game::IsAlive(uiRoot->Get())) throw std::runtime_error("The game interface changed while opening the panel.");
+            if (!Value<bool>(m_masteryIsOpen, uiRoot->Get())) return false;
+            opened = true;
+            stateJson = MasteryJson(Mastery(player, Quests(player)));
+            return true;
+        } catch (const std::exception& e) { error = e.what(); return true; }
+    }, 5000, &why);
+    if (!ran && error.empty()) error = why;
+    return "{\"ok\":" + std::string(Boolean(ran && opened && error.empty())) +
+        ",\"opened\":" + Boolean(opened) + ",\"player\":{\"id\":" + Json(id) + ",\"name\":" + Json(name) +
+        "},\"mastery\":" + stateJson + ",\"error\":" + Json(error) + "}";
+}
 SnapshotData CaptureSnapshotCurrent(const std::string& expectedId, const char* operation) {
     const auto player=Current(); CheckId(player,expectedId); return Capture(player,operation);
 }
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+std::string TestMastery(const std::string& expectedId, const std::string& action) {
+    return Run([&] {
+        const auto player = Current(); CheckId(player, expectedId);
+        if (player.name != "EpMasteryTest" || player.id == "0") throw std::runtime_error("isolated mastery test character required");
+        void* ui = game::StaticObject(f_ui);
+        if (action == "close") Invoke(game::FindMethod("LE.dll", "", "UIBase", "closeMasteryPanel", 0), ui);
+        void* manager = game::StaticObject(game::FindStaticField("LE.dll", "", "MasteryPanelManager", "instance"));
+        if (!manager || !game::IsAlive(manager)) throw std::runtime_error("native mastery panel has not loaded");
+        const bool panelOpen = Value<bool>(m_masteryIsOpen, ui);
+        const int cls = Get<uint8_t>(manager, Offset("MasteryPanelManager", "_characterClassID"));
+        std::ostringstream out;
+        out << "{\"ok\":true,\"panelOpen\":" << Boolean(panelOpen)
+            << ",\"respec\":" << Boolean(Get<bool>(manager, Offset("MasteryPanelManager", "_respec")))
+            << ",\"chosen\":" << static_cast<int>(Value<uint8_t>(m_chosenMastery, player.data))
+            << ",\"class\":" << cls << ",\"buttons\":[";
+        bool comma = false;
+        for (void* entry : Entries(Get<void*>(manager, Offset("MasteryPanelManager", "panels")))) {
+            if (Get<uint8_t>(entry, Offset("MasteryPanelManager.ClassAndPanel", "characterClassID")) != cls) continue;
+            void* panel = Get<void*>(entry, Offset("MasteryPanelManager.ClassAndPanel", "masteryPanel"));
+            void* buttons = Get<void*>(panel, Offset("MasteryPanel", "masteryButtons"));
+            void* labels = Get<void*>(panel, Offset("MasteryPanel", "masteryButtonTMPs"));
+            const auto count = Get<uintptr_t>(buttons, kArrayCount);
+            if (count != 3 || Get<uintptr_t>(labels, kArrayCount) != 3) throw std::runtime_error("unexpected native mastery options");
+            for (uintptr_t i = 0; i < count; ++i) {
+                void* button = Get<void*>(buttons, kArrayFirst + sizeof(void*) * i);
+                void* label = Get<void*>(labels, kArrayFirst + sizeof(void*) * i);
+                if (comma) out << ','; comma = true;
+                out << "{\"label\":" << Json(Text(Invoke(ObjectMethod(label,"get_text",0),label)))
+                    << ",\"enabled\":" << Boolean(managed::Value<bool>(ObjectMethod(button,"IsInteractable",0),button)) << '}';
+            }
+        }
+        out << ']';
+        if (action == "select") {
+            if (!panelOpen || Value<uint8_t>(m_chosenMastery, player.data) != 0) throw std::runtime_error("first-choice panel required");
+            int choice = 1; void* args[]{&choice};
+            Invoke(game::FindMethod("LE.dll","","MasteryPanelManager","SelectMasteryButton",1),manager,args);
+        } else if (action == "confirm" || action == "cancel") {
+            auto* klass = game::FindClass("LE.dll","LE.UI.PanelSystem","ConfirmMasteryModal");
+            void* type = il2cpp::api().type_get_object(il2cpp::api().class_get_type(klass));
+            bool inactive = false; void* args[]{type,&inactive}; Root objects(Invoke(m_findObjects,nullptr,args));
+            const auto count = Get<uintptr_t>(objects.Get(),kArrayCount);
+            if (count != 1) throw std::runtime_error("one active mastery confirmation required");
+            void* modal = Get<void*>(objects.Get(),kArrayFirst);
+            Invoke(ObjectMethod(modal,action=="confirm"?"OnYesButtonClicked":"OnNoButtonClicked",0),modal);
+        } else if (action != "read" && action != "close") throw std::runtime_error("unknown mastery test action");
+        out << '}'; return out.str();
+    });
+}
+#endif
 std::string WriteCapturedSnapshot(const SnapshotData& snapshot) { return WriteSnapshot(snapshot); }
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
 std::string SnapshotFixtureCurrent(const std::string& expectedId, const char* operation) {

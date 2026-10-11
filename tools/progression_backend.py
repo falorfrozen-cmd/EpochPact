@@ -42,6 +42,13 @@ def apply(action: str, expected_id: str) -> dict:
     return request(f"{action} {expected_id}")
 
 
+def open_mastery(expected_id: str) -> dict:
+    """Open the native first-choice screen only; selection remains the player's."""
+    if not isinstance(expected_id, str) or not re.fullmatch(r"[0-9]+", expected_id):
+        raise ValueError("Invalid character identity.")
+    return request(f"masteryopen {expected_id}")
+
+
 def _json(path: Path) -> dict:
     text = path.read_text(encoding="utf-8-sig")
     start = text.find("{")
@@ -70,7 +77,7 @@ def validate_backup(path: Path, *, backup_root: Path | None = None, saves: Path 
     manifest = _json(path / "manifest.json")
     if manifest.get("format") != 1 or manifest.get("operation") not in (
         "questscomplete", "waypointsunlock", "monolithunlock", "monolithselect", "corruption", "stability",
-        "cofjoin", "cofrank", "coffavor", "cofreputation", "coflenses", "cofprophecy", "cofcharges", "forge-one-item"
+        "cofjoin", "cofrank", "coffavor", "cofreputation", "coflenses", "cofprophecy", "cofcharges", "forge-one-item", "custom-forge-item", "maximize-crafting-materials", "stash-all"
     ):
         raise ValueError("Yedek biçimi tanınmıyor.")
     save_id, stash_id = manifest.get("id", ""), manifest.get("stashId", "")

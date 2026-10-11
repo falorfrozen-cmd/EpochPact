@@ -4,6 +4,22 @@ from tools import loot_crafting_backend as backend
 
 
 class Controls(unittest.TestCase):
+    def test_material_stock_rejects_invalid_targets_and_identities_before_ipc(self):
+        with patch.object(backend.ipc, "request") as request:
+            for value in (True, 0, -1, 1000001, 1.5, float("nan"), "10000"):
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    backend.maximize_materials("42", value)
+            for identity in (None, 42, "", "-1", "42\nquestscomplete 42"):
+                with self.subTest(identity=identity), self.assertRaises(ValueError):
+                    backend.maximize_materials(identity, 10000)
+            request.assert_not_called()
+
+    def test_material_stock_and_read_send_one_exact_command(self):
+        with patch.object(backend.ipc, "request", return_value={"ok":True}) as request:
+            backend.materials_read();backend.maximize_materials("42", 1);backend.maximize_materials("42", 1000000)
+            self.assertEqual([call.args[0] for call in request.call_args_list],
+                             ["craftmaterialsread", "craftmaterials 42 1", "craftmaterials 42 1000000"])
+
     def test_invalid_requests_never_reach_ipc(self):
         with patch.object(backend.ipc, "request") as request:
             for call in (lambda: backend.loot_mode("all\ncraftfp 0"), lambda: backend.minimum_lp(True),

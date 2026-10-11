@@ -23,6 +23,9 @@
 #include "progression.hpp"
 #include "version.hpp"
 #include "xp.hpp"
+#include "build_controls.hpp"
+#include "convenience.hpp"
+#include <atomic>
 #ifdef EPOCHPACT_RESEARCH
 #include "dumper.hpp"
 #include "research.hpp"
@@ -114,6 +117,9 @@ void WorkerBody() {
     progression::Init();
     monolith::Init();
     cof::Init();
+    builds::Init();
+    convenience::Init();
+    lifecycle::SetCleanup([]{convenience::ReleaseRoots();builds::ReleaseRoots();});
     Log("ready: command channel at EpochPact\\ipc\\cmd.txt");
     // Detached until a command arrives: IL2CPP waits for attached threads when the game quits.
     if (void* self = a.thread_current()) a.thread_detach(self);
@@ -135,7 +141,12 @@ DWORD WINAPI Worker(void*) {
 }  // namespace
 
 extern "C" __declspec(dllexport) void EpochPact_Start() {
+    // Both the standalone loader and MelonLoader bridge can be present during
+    // migration. The native IPC worker / detours must only initialize once.
+    static std::atomic<bool> started{false};bool expected=false;
+    if(!started.compare_exchange_strong(expected,true))return;
     if (HANDLE t = CreateThread(nullptr, 0, Worker, nullptr, 0, nullptr)) CloseHandle(t);
+    else started=false;
 }
 
 BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID) {

@@ -6,6 +6,7 @@
 #include "hook.hpp"
 #include "smart_loot.hpp"
 #include "managed.hpp"
+#include "pickup_rules.hpp"
 #include <memory>
 
 #include <atomic>
@@ -61,6 +62,7 @@ feature::Hook h_rollRarity{"GenerateItems.RollRarity", {}, reinterpret_cast<void
 // pickup handler (the same code that vacuums labels for a held controller button).
 
 std::atomic<double> g_auto{0.0};
+std::atomic<double> g_radius{0.0};
 std::atomic<uint64_t> g_scans{0}, g_calls{0};
 std::atomic<bool> g_autoFirst{false};
 std::atomic<unsigned long> g_lastScan{0};
@@ -79,15 +81,103 @@ const il2cpp::Class* g_groundItemLabel = nullptr;
 game::MethodRef m_requestPickup;                 // GroundItemLabel.requestPickup()
 const Field* g_managerField = nullptr;           // GroundItemManager.instance
 const Field* g_hoveredItemField = nullptr;       // TooltipItem.highlightedTooltipItem
+const Field* g_uiField = nullptr;                // UIBase.instance
+size_t g_tooltipSystemOffset = 0;                // UIBase._tooltipSystem
+size_t g_hoverRectOffset = 0;
+size_t g_tooltipCardOffset = 0;
+size_t g_tooltipManagerOffset = 0, g_legacyActiveOffset = 0, g_tooltipLockOffset = 0;
+size_t g_labelFollowerOffset = 0;
+game::MethodRef m_getActor, m_componentTransform, m_transformPosition, m_followerPosition;
+game::MethodRef m_activeTooltipItem;             // TooltipSystem includes V2/container/controller tooltips
+game::MethodRef m_componentObject,m_activeHierarchy;
 
 bool InspectingItem() {
     // A failed/missing hover read must pause collection, not dismiss a tooltip.
-    if (!g_hoveredItemField) return true;
+    if (!g_hoveredItemField || !g_uiField || !g_tooltipSystemOffset || !m_activeTooltipItem || !g_tooltipCardOffset || !g_tooltipManagerOffset || !g_legacyActiveOffset || !g_tooltipLockOffset || !m_componentObject || !m_activeHierarchy) return true;
     void* hovered = nullptr;
     if (!game::TryStaticObject(g_hoveredItemField, &hovered)) return true;
     bool inspecting = false;
     if (!game::TryIsAlive(hovered, &inspecting)) return true;
-    return inspecting;
+    if (inspecting) return true;
+    // Container-hover and the V2 tooltip system do not set highlightedTooltipItem.
+    // Use the game's unified getter: it handles both V2 and the legacy manager.
+    // This is a cached native getter, with no per-frame reflection or boxed result.
+    void* ui = nullptr;
+    if (!game::TryStaticObject(g_uiField, &ui)) return true;
+    bool alive = false;
+    if (!game::TryIsAlive(ui, &alive) || !alive) return true;
+    void* active = nullptr;
+    const bool readable = game::Guarded([&] {
+        void* system = *reinterpret_cast<void* const*>(static_cast<char*>(ui) + g_tooltipSystemOffset);
+        bool systemAlive = false;
+        if (!game::TryIsAlive(system, &systemAlive) || !systemAlive)
+            throw std::runtime_error("item tooltip system unavailable");
+        if (*reinterpret_cast<const bool*>(static_cast<char*>(system)+g_tooltipLockOffset)) { active=system; return; }
+        // This build can render through the legacy manager while the V2 card is
+        // inactive. Its active flag, unlike ActiveItemTooltipItem, is cleared by
+        // CloseAllTooltips and covers comparison/controller cards as well.
+        void* manager=*reinterpret_cast<void* const*>(static_cast<char*>(system)+g_tooltipManagerOffset);
+        bool managerAlive=false;
+        if(!game::TryIsAlive(manager,&managerAlive))throw std::runtime_error("tooltip manager unreadable");
+        if(managerAlive && *reinterpret_cast<const bool*>(static_cast<char*>(manager)+g_legacyActiveOffset)){active=manager;return;}
+        // Pending tooltips have a hovered rect before their asynchronous item
+        // card becomes ready. Do not pick that item up during this gap.
+        if (g_hoverRectOffset) {
+            void* rect = *reinterpret_cast<void* const*>(static_cast<char*>(system) + g_hoverRectOffset);
+            if (!game::TryIsAlive(rect, &inspecting)) throw std::runtime_error("tooltip hover unreadable");
+            if (inspecting) { active = rect; return; }
+        }
+        active = reinterpret_cast<void* (*)(void*, const Method*)>(m_activeTooltipItem.code)(system, m_activeTooltipItem.info);
+        if(active){
+            // The getter retains the last item after CloseItemTooltip. A cached
+            // item is not an open card: otherwise collection stays paused forever.
+            void* card=*reinterpret_cast<void* const*>(static_cast<char*>(system)+g_tooltipCardOffset);
+            bool cardAlive=false;if(!game::TryIsAlive(card,&cardAlive))throw std::runtime_error("tooltip card unreadable");
+            if(!cardAlive){active=nullptr;return;}
+            void* object=reinterpret_cast<void* (*)(void*,const Method*)>(m_componentObject.code)(card,m_componentObject.info);
+            if(!reinterpret_cast<bool (*)(void*,const Method*)>(m_activeHierarchy.code)(object,m_activeHierarchy.info))active=nullptr;
+        }
+    }, nullptr);
+    return !readable || active != nullptr;
+}
+
+struct Position { float x,y,z; };
+struct GroundOffsets {size_t list=0,location=0,id=0;};
+GroundOffsets g_ground[6];
+size_t g_offlineItems=0,g_labelVisuals=0,g_visualId=0,g_pickupId=0;
+bool g_vacuumReady=false;
+void Pickup(void* object,game::MethodRef method,int kind){
+    if(!g_vacuumReady){managed::Invoke(method,object);return;}
+    void* manager=game::StaticObject(g_managerField),*actor=managed::Invoke(m_getActor);
+    if(!manager||!actor||!game::IsAlive(actor))return;
+    const auto id=kind==0?managed::Get<uint32_t>(managed::Get<void*>(object,g_labelVisuals),g_visualId):managed::Get<uint32_t>(object,g_pickupId);
+    void* list=managed::Get<void*>(managed::Get<void*>(manager,g_offlineItems),g_ground[kind].list);
+    void* array=managed::Get<void*>(list,kListItems);int n=managed::Get<int>(list,kListSize);
+    if(n<0||n>8192||!array||static_cast<uintptr_t>(n)>managed::Get<uintptr_t>(array,kArrayLength))return;
+    for(int i=0;i<n;++i){void* record=managed::Get<void*>(array,kArrayFirst+8*i);
+        if(!record||managed::Get<uint32_t>(record,g_ground[kind].id)!=id)continue;
+        managed::Root pin(record),transform(managed::Invoke(m_componentTransform,actor));
+        Position player=managed::Value<Position>(m_transformPosition,transform.Get());
+        auto& location=*reinterpret_cast<Position*>(static_cast<char*>(record)+g_ground[kind].location);
+        rules::BorrowLocation borrow(location,player);
+        managed::Invoke(method,object);return;
+    }
+}
+bool InRadius(void* object, const Position& player, bool label) {
+    if(g_radius.load()==0) return true; // Explicit "all loaded drops" option.
+    using namespace managed;
+    Position position{};
+    if(label) {
+        void* follower=Get<void*>(object,g_labelFollowerOffset);
+        if(!follower || !game::IsAlive(follower)) return false;
+        position=Value<Position>(m_followerPosition,follower);
+    } else {
+        Root transform(Invoke(m_componentTransform,object));
+        position=Value<Position>(m_transformPosition,transform.Get());
+    }
+    const double x=position.x-player.x, y=position.y-player.y, z=position.z-player.z;
+    const double radius=g_radius.load();
+    return x*x+y*y+z*z<=radius*radius;
 }
 
 struct ActiveList {
@@ -128,13 +218,20 @@ void PickAll() {
 
     game::Guarded(
         [&] {
+            Position player{};
+            if(g_radius.load()!=0) {
+                void* actor=managed::Invoke(m_getActor);
+                if(!actor || !game::IsAlive(actor)) return;
+                managed::Root transform(managed::Invoke(m_componentTransform,actor));
+                player=managed::Value<Position>(m_transformPosition,transform.Get());
+            }
             // Ground item labels (equipment), through the static list the UI itself keeps.
             if (g_labelListField && g_groundItemLabel) {
                 if (void* dlist = game::StaticObject(g_labelListField)) {
                     void* inner = *reinterpret_cast<void* const*>(static_cast<char*>(dlist) + kListItems);
                     labelCount = SnapshotList(inner, labels, kMaxPerScan, [&](void* label) {
                         ++labelSeen;
-                        return *reinterpret_cast<void* const*>(label) == g_groundItemLabel && smartloot::Accept(label);
+                        return *reinterpret_cast<void* const*>(label) == g_groundItemLabel && InRadius(label,player,true) && smartloot::Accept(label);
                     });
                 }
             }
@@ -146,7 +243,7 @@ void PickAll() {
                     for (int i = 0; i < 5; ++i) {
                         if (!smartloot::Category(i) || !g_activeLists[i].pick || !g_activeLists[i].offset) continue;
                         void* listObj = *reinterpret_cast<void* const*>(static_cast<char*>(mgr) + g_activeLists[i].offset);
-                        *count[i] = SnapshotList(listObj, out[i], kMaxPerScan, [](void*) { return true; });
+                        *count[i] = SnapshotList(listObj, out[i], kMaxPerScan, [&](void* object) { return InRadius(object,player,false); });
                     }
                 }
             }
@@ -164,8 +261,8 @@ void PickAll() {
     int calls = 0;
     if (m_requestPickup) {
         for (int i = 0; i < labelCount; ++i) {
-            if (InspectingItem()) break;
-            if (game::Guarded([&] { if(game::IsAlive(labels[i])) { managed::Invoke(m_requestPickup,labels[i]); ++calls; } },nullptr)) {}
+            if (calls >= 8 || InspectingItem()) break;
+            if (game::Guarded([&] { if(game::IsAlive(labels[i])) { Pickup(labels[i],m_requestPickup,0); ++calls; } },nullptr)) {}
         }
     }
     const struct {
@@ -177,11 +274,13 @@ void PickAll() {
                   {xp, xpCount, &g_activeLists[2].pick},
                   {favor, favorCount, &g_activeLists[3].pick},
                   {bones, boneCount, &g_activeLists[4].pick}};
+    int kind=0;
     for (const auto& l : lists) {
+        ++kind;
         if (!l.pick->code) continue;
         for (int i = 0; i < l.count; ++i) {
-            if (InspectingItem()) break;
-            game::Guarded([&] { if(game::IsAlive(l.list[i])) { managed::Invoke(*l.pick,l.list[i]); ++calls; } },nullptr);
+            if (calls >= 8 || InspectingItem()) break;
+            game::Guarded([&] { if(game::IsAlive(l.list[i])) { Pickup(l.list[i],*l.pick,kind); ++calls; } },nullptr);
         }
     }
 
@@ -195,15 +294,21 @@ using TickFn = void (*)(void* self, float deltaTime, const Method* m);
 TickFn o_distantTick = nullptr;
 
 void d_distantTick(void* self, float deltaTime, const Method* m) {
+    const bool active = g_auto.load(std::memory_order_relaxed) != 0.0 && game::IsOfflinePlay();
+    const bool inspectingBeforeTick = active && InspectingItem();
+    // This native handler does only queued distant item pickups. Its own
+    // requestPickup calls also close tooltips, even when OUR scan is paused.
+    // Leave queued labels untouched until inspection ends. ClickedItem and the
+    // normal manual pickup paths are separate and remain available.
+    if(inspectingBeforeTick) return;
     o_distantTick(self, deltaTime, m);  // the game's own distant pickup stays in charge
-    if (g_auto.load(std::memory_order_relaxed) == 0.0) return;
-    if (!game::IsOfflinePlay()) return;
-    if (InspectingItem()) return;  // Leave both the tooltip and scan timer alone.
+    if (!active) return;
+    if (inspectingBeforeTick || InspectingItem()) return;  // Leave both the tooltip and scan timer alone.
+    if (!smartloot::CanCollect()) return;
     const unsigned long now = GetTickCount();
     unsigned long last = g_lastScan.load(std::memory_order_relaxed);
-    if (now - last < 750) return;
+    if (now - last < 250) return;
     if (!g_lastScan.compare_exchange_strong(last, now, std::memory_order_relaxed)) return;
-    if (!smartloot::CanCollect()) return;
     g_scans.fetch_add(1, std::memory_order_relaxed);
     PickAll();
 }
@@ -232,8 +337,34 @@ bool Init() {
     g_labelListField = game::FindStaticField("LE.dll", "", "ItemTooltipOrganizer", "pickableGroundLabelList");
     g_managerField = game::FindStaticField("LE.dll", "", "GroundItemManager", "instance");
     g_hoveredItemField = game::FindStaticField("LE.dll", "", "TooltipItem", "highlightedTooltipItem");
+    g_uiField = game::FindStaticField("LE.dll", "", "UIBase", "instance");
+    g_tooltipSystemOffset = game::FieldOffset("LE.dll", "", "UIBase", "_tooltipSystem");
+    g_hoverRectOffset=game::FieldOffset("LE.dll","LE.UI.Tooltips","TooltipSystem","_activeHoveredItemRect");
+    g_tooltipCardOffset=game::FieldOffset("LE.dll","LE.UI.Tooltips","TooltipSystem","_itemTooltip");
+    g_tooltipManagerOffset=game::FieldOffset("LE.dll","LE.UI.Tooltips","TooltipSystem","_tooltipItemManager");
+    g_tooltipLockOffset=game::FieldOffset("LE.dll","LE.UI.Tooltips","TooltipSystem","<TooltipLockActive>k__BackingField");
+    g_legacyActiveOffset=game::FieldOffset("LE.dll","","TooltipItemManager","active");
+    m_componentObject=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Component","get_gameObject",0);
+    m_activeHierarchy=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","GameObject","get_activeInHierarchy",0);
+    g_labelFollowerOffset=game::FieldOffset("LE.dll","","PickupableGroundLabel","sceneFollower");
+    m_followerPosition=game::FindMethod("LE.dll","","GUISceneFollower","get_FollowTargetPosition",0);
+    m_getActor=game::FindMethod("LE.dll","","PlayerFinder","getPlayerActor",0);
+    m_componentTransform=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Component","get_transform",0);
+    m_transformPosition=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Transform","get_position",0);
+    m_activeTooltipItem = game::FindMethod("LE.dll", "LE.UI.Tooltips", "TooltipSystem", "get_ActiveItemTooltipItem", 0);
     g_groundItemLabel = game::FindClass("LE.dll", "", "GroundItemLabel");
     m_requestPickup = game::FindMethod("LE.dll", "", "GroundItemLabel", "requestPickup", 0);
+    g_offlineItems=game::FieldOffset("LE.dll","","GroundItemManager","offlineItems");
+    g_labelVisuals=game::FieldOffset("LE.dll","","GroundItemLabel","visuals");
+    g_visualId=game::FieldOffset("LE.dll","","GroundItemVisuals","id");
+    g_pickupId=game::FieldOffset("LE.dll","","PickupGroundObjectInteraction","id");
+    const char* recordTypes[]{"GroundItem","GroundGold","GroundPotion","GroundXPTome","GroundFavorTome","GroundAncientBone"};
+    const char* recordLists[]{"items","gold","potions","xpTomes","favorTomes","ancientBones"};
+    g_vacuumReady=g_offlineItems&&g_labelVisuals&&g_visualId&&g_pickupId&&m_getActor&&m_componentTransform&&m_transformPosition;
+    for(int i=0;i<6;++i){std::string type=std::string("GroundItemManager.")+recordTypes[i];
+        g_ground[i]={game::FieldOffset("LE.dll","","GroundItemManager.GroundItemList",recordLists[i]),game::FieldOffset("LE.dll","",type.c_str(),"location"),game::FieldOffset("LE.dll","",type.c_str(),"id")};
+        g_vacuumReady=g_vacuumReady&&g_ground[i].list&&g_ground[i].location&&g_ground[i].id;
+    }
 
     auto list = [](const char* field, const char* image, const char* cls, const char* pick) {
         ActiveList l{field, game::FieldOffset("LE.dll", "", "GroundItemManager", field),
@@ -250,7 +381,7 @@ bool Init() {
         "gold %d potion %d xp %d favor %d bone %d",
         h_rollRarity.ref ? "found" : "MISSING", h_distantTick.ref ? "found" : "MISSING", g_labelListField ? "found" : "MISSING",
         g_managerField ? "found" : "MISSING", g_groundItemLabel ? "found" : "MISSING", m_requestPickup ? "found" : "MISSING",
-        g_hoveredItemField ? "found" : "MISSING",
+        g_hoveredItemField && g_uiField && g_tooltipSystemOffset && m_activeTooltipItem ? "found (legacy + V2)" : "MISSING",
         g_activeLists[0].pick ? 1 : 0, g_activeLists[1].pick ? 1 : 0, g_activeLists[2].pick ? 1 : 0, g_activeLists[3].pick ? 1 : 0,
         g_activeLists[4].pick ? 1 : 0);
     return static_cast<bool>(h_rollRarity.ref);
@@ -273,7 +404,8 @@ std::string SetAuto(double on) {
         return "autopickup -> off (hook removed)";
     }
     if (!smartloot::CanCollect()) return "autopickup: refused: enter a loaded offline character first";
-    if (!g_hoveredItemField) return "autopickup: refused: item tooltip hover state was not found in this game build";
+    if (!g_hoveredItemField || !g_uiField || !g_tooltipSystemOffset || !m_activeTooltipItem || !g_tooltipCardOffset || !g_tooltipManagerOffset || !g_legacyActiveOffset || !g_tooltipLockOffset || !m_componentObject || !m_activeHierarchy)
+        return "autopickup: refused: item tooltip hover state was not found in this game build";
     if (!hook::IsInstalled(h_distantTick.ref.code)) {
         std::string why;
         if (!hook::Install(h_distantTick.ref.code, h_distantTick.detour, h_distantTick.original, &why)) {
@@ -288,5 +420,13 @@ std::string SetAuto(double on) {
 }
 
 std::string Status() { return feature::Line(g_rarity) + "\n" + AutoStatus(); }
+
+bool IsInspectingItem(){return InspectingItem();}
+std::string RadiusStatus(){return "{\"ok\":true,\"radius\":"+std::to_string(g_radius.load())+",\"allLoaded\":"+(g_radius.load()==0?"true":"false")+"}";}
+std::string SetRadius(double radius){
+    if(!std::isfinite(radius)||radius<0||radius>60)return "{\"ok\":false,\"error\":\"Pickup radius must be between 0 and 60.\"}";
+    if(radius!=0 && (!g_labelFollowerOffset||!m_followerPosition||!m_getActor||!m_componentTransform||!m_transformPosition))return "{\"ok\":false,\"error\":\"Pickup range metadata is unavailable.\"}";
+    g_radius=radius;return RadiusStatus();
+}
 
 }  // namespace ep::items

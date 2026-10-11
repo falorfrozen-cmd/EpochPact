@@ -9,6 +9,8 @@
 #include <iostream>
 
 std::atomic<bool> exited{false}, originalCalled{false}, ordered{false}, restored{false};
+std::atomic<bool> cleaned{false}, cleanedBeforeRuntime{false};
+void Cleanup(){cleanedBeforeRuntime=exited && !originalCalled;cleaned=true;}
 void Shutdown();
 void Update(void*, const ep::il2cpp::Method*);
 #pragma optimize("", off)
@@ -34,6 +36,7 @@ int main() {
     std::promise<bool> initialized;
     int mutations = 0;
     auto worker = std::async(std::launch::async, [&] {
+        ep::lifecycle::SetCleanup(&Cleanup);
         const bool ok = ep::lifecycle::Init(reinterpret_cast<void*>(&Shutdown)) && ep::mainthread::Init();
         initialized.set_value(ok);
         if (ok) ep::mainthread::Run([&] { ++mutations; }, 5000, nullptr);
@@ -47,6 +50,7 @@ int main() {
     check(ep::lifecycle::Stopping(), "shutdown stop signal published");
     check(originalCalled && ordered, "original runtime shutdown waits for worker exit");
     check(restored, "shutdown and frame hooks restored before original runtime destruction");
+    check(cleaned && cleanedBeforeRuntime, "GC roots released after worker exit and before runtime destruction");
     check(mutations == 0, "pending mutation cancelled before runtime destruction");
     check(!ep::mainthread::Run([] {}, 5000, nullptr), "no job accepted after runtime shutdown");
     std::cout << "lifecycle: " << tests - failed << '/' << tests << " passed\n";

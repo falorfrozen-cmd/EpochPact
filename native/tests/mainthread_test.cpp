@@ -26,6 +26,10 @@ int main() {
     check(ep::mainthread::Init(), "synthetic frame metadata");
     ep::mainthread::KeepTicking(); Update(nullptr, nullptr);
     check(ep::mainthread::HookInstalled(), "bootstrap installs hook");
+    bool posted=false;
+    check(ep::mainthread::Post([&]{posted=true;}),"owned bootstrap queues without waiting");
+    check(!posted,"bootstrap waits for a Unity frame");Update(nullptr,nullptr);
+    check(posted,"bootstrap executes on the next frame");
     auto drain = [&](auto& future) {
         const auto until = GetTickCount64() + 2000;
         while (future.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready && GetTickCount64() < until) {
@@ -55,6 +59,7 @@ int main() {
     check(ending.wait_for(std::chrono::milliseconds(200)) == std::future_status::ready && !ending.get(), "shutdown cancels pending job immediately");
     Update(nullptr, nullptr); check(steps == 4, "shutdown mutation never executes");
     check(!ep::mainthread::Run([] {}, 5000, nullptr), "shutdown rejects new work without waiting");
+    check(!ep::mainthread::Post([] {}),"shutdown rejects owned bootstrap");
     std::cout << "mainthread: " << tests - failed << '/' << tests << " passed\n";
     return failed ? 1 : 0;
 }

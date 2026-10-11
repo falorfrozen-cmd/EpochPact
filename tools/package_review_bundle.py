@@ -49,7 +49,7 @@ def read_bundle(bundle):
     resources = bundle / '_internal'
     native = resources / 'native/build'
     native_names = {p.relative_to(native).as_posix() for p in native.rglob('*') if p.is_file()}
-    if native_names != {'version.dll', 'player/EpochPact.Core.dll', 'player/build-info.json'}:
+    if native_names != {'version.dll', 'player/EpochPact.Core.dll', 'player/build-info.json', 'melon/EpochPact.MelonBridge.dll'}:
         raise ValueError('Unexpected native artifact in bundle')
     core = native / 'player/EpochPact.Core.dll'
     core_info = json.loads((core.parent / 'build-info.json').read_text())

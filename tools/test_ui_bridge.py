@@ -15,6 +15,103 @@ from epochpact_ui import create_app
 
 
 class BridgeTests(unittest.TestCase):
+    def test_material_stock_requires_current_identity_and_retains_backup(self):
+        self.live['craftmaterials 42 10000']={'ok':True,'backup':'test-only-snapshot','updatedKinds':12,'target':10000}
+        result=self.bridge.execute('craft_materials', {'expected_id':'42','value':10000})
+        self.assertTrue(result['ok']);self.assertEqual(result['backup'],'test-only-snapshot')
+        self.assertEqual(self.commands.count('craftmaterials 42 10000'),1)
+        self.commands.clear()
+        with self.assertRaisesRegex(RuntimeError,'character has changed'):
+            self.bridge.execute('craft_materials', {'expected_id':'41','value':10000})
+        self.assertFalse(any(x.startswith('craftmaterials ') for x in self.commands))
+
+    def test_material_invalid_quantity_never_reaches_ipc(self):
+        for value in (True,0,1000001,1.5):
+            with self.subTest(value=value),self.assertRaises(ValueError):
+                self.bridge.execute('craft_materials', {'expected_id':'42','value':value})
+        self.assertEqual(self.commands,[])
+
+    def test_material_stock_refuses_a_reused_save_slot_with_a_different_name(self):
+        with self.assertRaisesRegex(RuntimeError,'character has changed'):
+            self.bridge.execute('craft_materials', {'expected_id':'42','expected_name':'Previous owner','value':10000})
+        self.assertFalse(any(x.startswith('craftmaterials ') for x in self.commands))
+
+    def test_choose_mastery_opens_only_the_native_view_for_current_character(self):
+        self.live['masteryopen 42'] = {'ok': True, 'opened': True, 'player': dict(self.player)}
+        result = self.bridge.execute('mastery_choose', {'expected_id': '42'})
+        self.assertTrue(result['opened'])
+        self.assertEqual(self.commands, ['sessionread', 'playerread', 'identityread', 'masteryopen 42'])
+        self.assertFalse(any(x.startswith(('questscomplete', 'waypointsunlock')) for x in self.commands))
+
+    def test_choose_mastery_refuses_stale_identity_before_opening_any_view(self):
+        with self.assertRaisesRegex(RuntimeError, 'character has changed'):
+            self.bridge.execute('mastery_choose', {'expected_id': '41'})
+        self.assertFalse(any(x.startswith('masteryopen') for x in self.commands))
+
+    def test_choose_mastery_preserves_native_unavailable_error(self):
+        self.live['masteryopen 42'] = {'ok': False, 'error': 'A mastery is already selected.'}
+        result = self.bridge.execute('mastery_choose', {'expected_id': '42'})
+        self.assertFalse(result['ok'])
+        self.assertIn('already selected', result['error'])
+        self.assertEqual(self.commands.count('masteryopen 42'), 1)
+
+    def test_build_settings_validate_identity_before_mutation(self):
+        self.bridge.execute('build_skillxp', {'value': 3, 'expected_id': '42', 'expected_name': 'Test'})
+        self.assertEqual(self.commands, ['sessionread', 'playerread', 'identityread', 'buildset skillxp 3'])
+        self.commands.clear()
+        with self.assertRaisesRegex(RuntimeError, 'character has changed'):
+            self.bridge.execute('build_projectileflat', {'value': 2, 'expected_id': '41'})
+        self.assertFalse(any(x.startswith('buildset') for x in self.commands))
+
+    def test_build_bounds_and_blessing_choices_reject_before_ipc(self):
+        for cid,value in [('build_skillxp',101),('build_zoom',2.1),('build_weaverflat',.5),
+                          ('build_projectileflat',33),('build_blessingoptions',1),('build_blessingoptions',2)]:
+            with self.subTest(cid=cid,value=value), self.assertRaises(ValueError):
+                self.bridge.execute(cid, {'value':value})
+        self.assertEqual(self.commands, [])
+
+    def test_custom_crafting_requires_current_character(self):
+        with self.assertRaisesRegex(RuntimeError, 'character has changed'):
+            self.bridge.execute('craft_custom', {'template_id':-1, 'affixes':'0,1', 'perfect':1, 'expected_id':'41'})
+        self.assertFalse(any(x.startswith('craftcustom') for x in self.commands))
+
+    def test_custom_crafting_rejects_eight_or_duplicate_affixes_before_ipc(self):
+        for csv in ('0,1,2,3,4,5,6,7','1,1','1,-1','1;status'):
+            with self.subTest(csv=csv), self.assertRaises(ValueError):
+                self.bridge.execute('craft_custom', {'template_id':-1,'affixes':csv,'perfect':1,'expected_id':'42'})
+        self.assertEqual(self.commands, [])
+
+    def test_custom_crafting_dispatches_once_and_retains_backup(self):
+        self.live['craftcustom 42 -1 0,1,2,3,4,5,6 1']={'ok':True,'backup':'test-only-snapshot'}
+        result=self.bridge.execute('craft_custom', {'template_id':-1,'affixes':'0,1,2,3,4,5,6','perfect':1,'expected_id':'42'})
+        self.assertEqual(result['backup'],'test-only-snapshot')
+        self.assertEqual(self.commands.count('craftcustom 42 -1 0,1,2,3,4,5,6 1'),1)
+
+    def test_workshop_catalog_only_reads_and_refuses_identity_change(self):
+        self.live['atlasread']={'ok':True,'player':dict(self.player),'items':[{'id':5,'name':'Example','set':True}]}
+        result=self.bridge.execute('craft_custom_catalog', {})
+        self.assertEqual(result['items'][0]['id'],5)
+        self.assertEqual(self.commands[-5:],['atlasread','lootread','identityread','craftmods','identityread'])
+        self.live['atlasread']['player']['id']='41'
+        with self.assertRaisesRegex(RuntimeError,'character changed'):
+            self.bridge.execute('craft_custom_catalog', {})
+        self.assertFalse(any(x.startswith('craftcustom') for x in self.commands))
+
+    def test_mixed_modifier_recipe_dispatches_once_and_retains_recovery(self):
+        cmd='craftmix 42 -1 0,1 1 u0:0,u1:1,s1:0'
+        self.live[cmd]={'ok':True,'backup':'mixed-item-backup'}
+        result=self.bridge.execute('craft_custom', {'template_id':-1,'affixes':'0,1','perfect':1,'modifiers':'u0:0,u1:1,s1:0','expected_id':'42'})
+        self.assertEqual(result['backup'],'mixed-item-backup')
+        self.assertEqual(self.commands.count(cmd),1)
+
+    def test_invalid_mixed_recipe_never_reaches_native_ipc(self):
+        for selection in ('u0:0,u0:0','u0:0;status','u0:0 s1:0',','.join(f'u{x}:0' for x in range(65))):
+            with self.subTest(selection=selection), self.assertRaises(ValueError):
+                self.bridge.execute('craft_custom', {'template_id':-1,'affixes':'0','perfect':1,'modifiers':selection,'expected_id':'42'})
+        with self.assertRaises(ValueError):
+            self.bridge.execute('craft_custom', {'template_id':-1,'affixes':'0,1,2,3,4,5,6','perfect':1,'modifiers':'u0:0','expected_id':'42'})
+        self.assertEqual(self.commands,[])
+
     def test_automatic_general_settings_verify_the_character_before_dispatch(self):
         self.bridge.execute('xp', {'value': 2, 'expected_id': '42', 'expected_name': 'Test'})
         self.assertEqual(self.commands, ['sessionread', 'playerread', 'identityread', 'xp 2'])
@@ -59,6 +156,7 @@ class BridgeTests(unittest.TestCase):
         self.live['monolithread']['editable'] = True
         self.live['monolithread']['restContextReady'] = True
         self.live['atlasread'] = {'ok': True, 'player': dict(self.player), 'items': []}
+        self.live['craftmods'] = {'ok':True,'modifiers':[]}
         for t in self.live['monolithread']['timelines']:
             for d in t['difficulties']:
                 d['unlocked'] = True
@@ -85,6 +183,8 @@ class BridgeTests(unittest.TestCase):
                                'total': 0, 'tabs': 1, 'offset': 0, 'next': None, 'items': [], 'readMs': 0})
         if command.startswith('monolithpanelready'):
             return json.dumps({'ok':True,'player':dict(self.player),'panelReady':True})
+        if command.startswith('masteryopen '):
+            return json.dumps({'ok':True,'opened':True,'player':dict(self.player)})
         if command.startswith(('echoread', 'echofocus')):
             return json.dumps({'ok': True, 'player': dict(self.player), 'echoes': [], 'generated': False})
         if command == 'playerread':
@@ -97,6 +197,10 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
+        if command.startswith(('qolread','qolset ','pickupradius','summonread','inventoryread','inventoryaction ')):
+            return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
+        if command.startswith(('buildset ', 'buildread')):
+            return json.dumps({'ok': True, 'settings': {}})
         return command.split()[0] + ': accepted'
 
     def test_bootstrap_does_not_touch_game_or_return_snapshot(self):
@@ -189,6 +293,10 @@ class BridgeTests(unittest.TestCase):
                     elif name == 'mode':
                         args[name] = 'all' if cid == 'loot_mode' else 'added'
                     elif name == 'ids':
+                        args[name] = 'none'
+                    elif name == 'affixes':
+                        args[name] = 'keep'
+                    elif kind == 'optional_single_token':
                         args[name] = 'none'
                     elif kind == 'enum' and p.get('choices'):
                         args[name] = p['choices'][0]

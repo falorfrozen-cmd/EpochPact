@@ -16,6 +16,7 @@ import subprocess
 import sys
 
 from . import le_session as le, progression_backend as progression
+from . import melon_compat
 from .app_paths import (user_root, installer_result_root, validate_installer_result,
                         INSTALL_RESULT_INVALID, INSTALL_RESULT_WRITE_FAILED)
 from .ui_language import english_exception
@@ -150,8 +151,13 @@ class PlayerSetup:
             loader = le.GAME / 'version.dll'
             core = le.GAME / 'EpochPact/EpochPact.Core.dll'
             result['foreignLoader'] = loader.exists() and not le.is_ours(loader)
+            result['melonLoader'] = result['foreignLoader'] and melon_compat.detected(le.GAME)
+            bridge = le.GAME / 'Mods' / melon_compat.BRIDGE_NAME
+            bundled_bridge = le.BUILD / 'melon' / melon_compat.BRIDGE_NAME
+            loader_ready = le.is_ours(loader) or (result['melonLoader'] and melon_compat.owned_bridge(bridge) and
+                bundled_bridge.is_file() and hashlib.sha256(bridge.read_bytes()).digest() == hashlib.sha256(bundled_bridge.read_bytes()).digest())
             result['disabled'] = (le.GAME / 'EpochPact/disabled').exists()
-            result['installed'] = (le.is_ours(loader) and core.is_file() and
+            result['installed'] = (loader_ready and core.is_file() and
                                    hashlib.sha256(core.read_bytes()).hexdigest() == digest)
         except (OSError, ValueError):
             result['problem'] = 'The game location or bundled mod files are unavailable. Select the game again or restore the EpochPact download.'

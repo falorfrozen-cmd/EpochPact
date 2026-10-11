@@ -1,6 +1,7 @@
 EpochPact - Windows x64 / Last Epoch offline
 
 1. Open EpochPact.exe. Python and separate mod loaders are not required.
+   Keep EpochPact.exe beside its _internal folder; extract the whole ZIP first.
 2. Press Browse and select Last Epoch.exe. The picker starts in Steam's folder;
    you may select an installation on any other drive. Your choice is remembered.
 3. Close Last Epoch and press Install mod. If Windows needs administrator rights,
@@ -12,8 +13,32 @@ executable and update the player mod. The same panel is also in Settings.
 Opening EpochPact never completes quests, gives rewards, installs or launches.
 Closing the app restores the temporary settings and character bonuses changed
 in that session. Completed quests, rewards and saved progress are kept.
-Only the verified player DLL is included. Another loader's version.dll is never
-overwritten. If one is present, remove it through its own installation process.
+The player core and optional MelonLoader bridge are included. A recognized
+MelonLoader 0.7 installation keeps its version.dll and other mod files; EpochPact
+installs its bridge in Mods instead. Unrecognized loaders are left untouched.
+MelonLoader coexistence was tested with 0.7.3 and a separate test mod. Its own
+runtime requirements apply; third-party gameplay mods may still conflict if they
+patch the same game functions. The bridge may repair duplicate compiler helper
+names in MelonLoader's generated Unity wrappers, retaining a verified backup.
+Game DLLs are not edited by that repair.
+
+Loot & Pickup has a 0-60 game-unit radius. 0 collects all loaded drops. Inspecting
+an item pauses automatic collection. World & Exploration controls nearby chests
+and shrines; the portal switch arms one use and turns off after travelling.
+Display & Camera has zoom, angle and session graphics switches. Inventory has
+Stash / Stash all / Vendor shortcuts, also added to the game's inventory footer.
+Summons shows live health, armour, resistances and global increased damage.
+It is not an ability DPS calculator. Some minion bonuses require re-summoning,
+as in the game, before the living minion's actual stats change.
+
+Crafting Workshop can combine one whole Unique/Set template with individual
+modifier lines from multiple sources. Mixed recipes hold up to 64 lines and use
+one of seven native affix slots, leaving room for six regular T7 affixes.
+Mixed items require this mod and <game>\EpochPact\workshop-recipes.txt on every
+PC where you use them. Keep that file when updating and back it up with saves.
+They are not portable to an unmodded game simply through Steam Cloud.
+Restore original gear before uninstalling; never overwrite a different PC's
+recipe database to combine two independently created collections.
 
 Windows 10/11 x64 with Microsoft Edge WebView2 Runtime and .NET Framework 4.8
 is required. These are Windows components; Python is bundled inside the EXE.

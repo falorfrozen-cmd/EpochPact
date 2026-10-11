@@ -35,6 +35,9 @@ def prepare(test_name: str = "EpMonolithTest") -> dict:
     backup = le_session.backup_saves()
     if backup is None:
         raise RuntimeError("Save backup unavailable.")
+    # This snapshot is the restoration anchor for an active isolated test.
+    # Repeated game launches must not age it out of ordinary session retention.
+    (backup / '.epochpact-retention').unlink(missing_ok=True)
     source = _json(saves / "1CHARACTERSLOT_BETA_0")
     occupied = {int(m[1]) for f in files if (m := re.match(r"1CHARACTERSLOT_BETA_(\d+)", f.name))}
     index = max(occupied, default=0) + 1

@@ -4,6 +4,7 @@
 #include "file_safety.hpp"
 #include "cof.hpp"
 #include "crafting.hpp"
+#include "workshop.hpp"
 #include "map_view.hpp"
 #include "collection.hpp"
 #include "smart_loot.hpp"
@@ -22,6 +23,9 @@
 #include "stat_editor.hpp"
 #include "version.hpp"
 #include "xp.hpp"
+#include "build_controls.hpp"
+#include "convenience.hpp"
+#include <mutex>
 #ifdef EPOCHPACT_RESEARCH
 #include "research.hpp"
 #endif
@@ -78,6 +82,39 @@ std::string Execute(const std::string& line) {
     if (parts.empty()) return {};
     const std::string& cmd = parts[0];
     const std::vector<std::string> args(parts.begin() + 1, parts.end());
+    if(cmd=="buildread")return args.empty()?builds::Read():"{\"ok\":false,\"error\":\"buildread expects no arguments\"}";
+    if(cmd=="inventoryread")return args.empty()?convenience::InventoryRead():"{\"ok\":false,\"error\":\"inventoryread expects no arguments\"}";
+    if(cmd=="qolread")return args.empty()?convenience::Read():"{\"ok\":false,\"error\":\"qolread expects no arguments\"}";
+    if(cmd=="summonread")return args.empty()?convenience::Summons():"{\"ok\":false,\"error\":\"summonread expects no arguments\"}";
+    if(cmd=="qolset"){double value=0;return args.size()==2&&statedit::Number(args[1],&value)?convenience::Set(args[0],value):"{\"ok\":false,\"error\":\"use qolset setting value\"}";}
+    if(cmd=="pickupradius"){double value=0;if(args.empty())return items::RadiusStatus();return args.size()==1&&statedit::Number(args[0],&value)?items::SetRadius(value):"{\"ok\":false,\"error\":\"use pickupradius 0..60\"}";}
+    if(cmd=="inventoryaction")return args.size()==2?convenience::Inventory(args[0],args[1]):"{\"ok\":false,\"error\":\"use inventoryaction save-id stash|vendor|stashall\"}";
+    if(cmd=="craftmaterialsread")return args.empty()?crafting::MaterialsRead():"{\"ok\":false,\"error\":\"craftmaterialsread expects no arguments\"}";
+    if(cmd=="craftmaterials") {
+        int target=0;
+        if(args.size()==2){const auto parsed=std::from_chars(args[1].data(),args[1].data()+args[1].size(),target);if(parsed.ec==std::errc{}&&parsed.ptr==args[1].data()+args[1].size())return crafting::MaximizeMaterials(args[0],target);}
+        return "{\"ok\":false,\"error\":\"use craftmaterials save-id target-1-to-1000000\"}";
+    }
+    if(cmd=="craftmods")return args.empty()?workshop::Catalog():"{\"ok\":false,\"error\":\"craftmods expects no arguments\"}";
+    if(cmd=="craftmix") {
+        int templateId=0,perfect=0;
+        try{if(args.size()==5){size_t a=0,b=0;templateId=std::stoi(args[1],&a);perfect=std::stoi(args[3],&b);if(a==args[1].size()&&b==args[3].size()&&(perfect==0||perfect==1))return crafting::Custom(args[0],templateId,args[2],perfect,args[4]=="none"?"":args[4]);}}catch(const std::exception&){}
+        return "{\"ok\":false,\"error\":\"use craftmix save-id template-id affixes perfect modifier-lines\"}";
+    }
+    if(cmd=="craftcustom") {
+        int id=-2,perfect=-1;
+        if(args.size()==4){const auto a=std::from_chars(args[1].data(),args[1].data()+args[1].size(),id),b=std::from_chars(args[3].data(),args[3].data()+args[3].size(),perfect);if(a.ec==std::errc{}&&a.ptr==args[1].data()+args[1].size()&&b.ec==std::errc{}&&b.ptr==args[3].data()+args[3].size()&&(perfect==0||perfect==1))return crafting::Custom(args[0],id,args[2],perfect!=0);}
+        return "{\"ok\":false,\"error\":\"use craftcustom save-id template-id|-1 affix-ids|keep perfect-0|1\"}";
+    }
+    if(cmd=="buildset") {
+        double value=0;
+        return args.size()==2 && statedit::Number(args[1],&value)?builds::Set(args[0],value):"{\"ok\":false,\"error\":\"use buildset setting value\"}";
+    }
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+    if(cmd=="qoltest")return args.size()==2?convenience::Test(args[0],args[1]):"{\"ok\":false,\"error\":\"use qoltest isolated-id action\"}";
+    if(cmd=="masterytest")return args.size()==2?progression::TestMastery(args[0],args[1]):"{\"ok\":false,\"error\":\"use masterytest isolated-id read|close|select|confirm|cancel\"}";
+    if(cmd=="buildtest")return args.size()==2?builds::Test(args[0],args[1]):"{\"ok\":false,\"error\":\"use buildtest isolated-id action\"}";
+#endif
     if(cmd=="atlasread" || cmd=="stashread") {
         const auto error=[](const char* s){return "{\"ok\":false,\"error\":"+managed::Json(s)+"}";};
         if(cmd=="atlasread")return args.empty()?collection::Catalog():error("atlasread expects no arguments");
@@ -145,6 +182,7 @@ std::string Execute(const std::string& line) {
     if (cmd == "progressread") return args.empty() ? progression::Read() : "progressread: refused: no arguments expected";
     if (cmd == "identityread") return args.empty() ? progression::Identity() : "identityread: refused: no arguments expected";
     if (cmd == "questscomplete") return args.size() == 1 ? progression::Complete(args[0]) : "questscomplete: refused: use questscomplete <offline save id from progressread>";
+    if (cmd == "masteryopen") return args.size() == 1 ? progression::OpenMastery(args[0]) : "{\"ok\":false,\"error\":\"use masteryopen <offline save id from progressread>\"}";
     if (cmd == "waypointsunlock") return args.size() == 1 ? progression::UnlockWaypoints(args[0]) : "waypointsunlock: refused: use waypointsunlock <offline save id from progressread>";
     if (cmd == "cofchargemult" || cmd == "cofrewardmult" || cmd == "cofexaltedmult" || cmd == "coft7mult" || cmd == "coflpmult" || cmd == "cofdouble" || cmd == "coflensmult") {
         const auto error = [](const char* text) { return "{\"ok\":false,\"error\":" + managed::Json(text) + "}"; };
@@ -314,6 +352,17 @@ std::string Execute(const std::string& line) {
     return "unknown command: " + cmd;
 }
 
+namespace {
+std::mutex uiQueueMutex;
+std::string uiCommand;
+std::function<void(const std::string&)> uiCompleted;
+bool uiExecuting=false;
+}
+bool SubmitUi(std::string line,std::function<void(const std::string&)> completed){
+    std::lock_guard<std::mutex> lock(uiQueueMutex);
+    if(lifecycle::Stopping()||uiExecuting||!uiCommand.empty())return false;
+    uiCommand=std::move(line);uiCompleted=std::move(completed);return true;
+}
 void Loop(il2cpp::Domain* domain) {
     const std::wstring dir = PluginDir() + L"ipc\\";
     EnsureDir(dir);
@@ -323,6 +372,15 @@ void Loop(il2cpp::Domain* domain) {
     const il2cpp::Api& a = il2cpp::api();
     while (!lifecycle::Stopping()) {
         mainthread::Housekeep();
+        std::string click;std::function<void(const std::string&)> completed;
+        {std::lock_guard<std::mutex> lock(uiQueueMutex);click=std::move(uiCommand);completed=std::move(uiCompleted);if(!click.empty())uiExecuting=true;}
+        if(!click.empty()){
+            void* thread=a.thread_attach(domain);std::string result;
+            std::string why;if(!game::Guarded([&]{result=Execute(click);},&why))result="{\"ok\":false,\"error\":"+managed::Json(why)+"}";
+            if(completed)completed(result);
+            if(thread)a.thread_detach(thread);
+            {std::lock_guard<std::mutex> lock(uiQueueMutex);uiExecuting=false;}
+        }
 #ifdef EPOCHPACT_RESEARCH
         research::Housekeep();
 #endif

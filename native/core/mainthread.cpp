@@ -119,6 +119,18 @@ void KeepTicking() {
     }
 }
 
+bool Post(std::function<void()> job, std::string* why) {
+    if(!g_update){if(why)*why="EventSystem.Update was not found";return false;}
+    auto state=std::make_shared<std::atomic<int>>(0);
+    auto progress=std::make_shared<std::atomic<DWORD>>(GetTickCount());
+    {std::lock_guard<std::mutex> hold(g_queueLock);if(g_stopping){if(why)*why="the game is shutting down";return false;}
+        g_jobs.push_back({[job=std::move(job)]{job();return true;},state,progress});++g_pending;}
+    if(EnsureHook(why))return true;
+    std::lock_guard<std::mutex> hold(g_queueLock);
+    for(auto it=g_jobs.begin();it!=g_jobs.end();++it)if(it->state==state){g_jobs.erase(it);--g_pending;break;}
+    return false;
+}
+
 bool RunSteps(std::function<bool()> job, unsigned timeoutMs, std::string* why) {
     if (!g_update) {
         if (why) *why = "EventSystem.Update was not found";

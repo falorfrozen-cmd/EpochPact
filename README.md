@@ -1,7 +1,8 @@
 # EpochPact
 
-ForgePact-style mods for Last Epoch: a native plugin loaded by the game, commands sent to it
-from outside, every line our own (no mod loader, no hook library, no other mod's code).
+ForgePact-style mods for Last Epoch: an EpochPact native plugin loaded by the game,
+with commands sent from a desktop interface. Standalone installation does not require
+MelonLoader; an optional bridge supports existing MelonLoader 0.7.3 installations.
 Offline characters only: every feature refuses in online play.
 
 Working on this repository with an AI agent? Start with `GEMINI.md` (the agent handoff:
@@ -9,12 +10,17 @@ layout, build/test/live workflow, the current state and the traps) and
 `research/HANDOFF.md` (the full handoff report).
 
 Building the owner's UI? Start with [the complete UI catalog](docs/ui-catalog.md)
-and its machine-readable [ui/catalog.json](ui/catalog.json): all 72 implemented
+and its machine-readable [ui/catalog.json](ui/catalog.json): all 118 implemented
 controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest [live verification report](docs/all-mods-current-verification.md): all 247
+Latest changes: [0.1.2-dev.6 release notes](docs/releases/0.1.2-dev.6.md),
+[remaining-three validation](docs/remaining-three-validation-2026-10-11.md), and
+[player-feedback validation](docs/player-feedback-validation-2026-10-11.md).
+These separate measured gameplay, installer checks, and outstanding coverage limits.
+
+Earlier [live verification report](docs/all-mods-current-verification.md): all 247
 stat keys on the final player DLL, real Monolith panel checks, a complete Echo
 combat/return/reward loop, interface recovery and exact save restoration. It
 identifies guarded test-driver evidence, retained earlier checks, observed crashes
@@ -26,7 +32,7 @@ scoped evidence for these changed paths.
 
 ## Player installation
 
-Download [the Windows alpha package](https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.0-alpha.20261009)
+Download [the current Windows development package](https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.6)
 and open `EpochPact.exe`; no Python installation is
 needed. Choose `Last Epoch.exe` with **Browse** (the picker starts in Steam's folder,
 and other installations are supported). With the game closed, press **Install mod**,

@@ -21,6 +21,9 @@ class ReviewBundleTests(unittest.TestCase):
         core.write_bytes(b'MZ non-runnable player fixture')
         loader = resources / 'native/build/version.dll'
         loader.write_bytes(b'MZ non-runnable loader fixture')
+        bridge = resources / 'native/build/melon/EpochPact.MelonBridge.dll'
+        bridge.parent.mkdir()
+        bridge.write_bytes(b'MZ non-runnable managed bridge fixture')
         (core.parent / 'build-info.json').write_text(json.dumps({'flavor': 'player', 'sha256': sha(core.read_bytes())}))
         (resources / 'ui/assets').mkdir(parents=True)
         (resources / 'ui/catalog.json').write_text(json.dumps({'liveState': {}, 'currentValues': {}}))

@@ -19,6 +19,7 @@ datas += [(str(stage / 'native/build/version.dll'), 'native/build'),
           (str(stage / 'native/build/player/build-info.json'), 'native/build/player'),
           (str(stage / 'THIRD-PARTY-NOTICES.txt'), '.')]
 datas += collect_data_files('webview', excludes=['lib/pywebview-android.jar', 'lib/WebBrowserInterop.x86.dll'])
+datas += [(str(stage / 'native/build/melon/EpochPact.MelonBridge.dll'), 'native/build/melon')]
 a = Analysis(
     [str(root / 'epochpact_desktop.py')], pathex=[str(root)],
     binaries=[], datas=datas,
@@ -27,6 +28,10 @@ a = Analysis(
               'webview.platforms.qt', 'webview.platforms.gtk', 'webview.platforms.cef',
               'webview.platforms.android', 'webview.platforms.cocoa',
               'setuptools', '_distutils_hack', 'distutils', 'pkg_resources', 'wheel', 'pip', 'capstone',
+              # Optional shell / plotting integrations reached through third-party
+              # imports are unused by the Windows WebView2 player application.
+              'IPython', 'jedi', 'parso', 'pygments', 'prompt_toolkit', 'tornado',
+              'matplotlib', 'numpy', 'scipy', 'pandas', 'pygame',
               'cffi.setuptools_ext', 'cffi.recompiler', 'cffi.ffiplatform',
               'cffi.vengine_cpy', 'cffi.vengine_gen', 'cffi._shimmed_dist_utils'],
     # CFFI uses its prebuilt backend / dlopen here; runtime compilation is unused.

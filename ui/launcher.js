@@ -5,7 +5,7 @@
  const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function section(){
   if(!state)return '';
-  const status=state.foreignLoader?'Another mod loader is installed':state.disabled?'Mod disabled':state.installed?'Player mod installed':state.selected?'Ready to install':'Choose your game';
+  const status=state.melonLoader?(state.installed?'MelonLoader bridge installed':'MelonLoader detected'):state.foreignLoader?'Another mod loader is installed':state.disabled?'Mod disabled':state.installed?'Player mod installed':state.selected?'Ready to install':'Choose your game';
   return `<section class="panel game-setup"><div class="section-head"><h2>Game setup</h2><span class="badge">${status}</span></div><p class="muted">Select your Last Epoch executable once. Install the mod with the game closed, then launch offline.</p><label>Game executable<div class="game-path-row"><input data-game-path aria-label="Last Epoch executable path" value="${escape(state.executable)}" placeholder="Select Last Epoch.exe"><button data-game-choose>Browse…</button><button data-game-save>Save path</button></div></label><p data-game-problem class="muted">${escape(state.problem||'The file picker opens in your Steam folder. You can browse to any other installation.')}</p><div class="actions"><button data-game-install> ${state.installed?'Reinstall / update mod':'Install mod'}</button>${elevation?'<button data-game-elevate>Install as administrator</button>':''}<button class="primary" data-game-launch>${state.running?'Game running':'Launch offline'}</button></div><p class="muted">${state.running?'Close the game before installing or changing its location.':'Offline characters only. No gameplay settings are applied on startup.'}</p><p data-setup-feedback class="setup-feedback" role="status"></p></section>`;
  }
  function render(){
@@ -19,7 +19,7 @@
  }
  function disable(){
   for(const b of document.querySelectorAll('.game-setup button')){
-   b.disabled=(isBusy?.()||false)||((b.hasAttribute('data-game-install')||b.hasAttribute('data-game-elevate'))&&(!state?.selected||state.running||state.runningUnknown||state.foreignLoader))||
+   b.disabled=(isBusy?.()||false)||((b.hasAttribute('data-game-install')||b.hasAttribute('data-game-elevate'))&&(!state?.selected||state.running||state.runningUnknown||state.foreignLoader&&!state.melonLoader))||
     (b.hasAttribute('data-game-launch')&&(!state?.installed||state.running||state.disabled));
   }
  }

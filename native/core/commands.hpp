@@ -6,10 +6,13 @@
 #include "il2cpp_api.hpp"
 
 #include <string>
+#include <functional>
 
 namespace ep::commands {
 
 std::string Execute(const std::string& line);
+// Game UI clicks share the IPC worker. No second mutation thread or IPC reply.
+bool SubmitUi(std::string line,std::function<void(const std::string&)> completed);
 
 // Polls cmd.txt every 100 ms forever. Call from the core's worker thread while it is
 // detached from IL2CPP; each batch of commands attaches to `domain` while it runs.

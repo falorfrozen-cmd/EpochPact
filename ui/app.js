@@ -10,6 +10,12 @@ const pages = {
  loot: ["Loot & Pickup", "▣", "Keep what matters.", "Automatic collection, loot filters and crafting material pickup."],
  crafting: ["Crafting", "⚒", "Make every craft count.", "Forge your selected item, preserve materials and customize crafting costs."],
  stats: ["Character", "♜", "Refine your character.", "Find a stat and customize its bonus."],
+ skills: ["Skills & Trees", "✧", "Build beyond the branches.", "Skill experience, point budgets, tree connections and projectiles."],
+ equipment: ["Equipment", "⚔", "Equip your imagination.", "Offhand combinations and full set bonuses."],
+ summons: ["Summons", "♧", "Command your companions.", "Minion bonuses and temporary summon duration."],
+ display: ["Display & Camera", "◉", "See Eterra your way.", "Camera pitch, zoom and temporary graphics overrides."],
+ world: ["World & Exploration", "⌖", "Explore without friction.", "Map visibility and nearby chest, shrine and portal interactions."],
+ inventory: ["Inventory", "▤", "Your workshop, anywhere.", "Open your stash or vendor and transfer inventory items safely."],
  atlas: ["Unique Atlas", "✦", "Every relic has a story.", "Your collection, missing treasures and the next item to chase."],
  stash: ["Stash Assistant", "▤", "Find the keeper.", "Compare your copies and mark what matters."],
  campaign: ["Campaign", "⌘", "Begin a new chapter.", "Quests, their normal rewards and waypoints across the world."],
@@ -21,14 +27,18 @@ const pages = {
 const lifetime = {session:"Session",actor:"Character",game_save:"Game save",read_only:"Read only",view:"View",recovery:"Recovery"};
 const description = c => c.description;
 let catalog, token, preview = false, developer = false, page = "overview", busy = false;
-const developerControls=new Set(["density_read","map_read","sheet_catalog","sheet_open","resistance_labels","session_read","status","player_read","characters","play_offline","load_character"]);
+const developerControls=new Set(["density_read","map_read","pickup_radius_read","sheet_catalog","sheet_open","resistance_labels","session_read","status","player_read","characters","play_offline","load_character"]);
 function playerControl(c){return developer||!developerControls.has(c.id);}
 let connected = {connected:false,offline:false}, values = {}, appliedValues = {}, dirty = new Set(), cache = {}, history = [], actorValues = {};
+let workshopDraft={template_id:"-1",affixes:[],perfect:"1",modifiers:[]},workshopOwner=null;
+let workshopModifierFilter="";
+let materialTarget="10000";
 // Only direct edits in General/Overview auto-apply. Reads, profiles and save
 // actions never enter this queue. One job at a time; latest unsent value wins.
 const autoPending=new Map(),autoErrors=new Map(),autoApplied=new Set();
 let autoTimer,autoSending=null,autoRunning=false,autoGeneration=0;
-function automaticSetting(c){return ["general","overview"].includes(page)&&c?.group==="general"&&["number","toggle"].includes(c.widget)&&["session","actor"].includes(c.lifetime);}
+let liveReading=false;
+function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|pickupradius|autopickup|mapreveal) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
 function automaticOwner(){
  if(preview)return "preview";
  const p=connected.player;
@@ -42,7 +52,7 @@ function cancelAutomatic(){
 }
 function armAutomatic(){
  clearTimeout(autoTimer);
- if(busy||autoRunning||!autoPending.size)return;
+ if(busy||autoRunning||liveReading||!autoPending.size)return;
  const next=Math.min(...[...autoPending.values()].map(x=>x.readyAt));
  autoTimer=setTimeout(()=>void flushAutomatic(),Math.max(0,next-Date.now()));
 }
@@ -74,7 +84,7 @@ function queueAutomatic(id,value,delay=250){
  syncSettingUi(id);armAutomatic();
 }
 async function flushAutomatic(force=false){
- if(busy||autoRunning)return;
+ if(busy||autoRunning||liveReading){armAutomatic();return;}
  const entry=[...autoPending].find(([,edit])=>force||edit.readyAt<=Date.now());
  if(!entry){armAutomatic();return;}
  const [id,edit]=entry;
@@ -151,12 +161,15 @@ function playerResult(payload,result){
  const where=target?` ${clean(target.name||target.label)} (${a.difficulty==="empowered"?"Empowered":"Normal"}).`:"";
  const messages={
   stability:`Stability set to ${a.value}.${where}`,corruption:`Corruption set to ${a.value}.${where}`,
-  campaign_complete:"Campaign completed with normal rewards.",waypoints_unlock:"All waypoints unlocked.",
+  campaign_complete:result.mastery?.needsSelection?"Campaign completed with normal rewards. Use Choose Mastery to finish your character.":"Campaign completed with normal rewards.",waypoints_unlock:"All waypoints unlocked.",
+  mastery_choose:"Mastery selection opened in the game. Choose and confirm your mastery there.",
+  inventory_stash:"Stash opened in the game.",inventory_vendor:"Vendor opened in the game.",
+  inventory_stashall:`Moved ${result.moved??0} items to your stash. ${result.remaining??0} items remain in your inventory.`,
   monolith_unlock:"Normal and Empowered timelines unlocked.",monolith_select:`Timeline selected.${where}`,
   cof_rank:`Circle of Fortune rank set to ${a.value}.`,cof_favor:`Favor set to ${a.value}.`,
   cof_reputation_grant:`Added ${a.value} Reputation.`,cof_join:"Joined Circle of Fortune.",cof_lenses_unlock:"Available lenses unlocked.",
   cofprophecy:`Prophecy slot ${Number(a.slot)+1} updated.`,cof_charges:`Prophecy slot ${Number(a.slot)+1} charges set to ${a.value}.`,
-  craft_forge:"Item forged once.",craft_reset:"Normal crafting restored.",loot_reset:"Pickup rules reset.",stat_reset:"All character bonuses reset.",
+  craft_forge:"Item forged once.",craft_materials:`${result.updatedKinds??0} material types stocked to at least ${result.target??a.value}. Saved in your crafting stash.`,craft_reset:"Normal crafting restored.",loot_reset:"Pickup rules reset.",stat_reset:"All character bonuses reset.",
   undo:"Selected backup restored. You can reopen the game."
  };
  if(result.preview)return "Preview complete. The game and saves were unchanged.";
@@ -182,10 +195,12 @@ function confirmAction(title,message) {
 }
 function finishConfirm(value) {$("#confirm-dialog").close();if(confirmationResolve){confirmationResolve(value);confirmationResolve=null;}}
 function controlById(id){return catalog.controls.find(x=>x.id===id);}
-function saveSnapshot(c){return c.id==="craft_forge"?cache.craft_read?.forgePreview:cache[c.group==="campaign"?"progress_read":c.group==="monolith"?"monolith_read":"cof_read"];}
+function saveSnapshot(c){return c.group==="inventory"?cache.inventory_read:c.id==="craft_materials"?cache.craft_materials_read:["craft_forge","craft_custom"].includes(c.id)?cache.craft_read?.forgePreview:cache[c.group==="campaign"?"progress_read":c.group==="monolith"?"monolith_read":"cof_read"];}
 function eligible(control) {
  if(preview)return true;
  if(!connected.connected)return false;
+ const buildKey=control.commandTemplate?.startsWith("buildset ")?control.commandTemplate.split(" ")[1]:null;
+ if(buildKey && cache.build_read?.settings?.[buildKey]?.available===false)return false;
  if(control.requirements.includes("offline") && (!connected.offline || connected.state!=="InGame" || connected.transitioning)) return false;
  for(const state of ["Login","CharacterSelect"]) if(control.requirements.includes(state+"_and_not_transitioning") && (connected.state!==state||connected.transitioning))return false;
  return true;
@@ -200,12 +215,15 @@ function updateDisabled() {
   const reconnectingRead=button.dataset.refresh===c.id&&c.widget==="read";
   let reason = !eligible(c)&&!reconnectingRead?"Load an offline character and wait for the area to finish loading.":"";
   if(c.id==="undo"&&!history.length)reason="No saved operation is available to restore.";
-  if(c.lifetime==="game_save") {
+  if(c.lifetime==="game_save"||c.id==="mastery_choose") {
    const data=saveSnapshot(c);
    reason ||= window.EpochSession.saveActionReason(data,connected,{preview,monolith:c.group==="monolith"});
   }
+  if(c.id==="mastery_choose"&&!preview&&cache.progress_read?.mastery?.available!==true)reason ||= cache.progress_read?.mastery?.reason||"Refresh live to check whether mastery selection is available.";
   if(button.dataset.unavailable==="true")reason ||= "This action is unavailable for the current selection.";
   if(c.id==="craft_forge"&&cache.craft_read?.forgePreview?.canForge!==true)reason ||= cache.craft_read?.forgePreview?.message||"Select an eligible item and material in the game forge, then read live.";
+  if(c.id==="craft_custom"&&(cache.craft_read?.forgePreview?.canCustom!==true||!cache.craft_custom_catalog?.items?.length))reason ||= "Select an equipment item in the game forge, refresh live, and load workshop templates.";
+  if(preview&&["craft_materials","craft_materials_read"].includes(c.id))reason ||= "Load an offline character to read or stock real crafting materials.";
   button.disabled=busy||!!reason;
   button.title=busy?"Waiting for the current operation.":reason||(!eligible(c)&&reconnectingRead?"Refresh game connection and live data.":"");
   const hint=button.closest("form")?.querySelector("[data-action-reason]");
@@ -217,8 +235,8 @@ function updateDisabled() {
  $("#reconcile").disabled=busy||!Object.keys(actorValues).length||(!preview&&!connected.offline);
  $("#refresh-connection").disabled=busy;
  $("#reset-draft").disabled=busy;
- document.querySelectorAll('[data-setting-number],[data-setting-range],[data-setting-toggle],[data-setting-reset],[data-step]').forEach(input=>{
-  const id=input.dataset.settingNumber||input.dataset.settingRange||input.dataset.settingToggle||input.dataset.settingReset||input.dataset.settingId,c=controlById(id);
+ document.querySelectorAll('[data-setting-number],[data-setting-range],[data-setting-toggle],[data-setting-choice],[data-setting-reset],[data-step]').forEach(input=>{
+  const id=input.dataset.settingNumber||input.dataset.settingRange||input.dataset.settingToggle||input.dataset.settingChoice||input.dataset.settingReset||input.dataset.settingId,c=controlById(id);
   input.disabled=automaticSetting(c)?!eligible(c)||busy&&!autoRunning:busy;
  });
  $("#draft-label").innerHTML=(busy?"Working…":setupPage?"Game setup":autoErrors.size?"A setting needs attention":autoPending.size?"Applying changes…":autoPage?"Changes apply automatically":manualDirty.length?`${manualDirty.length} settings in draft`:"Ready")+"<span>"+(preview?"Preview; no changes to the game.":setupPage?"Choose your executable, then use the setup buttons.":"Save actions use their own buttons.")+"</span>";
@@ -268,23 +286,39 @@ async function refreshConnection(silent=true,refreshCurrent=true,{preservePage=f
  // partially typed fields elsewhere in the interface.
  if(!preservePage||!sameArea||valuesChanged)renderPage();else updateDisabled();
  const readId=pageReadId();
- if(refreshCurrent&&readId&&(!cache[readId]||["general","loot","crafting"].includes(page))&&eligible(controlById(readId)))await refreshSection(readId,{refreshConnectionFirst:false});
+ const masteryMayHaveChanged=page==="campaign"&&cache.progress_read?.mastery?.panelOpen===true;
+ if(refreshCurrent&&readId&&(!cache[readId]||["general","loot","crafting"].includes(page)||masteryMayHaveChanged)&&eligible(controlById(readId)))await refreshSection(readId,{refreshConnectionFirst:false});
 }
 function syncSpeed(){
  const modes=actorValues["9:0:0:0"]?.modes;if(modes){appliedValues.speed=1+(modes.increased||0);if(!dirty.has("speed"))values.speed=appliedValues.speed;}
 }
-function unitFor(c){return c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":c.id==="craft_fp"?"":c.widget==="toggle"?"":"×";}
+function unitFor(c){return c.id==="pickup_radius"?" units":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["craft_fp","build_weaverflat","build_projectileflat","build_blessingoptions"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
 function settingDisplayValue(id,value){return id==="speed"&&Number.isFinite(value)?Number(value.toFixed(6)):value;}
 function settingCard(c) {
  const p=c.parameters.find(x=>x.name==="value"),v=settingDisplayValue(c.id,values[c.id]??c.default),unit=unitFor(c);
  const isToggle=c.widget==="toggle";
+ if(p.choices)return `<article class="control-card" data-setting="${esc(c.id)}"><div class="control-top"><h3>${esc(c.label)}</h3><span class="badge">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><div class="control-tools"><select data-setting-choice="${c.id}" aria-label="${esc(c.label)}">${p.choices.map(x=>`<option value="${x}" ${x===v?"selected":""}>${x===0?"Normal game choices":x+" choices"}</option>`).join("")}</select><button class="quiet" data-setting-reset="${c.id}">Default</button></div><div class="limits"><span data-setting-feedback="${c.id}" role="status">${settingFeedback(c.id)}</span></div></article>`;
  return `<article class="control-card" data-setting="${esc(c.id)}"><div class="control-top"><span class="icon ${esc(c.id)}" aria-hidden="true"></span><div><div class="control-title">${esc(c.label)}</div></div><span class="badge">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><div class="control-tools">${isToggle?`<label class="toggle">${v?"On":"Off"}<input aria-label="${esc(c.label)}" type="checkbox" data-setting-toggle="${c.id}" ${v?"checked":""}></label>`:`<input type="range" aria-label="${esc(c.label)} slider" data-setting-range="${c.id}" min="${p.minimum}" max="${p.maximum}" step="${p.type==="integer"?1:0.1}" value="${v??p.minimum}"><div class="stepper"><button data-step="-1" data-setting-id="${c.id}" aria-label="${esc(c.label)} decrease">−</button><input aria-label="${esc(c.label)} value" data-setting-number="${c.id}" type="number" min="${p.minimum}" max="${p.maximum}" step="${p.type==="integer"?1:"any"}" value="${v??""}" placeholder="Rank" ${c.default===null?'':'required'}><button data-step="1" data-setting-id="${c.id}" aria-label="${esc(c.label)} increase">+</button></div><span class="unit">${unit}</span>`}<button class="quiet" data-setting-reset="${c.id}">Default</button></div><div class="limits">${isToggle?`Default: ${c.default?"on":"off"}`:`${p.minimum}–${p.maximum}${unit} · Default: ${c.default??"rank bonus"}`} <span class="setting-feedback" data-setting-feedback="${c.id}" role="status">${settingFeedback(c.id)}</span></div></article>`;
 }
 function settingPanel(title,controls){return `<section class="panel"><div class="section-head"><h2>${title}</h2><span class="badge">${controls.every(automaticSetting)?"Changes apply automatically":"Use Apply changes below"}</span></div><div class="control-grid">${controls.map(settingCard).join("")}</div></section>`;}
 function actionCard(c, fields="", extra=""){
- return `<article class="control-card"><div class="control-top"><h3 class="control-title">${esc(c.label)}</h3><span class="badge ${c.lifetime==="game_save"?"save":""}">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><form class="control-form" data-id="${c.id}"><div class="form-grid">${fields||parameterFields(c)}</div>${extra}<p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" data-control-id="${c.id}" class="${c.lifetime==="game_save"?"primary":""}">${c.widget==="read"?"Read live":c.lifetime==="game_save"?"Apply action":c.widget==="preview"?"Preview":"Apply"}</button></div></form></article>`;
+ const caption=c.id==="craft_materials"?"Stock all materials":c.id==="mastery_choose"?"Choose Mastery":c.widget==="read"?"Read live":c.lifetime==="game_save"?"Apply action":c.widget==="preview"?"Preview":"Apply";
+ return `<article class="control-card"><div class="control-top"><h3 class="control-title">${esc(c.label)}</h3><span class="badge ${c.lifetime==="game_save"?"save":""}">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><form class="control-form" data-id="${c.id}"><div class="form-grid">${fields||parameterFields(c)}</div>${extra}<p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" data-control-id="${c.id}" class="${c.lifetime==="game_save"||c.id==="mastery_choose"?"primary":""}">${caption}</button></div></form></article>`;
 }
 function options(list,selected,none=false){const picked=Array.isArray(selected)?selected.map(String):[String(selected)];return (none?`<option value="none" ${selected==null?'selected':''}>Clear selection (none)</option>`:"")+list.map(x=>`<option value="${esc(x.id)}" ${picked.includes(String(x.id))?"selected":""}>${esc(clean(x.uiLabel||x.name||x.id))}</option>`).join("");}
+function workshopModifierOptions(){
+ const meta=catalog.characterStats||{},selected=workshopDraft.modifiers||[],query=workshopModifierFilter.trim().toLowerCase();
+ const names=value=>String(value||"").replace(/([a-z])([A-Z])/g,"$1 $2");
+ const list=(cache.craft_custom_catalog?.modifiers||[]).map(x=>{
+  const stat=names(meta.properties?.find(p=>p.id===x.property)?.name||"Modifier "+x.property);
+  const tags=(meta.tags||[]).filter(t=>t.id>0&&(x.tags&t.id)===t.id).map(t=>names(t.name));
+  const ailment=names(meta.ailments?.find(a=>a.id===x.special&&a.id!==0)?.name);
+  const value=workshopDraft.perfect==="0"?(Number(x.value)+Number(x.maximum))/2:Number(x.maximum);
+  const amount=x.mode===0?Number(value.toPrecision(6)):Number((value*100).toPrecision(6))+"% "+(x.mode===1?"increased":"more");
+  return {...x,name:[x.source,stat,...tags,ailment,x.extra?"Variant "+x.extra:"",amount].filter(Boolean).join(" · ")};
+ });
+ return options(list.filter(x=>selected.includes(String(x.id))||!query||x.name.toLowerCase().includes(query)),selected);
+}
 function field(name,label,html){return `<label>${esc(label)}${html}</label>`;}
 function parameterFields(c){
  return c.parameters.filter(p=>p.name!=="save_id").map(p=>{
@@ -295,10 +329,15 @@ function parameterFields(c){
   else if(name==="reward")html=`<select name="reward">${options((cache.cof_read?.rewards||[]).filter(x=>x.available),cache.cof_read?.slots.find(s=>!s.locked)?.rewardId,true)}</select>`;
   else if(name==="lens")html=`<select name="lens">${options((cache.cof_read?.lenses||[]).filter(x=>x.purchased&&x.rankRequired<=cache.cof_read.cof.rank),cache.cof_read?.slots.find(s=>!s.locked)?.lens,true)}</select>`;
   else if(name==="backup")html=`<select name="backup">${history.map(x=>`<option value="${esc(x.backup)}">${esc(controlById(x.control)?.label)} · ${new Date(x.time*1000).toLocaleTimeString("en-GB")}</option>`).join("")}</select>`;
+  else if(c.id==="craft_custom"&&name==="template_id")html=`<select name="template_id"><option value="-1" ${workshopDraft.template_id==="-1"?"selected":""}>Exalted · affixes only</option>${options((cache.craft_custom_catalog?.items||[]).map(x=>({...x,uiLabel:(x.set?"Set · ":"Unique · ")+x.name})),workshopDraft.template_id)}</select>`;
+  else if(c.id==="craft_custom"&&name==="affixes")html=`<select name="affixes" multiple size="8">${options(cache.craft_custom_catalog?.affixes||[],workshopDraft.affixes)}</select><span class="note">Choose up to seven T7 affixes. No selection keeps the current affixes.</span>`;
+  else if(c.id==="craft_custom"&&name==="perfect")html=`<select name="perfect"><option value="1" ${workshopDraft.perfect==="1"?"selected":""}>Maximum rolls</option><option value="0" ${workshopDraft.perfect==="0"?"selected":""}>Midpoint rolls</option></select>`;
+  else if(c.id==="craft_custom"&&name==="modifiers")html=`<input type="search" data-workshop-filter placeholder="Search item names or modifier effects..." value="${esc(workshopModifierFilter)}"><select name="modifiers" multiple size="10">${workshopModifierOptions()}</select><span class="note">Mix up to 64 individual Unique and Set modifier lines. Uses one affix slot: select at most six regular affixes. Mixed items require EpochPact and its workshop-recipes.txt file after restarting or moving to another PC.</span>`;
+  else if(c.id==="craft_materials"&&name==="value")html=`<input name="value" type="number" min="${p.minimum}" max="${p.maximum}" step="1" value="${esc(materialTarget)}" required><span class="note">Higher existing quantities are kept. Range: 1–1,000,000 per material.</span>`;
   else if(p.choices){const selected=c.id==="loot_mode"?cache.loot_read?.mode??c.default:null;html=`<select name="${name}">${p.choices.map(x=>`<option value="${x}" ${x===selected?"selected":""}>${x}</option>`).join("")}</select>`;}
   else if(c.id==="loot_affixes")html=`<select name="ids" multiple size="8" aria-label="Wanted T7 affixes">${options(cache.loot_read?.affixes||[],cache.loot_read?.affixIds||[])}</select><span class="note">Refresh pickup rules to load affix names. Hold Ctrl to select several; no selection accepts any T7.</span>`;
  else {const liveDefault=name==="value"?({craft_hope:cache.craft_read?.hopePercent,craft_despair:cache.craft_read?.despairPercent,cof_rank:cache.cof_read?.cof?.rank,cof_favor:cache.cof_read?.cof?.favor,cof_charges:cache.cof_read?.slots?.find(s=>!s.locked)?.charges}[c.id]??c.default):c.default;html=`<input name="${name}" ${p.type==="single_token"?'type="text"':'type="number"'} ${p.minimum!=null?`min="${p.minimum}"`:""} ${p.maximum!=null?`max="${p.maximum}"`:""} step="${p.type.includes("integer")?"1":"any"}" ${liveDefault!=null?`value="${liveDefault}"`:""} ${p.type==="number_or_reset"?'placeholder="Normal chance (blank resets)"':""} ${["optional_integer","number_or_reset"].includes(p.type)?"":"required"}>`;}
-  return field(name,{value:"Value",name:"Character name",level:"Level (optional)",slot:"Prophecy slot",reward:"Reward",lens:"Lens",backup:"Operation backup",mode:"Selection",ids:"Affixes",category:"Pickup category"}[name]||name,html);
+  return field(name,c.id==="craft_materials"&&name==="value"?"Minimum quantity per material":{value:"Value",name:"Character name",level:"Level (optional)",slot:"Prophecy slot",reward:"Reward",lens:"Lens",backup:"Operation backup",mode:"Selection",ids:"Affixes",category:"Pickup category",template_id:"Whole Unique / Set template",affixes:"T7 affixes",perfect:"Roll quality",modifiers:"Additional modifier lines"}[name]||name,html);
  }).join("");
 }
 function cachedSummary(id){
@@ -313,14 +352,19 @@ function go(id){
  $("#global-search").value="";
  if(location.hash==="#"+id)void openPage();else location.hash=id;
 }
-function pageReadId(){return {general:"map_read",loot:"loot_read",crafting:"craft_read",campaign:"progress_read",monolith:"monolith_read",cof:"cof_read",factions:"factions_read"}[page];}
+function pageReadId(){return {general:"build_read",display:"qol_read",world:"qol_read",inventory:"inventory_read",skills:"build_read",equipment:"build_read",summons:"build_read",loot:"loot_read",crafting:"craft_read",campaign:"progress_read",monolith:"monolith_read",cof:"cof_read",factions:"factions_read"}[page];}
 async function openPage(){
  page=location.hash.slice(1)||"overview";if(!(page in pages))page="overview";
  $("#global-search").value="";
  if(page==="atlas"||page==="stash"){collectionState.filter="all";collectionState.page=0;collectionState.selected=null;}
  statsPage=0;renderPage();$("#main-scroll").scrollTop=0;
  const readId=pageReadId();
- if(readId&&eligible(controlById(readId))&&(!cache[readId]||["general","loot","crafting"].includes(page)))await refreshSection(readId);
+ if(readId&&eligible(controlById(readId))&&(!cache[readId]||["general","loot","crafting","display","world","inventory"].includes(page)))await refreshSection(readId);
+ if(page==="loot"&&!preview)await refreshSection("pickup_radius_read",{refreshConnectionFirst:false});
+ if(page==="display")await refreshSection("build_read",{refreshConnectionFirst:false});
+ if(page==="world")await refreshSection("map_read",{refreshConnectionFirst:false});
+ if(page==="crafting"&&!preview&&eligible(controlById("craft_materials_read")))await refreshSection("craft_materials_read",{refreshConnectionFirst:false});
+ if(["general","monolith"].includes(page)&&!cache.build_read&&controlById("build_read")&&eligible(controlById("build_read")))await refreshSection("build_read",{refreshConnectionFirst:false});
 }
 function renderPage(){
  navigation();const p=pages[page];$("#breadcrumb").textContent="EpochPact / "+p[0];$("#page-title").textContent=p[2];$("#page-subtitle").textContent=p[3];
@@ -329,19 +373,39 @@ function renderPage(){
  }else if(page==="game_setup"){
   content.innerHTML='';
  }else if(page==="general"){
-  content.innerHTML=settingPanel("General game settings",catalog.controls.filter(c=>c.group==="general"&&["number","toggle"].includes(c.widget)&&!c.id.startsWith("loot_")&&!c.id.startsWith("craft_")&&!c.id.startsWith("map_")))+
-   settingPanel("Map visibility",[controlById("map_reveal")])+(developer?`<details class="panel"><summary>Map and density diagnostics</summary>${["map_read","density_read"].map(id=>actionCard(controlById(id))).join("")}</details>`:"");
+  content.innerHTML=settingPanel("General game settings",catalog.controls.filter(c=>c.group==="general"&&["number","toggle"].includes(c.widget)&&!c.id.startsWith("loot_")&&!c.id.startsWith("craft_")&&!c.id.startsWith("map_")));
+ }else if(page==="display"){
+  content.innerHTML=settingPanel("Camera",["build_zoom","build_cameraangle"].map(controlById))+settingPanel("Graphics effects",catalog.controls.filter(c=>c.group==="display"&&c.id.startsWith("qol_")))+`<p class="note">Graphics overrides last for this character session. Turning them off restores the previous renderer values. Your saved graphics preferences are kept.</p>`;
+ }else if(page==="world"){
+  content.innerHTML=settingPanel("Map visibility",[controlById("map_reveal")])+settingPanel("Nearby interactions",["qol_chests","qol_shrines","qol_portals"].map(controlById));
+ }else if(page==="inventory"){
+  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory shortcuts</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the currently selected stash tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_stash","inventory_vendor","inventory_stashall"].map(id=>actionCard(controlById(id))).join("")}</div></section>`;
  }else if(page==="loot"){
-  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup")])+settingPanel("Quality rules",["loot_lp","loot_t7","loot_filter"].map(controlById))+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_affixes","loot_category"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
+  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius")])+settingPanel("Quality rules",["loot_lp","loot_t7","loot_filter"].map(controlById))+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_affixes","loot_category"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
  }else if(page==="crafting"){
   const forge=cache.craft_read?.forgePreview;
+  const stock=cache.craft_materials_read,stockCurrent=window.EpochSession.current(stock,connected,preview);
+  const stockInfo=stockCurrent&&stock.materials?.length?`${stock.kinds?.shards??0} shard types · ${stock.kinds?.runes??0} runes · ${stock.kinds?.glyphs??0} glyphs. Current quantities: ${Math.min(...stock.materials.map(x=>x.count))}–${Math.max(...stock.materials.map(x=>x.count))}.`:"Load an offline character and refresh materials to read the current stash.";
   content.innerHTML=`<section class="panel"><div class="section-head"><h2>Game forge</h2><button data-refresh="craft_read" data-control-id="craft_read">Refresh live</button></div><p class="note">${esc(forge?.canForge?"Selected craft is ready. Forge selected item once performs one craft and creates a backup.":forge?.message||"Select an item and materials in the game's forge, then refresh live.")}</p><div class="control-grid">${(developer?["craft_read","craft_forge"]:["craft_forge"]).map(id=>actionCard(controlById(id))).join("")}</div></section>`+
+   `<section class="panel"><div class="section-head"><h2>Crafting material stock</h2><button data-refresh="craft_materials_read" data-control-id="craft_materials_read">Refresh materials</button></div><p class="note">${esc(stockInfo)}</p>${actionCard(controlById("craft_materials"))}</section>`+
+   `<section class="panel"><div class="section-head"><h2>Custom gear workshop</h2><button data-refresh="craft_custom_catalog" data-control-id="craft_custom_catalog">Load templates</button></div><p class="note">Keep your selected item's base. Combine a whole Unique or Set template, T7 affixes and individual modifier lines from different items. The item is replaced once, with a recovery backup. Materials are not consumed by this custom action.</p>${actionCard(controlById("craft_custom"))}</section>`+
    settingPanel("Cost and material preservation",["craft_fp","craft_shards","craft_runes","craft_glyphs"].map(controlById))+
    `<section class="panel"><h2>Glyph chances</h2><div class="control-grid">${["craft_hope","craft_despair"].map(id=>actionCard(controlById(id))).join("")}</div></section>`+
    settingPanel("Crafting requirements",[controlById("craft_level")])+`<section class="panel"><h2>Restore normal crafting</h2>${actionCard(controlById("craft_reset"))}</section>`;
+ }else if(page==="skills"){
+  const ids=keys=>keys.map(key=>controlById("build_"+key));
+  content.innerHTML=cachedSummary("build_read")+`<section class="panel"><div class="section-head"><h2>Skill and point budgets</h2><button data-refresh="build_read" data-control-id="build_read">Refresh live</button></div><div class="summary-grid"><div class="summary"><strong>${cache.build_read?.passivePoints??"—"}</strong><span>Passive budget</span></div><div class="summary"><strong>${cache.build_read?.weaverPoints??"—"}</strong><span>Weaver budget</span></div></div><p class="note">Point multipliers are session settings. Individual node caps still apply. Existing allocations stay when you lower a budget. Available points stop at zero until the budget covers those allocations.</p></section>`+settingPanel("Experience and skill points",ids(["skillxp","skillpoints","passivepoints"]))+settingPanel("Weaver points",ids(["weaverpoints","weaverflat"]))+settingPanel("Tree connections",ids(["skillnodes","passivenodes","weavernodes"]))+settingPanel("Projectiles",ids(["projectiles","projectileflat"]));
+ }else if(page==="equipment"){
+  content.innerHTML=cachedSummary("build_read")+settingPanel("Equipment rules",["offhand","fullsets"].map(key=>controlById("build_"+key)));
+ }else if(page==="summons"){
+  const aliases=catalog.characterStats.aliases;
+  const summonStats=aliases.map((row,index)=>({row,index})).filter(x=>/^minion|^maxcompanions/.test(x.row.name));
+  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Live summoned allies</h2><button data-refresh="summons_read" data-control-id="summons_read">Refresh allies</button></div><div id="summon-live">${summonTable()}</div></section>`+settingPanel("Summon lifetime",[controlById("build_summonduration")])+`<section class="panel"><h2>Minion and companion bonuses</h2><p class="muted">These controls use the existing character stat editor. Minion tags keep these bonuses separate from your own damage and health.</p><div class="control-grid">${summonStats.map(x=>`<button class="settings-card" data-summon-stat="${x.index}"><h3>${esc(ST.name(x.row,"aliases"))}</h3><p class="muted">Edit bonus →</p></button>`).join("")}</div></section>`;
  }else if(page==="stats")renderStats();
  else if(page==="campaign"){
-  content.innerHTML=cachedSummary("progress_read")+`<section class="panel"><div class="section-head"><h2>Campaign and waypoints</h2><button data-refresh="progress_read" data-control-id="progress_read">Refresh live</button></div><div class="control-grid">${["campaign_complete","waypoints_unlock"].map(id=>actionCard(controlById(id))).join("")}</div><details><summary>Quest rewards and coverage (${catalog.counts.eligibleCampaignQuests} quests / ${catalog.counts.waypoints} waypoints)</summary><p class="muted">Completion grants normal rewards and raises the character to at least level 55. Completed quests do not grant rewards again. Test, repeatable and endgame quests are excluded.</p>${questTable()}</details></section>`;
+  const mastery=window.EpochSession.current(cache.progress_read,connected,preview)?cache.progress_read?.mastery:null;
+  const masteryStatus=mastery?.available?"Your character has no mastery yet. Open the selection screen, then choose your mastery in the game.":mastery?.reason||"Refresh live to check mastery selection for your character.";
+  content.innerHTML=cachedSummary("progress_read")+`<section class="panel"><div class="section-head"><h2>Campaign and waypoints</h2><button data-refresh="progress_read" data-control-id="progress_read">Refresh live</button></div><div class="control-grid">${["campaign_complete","waypoints_unlock"].map(id=>actionCard(controlById(id))).join("")}</div><details><summary>Quest rewards and coverage (${catalog.counts.eligibleCampaignQuests} quests / ${catalog.counts.waypoints} waypoints)</summary><p class="muted">Completion grants normal rewards and raises the character to at least level 55. Completed quests do not grant rewards again. Test, repeatable and endgame quests are excluded.</p>${questTable()}</details></section><section class="panel"><h2>Mastery</h2><p class="note">${esc(masteryStatus)}</p>${actionCard(controlById("mastery_choose"))}</section>`;
  }else if(page==="atlas"||page==="stash")renderCollection();
  else if(page==="monolith")renderMonolith();
  else if(page==="cof")renderCof();
@@ -368,7 +432,7 @@ function renderMonolith(){
  const t=timelines.find(x=>x.id===Number(monoTarget.timeline));const d=t?.difficulties.find(x=>x.index===(monoTarget.difficulty==="empowered"?1:0));
  const targetFields=`<input type="hidden" name="timeline" value="${monoTarget.timeline||""}"><input type="hidden" name="difficulty" value="${monoTarget.difficulty}">`;
  function absolute(id,label,max,min,current){const draft=monoDrafts[monoDraftKey(id)];return actionCard(controlById(id),targetFields+field("value",`${label} · ${min??"?"}–${max??"?"}`,`<input name="value" type="number" step="1" ${min!=null?`min="${min}"`:""} ${max!=null?`max="${max}"`:""} value="${esc(draft??current??"")}" required>`));}
- content.innerHTML=cachedSummary("monolith_read")+monolithDensityPanel()+`<section class="panel"><div class="section-head"><h2>Monolith management</h2><button data-refresh="monolith_read" data-control-id="monolith_read">Refresh live</button></div><p class="muted">Opening a timeline or showing an Echo travels to Traveler's Rest first. Refreshing data does not travel or start an Echo.</p><div class="form-grid"><label>Timeline<select id="timeline-target">${options(timelines,monoTarget.timeline)}</select></label><label>Difficulty<select id="difficulty-target"><option value="normal" ${monoTarget.difficulty==="normal"?"selected":""}>Normal</option><option value="empowered" ${monoTarget.difficulty==="empowered"?"selected":""}>Empowered</option></select></label></div><p class="muted">${d?`Level ${d.level} · ${d.unlocked?"Unlocked":"Locked"} · Corruption ${d.minCorruption}–${d.maxCorruption} · Stability 0–${d.maxStability}`:"Refresh the live timeline catalog."}</p><div class="control-grid">${actionCard(controlById("monolith_unlock"))}${actionCard(controlById("monolith_select"),targetFields)}${absolute("corruption","Corruption",d?.maxCorruption,d?.minCorruption,d?.run?.corruption)}${absolute("stability","Stability",d?.maxStability,0,d?.run?.stability)}</div></section>`;
+ content.innerHTML=cachedSummary("monolith_read")+monolithDensityPanel()+settingPanel("Boss blessing rewards",["blessingoptions","blessingrolls"].map(key=>controlById("build_"+key)))+`<section class="panel"><div class="section-head"><h2>Monolith management</h2><button data-refresh="monolith_read" data-control-id="monolith_read">Refresh live</button></div><p class="muted">Opening a timeline or showing an Echo travels to Traveler's Rest first. Refreshing data does not travel or start an Echo.</p><div class="form-grid"><label>Timeline<select id="timeline-target">${options(timelines,monoTarget.timeline)}</select></label><label>Difficulty<select id="difficulty-target"><option value="normal" ${monoTarget.difficulty==="normal"?"selected":""}>Normal</option><option value="empowered" ${monoTarget.difficulty==="empowered"?"selected":""}>Empowered</option></select></label></div><p class="muted">${d?`Level ${d.level} · ${d.unlocked?"Unlocked":"Locked"} · Corruption ${d.minCorruption}–${d.maxCorruption} · Stability 0–${d.maxStability}`:"Refresh the live timeline catalog."}</p><div class="control-grid">${actionCard(controlById("monolith_unlock"))}${actionCard(controlById("monolith_select"),targetFields)}${absolute("corruption","Corruption",d?.maxCorruption,d?.minCorruption,d?.run?.corruption)}${absolute("stability","Stability",d?.maxStability,0,d?.run?.stability)}</div></section>`;
 }
 function renderCof(){
  const live=cache.cof_read,cof=live?.cof;
@@ -527,6 +591,23 @@ async function refreshSection(id,{refreshConnectionFirst=true}={}){
  renderPage();
 }
 function syncLootCraft(id,result){
+ if(id==="pickup_radius"||id==="pickup_radius_read"){cache[id]=result;appliedValues[id]=result.radius;if(!dirty.has(id)&&!autoManaged(id))values[id]=result.radius;return true;}
+ if(id==="qol_read"||id.startsWith("qol_")){
+  cache.qol_read={...cache.qol_read,...result};
+  for(const [key,item] of Object.entries(result.settings||{})){const cid="qol_"+key;appliedValues[cid]=item.value;if(!dirty.has(cid)&&!autoManaged(cid))values[cid]=item.value;}
+  return true;
+ }
+ if(["craft_materials","craft_materials_read"].includes(id)){cache.craft_materials_read=result;return true;}
+ if(id==="craft_custom_catalog"){
+  const owner=result.player?.id;
+  if(owner!=null&&workshopOwner!=null&&String(owner)!==String(workshopOwner))workshopDraft={template_id:"-1",affixes:[],perfect:"1",modifiers:[]};
+  workshopOwner=owner??workshopOwner;cache[id]=result;return true;
+ }
+ if(id==="build_read"||id.startsWith("build_")){
+  cache.build_read={...cache.build_read,...result};
+  for(const [key,item] of Object.entries(result.settings||{})){const cid="build_"+key;appliedValues[cid]=item.value;if(!dirty.has(cid)&&!autoManaged(cid))values[cid]=item.value;}
+  return true;
+ }
  const readId=id.startsWith("map_")?"map_read":id.startsWith("loot_")?"loot_read":id.startsWith("craft_")?"craft_read":null;
  if(!readId)return false;
  if(id==="craft_forge")result={...result.crafting,...result};
@@ -537,12 +618,41 @@ function syncLootCraft(id,result){
  for(const [key,value] of Object.entries(fresh))if(value!==undefined){appliedValues[key]=value;if(!dirty.has(key))values[key]=value;}
  return true;
 }
+function summonTable(){
+ const data=cache.summons_read;
+ if(preview)return '<p class="note">Load an offline character to inspect real summoned allies.</p>';
+ if(!window.EpochSession.current(data,connected))return '<p class="note">Waiting for live summoned allies…</p>';
+ if(data.readError)return '<p class="note">Live summon data is unavailable. Previous values are not shown as current.</p>';
+ if(!data.summons?.length)return '<p class="note">No active summoned allies found.</p>';
+ const fmt=n=>Number.isFinite(Number(n))?Number(n).toLocaleString("en-US",{maximumFractionDigits:1}):"—";
+ const res=["Physical","Fire","Cold","Lightning","Void","Necrotic","Poison"];
+ return `<div class="table-scroll"><table class="summon-table"><thead><tr><th>Ally</th><th>Health</th><th>Armour</th><th>Damage increase</th>${res.map(n=>`<th>${n}</th>`).join("")}</tr></thead><tbody>${data.summons.map(s=>`<tr><td>${esc(clean(s.name).replace(/\(Clone\)/g,"").trim())}</td><td>${fmt(s.health)} / ${fmt(s.maxHealth)}</td><td>${fmt(s.armour)}</td><td>${fmt(s.damageIncreased)}%</td>${res.map(n=>`<td>${fmt(s.resistances?.[n])}%</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="muted">Live health, armour and uncapped resistances. Damage increase is a global stat bonus, not skill DPS. Updates once per second while this page is visible.</p>`;
+}
+async function pollConveniences(){
+ if(!catalog||preview||document.hidden||busy||liveReading||autoRunning||autoPending.size||activeStat)return;
+ const id=page==="summons"?"summons_read":page==="world"?"qol_read":null;
+ if(!id||!eligible(controlById(id)))return;
+ liveReading=true;const owner=automaticOwner();
+ try{
+  const r=await job({type:"control",id,operation:"read"});
+  if(owner!==automaticOwner())return;
+  if(r.ok){if(!syncLootCraft(id,r))cache[id]=r;}
+  else if(id==="summons_read")cache[id]={player:connected.player,readError:true};
+  if(page==="summons"){const node=$("#summon-live");if(node)node.innerHTML=summonTable();}
+  else if(page==="world")for(const c of catalog.controls.filter(c=>c.id.startsWith("qol_")))syncSettingUi(c.id);
+ }catch{if(id==="summons_read"){cache[id]={player:connected.player,readError:true};const node=$("#summon-live");if(node)node.innerHTML=summonTable();}}
+ finally{liveReading=false;armAutomatic();}
+}
+setInterval(()=>void pollConveniences(),1000);
 function formArgs(form,c){
  const data=new FormData(form),args={};
  for(const p of c.parameters){if(p.name==="save_id")continue;let v=data.get(p.name);if(p.type==="optional_integer"&&(v===""||v===null))continue;
   args[p.name]=c.id==="loot_affixes"?data.getAll("ids").join(",")||"none":p.type==="number_or_reset"?(v===""?null:Number(v)):p.type==="integer_or_none"&&v==="none"?null:p.type.includes("integer")||p.type==="number"?Number(v):v;
+  if(c.id==="craft_custom"&&p.name==="affixes")args.affixes=data.getAll("affixes").join(",")||"keep";
+  if(c.id==="craft_custom"&&p.name==="modifiers")args.modifiers=data.getAll("modifiers").join(",")||"none";
  }
  if(c.parameters.some(p=>p.name==="save_id"))args.expected_id=saveSnapshot(c)?.player?.id;
+ if(c.id==="craft_materials"||c.group==="inventory")args.expected_name=saveSnapshot(c)?.player?.name;
  if(c.id==="cof_join")args.switch_from_merchant=data.get("switch_from_merchant")==="on";
  return args;
 }
@@ -553,14 +663,19 @@ async function formAction(form,override){
  if(c.lifetime==="game_save"||c.lifetime==="recovery"){
   const accepted=await confirmAction(c.label,c.description+(c.lifetime==="recovery"?" The game will close normally and the selected operation backup will be restored.":" This action changes the game save. The backend creates a backup before applying it."));if(!accepted)return;
  }
- if(c.lifetime==="game_save"&&!preview){
+ if((c.lifetime==="game_save"||c.id==="mastery_choose")&&!preview){
   const snapshot=saveSnapshot(c);
   const reason=window.EpochSession.saveActionReason(snapshot,connected,{monolith:c.group==="monolith"});
   if(reason||String(args.expected_id)!==String(connected.player?.id)||submittedName&&connected.player?.name&&submittedName!==connected.player.name){notify(reason||"The character changed. Review the action for the loaded character.",true);return;}
+  if(c.id==="mastery_choose"&&snapshot.mastery?.available!==true){notify(snapshot.mastery?.reason||"Refresh live to check mastery selection.",true);return;}
  }
  const result=await runTask({type:"control",id:c.id,args,operation:c.widget==="read"||c.widget==="preview"?"read":"set"},{show:true,title:c.label});
  if(!result)return;
- if(syncLootCraft(c.id,result))renderPage();
+ if(c.id==="mastery_choose"){
+  if(cache.progress_read&&result.mastery)cache.progress_read.mastery=result.mastery;
+  renderPage();
+ }
+ else if(syncLootCraft(c.id,result))renderPage();
  else if(c.widget==="read"&&["progress_read","monolith_read","cof_read","factions_read"].includes(c.id)){
   cache[c.id]=result;
   renderPage();
@@ -615,6 +730,7 @@ content.addEventListener("click",async e=>{
  else if(b.id==="stat-favorites-filter"){statsFavoritesOnly=!statsFavoritesOnly;statsPage=0;renderStats();updateDisabled();}
  else if(b.id==="stat-clear-filters"){statsFavoritesOnly=false;statsCategory="All";statsQuery="";statsPage=0;renderStats();updateDisabled();}
  else if(b.dataset.statIndex!==undefined)openStat(Number(b.dataset.statIndex),b.dataset.secondary==="true");
+ else if(b.dataset.summonStat!==undefined){statsTab="aliases";openStat(Number(b.dataset.summonStat));}
  else if(b.dataset.statPage){statsPage+=Number(b.dataset.statPage);renderStatResults();}
  else if(b.hasAttribute("data-prophecy-preview"))await formAction(b.closest("form"),"cofpreview");
  else if(b.id==="all-stats-reset"){
@@ -624,7 +740,7 @@ content.addEventListener("click",async e=>{
  }else if(b.id==="profile-save"){
   const name=$("#profile-name").value.trim();if(!name){notify("Enter a profile name.",true);return;}
   let profiles={};try{profiles=JSON.parse(localStorage.getItem(profileKey)||"{}");}catch{}
-  const profile={};for(const c of catalog.controls)if(c.lifetime==="session"&&c.widget==="number"||c.id==="autopickup"||c.id==="speed")profile[c.id]=values[c.id]??c.default;
+  const profile={};for(const c of catalog.controls)if(c.lifetime==="session"&&["number","toggle"].includes(c.widget)||c.id==="autopickup"||c.id==="speed")profile[c.id]=values[c.id]??c.default;
   Object.defineProperty(profiles,name,{value:profile,enumerable:true,configurable:true,writable:true});localStorage.setItem(profileKey,JSON.stringify(profiles));notify("Draft saved; not applied to the game.");renderSettings();updateDisabled();
  }else if(b.id==="profile-load"){
   const profiles=JSON.parse(localStorage.getItem(profileKey)||"{}");const profile=profiles[$("#profile-select").value];if(!profile)return;
@@ -657,6 +773,8 @@ function rememberMonolithInput(input){
 }
 content.addEventListener("input",e=>{
  const t=e.target;
+ if(t.hasAttribute?.("data-workshop-filter")){workshopModifierFilter=t.value;const select=t.closest('form')?.querySelector('[name=modifiers]');if(select)select.innerHTML=workshopModifierOptions();return;}
+ if(t.name==="value"&&t.closest('form')?.dataset.id==="craft_materials")materialTarget=t.value;
  rememberMonolithInput(t);
  if(t.id==="stat-search"){statsQuery=t.value;statsPage=0;renderStatResults();}
  else if(t.dataset.settingRange&&automaticSetting(controlById(t.dataset.settingRange))){settingChanged(t.dataset.settingRange,Number(t.value),250);}
@@ -672,9 +790,14 @@ content.addEventListener("input",e=>{
  }
 });
 content.addEventListener("change",e=>{
- const t=e.target;rememberMonolithInput(t);if(t.dataset.settingRange)settingChanged(t.dataset.settingRange,Number(t.value));
+ const t=e.target;rememberMonolithInput(t);
+ if(t.name==="value"&&t.closest('form')?.dataset.id==="craft_materials")materialTarget=t.value;
+ if(t.closest('form')?.dataset.id==="craft_custom")workshopDraft[t.name]=["affixes","modifiers"].includes(t.name)?Array.from(t.selectedOptions,x=>x.value):t.value;
+ if(t.name==="perfect"&&t.closest('form')?.dataset.id==="craft_custom"){const select=t.closest('form').querySelector('[name=modifiers]');if(select)select.innerHTML=workshopModifierOptions();}
+ if(t.dataset.settingRange)settingChanged(t.dataset.settingRange,Number(t.value));
  else if(t.dataset.settingNumber&&t.validity.valid)settingChanged(t.dataset.settingNumber,t.value===""?null:Number(t.value));
  else if(t.dataset.settingToggle)settingChanged(t.dataset.settingToggle,t.checked?1:0);
+ else if(t.dataset.settingChoice)settingChanged(t.dataset.settingChoice,Number(t.value));
  else if(t.id==="timeline-target"){monoTarget.timeline=Number(t.value);renderPage();}
  else if(t.id==="difficulty-target"){monoTarget.difficulty=t.value;renderPage();}
  else if(t.name==="slot"&&t.closest('form')?.dataset.id==="cof_charges"){t.closest('form').querySelector('[name=value]').value=cache.cof_read?.slots.find(s=>s.index===Number(t.value))?.charges??"";}

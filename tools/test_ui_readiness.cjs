@@ -14,7 +14,7 @@ function harness(){
  }
  const document={querySelector:element,querySelectorAll:s=>s==='[data-control-id]'?buttons:[],addEventListener(){},documentElement:{dataset:{}}};
  const context=vm.createContext({document,window:{EpochSession:Session,EpochStats:{},addEventListener(type,fn){(windowListeners[type]??=[]).push(fn);}},
-  location:{hash:'#monolith'},setTimeout:()=>0,clearTimeout(){},console,fetch(){throw Error('unexpected HTTP call');}});
+  location:{hash:'#monolith'},setTimeout:()=>0,setInterval:()=>0,clearTimeout(){},console,fetch(){throw Error('unexpected HTTP call');}});
  context.FormData=class{constructor(form){this.fields=form.fields;}get(name){return this.fields[name]??null;}getAll(name){const value=this.get(name);return value==null?[]:[value];}};
  const source=fs.readFileSync(process.env.EPOCHPACT_UI_SOURCE||path.join(__dirname,'../ui/app.js'),'utf8');
  vm.runInContext(source.replace('void init();',''),context);
@@ -37,6 +37,117 @@ function automaticHarness(){
  h.run(`catalog=fullCatalog;page='general';connected=connectionFixture('M_Rest');connected.player.name='Test';values={xp:1,gold:1,speed:1};appliedValues={...values};`);
  return h;
 }
+
+function materialsHarness(){
+ const h=automaticHarness();h.run(`page='crafting';cache.craft_materials_read={ok:true,player:{...connected.player},kinds:{shards:1,runes:1,glyphs:1},materials:[{type:101,id:0,count:0}]};`);
+ h.button.dataset.controlId='craft_materials';
+ h.context.materialForm={dataset:{id:'craft_materials'},fields:{value:'10000'},reportValidity:()=>true};
+ return h;
+}
+
+test('material stock requires a matching stash read and never applies on rendering or theme change',()=>{
+ const h=materialsHarness();h.run(`shippingRenderPage();setTheme('void-atlas');updateDisabled();`);
+ assert.equal(h.button.disabled,false);assert.match(h.element('#page-content').innerHTML,/Stock all materials|Minimum quantity per material/);
+ assert.equal(h.calls.length,0);assert.equal(h.run('autoPending.size'),0);
+ h.run(`connected.player.id='9';updateDisabled();`);assert.equal(h.button.disabled,true);
+ h.run(`connected.player.id='0';delete cache.craft_materials_read;updateDisabled();`);assert.equal(h.button.disabled,true);
+});
+
+test('cancelling stock confirmation sends nothing; confirmed stock sends once and keeps backup and readback',async()=>{
+ const h=materialsHarness();h.run('confirmAction=async()=>false');await h.run('formAction(materialForm)');assert.equal(h.calls.length,0);
+ h.run('confirmAction=async()=>true');
+ h.replies.push({ok:true,player:{id:'0',name:'Test'},kinds:{shards:1,runes:1,glyphs:1},materials:[{type:101,id:0,count:10000}],target:10000,updatedKinds:3,backup:'test-backup',history:[{backup:'test-backup'}]});
+ await h.run('formAction(materialForm)');
+ assert.deepEqual(h.calls.map(x=>[x.id,x.args.expected_id,x.args.value]),[['craft_materials','0',10000]]);
+ assert.equal(h.run('cache.craft_materials_read.materials[0].count'),10000);assert.equal(h.run('history.length'),1);
+ assert.match(h.element('#notification').textContent,/3 material types stocked|recovery backup/);
+ assert.equal(h.run('cache.craft_read'),undefined,'material stock cannot overwrite the game forge selection');
+});
+
+test('material quantity draft survives blank input, readback and theme redraw without becoming zero or applying',()=>{
+ for(const value of ['', '0', '90000']){
+  const h=materialsHarness(),input={id:'',dataset:{},name:'value',value,closest:()=>({dataset:{id:'craft_materials'}})};
+  h.element('#page-content').listeners.input[0]({target:input});
+  h.run(`syncLootCraft('craft_materials_read',{ok:true,player:{id:'0'},kinds:{},materials:[]});shippingRenderPage();setTheme('chronoforge');`);
+  assert.equal(h.run('materialTarget'),value);
+  assert.match(h.element('#page-content').innerHTML,new RegExp(`name="value"[^>]*value="${value}"`));
+  assert.equal(h.calls.length,0);assert.equal(h.run('autoPending.size'),0);
+ }
+});
+
+function masteryHarness(){
+ const h=automaticHarness();h.run(`page='campaign';cache.progress_read={ok:true,player:{...connected.player},mastery:{chosen:0,needsSelection:true,available:true}};`);
+ h.button.dataset.controlId='mastery_choose';return h;
+}
+test('Choose Mastery requires a fresh matching character and native availability',()=>{
+ const h=masteryHarness();h.run('updateDisabled()');assert.equal(h.button.disabled,false);
+ h.run(`cache.progress_read.mastery={chosen:1,available:false,reason:'A mastery is already selected.'};updateDisabled()`);
+ assert.equal(h.button.disabled,true);assert.match(h.button.title,/already selected/);
+ h.run(`cache.progress_read.mastery={chosen:0,available:true};connected.player.id='9';updateDisabled()`);
+ assert.equal(h.button.disabled,true);
+ h.run(`connected.player.id='0';delete cache.progress_read;updateDisabled()`);assert.equal(h.button.disabled,true);
+ assert.equal(h.calls.length,0);
+});
+test('campaign rendering and theme changes show Choose Mastery without opening it',()=>{
+ const h=masteryHarness();h.run(`shippingRenderPage();setTheme('void-atlas')`);
+ assert.match(h.element('#page-content').innerHTML,/>Choose Mastery<\/button>/);
+ assert.equal(h.calls.length,0);
+});
+test('explicit Choose Mastery sends one view action and retains native readback',async()=>{
+ const h=masteryHarness(),form={dataset:{id:'mastery_choose'},fields:{},reportValidity:()=>true};
+ h.context.masteryForm=form;h.replies.push({ok:true,opened:true,mastery:{chosen:0,needsSelection:true,available:true,panelOpen:true}});
+ await h.run('formAction(masteryForm)');
+ assert.deepEqual(h.calls.map(x=>[x.id,x.args.expected_id]),[['mastery_choose','0']]);
+ assert.equal(h.run('cache.progress_read.mastery.panelOpen'),true);
+ assert.equal(h.run('autoPending.size'),0);
+});
+test('Choose Mastery blocks stale forms and unavailable mastery without IPC',async()=>{
+ const h=masteryHarness();h.context.masteryForm={dataset:{id:'mastery_choose'},fields:{},reportValidity:()=>true};
+ h.run(`cache.progress_read.mastery.available=false`);await h.run('formAction(masteryForm)');
+ h.run(`cache.progress_read.mastery.available=true;connected.player.id='9'`);await h.run('formAction(masteryForm)');
+ assert.equal(h.calls.length,0);
+});
+test('returning from mastery selection refreshes the native choice once without mutations',async()=>{
+ const h=masteryHarness();h.run('cache.progress_read.mastery.panelOpen=true');
+ const conn=h.connection('M_Rest');conn.player.name='Test';
+ h.replies.push(conn,{ok:true,player:{...conn.player},mastery:{chosen:1,available:false,panelOpen:false,reason:'A mastery is already selected.'}});
+ await h.focus();
+ assert.deepEqual(h.calls.map(x=>x.type==='connection'?'connection':x.id),['connection','progress_read']);
+ assert.equal(h.run('cache.progress_read.mastery.chosen'),1);assert.equal(h.button.disabled,true);
+});
+
+test('new build controls auto-apply serially across their own pages and never craft',async()=>{
+ const h=automaticHarness();h.run(`page='skills';values.build_skillxp=1;appliedValues.build_skillxp=1;settingChanged('build_skillxp',3);`);
+ h.replies.push({ok:true,settings:{skillxp:{value:3,available:true}}});await h.run('flushAutomatic(true)');
+ h.run(`page='equipment';values.build_fullsets=0;appliedValues.build_fullsets=0;settingChanged('build_fullsets',1);`);
+ h.replies.push({ok:true,settings:{fullsets:{value:1,available:true}}});await h.run('flushAutomatic(true)');
+ assert.deepEqual(h.calls.map(x=>x.id),['build_skillxp','build_fullsets']);
+ assert.ok(h.calls.every(x=>x.args.expected_id==='0'));
+ assert.equal(h.run(`automaticSetting(controlById('craft_custom'))`),false);
+});
+
+test('workshop selections survive readback and theme redraw, and clear for a new character',()=>{
+ const h=automaticHarness();
+ h.run(`workshopOwner='0';workshopDraft={template_id:'5',affixes:['0','1'],perfect:'0'};syncLootCraft('craft_custom_catalog',{ok:true,player:{id:'0'},items:[{id:5,name:'Example',set:true}],affixes:[{id:0,name:'Health'},{id:1,name:'Mana'}]});`);
+ const html=h.run(`parameterFields(controlById('craft_custom'))`);
+ assert.match(html,/value="5" selected/);assert.match(html,/value="0" selected/);assert.match(html,/value="1" selected/);
+ h.run(`syncLootCraft('craft_custom_catalog',{ok:true,player:{id:'8'},items:[],affixes:[]})`);
+ assert.equal(h.run('workshopDraft.template_id'),'-1');assert.equal(h.run('workshopDraft.affixes.length'),0);
+ assert.equal(h.calls.length,0);
+});
+
+test('mixed workshop filters retain selected lines, use roll mode and never craft during rendering',()=>{
+ const h=automaticHarness();
+ h.run(`catalog.characterStats={properties:[{id:1,name:'AilmentChance'}],tags:[{id:8,name:'Fire'}],ailments:[{id:1,name:'Ignite'}]};
+ workshopDraft={template_id:'-1',affixes:['0'],perfect:'1',modifiers:['u0:0']};
+ cache.craft_custom_catalog={modifiers:[{id:'u0:0',source:'Calamity',property:1,tags:8,special:1,mode:1,value:.5,maximum:1.5},{id:'s1:0',source:'Isadora',property:1,mode:0,value:3,maximum:3}]};
+ workshopModifierFilter='isadora';`);
+ let html=h.run('workshopModifierOptions()');assert.match(html,/value="u0:0" selected/);assert.match(html,/150% increased/);assert.match(html,/Ignite/);assert.match(html,/Isadora/);
+ h.run(`workshopDraft.perfect='0';workshopModifierFilter='missing';`);
+ html=h.run('workshopModifierOptions()');assert.match(html,/100% increased/);assert.doesNotMatch(html,/Isadora/);
+ h.run(`syncLootCraft('craft_custom_catalog',{ok:true,player:{id:'99'},items:[],affixes:[],modifiers:[]});workshopOwner='99';syncLootCraft('craft_custom_catalog',{ok:true,player:{id:'100'},items:[],affixes:[],modifiers:[]});`);
+ assert.equal(h.run('workshopDraft.modifiers.length'),0);assert.equal(h.calls.length,0);
+});
 
 test('General edits coalesce to their latest value without submitting unrelated crafting drafts',async()=>{
  const h=automaticHarness();h.run(`values.craft_glyphs=1;dirty.add('craft_glyphs');settingChanged('xp',2,300);settingChanged('xp',3,300);settingChanged('xp',4,300);`);
@@ -149,9 +260,9 @@ test('loading a real profile cancels older queued edits and keeps the profile un
  assert.equal(h.run('dirty.has("xp")'),true);assert.equal(h.run('dirty.has("craft_glyphs")'),true);
 });
 
-test('save actions, crafting, loot and Monolith controls never enter the automatic queue',()=>{
+test('save actions, crafting operations and Monolith controls never enter the automatic queue',()=>{
  const h=automaticHarness();
- for(const id of ['craft_forge','quests_complete','craft_glyphs','autopickup','stability'])assert.equal(h.run(`automaticSetting(controlById('${id}'))`),false,id);
+ for(const id of ['craft_forge','quests_complete','craft_glyphs','stability'])assert.equal(h.run(`automaticSetting(controlById('${id}'))`),false,id);
  h.run(`page='overview';settingChanged('xp',2);`);assert.equal(h.run('autoPending.size'),1,'overview quick controls share General behavior');
  h.run(`cancelAutomatic();connected.offline=false;settingChanged('xp',2);`);assert.equal(h.run('autoPending.size'),0);
  assert.equal(h.calls.length,0);
@@ -194,7 +305,7 @@ test('player pages retain all usable controls and developer pages retain diagnos
   const html=h.element('#page-content').innerHTML;
   const displayed=[...html.matchAll(/(?:data-setting|data-id)="([^"]+)"/g)].map(x=>x[1]);
   const refreshes=[...html.matchAll(/data-refresh="([^"]+)"/g)].map(x=>x[1]);
-  const expected=h.context.fullCatalog.controls.filter(c=>c.group===group&&(mode||!['density_read','map_read'].includes(c.id))).map(c=>c.id);
+  const expected=h.context.fullCatalog.controls.filter(c=>c.group===group&&!['map_reveal','map_read','density_read',...(!mode?['pickup_radius_read']:[])].includes(c.id)).map(c=>c.id);
   assert.deepEqual([...new Set([...displayed,...refreshes])].sort(),expected.slice().sort(),group+' developer='+mode);
   assert.equal(new Set(displayed).size,displayed.length,'every control appears once');
  }
@@ -203,15 +314,35 @@ test('player pages retain all usable controls and developer pages retain diagnos
  assert.ok(h.element('#nav').innerHTML.includes('href="#loot"'));
  assert.equal(h.calls.length,0,'rendering cannot craft or apply settings');
 });
+test('camera world and inventory pages expose actual controls without sending mutations',()=>{
+ const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
+ h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};cache.inventory_read={ok:true,player:{id:'0'},inventoryItems:17};`);
+ for(const [target,ids] of [['display',['build_zoom','build_cameraangle','qol_shadows','qol_reflections','qol_bloom','qol_motionblur','qol_occlusion','qol_fog']],['world',['map_reveal','qol_chests','qol_shrines','qol_portals']],['inventory',['inventory_stash','inventory_vendor','inventory_stashall']]]){
+  h.context.target=target;h.run('page=target;shippingRenderPage()');const html=h.element('#page-content').innerHTML;
+  for(const id of ids)assert.ok(html.includes(`="${id}"`),id);
+ }
+ assert.equal(h.calls.length,0);
+ assert.ok(h.run('automaticSetting(controlById("pickup_radius"))'));
+ assert.equal(h.run('unitFor(controlById("build_cameraangle"))'),'°');
+});
+test('live summon table shows real values and never presents historical or failed data as current',()=>{
+ const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
+ h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');cache.summons_read={player:{id:'0'},summons:[{name:'Skeleton(Clone)',health:50,maxHealth:100,armour:23,damageIncreased:150,resistances:{Poison:42}}]};`);
+ let html=h.run('summonTable()');assert.ok(html.includes('50 / 100'));assert.ok(html.includes('150%'));assert.ok(html.includes('42%'));assert.ok(html.includes('not skill DPS'));
+ h.run('cache.summons_read.player.id="another"');html=h.run('summonTable()');assert.ok(!html.includes('Skeleton'));
+ h.run('cache.summons_read.player.id="0";cache.summons_read.readError=true');html=h.run('summonTable()');assert.ok(html.includes('unavailable'));assert.ok(!html.includes('Skeleton'));
+});
 
 test('entering each reorganized page reads only its own live section and preserves cross-page drafts',async()=>{
- for(const [target,id] of [['general','map_read'],['loot','loot_read'],['crafting','craft_read']]){
+ for(const [target,id] of [['general','build_read'],['loot','loot_read'],['crafting','craft_read']]){
   const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
   h.context.targetHash='#'+target;
   h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');location.hash=targetHash;values={craft_glyphs:1};dirty=new Set(['craft_glyphs']);`);
   h.replies.push(h.connection('M_Rest'),{ok:true});
+  if(target==='loot')h.replies.push({ok:true,radius:0});
+  if(target==='crafting')h.replies.push({ok:true,player:{id:'0'},kinds:{shards:1,runes:1,glyphs:1},materials:[]});
   await h.run('openPage()');
-  assert.deepEqual(h.calls.map(c=>c.type==='connection'?'connection':c.id),['connection',id]);
+  assert.deepEqual(h.calls.map(c=>c.type==='connection'?'connection':c.id),['connection',id,...(target==='loot'?['pickup_radius_read']:target==='crafting'?['craft_materials_read']:[])]);
   assert.equal(h.calls.at(-1).operation,'read');
   assert.equal(h.run('values.craft_glyphs'),1);assert.equal(h.run('dirty.has("craft_glyphs")'),true);
  }
@@ -231,9 +362,10 @@ test('a search result on the current Crafting page clears search and reopens the
  h.run(`catalog=fullCatalog;page='crafting';location.hash='#crafting';connected=connectionFixture('M_Rest');`);
  h.element('#global-search').value='Preserve crafting runes';
  h.replies.push(h.connection('M_Rest'),{ok:true});
+ h.replies.push({ok:true,player:{id:'0'},kinds:{shards:1,runes:1,glyphs:1},materials:[]});
  h.run(`go('crafting')`);await new Promise(setImmediate);
  assert.equal(h.element('#global-search').value,'');
- assert.deepEqual(h.calls.map(c=>c.type==='connection'?'connection':c.id),['connection','craft_read']);
+ assert.deepEqual(h.calls.map(c=>c.type==='connection'?'connection':c.id),['connection','craft_read','craft_materials_read']);
 });
 
 function enterMonolithValue(h,id,value,event='input'){

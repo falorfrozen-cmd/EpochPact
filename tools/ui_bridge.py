@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 
 from . import cof_backend as cof, monolith_backend as mono, collection_backend as collection
+from . import build_backend as builds, loot_crafting_backend as crafting
 from . import progression_backend as progression, le_session as le
 from .ui_language import english_exception
 from .app_paths import resource_root
@@ -151,6 +152,9 @@ class UiBridge:
             if name == "value" and operation in ("read", "reset"):
                 continue
             if name not in supplied:
+                if kind == "optional_single_token":
+                    args[name] = "none"
+                    continue
                 if kind == "optional_integer":
                     continue
                 raise ValueError(f"Missing parameter: {name}")
@@ -159,17 +163,26 @@ class UiBridge:
                 # Stat UI percentages can be 100x the native float range.
                 bounds = {"type": kind} if name == "value" and control["widget"] == "stat_editor" else spec
                 value = finite(value, bounds)
+                if "choices" in spec and value not in spec["choices"]:
+                    raise ValueError("Choose a valid catalog option.")
             elif kind == "number_or_reset":
                 value = "reset" if value in (None, "reset") else finite(value, spec)
             elif kind == "integer_or_none":
                 value = None if value is None else finite(value, spec)
-            elif kind == "single_token":
+            elif kind in ("single_token", "optional_single_token"):
                 limit = spec.get("maximumLength", 100)
                 if not isinstance(value, str) or len(value) > limit or not re.fullmatch(r"[^\s\x00-\x1f]+", value):
                     raise ValueError("Enter the exact character name without spaces.")
                 if control["id"] == "loot_affixes" and value != "none":
                     if not re.fullmatch(r"\d+(?:,\d+)*", value) or len(value.split(",")) > 64:
                         raise ValueError("Enter up to 64 comma-separated affix IDs, or none.")
+                if control["id"] == "craft_custom" and name == "affixes" and value != "keep":
+                    if not re.fullmatch(r"\d+(?:,\d+)*", value) or len(value.split(",")) > 7 or len(set(value.split(","))) != len(value.split(",")):
+                        raise ValueError("Choose up to seven different affixes, or keep the current affixes.")
+                if control["id"] == "craft_custom" and name == "modifiers" and value != "none":
+                    parts=value.split(",")
+                    if len(parts)>64 or len(set(parts))!=len(parts) or not all(re.fullmatch(r"[us]\d+:\d+",x) for x in parts):
+                        raise ValueError("Choose up to 64 different modifier lines.")
             elif kind == "enum":
                 choices = spec.get("choices")
                 if control["id"] == "stat_alias" and name == "name":
@@ -180,6 +193,8 @@ class UiBridge:
                 if not isinstance(value, str):
                     raise ValueError("Choose a backup.")
             args[name] = value
+        if control["id"] == "craft_custom" and args.get("modifiers", "none") != "none" and args.get("affixes") != "keep" and len(args["affixes"].split(",")) > 6:
+            raise ValueError("Mixed modifier lines use one slot. Choose at most six regular affixes.")
         return args
 
     def _stat(self, cid, args, supplied, operation):
@@ -308,7 +323,7 @@ class UiBridge:
                 return progression.undo(Path(args["backup"]))
             save_id = None
             identity = None
-            if control["group"] == "general" and control["widget"] in ("number", "toggle") and "expected_id" in supplied:
+            if (control["group"] == "general" or (control["commandTemplate"] or "").startswith(("buildset ","qolset ","pickupradius "))) and control["widget"] in ("number", "toggle") and "expected_id" in supplied:
                 # Delayed auto-applies belong to the actor present at the edit,
                 # never to a character loaded while the request was queued.
                 expected_id = supplied["expected_id"]
@@ -320,10 +335,13 @@ class UiBridge:
             if any(p["name"] == "save_id" for p in control["parameters"]):
                 # Echo commands validate the expected actor themselves. A reward
                 # read must not open/refresh the world map as a side effect.
-                save_id = supplied.get("expected_id") if cid in ("echo_read", "echo_focus") else self._json("identityread")["player"]["id"]
+                live_player = None if cid in ("echo_read", "echo_focus") else self._json("identityread")["player"]
+                save_id = supplied.get("expected_id") if live_player is None else live_player["id"]
                 if not isinstance(save_id, str) or not re.fullmatch(r"[0-9]+", save_id):
                     raise RuntimeError("The current save identity is invalid.")
                 if supplied.get("expected_id") != save_id:
+                    raise RuntimeError("The loaded character has changed. Refresh this section and try again.")
+                if supplied.get("expected_name") and live_player and live_player.get("name") != supplied["expected_name"]:
                     raise RuntimeError("The loaded character has changed. Refresh this section and try again.")
             if cid in ("speed", "stat_reset"):
                 identity = identity or self._actor_identity()
@@ -368,7 +386,7 @@ class UiBridge:
                 reset = control["resetCommand"].format(**args)
                 self.temporary_resets[(cid, args.get("category"))] = reset
             result = self._dispatch(cid, args, supplied, operation, save_id)
-            if cid in ("craft_read", "craft_forge") and "preview" in result:
+            if cid in ("craft_read", "craft_forge", "craft_custom") and "preview" in result:
                 # Native forge data and the UI's simulation flag are separate.
                 result = dict(result)
                 result["forgePreview"] = result.pop("preview")
@@ -430,13 +448,18 @@ class UiBridge:
         control = self.controls[cid]
         value = control["default"] if operation == "reset" else a.get("value")
         mapping = {
+            "craft_materials_read": crafting.materials_read,
+            "craft_materials": lambda: crafting.maximize_materials(save_id, a["value"]),
             "craft_forge": lambda: progression.request(f"craftforge {save_id}"),
+            "craft_custom": lambda: builds.custom(save_id, a["template_id"], a["affixes"], a["perfect"], a.get("modifiers","none")),
+            "craft_custom_catalog": builds.workshop_catalog,
             "atlas_read": collection.atlas, "stash_read": collection.stash,
             "echo_read": lambda: mono.echoes(save_id, a["timeline"], a["difficulty"] == "empowered"),
             "echo_focus": lambda: mono.focus_echo(save_id, a["timeline"], a["difficulty"] == "empowered", a["index"]),
             "progress_read": progression.read, "monolith_read": mono.read, "cof_read": cof.read,
             "factions_read": lambda: progression.request("factionread"),
             "campaign_complete": lambda: progression.apply("questscomplete", save_id),
+            "mastery_choose": lambda: progression.open_mastery(save_id),
             "waypoints_unlock": lambda: progression.apply("waypointsunlock", save_id),
             "monolith_unlock": lambda: mono.unlock(save_id),
             "monolith_select": lambda: mono.select(save_id, a["timeline"], a["difficulty"] == "empowered"),
@@ -465,6 +488,8 @@ class UiBridge:
         if cid in mapping:
             return mapping[cid]()
         formatted = {k: f"{v:.9g}" if isinstance(v, (int, float)) else v for k, v in a.items()}
+        if save_id is not None:
+            formatted["save_id"] = save_id
         formatted.setdefault("level", "")
         if operation == "reset":
             command = control["resetCommand"].format(**formatted)
@@ -474,11 +499,22 @@ class UiBridge:
 
     def _demo_execute(self, cid, a, supplied, operation):
         control = self.controls[cid]
+        if cid.startswith(("qol_","inventory_")) or cid in ("summons_read","pickup_radius","pickup_radius_read"):
+            raise RuntimeError("Load an offline character to use live convenience controls. Preview does not invent game data.")
+        if cid == "build_read" or (control["commandTemplate"] or "").startswith("buildset "):
+            state = self.demo.setdefault("buildread", {"ok": True, "settings": {}})
+            if cid != "build_read":
+                key = control["commandTemplate"].split()[1]
+                state["settings"][key] = {"value": control["default"] if operation == "reset" else a["value"], "available": True}
+                self.demo_values[cid] = state["settings"][key]["value"]
+            return {**state, "preview": True}
         if cid in ("atlas_read", "stash_read", "echo_read", "echo_focus"):
             raise RuntimeError("This feature needs a loaded offline character. Preview does not invent collection or Echo data.")
         if cid in ("sheet_row", "raw_stat", "stat_alias"):
             return {**self._stat(cid, a, supplied, operation), "preview": True}
-        if cid == "craft_forge":
+        if cid in ("craft_materials", "craft_materials_read"):
+            raise RuntimeError("Load an offline character to read or stock real crafting materials. Preview does not change material quantities.")
+        if cid in ("craft_forge", "craft_custom", "craft_custom_catalog"):
             raise RuntimeError("Preview cannot forge a real item. Load an offline character and select an item in the game forge.")
         if cid in ("map_read", "map_reveal"):
             state = self.demo.setdefault("mapread", {"ok": True, "enabled": False, "revealed": False, "renderOnly": True})

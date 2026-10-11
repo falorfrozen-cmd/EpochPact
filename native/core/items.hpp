@@ -16,6 +16,10 @@ std::string SetRarity(double m);
 std::string RarityStatus();
 std::string SetAuto(double on);
 std::string AutoPickupStatus();
+std::string SetRadius(double radius);
+std::string RadiusStatus();
+// Includes pending V2 tooltips. The normal mouse pickup is never intercepted.
+bool IsInspectingItem();
 std::string Status();
 
 }  // namespace ep::items

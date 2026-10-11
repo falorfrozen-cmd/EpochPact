@@ -9,6 +9,7 @@ namespace {
 using ShutdownFn = void (*)();
 ShutdownFn original = nullptr;
 std::atomic<bool> stopping{false};
+std::atomic<void(*)()> cleanup{nullptr};
 HANDLE finished = nullptr; // Process lifetime: no CRT destructor may close it early.
 DWORD workerId = 0;
 void Shutdown() {
@@ -20,10 +21,12 @@ void Shutdown() {
     if (finished && GetCurrentThreadId() != workerId) WaitForSingleObject(finished, INFINITE);
     std::string why;
     if (!hook::RemoveAll(&why)) Log("runtime shutdown: hook restoration incomplete: %s", why.c_str());
+    if(auto release=cleanup.exchange(nullptr))release();
     Log("runtime shutdown: worker stopped and hook restoration attempted; continuing IL2CPP shutdown");
     original();
 }
 }
+void SetCleanup(void (*release)()){cleanup.store(release);}
 bool Init(void* target) {
     workerId = GetCurrentThreadId();
     finished = CreateEventW(nullptr, TRUE, FALSE, nullptr);

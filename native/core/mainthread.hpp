@@ -20,6 +20,9 @@ bool Run(std::function<void()> job, unsigned timeoutMs, std::string* why);
 // Executes one bounded step per Unity frame; return true from the final step.
 // A started operation is never abandoned while it still references caller state.
 bool RunSteps(std::function<bool()> step, unsigned timeoutMs, std::string* why);
+// Queue owned bootstrap work without waiting for Unity to finish its startup.
+// Callbacks must not capture caller stack references; Stop cancels pending work.
+bool Post(std::function<void()> job, std::string* why = nullptr);
 void KeepTicking();
 
 // Called by the command loop on each poll: retained for command-loop compatibility; does not remove the frame hook.

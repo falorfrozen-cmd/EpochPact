@@ -59,6 +59,8 @@ using Type = void;
     X(field_get_offset, size_t, (const Field*))                                           \
     X(field_get_flags, int, (const Field*))                                               \
     X(field_static_get_value, void, (const Field*, void*))                                \
+    X(field_set_value, void, (void*, const Field*, void*))                                \
+    X(field_get_value, void, (void*, const Field*, void*))                                \
     X(property_get_name, const char*, (const Property*))                                  \
     X(property_get_get_method, const Method*, (const Property*))                          \
     X(property_get_set_method, const Method*, (const Property*))                          \
@@ -67,6 +69,7 @@ using Type = void;
     X(object_get_class, const Class*, (void*))                                              \
     X(object_get_virtual_method, const Method*, (void*, const Method*))                    \
     X(object_unbox, void*, (void*))                                                        \
+    X(array_new, void*, (const Class*, uintptr_t))                                         \
     X(runtime_invoke, void*, (const Method*, void*, void**, void**))                        \
     X(gchandle_new, uintptr_t, (void*, bool))                                             \
     X(gchandle_get_target, void*, (uintptr_t))                                            \

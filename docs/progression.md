@@ -28,6 +28,32 @@ Ustalık ve fraksiyon seçimi otomatik yapılmaz. Kampanya dışındaki Monolith
 arena, repeatable ve test görevleri kampanya tamamlama kapsamına alınmaz.
 Tamamlanmış görevler yeniden ödül vermez. 55'e seviye desteği ayrıca raporlanır;
 bu XP, öldürme XP çarpanından geçmez ve fraksiyon favoru üretmez.
+
+## Choose Mastery (2026-10-11)
+
+The Campaign page now offers **Choose Mastery** separately from completion.
+Completing quests does not replay the NPC dialogue that normally opens mastery
+selection. A character can therefore have completed **The Power of Mastery**
+while `CharacterData.ChosenMastery` is still zero.
+
+`progressread.mastery` reports the native chosen mastery, quest completion,
+availability, whether its panel is open, and an English reason when unavailable.
+`masteryopen <save_id>` opens the game's normal **first-choice** panel through
+`UIBase.openMasteryPanel(false, false)`. The player selects and confirms inside
+the game. Opening the panel neither assigns mastery nor grants quest rewards.
+It works for characters whose campaign was completed with an older release.
+
+The command verifies the loaded offline character on each main-thread step and
+refuses incomplete quests, stale identities, transitions, unknown state and
+already-selected masteries. It never enters mastery respec mode. Use the game's
+respec NPC for an existing mastery. No panel opens on app startup, page changes,
+theme changes, live reads or campaign completion. Returning to the interface
+refreshes the mastery state after the panel was opened.
+
+Live verification on a separately backed-up solo test clone confirmed all three
+native options, cancellation, normal confirmation, no repeated quest rewards,
+refusal after selection, and persistence after a real game restart. See
+[mastery-validation-2026-10-11.md](mastery-validation-2026-10-11.md).
 Seviye artışı doğrudan bir alan değişikliğiyle değil, normal `GainExpDirect` /
 `LevelUp` olaylarıyla gerçekleşir: seviye pasifleri, yetenek kilitleri ve
 karakter istatistikleri oyunun kendi akışında güncellenir.
@@ -42,6 +68,7 @@ MonolithHub'a taşıyarak doğrulandı.
 
 ```text
 progressread
+masteryopen <loaded offline save id from progressread>
 questscomplete <progressread içindeki çevrimdışı kayıt id'si>
 waypointsunlock <progressread içindeki çevrimdışı kayıt id'si>
 ```

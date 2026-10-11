@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>EpochPact.MelonBridge</AssemblyName>
+    <Version>0.1.2.6</Version>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DebugType>none</DebugType>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="MelonLoader">
+      <HintPath>$(MelonLoaderSdk)/MelonLoader/net6/MelonLoader.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AsmResolver"><HintPath>$(MelonLoaderSdk)/MelonLoader/net6/AsmResolver.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AsmResolver.DotNet"><HintPath>$(MelonLoaderSdk)/MelonLoader/net6/AsmResolver.DotNet.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AsmResolver.PE"><HintPath>$(MelonLoaderSdk)/MelonLoader/net6/AsmResolver.PE.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AsmResolver.PE.File"><HintPath>$(MelonLoaderSdk)/MelonLoader/net6/AsmResolver.PE.File.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

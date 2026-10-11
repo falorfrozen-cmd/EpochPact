@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net6.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../melon/InteropCacheRepair.cs" Link="InteropCacheRepair.cs" />
+    <Reference Include="AsmResolver"><HintPath>$(MelonLoaderSdk)/MelonLoader/net6/AsmResolver.dll</HintPath></Reference>
+    <Reference Include="AsmResolver.DotNet"><HintPath>$(MelonLoaderSdk)/MelonLoader/net6/AsmResolver.DotNet.dll</HintPath></Reference>
+    <Reference Include="AsmResolver.PE"><HintPath>$(MelonLoaderSdk)/MelonLoader/net6/AsmResolver.PE.dll</HintPath></Reference>
+    <Reference Include="AsmResolver.PE.File"><HintPath>$(MelonLoaderSdk)/MelonLoader/net6/AsmResolver.PE.File.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

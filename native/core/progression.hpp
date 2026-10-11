@@ -7,6 +7,7 @@ std::string Read();
 std::string Identity();
 std::string Complete(const std::string& expectedId);
 std::string UnlockWaypoints(const std::string& expectedId);
+std::string OpenMastery(const std::string& expectedId);
 // Capture touches game objects and must run on the main thread. Writing the
 // copied strings touches only the filesystem and belongs on the IPC worker.
 struct SnapshotData {
@@ -15,6 +16,7 @@ struct SnapshotData {
 SnapshotData CaptureSnapshotCurrent(const std::string& expectedId, const char* operation);
 std::string WriteCapturedSnapshot(const SnapshotData& snapshot);
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+std::string TestMastery(const std::string& expectedId, const std::string& action);
 // Isolated crafting fixture setup only; excluded from every player build.
 std::string SnapshotFixtureCurrent(const std::string& expectedId, const char* operation);
 #endif

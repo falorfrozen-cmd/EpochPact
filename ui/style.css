@@ -48,3 +48,8 @@ dialog.stat-editor{max-width:740px;padding:0;scrollbar-color:var(--gold) var(--p
 .setup-dialog .panel{margin-bottom:14px}
 .setup-feedback:empty{display:none}
 @media(max-width:1000px){.game-path-row{flex-wrap:wrap}.game-path-row input{flex-basis:100%}}
+/* Actual ally values stay readable at small window sizes in both themes. */
+.table-scroll{overflow:auto;max-width:100%}
+.summon-table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
+.summon-table th,.summon-table td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--border,#665a3b)}
+.summon-table th{color:var(--accent,#8ce0b8);font-weight:600}

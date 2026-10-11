@@ -3,6 +3,7 @@
 #include "hook.hpp"
 #include "loot_crafting_rules.hpp"
 #include "progression.hpp"
+#include "workshop.hpp"
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
 #include "stat_editor.hpp"
 #endif
@@ -10,6 +11,9 @@
 #include <cstring>
 #include <memory>
 #include <sstream>
+#include <charconv>
+#include <set>
+#include <exception>
 
 namespace ep::crafting {
 namespace {
@@ -27,7 +31,9 @@ size_t actorTracker, trackerData, forgingPotential, affixList, affixId, affixTie
 size_t itemType, entryData, entryQuantity;
 const il2cpp::Field* managerInstance; const il2cpp::Field* craftingRng;
 game::MethodRef getActor, offline, forge, cost, setFP, seal, roll, minCost, maxCost, shardCheck, glyphCheck, getItem;
-game::MethodRef capability, requiredLevel;
+game::MethodRef capability, requiredLevel, itemConstructor;
+using ItemConstructorFn=void(*)(void*,void*,const il2cpp::Method*);
+ItemConstructorFn originalItemConstructor=nullptr;
 using ForgeFn=void (*)(void*,const il2cpp::Method*);
 using CostFn=void (*)(void*,int,int,bool,int*,const il2cpp::Method*);
 using SetFPFn=void (*)(void*,int,const il2cpp::Method*);
@@ -39,6 +45,23 @@ using CapabilityFn=bool (*)(void*,void**,bool*,bool*,void**,const il2cpp::Method
 using LevelFn=int (*)(void*,int,int,const il2cpp::Method*);
 CapabilityFn originalCapability=nullptr; LevelFn originalLevel=nullptr;
 struct Context { void* actor; void* manager; void* craft; void* main; void* modifier; void* support; void* storage; std::string id; std::string name; };
+bool Checked(const std::function<void()>& work);
+void ItemConstructorDetour(void* self,void* bytes,const il2cpp::Method* method) {
+    if(game::IsOfflinePlay())Checked([]{workshop::Ensure();});
+    originalItemConstructor(self,bytes,method);
+    // Unique/Set loading normally replaces the encoded base with the template's
+    // base. Custom workshop items retain the v6 header's original equipment
+    // base. Ordinary items have matching headers and are untouched; without
+    // EpochPact the game still loads the item as its normal template base.
+    if(!self||!bytes||!game::IsOfflinePlay())return;
+    Checked([&]{
+        const auto n=Get<uintptr_t>(bytes,0x18);if(n<23||n>1024||Get<uint8_t>(bytes,0x20)!=6)return;
+        const auto rarity=Get<uint8_t>(self,itemRarity),type=Get<uint8_t>(bytes,0x25),subtype=Get<uint8_t>(bytes,0x26);
+        if((rarity!=8&&rarity!=9)||type>=25)return;
+        *reinterpret_cast<uint8_t*>(static_cast<char*>(self)+itemType)=type;
+        *reinterpret_cast<uint16_t*>(static_cast<char*>(self)+itemSubtype)=subtype;
+    });
+}
 Context Current() {
     if(!ready || !game::IsOfflinePlay()) throw std::runtime_error("offline crafting metadata/session unavailable");
     RequireSession(4);
@@ -247,7 +270,7 @@ std::string Preview() {
     void* error=nullptr; void* success=nullptr; bool warning=false, green=false;
     void* args[]{&error,&warning,&green,&success};
     const bool can=Value<bool>(Method(c.craft,"CheckForgeCapability",4),c.craft,args);
-    out << ",\"canForge\":" << Boolean(can) << ",\"message\":" << Json(Text(error)) << ",\"successMessage\":" << Json(Text(success));
+    out << ",\"canForge\":" << Boolean(can) << ",\"canCustom\":" << Boolean(c.main && Value<bool>(Method(c.main,"isEquipment",0),c.main) && Get<uint8_t>(c.main,itemType)<25) << ",\"message\":" << Json(Text(error)) << ",\"successMessage\":" << Json(Text(success));
     if(c.main) {
         const int fp=Get<uint8_t>(c.main,forgingPotential);
         out << ",\"forgingPotential\":" << fp << ",\"affixes\":[";
@@ -281,6 +304,7 @@ std::string Preview() {
 }
 }
 bool Init() {
+    try{workshop::Load();}catch(const std::exception& e){Log("workshop recipe read failed: %s",e.what());return false;}
     std::string why; ready=game::Guarded([] {
         getActor=Resolve("PlayerFinder","getPlayerActor",0); offline=Resolve("CharacterData","get_IsOffline",0,"LE.Data");
         forge=Resolve("CraftingManager","Forge",0); cost=Resolve("ItemData","applyForgingPotentialCost",4);
@@ -303,6 +327,14 @@ bool Init() {
         affixId=Offset("ItemAffix","affixId"); affixTier=Offset("ItemAffix","affixTier");
         itemSubtype=Offset("ItemData","subType"); itemRarity=Offset("ItemData","rarity");
         itemType=Offset("ItemData","itemType"); entryData=Offset("ItemContainerEntry","data"); entryQuantity=Offset("ItemContainerEntry","quantity");
+        const auto* cls=game::FindClass("LE.dll","","ItemData");void* iter=nullptr;
+        while(const auto* m=il2cpp::api().class_get_methods(cls,&iter)) {
+            if(std::strcmp(il2cpp::api().method_get_name(m),".ctor")||il2cpp::api().method_get_param_count(m)!=1)continue;
+            char* name=il2cpp::api().type_get_name(il2cpp::api().method_get_param(m,0));const bool match=name&&!std::strcmp(name,"System.Byte[]");if(name)il2cpp::api().free(name);
+            if(match){itemConstructor.info=m;itemConstructor.code=*reinterpret_cast<void* const*>(m);break;}
+        }
+        std::string failure;
+        if(!itemConstructor||!hook::Install(itemConstructor.code,reinterpret_cast<void*>(&ItemConstructorDetour),reinterpret_cast<void**>(&originalItemConstructor),&failure))throw std::runtime_error("custom equipment reader unavailable: "+failure);
     },&why);
     Log("crafting: %s%s",ready?"metadata ready":"unavailable: ",ready?"":why.c_str()); return ready;
 }
@@ -397,6 +429,247 @@ std::string Forge(const std::string& id) {
     // failure does not establish that the original Forge made no changes.
     result.pop_back();return result+",\"backup\":"+Json(backup)+"}";
 }
+namespace {
+void* CloneItem(void* source) {
+    const auto* cls=game::FindClass("LE.dll","","ItemDataUnpacked");
+    Root copy(il2cpp::api().object_new(cls));const il2cpp::Method* ctor=nullptr;void* iter=nullptr;
+    while(const auto* m=il2cpp::api().class_get_methods(cls,&iter)) {
+        if(std::strcmp(il2cpp::api().method_get_name(m),".ctor")||il2cpp::api().method_get_param_count(m)!=1)continue;
+        char* name=il2cpp::api().type_get_name(il2cpp::api().method_get_param(m,0));const bool match=name && !std::strcmp(name,"System.Byte[]");if(name)il2cpp::api().free(name);if(match){ctor=m;break;}
+    }
+    void* bytes=Get<void*>(source,Offset("ItemData","id"));void* args[]{bytes};Invoke(ctor,copy.Get(),args);return copy.Get();
+}
+void Assign(void* item,const char* name,void* value) {
+    const auto* f=il2cpp::api().class_get_field_from_name(game::FindClass("LE.dll","","ItemData"),name);
+    if(!f)throw std::runtime_error("custom item field unavailable");il2cpp::api().field_set_value(item,f,value);
+}
+std::vector<int> CustomAffixes(const std::string& input) {
+    if(input=="keep")return {};
+    if(input.empty())throw std::runtime_error("select affixes or keep the current affixes");
+    std::vector<int> ids;size_t start=0;
+    do {
+        const auto end=input.find(',',start);const auto token=input.substr(start,end==std::string::npos?end:end-start);int id=-1;
+        const auto [tail,error]=std::from_chars(token.data(),token.data()+token.size(),id);
+        if(error!=std::errc{}||tail!=token.data()+token.size()||id<0||id>65535||ids.size()>=7||std::find(ids.begin(),ids.end(),id)!=ids.end())throw std::runtime_error("choose up to seven different affix IDs");
+        ids.push_back(id);if(end==std::string::npos)break;start=end+1;
+    }while(true);
+    Root affixes(Invoke(Resolve("AffixList","get",0)));Root list(Invoke(Method(affixes.Get(),"get_AllAffixes",0),affixes.Get()));std::set<int> known;
+    for(void* a:Entries(list.Get()))if(a){const int id=Get<int>(a,Offset("AffixList.Affix","affixId"));if(!workshop::Owns(id))known.insert(id);}
+    for(int id:ids)if(!known.contains(id))throw std::runtime_error("affix is not in this game's catalog");return ids;
+}
+void* CustomItem(void* original,int templateId,const std::string& input,bool perfect,int recipe=-1) {
+    if(!original||!Value<bool>(Method(original,"isEquipment",0),original)||Get<uint8_t>(original,itemType)>=25)throw std::runtime_error("select a normal equipment item in the game forge");
+    if(templateId<-1||templateId>65535)throw std::runtime_error("invalid Unique/Set template ID");
+    Root copy(CloneItem(original));auto ids=CustomAffixes(input);
+    void* list=Get<void*>(copy.Get(),affixList);
+    if(recipe>=0){
+        if(input=="keep")for(void* a:Entries(list)){const int id=Get<uint16_t>(a,affixId);if(!workshop::Owns(id))ids.push_back(id);}
+        if(ids.size()>6)throw std::runtime_error("mixed modifier recipe uses one affix slot; select up to six regular affixes");
+        ids.push_back(recipe);
+    }
+    if(input!="keep"||recipe>=0) {
+        Invoke(Method(list,"Clear",0),list);
+        for(int number:ids) {
+            uint16_t id=static_cast<uint16_t>(number);uint8_t tier=6,affixRoll=perfect?255:128,extra=0;int sealed=0;
+            Root affix(il2cpp::api().object_new(game::FindClass("LE.dll","","ItemAffix")));void* args[]{&id,&tier,&affixRoll,&extra,&sealed};Invoke(Method(affix.Get(),".ctor",5),affix.Get(),args);
+            void* add[]{affix.Get()};Invoke(Method(list,"Add",1),list,add);
+        }
+    } else if(perfect)for(void* a:Entries(list))if(a)*reinterpret_cast<uint8_t*>(static_cast<char*>(a)+Offset("ItemAffix","affixRoll"))=255;
+    uint16_t unique=templateId<0?0:static_cast<uint16_t>(templateId);uint8_t rarity=4;
+    if(templateId>=0) {
+        void* args[]{&unique};void* found=Invoke(Resolve("UniqueList","getUnique",1),nullptr,args);if(!found)throw std::runtime_error("Unique/Set template is unavailable in this game version");Root entry(found);
+        if(Get<uint16_t>(entry.Get(),Offset("UniqueList.Entry","uniqueID"))!=unique||Get<bool>(entry.Get(),Offset("UniqueList.Entry","hideFromPlayers")))throw std::runtime_error("select a public Unique/Set template");
+        rarity=Get<bool>(entry.Get(),Offset("UniqueList.Entry","isSetItem"))?8:9;
+        // The native item v6 serializer writes eight unique roll bytes,
+        // including unused slots. A shorter array cannot be saved or reloaded.
+        uintptr_t length=8;for(void* mod:Entries(Get<void*>(entry.Get(),Offset("UniqueList.Entry","mods"))))if(mod&&Get<bool>(mod,Offset("UniqueItemMod","canRoll"))&&Get<uint8_t>(mod,Offset("UniqueItemMod","rollID"))>=length)throw std::runtime_error("template roll layout exceeds the native item format");
+        Root rolls(il2cpp::api().array_new(game::FindClass("mscorlib.dll","System","Byte"),length));if(length)std::memset(static_cast<char*>(rolls.Get())+0x20,perfect?255:128,length);
+        Assign(copy.Get(),"uniqueRolls",rolls.Get());
+    }
+    Assign(copy.Get(),"uniqueID",&unique);Assign(copy.Get(),"rarity",&rarity);
+    uint8_t zero=0;for(const char* field:{"legendaryPotential","weaversWill","weaversTouch"})Assign(copy.Get(),field,&zero);
+    if(perfect){void* rolls=Get<void*>(copy.Get(),Offset("ItemData","implicitRolls"));if(rolls){const auto n=Get<uintptr_t>(rolls,0x18);if(n>32)throw std::runtime_error("invalid implicit roll data");std::memset(static_cast<char*>(rolls)+0x20,255,n);}}
+    Invoke(Method(copy.Get(),"RebuildID",0),copy.Get());
+    // Prove the native save format can round-trip the proposed item before a
+    // live container is modified. No sidecar-only or invalid affix encoding.
+    Root loaded(CloneItem(copy.Get()));
+    if(Get<uint8_t>(loaded.Get(),itemType)!=Get<uint8_t>(original,itemType)||Get<uint16_t>(loaded.Get(),itemSubtype)!=Get<uint16_t>(original,itemSubtype)||Get<uint8_t>(loaded.Get(),itemRarity)!=rarity||Get<uint16_t>(loaded.Get(),Offset("ItemData","uniqueID"))!=unique||Entries(Get<void*>(loaded.Get(),affixList)).size()!=Entries(list).size())throw std::runtime_error("custom item round-trip mismatch: type "+std::to_string(Get<uint8_t>(loaded.Get(),itemType))+"/"+std::to_string(Get<uint8_t>(original,itemType))+", subtype "+std::to_string(Get<uint16_t>(loaded.Get(),itemSubtype))+"/"+std::to_string(Get<uint16_t>(original,itemSubtype))+", rarity "+std::to_string(Get<uint8_t>(loaded.Get(),itemRarity))+"/"+std::to_string(rarity)+", template "+std::to_string(Get<uint16_t>(loaded.Get(),Offset("ItemData","uniqueID")))+"/"+std::to_string(unique)+", affixes "+std::to_string(Entries(Get<void*>(loaded.Get(),affixList)).size())+"/"+std::to_string(Entries(list).size())+"; nothing was applied");
+    const auto before=Entries(list),after=Entries(Get<void*>(loaded.Get(),affixList));
+    for(size_t i=0;i<before.size();++i)for(const auto offset:{affixId,affixTier,Offset("ItemAffix","affixRoll")}) {
+        const bool same=offset==affixId?Get<uint16_t>(before[i],offset)==Get<uint16_t>(after[i],offset):Get<uint8_t>(before[i],offset)==Get<uint8_t>(after[i],offset);
+        if(!same)throw std::runtime_error("the game changed a custom affix during round-trip; nothing was applied");
+    }
+    return loaded.Get();
+}
+}
+std::string Custom(const std::string& id,int templateId,const std::string& affixes,bool perfect,const std::string& modifiers) {
+    Context prepared{};progression::SnapshotData snapshot;std::vector<std::unique_ptr<Root>> roots;std::unique_ptr<Root> replacement;
+    const auto captured=Run([&]{prepared=Current();if(id!=prepared.id)throw std::runtime_error("character changed; refresh the forge");
+        int recipe=-1;if(!modifiers.empty()&&modifiers!="none"){
+            if(!prepared.main)throw std::runtime_error("select a forge item first");
+            Root itemList(Invoke(Resolve("ItemList","get",0)));int type=Get<uint8_t>(prepared.main,itemType),sub=Get<uint16_t>(prepared.main,itemSubtype);void* args[]{&type,&sub};
+            recipe=workshop::Recipe(modifiers,perfect,Value<float>(Method(itemList.Get(),"getAffixEffectModifier",2),itemList.Get(),args));
+        }
+        replacement=std::make_unique<Root>(CustomItem(prepared.main,templateId,affixes,perfect,recipe));for(void* p:{prepared.actor,prepared.manager,prepared.craft,prepared.main})roots.push_back(std::make_unique<Root>(p));SyncItems(prepared);snapshot=progression::CaptureSnapshotCurrent(id,"custom-forge-item");return std::string("{\"ok\":true}");});
+    if(captured!="{\"ok\":true}")return captured;
+    std::string backup;try{backup=progression::WriteCapturedSnapshot(snapshot);}catch(const std::exception& e){return "{\"ok\":false,\"error\":"+Json(e.what())+"}";}
+    auto result=Run([&]{
+        auto c=Current();if(c.id!=prepared.id||c.name!=prepared.name||c.actor!=prepared.actor||c.main!=prepared.main||c.craft!=prepared.craft)throw std::runtime_error("forge selection changed while making the backup; nothing applied");
+        SyncItems(c);const auto now=progression::CaptureSnapshotCurrent(id,"custom-forge-item");if(now.character!=snapshot.character||now.stash!=snapshot.stash||now.global!=snapshot.global)throw std::runtime_error("save data changed while making the backup; nothing applied");
+        void* container=Get<void*>(c.craft,forgeMain);const auto entries=Entries(Invoke(Method(container,"GetContent",0),container));if(entries.size()!=1)throw std::runtime_error("expected one forge item");Root entry(entries[0]);int amount=1,context=0;void* remove[]{entry.Get(),&amount,&context};
+        if(!Value<bool>(Method(container,"TryRemoveItem",3),container,remove))throw std::runtime_error("normal forge removal refused");
+        bool committed=false;
+        try {void* add[]{replacement->Get(),&amount,&context};if(!Value<bool>(Method(container,"TryAddItem",3),container,add))throw std::runtime_error("normal forge insertion refused");committed=true;SyncItems(Current());progression::SaveCurrent(id);}
+        catch(...) {
+            const auto failure=std::current_exception();
+            try {
+                if(committed){auto current=Entries(Invoke(Method(container,"GetContent",0),container));
+                    if(current.size()!=1 || Get<void*>(current[0],entryData)!=replacement->Get())throw std::runtime_error("forge selection changed during rollback");
+                    void* undo[]{current[0],&amount,&context};
+                    if(!Value<bool>(Method(container,"TryRemoveItem",3),container,undo))throw std::runtime_error("replacement removal refused");
+                }
+                void* restore[]{prepared.main,&amount,&context};
+                if(!Value<bool>(Method(container,"TryAddItem",3),container,restore))throw std::runtime_error("original item insertion refused");
+                SyncItems(Current());progression::SaveCurrent(id);
+            } catch(const std::exception& e){Log("custom forge rollback incomplete: %s; recovery backup: %s",e.what(),backup.c_str());}
+            catch(...){Log("custom forge rollback incomplete; recovery backup: %s",backup.c_str());}
+            std::rethrow_exception(failure);
+        }
+        return "{\"ok\":true,\"preview\":"+Preview()+"}";
+    });result.pop_back();return result+",\"backup\":"+Json(backup)+"}";
+}
+namespace {
+struct MaterialInfo { int type, id, count; std::string name; };
+struct MaterialOwner { void* tracker; void* stash; void* container; void* materials; };
+MaterialOwner Owner(const Context& c) {
+    void* tracker=Get<void*>(c.actor,Offset("Actor","globalDataTracker"));
+    void* stash=Get<void*>(tracker,Offset("GlobalDataTracker","<stash>k__BackingField"));
+    void* holder=Get<void*>(c.manager,Offset("ItemContainersManager","stash"));
+    void* container=Invoke(Method(holder,"get_ActiveContainer",0),holder);
+    void* materials=Invoke(Method(c.manager,"get_materials",0),c.manager);
+    if(c.storage!=tracker || !stash || Get<void*>(container,Offset("StashItemContainer","<LinkedStash>k__BackingField"))!=stash ||
+       Invoke(Method(container,"get_Materials",0),container)!=materials)
+        throw std::runtime_error("crafting material stash ownership could not be verified");
+    return {tracker,stash,container,materials};
+}
+void SyncMaterials(const Context& c) {
+    const auto owner=Owner(c);void* args[]{owner.container};Invoke(Method(owner.tracker,"SaveMaterials",1),owner.tracker,args);
+    void* dirty[]{owner.stash};Invoke(Resolve("Stash","MarkDirty",1,"LE.Data"),nullptr,dirty);
+    SyncItems(c);
+}
+int SafeCount(int count) {
+    if(count<0 || count>100000000)throw std::runtime_error("invalid crafting material count");return count;
+}
+std::vector<MaterialInfo> MaterialCatalog(const Context& c) {
+    std::vector<MaterialInfo> out;std::set<std::pair<int,int>> seen;
+    const auto append=[&](int type,int id,std::string name) {
+        if(id<0 || id>65535 || !seen.emplace(type,id).second || name.empty())throw std::runtime_error("invalid material catalog entry");
+        out.push_back({type,id,SafeCount(type==101?Count(c.storage,id):MaterialCount(c,type,id)),std::move(name)});
+    };
+    Root affixes(Invoke(Resolve("AffixList","get",0)));
+    for(void* a:Entries(Invoke(Method(affixes.Get(),"get_AllAffixes",0),affixes.Get()))) {
+        if(a && !workshop::Owns(Get<int>(a,Offset("AffixList.Affix","affixId"))) && Value<bool>(Method(a,"get_HasShard",0),a))
+            append(101,Get<int>(a,Offset("AffixList.Affix","affixId")),Text(Invoke(Method(a,"getAffixDisplayName",0),a)));
+    }
+    Root items(Invoke(Resolve("ItemList","get",0)));
+    for(int type:{102,103}) {
+        // GetAllSubTypesIDs covers equipment only; non-equipment materials
+        // have their own catalog and must not silently disappear from stock.
+        void* args[]{&type};Root list(Invoke(Method(items.Get(),"GetNonEquipmentSubItems",1),items.Get(),args));
+        const auto subs=Entries(list.Get());if(subs.empty() || subs.size()>1024)throw std::runtime_error("material subtype catalog unavailable");
+        const auto before=out.size();
+        for(void* entry:subs) {
+            Root sub(entry);int id=Get<int>(sub.Get(),Offset("ItemList.SubItem","subTypeID"));void* subArgs[]{&type,&id};
+            if(Value<bool>(Method(items.Get(),"IsItemTypeObsolete",2),items.Get(),subArgs) ||
+               Get<bool>(sub.Get(),Offset("ItemList.SubItem","isLegacySubType")) || Get<bool>(sub.Get(),Offset("ItemList.SubItem","obsoleteItem")))continue;
+            append(type,id,Text(Invoke(Method(items.Get(),"GetItemDisplayName",2),items.Get(),subArgs)));
+        }
+        if(before==out.size())throw std::runtime_error("no usable materials in subtype catalog");
+    }
+    if(out.empty() || out.size()>4096)throw std::runtime_error("crafting material catalog unavailable");
+    return out;
+}
+std::string MaterialsJson(const Context& c,const std::vector<MaterialInfo>& list) {
+    std::ostringstream out;int shards=0,runes=0,glyphs=0;
+    for(const auto& x:list){if(x.type==101)++shards;else if(x.type==102)++runes;else ++glyphs;}
+    out<<"{\"ok\":true,\"player\":{\"id\":"<<Json(c.id)<<",\"name\":"<<Json(c.name)<<"},\"kinds\":{\"shards\":"<<shards<<",\"runes\":"<<runes<<",\"glyphs\":"<<glyphs<<"},\"materials\":[";
+    bool comma=false;for(const auto& x:list){if(comma)out<<',';comma=true;out<<"{\"type\":"<<x.type<<",\"id\":"<<x.id<<",\"name\":"<<Json(x.name)<<",\"count\":"<<x.count<<'}';}
+    return out.str()+"]}";
+}
+// Generate only catalog-validated materials through the same native generator
+// used by the game. No custom gear headers or save-file patches are involved.
+void* GenerateMaterial(const Context& c,int type,int subtype) {
+    void* generator=Get<void*>(c.actor,Offset("Actor","generateItems"));
+    bool no=false;int level=8,location=0,rarity=0,sockets=0,unique=-1,lp=0,rank=0,legendaryType=0,corrupt=0;
+    alignas(8) unsigned char faction[8]{},replacement[8]{},corruption[8]{},effectiveness[8]{},special[8]{},minSpecial[8]{},overrideLP[8]{};
+    void* args[]{&no,&level,&no,&location,&type,&subtype,&rarity,&sockets,&unique,&no,&lp,faction,&rank,&no,&legendaryType,&no,
+        replacement,corruption,&corrupt,effectiveness,nullptr,nullptr,special,&no,minSpecial,overrideLP};
+    return Invoke(Resolve("GenerateItems","initialiseRandomItemData",26),generator,args);
+}
+const il2cpp::Method* AddMaterialMethod(void* materials) {
+    const auto& api=il2cpp::api();void* iter=nullptr;
+    while(const auto* m=api.class_get_methods(api.object_get_class(materials),&iter)) {
+        if(std::strcmp(api.method_get_name(m),"TryAddItem") || api.method_get_param_count(m)!=4)continue;
+        char* type=api.type_get_name(api.method_get_param(m,3));const bool match=type && !std::strcmp(type,"System.Boolean");
+        if(type)api.free(type);if(match)return m;
+    }
+    throw std::runtime_error("native material storage method unavailable");
+}
+}
+std::string MaterialsRead() {
+    return Run([]{const auto c=Current();(void)Owner(c);return MaterialsJson(c,MaterialCatalog(c));});
+}
+std::string MaximizeMaterials(const std::string& id,int target) {
+    if(id.empty() || id.find_first_not_of("0123456789")!=std::string::npos || target<1 || target>1000000)
+        return "{\"ok\":false,\"error\":\"use a loaded offline save ID and a target from 1 to 1000000\"}";
+    Context prepared{};MaterialOwner owner{};std::vector<MaterialInfo> plan;progression::SnapshotData snapshot;
+    std::vector<std::unique_ptr<Root>> roots;const il2cpp::Method* add=nullptr;
+    const auto captured=Run([&]{
+        prepared=Current();if(prepared.id!=id)throw std::runtime_error("loaded offline character changed; refresh materials");
+        owner=Owner(prepared);add=AddMaterialMethod(owner.materials);plan=MaterialCatalog(prepared);
+        for(void* obj:{prepared.actor,prepared.manager,prepared.craft,prepared.storage,owner.stash,owner.container,owner.materials})roots.push_back(std::make_unique<Root>(obj));
+        SyncMaterials(prepared);snapshot=progression::CaptureSnapshotCurrent(id,"maximize-crafting-materials");
+        return std::string("{\"ok\":true}");
+    });if(captured!="{\"ok\":true}")return captured;
+    std::string backup;
+    try{backup=progression::WriteCapturedSnapshot(snapshot);}catch(const std::exception& e){return "{\"ok\":false,\"error\":"+Json(e.what())+"}";}
+    size_t index=0;int updated=0;int64_t added=0;bool checked=false;std::string result,why;
+    const bool ran=mainthread::RunSteps([&]{
+        try{
+            const auto c=Current();const auto now=Owner(c);
+            if(c.id!=prepared.id || c.name!=prepared.name || c.actor!=prepared.actor || c.manager!=prepared.manager ||
+               c.craft!=prepared.craft || now.stash!=owner.stash || now.container!=owner.container || now.materials!=owner.materials)
+                throw std::runtime_error("character or material stash changed; no further additions made");
+            if(!checked){
+                for(const auto& x:plan)if(SafeCount(x.type==101?Count(c.storage,x.id):MaterialCount(c,x.type,x.id))!=x.count)
+                    throw std::runtime_error("crafting materials changed while backing up; no additions made; refresh live");
+                checked=true;
+            }
+            const auto end=std::min(plan.size(),index+8);
+            for(;index<end;++index){
+                auto& x=plan[index];const int before=SafeCount(x.type==101?Count(c.storage,x.id):MaterialCount(c,x.type,x.id));
+                int amount=std::max(0,target-before);if(!amount){x.count=before;continue;}
+                if(x.type==101){int shard=x.id;bool notify=false;void* args[]{&shard,&amount,&notify};Invoke(Method(c.storage,"AddShard",3),c.storage,args);}
+                else{
+                    Root item(GenerateMaterial(c,x.type,x.id));
+                    if(Get<uint8_t>(item.Get(),itemType)!=x.type || Get<uint16_t>(item.Get(),itemSubtype)!=x.id)throw std::runtime_error("native generator returned a different material");
+                    int context=0;bool notify=false;void* args[]{item.Get(),&amount,&context,&notify};
+                    if(!Value<bool>(add,owner.materials,args))throw std::runtime_error("native material storage refused addition; earlier additions may remain");
+                }
+                const int after=SafeCount(x.type==101?Count(c.storage,x.id):MaterialCount(c,x.type,x.id));
+                if(after!=before+amount)throw std::runtime_error("native material quantity verification failed; use the recovery backup");
+                x.count=after;++updated;added+=amount;
+            }
+            if(index<plan.size())return false;
+            SyncMaterials(c);progression::SaveCurrent(id);Invoke(Method(c.manager,"UpdateCraftingSlotManagerItemInfo",0),c.manager);
+            result=MaterialsJson(c,plan);result.pop_back();result+=",\"target\":"+std::to_string(target)+",\"updatedKinds\":"+std::to_string(updated)+",\"addedUnits\":"+std::to_string(added)+"}";
+        }catch(const std::exception& e){result="{\"ok\":false,\"error\":"+Json(e.what())+",\"updatedKinds\":"+std::to_string(updated)+",\"addedUnits\":"+std::to_string(added)+"}";}
+        return true;
+    },5000,&why);
+    if(!ran)result="{\"ok\":false,\"error\":"+Json(why)+"}";
+    if(result.empty())result="{\"ok\":false,\"error\":\"material operation failed; use the recovery backup\"}";
+    result.pop_back();return result+",\"backup\":"+Json(backup)+"}";
+}
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
 namespace {
 void* Fixture(const Context& c,int type,int subtype,int rarity,bool exalted=false,int unique=-1,int forcedLP=-1,int level=8) {
@@ -424,7 +697,46 @@ std::string Test(const std::string& id,const std::string& action) {
     }
     return Run([=] {
         const auto c=Current();
-        if(c.id!=id || c.name!="EpCraftTest") throw std::runtime_error("craft probe requires isolated EpCraftTest and matching id");
+        if(c.id!=id || (c.name!="EpCraftTest" && !(c.name=="EpFeatureTest" && (action=="customsetup"||action=="custominspect"||action=="customstats"||action=="custom-equip"||action=="clear"||action.rfind("feature-",0)==0)))) throw std::runtime_error("craft probe requires an isolated test clone and matching id");
+        if(action=="custom-equip"){
+            if(!c.main||Get<uint8_t>(c.main,itemType)!=0)throw std::runtime_error("test helmet required");Root item(c.main);
+            void* paper=Get<void*>(c.manager,Offset("ItemContainersManager","equipment"));void* slot=Get<void*>(paper,Offset("ItemContainersManager.PaperDollContainer","helmet"));
+            void* character=Get<void*>(Get<void*>(c.actor,actorTracker),trackerData);int* level=reinterpret_cast<int*>(static_cast<char*>(character)+Offset("CharacterData","<Level>k__BackingField","LE.Data"));
+            struct Level{int* p;int old;~Level(){*p=old;}} restore{level,*level};*level=100;
+            int amount=1,context=0;const auto prior=Entries(Invoke(Method(slot,"GetContent",0),slot));
+            if(!prior.empty()){void* old=Get<void*>(prior[0],entryData);void* drop[]{c.actor,old,&amount};if(!Value<bool>(Method(c.manager,"DropItem",3),c.manager,drop))throw std::runtime_error("test helmet drop refused");void* remove[]{prior[0],&amount,&context};if(!Value<bool>(Method(slot,"TryRemoveItem",3),slot,remove))throw std::runtime_error("test helmet removal refused");}
+            void* container=Get<void*>(c.craft,forgeMain);const auto entries=Entries(Invoke(Method(container,"GetContent",0),container));void* remove[]{entries.at(0),&amount,&context};if(!Value<bool>(Method(container,"TryRemoveItem",3),container,remove))throw std::runtime_error("test forge removal refused");
+            void* add[]{item.Get(),&amount,&context};if(!Value<bool>(Method(slot,"TryAddItem",3),slot,add))throw std::runtime_error("test equipment insertion refused");
+            return std::string("{\"ok\":true,\"equipped\":true}");
+        }
+        if(action=="customstats"){
+            if(!c.main)throw std::runtime_error("select test forge item first");void* actorStats=Get<void*>(c.actor,Offset("Actor","stats"));void* old=Get<void*>(actorStats,Offset("Stats","stats"));
+            Root list(il2cpp::api().object_new(il2cpp::api().object_get_class(old)));Invoke(Method(list.Get(),".ctor",0),list.Get());void* current=list.Get();bool tooltip=false;
+            for(void* a:Entries(Get<void*>(c.main,affixList))){void* args[]{a,&tooltip,&current};Invoke(Method(c.main,"AddAffixValueToStatList",3),c.main,args);}
+            Root result(current);std::ostringstream out;out<<"{\"ok\":true,\"stats\":[";bool comma=false;
+            for(void* s:Entries(current)){if(comma)out<<',';comma=true;out<<"{\"sp\":"<<int(Get<uint8_t>(s,Offset("Stats.Stat","property")))<<",\"added\":"<<Get<float>(s,Offset("Stats.Stat","addedValue"))<<",\"increased\":"<<Get<float>(s,Offset("Stats.Stat","increasedValue"))<<'}';}return out.str()+"]}";
+        }
+        if(action=="custominspect") {
+            if(!c.main)throw std::runtime_error("test forge selection required");std::ostringstream out;out<<"{\"ok\":true,\"type\":"<<int(Get<uint8_t>(c.main,itemType))<<",\"rarity\":"<<int(Get<uint8_t>(c.main,itemRarity))<<",\"uniqueId\":"<<Get<uint16_t>(c.main,Offset("ItemData","uniqueID"))<<",\"bytes\":[";
+            void* bytes=Get<void*>(c.main,Offset("ItemData","id"));const auto count=Get<uintptr_t>(bytes,0x18);if(count>1024)throw std::runtime_error("invalid test item size");for(uintptr_t i=0;i<count;++i){if(i)out<<',';out<<int(Get<uint8_t>(bytes,0x20+i));}out<<"],\"affixes\":[";bool next=false;
+            for(void* a:Entries(Get<void*>(c.main,affixList))){if(next)out<<',';next=true;out<<"{\"id\":"<<Get<uint16_t>(a,affixId)<<",\"tier\":"<<int(Get<uint8_t>(a,affixTier))+1<<",\"roll\":"<<int(Get<uint8_t>(a,Offset("ItemAffix","affixRoll")))<<'}';}return out.str()+"]}";
+        }
+        if(action.rfind("feature-",0)==0) {
+            void* equipment=Get<void*>(c.manager,Offset("ItemContainersManager","equipment"));const bool main=action=="feature-main-staff",set=action=="feature-set";
+            const char* slotName=set?"amulet":main?"weapon":"offhand";void* slot=Get<void*>(equipment,Offset("ItemContainersManager.PaperDollContainer",slotName));
+            const int type=set?20:main||action=="feature-off-staff"?15:action=="feature-off-shield"?18:action=="feature-off-catalyst"?19:-1;if(type<0)throw std::runtime_error("unknown equipment test");
+            Root item(Fixture(c,type,0,2,false,-1,-1,8));std::unique_ptr<Root> custom;if(set)custom=std::make_unique<Root>(CustomItem(item.Get(),57,"keep",true));
+            const auto current=Entries(Invoke(Method(slot,"GetContent",0),slot));int amount=1,context=0;
+            if(!current.empty()) {Root entry(current.at(0));void* old=Get<void*>(entry.Get(),entryData);void* drop[]{c.actor,old,&amount};if(!Value<bool>(Method(c.manager,"DropItem",3),c.manager,drop))throw std::runtime_error("test equipment drop refused");void* remove[]{entry.Get(),&amount,&context};if(!Value<bool>(Method(slot,"TryRemoveItem",3),slot,remove))throw std::runtime_error("test equipment removal refused");}
+            void* args[]{set?custom->Get():item.Get(),&amount,&context};const bool accepted=Value<bool>(Method(slot,"TryAddItem",3),slot,args);
+            return "{\"ok\":true,\"accepted\":"+std::string(Boolean(accepted))+",\"slot\":"+Json(slotName)+",\"class\":"+Json(il2cpp::api().class_get_name(il2cpp::api().object_get_class(slot)))+",\"type\":"+std::to_string(type)+"}";
+        }
+        if(action=="customsetup") {
+            if(c.main)throw std::runtime_error("empty the test forge first");
+            Root item(Fixture(c,0,0,4,true,-1,-1,8));int amount=1,context=0;void* args[]{item.Get(),&amount,&context};void* container=Get<void*>(c.craft,forgeMain);
+            if(!Value<bool>(Method(container,"TryAddItem",3),container,args))throw std::runtime_error("normal test forge insertion refused");
+            SyncItems(Current());progression::SaveCurrent(id);return "{\"ok\":true,\"preview\":"+Preview()+"}";
+        }
         if(action=="metadata") {
             std::ostringstream out; out << "{\"ok\":true,\"storageClass\":" << Json(il2cpp::api().class_get_name(il2cpp::api().object_get_class(c.storage))) << ",\"parameters\":[";
             const auto m=Resolve("GenerateItems","initialiseRandomItemData",26); const auto& a=il2cpp::api();

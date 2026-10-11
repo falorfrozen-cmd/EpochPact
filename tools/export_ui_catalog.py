@@ -25,11 +25,13 @@ GROUPS = {
     "cof": "Circle of Fortune", "factions": "Faction / Weaver bilgileri",
     "session": "Bağlantı ve karakter", "recovery": "Yedek / geri alma",
     "atlas": "Unique Atlas", "stash": "Stash Assistant",
+    "skills": "Skills & Trees", "equipment": "Equipment", "summons": "Summons",
+    "display": "Display & Camera", "world": "World & Exploration", "inventory": "Inventory shortcuts",
 }
 READ_COMMANDS = (
     "sessionread", "playerread", "statraw", "stat", "sheetstats", "status",
     "densityread", "progressread", "monolithread", "cofread", "factionread",
-    "lootread", "craftread", "mapread",
+    "lootread", "craftread", "mapread", "buildread", "qolread",
 )
 FLOAT_MAX = 3.4028234663852886e38
 
@@ -60,6 +62,57 @@ def controls():
             api=api, current=current, requires=requires, doc=doc)
     save_id = parameter("save_id", "digit_string", source="liveState.progressread.player.id")
     value = lambda low, high: parameter("value", "integer", low, high)
+    add("build_read", "skills", "Build settings", "read", "buildread", "read_only",
+        "Read current skill, passive and Weaver budgets and build settings.", doc="docs/build-controls.md")
+    for key, group, label, low, high, default, integer, description in (
+        ("skillxp", "skills", "Skill XP multiplier", 1, 100, 1, False, "Multiply positive specialised skill XP gains. Character level XP is unchanged by this control."),
+        ("passivepoints", "skills", "Passive points multiplier", 1, 10, 1, False, "Multiply points earned from levels; quest points stay unchanged. Fractional totals are rounded down, so 1.5× grants three points across two eligible levels."),
+        ("skillpoints", "skills", "Skill points multiplier", 1, 10, 1, False, "Multiply the skill's total point budget, including gear skill levels. Level 20 plus one gear level at 2× provides 42 points."),
+        ("weaverpoints", "skills", "Weaver points multiplier", 1, 10, 1, False, "Multiply earned Weaver points from rank and Woven Echo progress."),
+        ("weaverflat", "skills", "Extra Weaver points", 0, 500, 0, True, "Add a fixed number of Weaver points after applying the multiplier."),
+        ("skillnodes", "skills", "Ignore skill node connections", 0, 1, 0, True, "Allow allocation without the preceding skill nodes. Point budgets and individual node caps still apply."),
+        ("passivenodes", "skills", "Ignore passive connections and mastery gates", 0, 1, 0, True, "Allocate passive nodes without their preceding connections or mastery thresholds. Actual mastery totals, point budgets and node caps are kept."),
+        ("weavernodes", "skills", "Ignore Weaver node connections", 0, 1, 0, True, "Allow allocation without preceding Weaver nodes. Point budgets and node caps still apply."),
+        ("offhand", "equipment", "Unrestricted offhand equipment", 0, 1, 0, True, "Allow weapons in the offhand and remove linked two-handed equipment conflicts. Normal level and class requirements still apply."),
+        ("fullsets", "equipment", "Full set bonuses from one piece", 0, 1, 0, True, "Activate the missing bonuses of each equipped set. Removing its last piece removes the bonuses."),
+        ("zoom", "display", "Camera distance", 1, 2, 1, False, "Move the overhead camera farther away. This changes distance, not field of view; 1× restores the normal distance."),
+        ("cameraangle", "display", "Camera angle", 0, 85, 0, False, "Set the overhead camera pitch in degrees. Zero uses the game's normal angle. Your saved camera preferences are kept."),
+        ("projectiles", "skills", "Projectile count multiplier", 1, 8, 1, False, "Multiply player-owned projectile volleys and moving projectile emissions that lack a native extra-projectile component. Each emission group is capped at 64. Beams, stationary areas, summons and enemy attacks are excluded."),
+        ("projectileflat", "skills", "Extra projectiles", 0, 32, 0, True, "Add extra projectiles after the multiplier in each projectile emission group. Supports native volleys and retrofitted moving projectiles; does not duplicate beams or stationary areas."),
+        ("summonduration", "summons", "Summon lifetime multiplier", 1, 10, 1, False, "Extend player-owned summon expiry timers and slow native health decay, including Wraith/Abomination paths. AI, attacks and combat damage remain normal. Permanent minions remain permanent."),
+        ("blessingoptions", "monolith", "Blessing choices", 0, 5, 0, True, "Choose Normal, 3, 4 or 5 options for newly generated Monolith boss rewards. This does not change existing rewards."),
+        ("blessingrolls", "monolith", "Maximum blessing rolls", 0, 1, 0, True, "Use the upper roll limit on newly generated boss blessing options. Existing blessings are kept."),
+    ):
+        add("build_"+key, group, label, "toggle" if low==0 and high==1 else "number", "buildset "+key+" {value}", "session", description,
+            params=[parameter("value", "integer" if integer else "number", low, high)], default=default,
+            reset="buildset "+key+" "+str(default), current="liveState.buildread.settings."+key+".value", doc="docs/build-controls.md")
+        if key=="blessingoptions":items[-1]["parameters"][0]["choices"]=[0,3,4,5]
+    add("qol_read", "world", "Convenience settings", "read", "qolread", "read_only", "Read the current world and display controls.")
+    for key,group,label,description in (
+        ("chests","world","Open nearby chests","Open eligible world chests within 3 game units, through the normal interaction. Locked and used chests are skipped."),
+        ("shrines","world","Activate nearby shrines","Activate eligible shrines within 3 game units. Native conditions and the normal shrine buff are kept."),
+        ("portals","world","Use the next nearby portal","Arm a single automatic portal interaction within 3 game units. Waits 10 seconds after loading and turns off after use to prevent travel loops."),
+        ("shadows","display","Disable shadows","Disable rendered shadows for this session. Your saved graphics settings are kept."),
+        ("reflections","display","Disable reflections","Disable real-time reflection probes and screen-space reflection effects. Existing graphics preferences are restored when disabled."),
+        ("bloom","display","Disable bloom","Disable bloom in active scene post-processing profiles, without changing saved graphics preferences."),
+        ("motionblur","display","Disable motion blur","Disable motion blur in scene post-processing profiles."),
+        ("occlusion","display","Disable ambient occlusion","Disable ambient occlusion in scene post-processing profiles."),
+        ("fog","display","Disable volumetric fog","Disable the game's Hx volumetric camera effect for this session. Normal gameplay visibility and saved settings are kept."),
+    ):
+        add("qol_"+key,group,label,"toggle","qolset "+key+" {value}","session",description,
+            params=[parameter("value","integer",0,1)],default=0,reset="qolset "+key+" 0",current="liveState.qolread.settings."+key+".value",doc="docs/player-conveniences.md")
+    add("pickup_radius","loot","Auto pickup radius","number","pickupradius {value}","session",
+        "Limit automatic collection to 1–60 game units. Zero collects all loaded drops, as in earlier versions. Item tooltips pause collection.",
+        params=[parameter("value","number",0,60)],default=0,reset="pickupradius 0",doc="docs/player-conveniences.md")
+    add("pickup_radius_read","loot","Pickup radius status","read","pickupradius","read_only","Read the current pickup radius.",doc="docs/player-conveniences.md")
+    add("summons_read","summons","Live summoned allies","read","summonread","read_only",
+        "Read each active player-owned summon: health, armour, uncapped resistances and global damage increase. These are actual live values; damage increase is not skill DPS.",doc="docs/player-conveniences.md")
+    add("inventory_read","inventory","Live inventory","read","inventoryread","read_only",
+        "Read the loaded character and inventory item count without changing items.",doc="docs/player-conveniences.md")
+    for action,label,lifetime in (("stash","Open stash","view"),("vendor","Open vendor","view"),("stashall","Stash all inventory items","game_save")):
+        add("inventory_"+action,"inventory",label,"button","inventoryaction {save_id} "+action,lifetime,
+            "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.",
+            params=[save_id],doc="docs/player-conveniences.md")
     slot = parameter("slot", "integer", 0, 3, source="liveState.cofread.slots")
     reward = parameter("reward", "integer_or_none", 0, 65535, source="liveState.cofread.rewards[available=true].id")
     lens = parameter("lens", "integer_or_none", 0, 11, source="liveState.cofread.lenses[purchased=true].id")
@@ -130,6 +183,13 @@ def controls():
     add("craft_read", "crafting", "Crafting önizleme / durum", "read", "craftread", "read_only",
         "Normal forge eligibility, eşya/affix/FP, shard craft maliyet aralığı ve glyph ihtimalleri; kesin RNG sonucu vermez. Rune/Insight maliyet aralığı gösterilmez.",
         api="tools.loot_crafting_backend.craft_read()", doc="docs/loot-crafting.md")
+    add("craft_materials_read", "crafting", "Crafting material stock", "read", "craftmaterialsread", "read_only",
+        "Read current native affix shard, rune and glyph quantities. Legacy/obsolete materials and affixes without a shard are excluded.",
+        api="tools.loot_crafting_backend.materials_read()", requires=("loaded_actor",), doc="docs/crafting-materials.md")
+    add("craft_materials", "crafting", "Maximize crafting materials", "button", "craftmaterials {save_id} {value}", "game_save",
+        "Raise each current crafting shard, rune and glyph to at least the chosen quantity. Existing higher quantities are kept. Creates a recovery backup; the normal offline stash save retains these quantities without the mod. Shared stash characters share this stock.",
+        params=[save_id, parameter("value", "integer", 1, 1000000)], default=10000,
+        api="tools.loot_crafting_backend.maximize_materials(save_id, value)", requires=("loaded_actor",), doc="docs/crafting-materials.md")
     add("craft_fp", "crafting", "FP maliyet katsayısı", "number", "craftfp {value}", "session",
         "0 ücretsiz, 1 normal; örnek 0.5 yarı maliyet, yukarı yuvarlanır. FP üretmez, native eligibility korunur.", params=[parameter("value", "number", 0, 1)],
         default=1, reset="craftfp 1", api="tools.loot_crafting_backend.fp_factor(value)", current="liveState.craftread.fpFactor", requires=("loaded_actor",), doc="docs/loot-crafting.md")
@@ -149,10 +209,19 @@ def controls():
     add("craft_forge", "crafting","Forge selected item","button","craftforge {save_id}","game_save",
         "Perform exactly one normal craft on the current game forge selection. Requires an eligible item/material and matching offline character; snapshot before craft.",
         params=[save_id], api="tools.loot_crafting_backend.forge(save_id)", requires=("loaded_actor",), doc="docs/ce-feature-additions.md")
-    add("map_reveal","general","Reveal zone map","toggle","mapreveal {value}","session",
+    add("craft_custom_catalog", "crafting", "Load workshop templates", "read", "atlasread", "read_only",
+        "Read the game's public Unique/Set templates and affix names. Does not create or modify items.",
+        api="tools.build_backend.workshop_catalog()", requires=("loaded_actor",), doc="docs/build-controls.md")
+    add("craft_custom", "crafting", "Create custom gear", "button", "craftcustom {save_id} {template_id} {affixes} {perfect}", "game_save",
+        "Replace the selected forge item with a recovery backup. Combine a template, regular T7 affixes and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling.",
+        params=[save_id, parameter("template_id", "integer", -1, 65535), parameter("affixes", "single_token"), parameter("perfect", "integer", 0, 1),parameter("modifiers","optional_single_token")],
+        api="tools.build_backend.custom(save_id, template_id, affixes, perfect, modifiers='none')", requires=("loaded_actor",), doc="docs/build-controls.md")
+    items[-1]["parameters"][2]["maximumLength"] = 63
+    items[-1]["parameters"][4]["maximumLength"] = 2048
+    add("map_reveal","world","Reveal zone map","toggle","mapreveal {value}","session",
         "Display the whole minimap/overlay using a fog shader substitution. Does not change exploration saves or spawn enemies. Off restores the current native fog texture.",
         params=[value(0,1)], default=0,reset="mapreveal 0",api="tools.loot_crafting_backend.reveal_map(value)",current="liveState.mapread.enabled",requires=("loaded_actor",),doc="docs/ce-feature-additions.md")
-    add("map_read","general","Map display status","read","mapread","read_only","Read map visibility and active hooks.",api="tools.loot_crafting_backend.map_read()",doc="docs/ce-feature-additions.md")
+    add("map_read","world","Map display status","read","mapread","read_only","Read map visibility and active hooks.",api="tools.loot_crafting_backend.map_read()",doc="docs/ce-feature-additions.md")
     add("craft_reset", "crafting", "Crafting ayarlarını normale döndür", "button", "craftreset", "session",
         "FP=1, doğal glyph şansları, normal shard tüketimi; tüm crafting hook'ları kaldırılır.", api="tools.loot_crafting_backend.reset_craft()", doc="docs/loot-crafting.md")
     add("sheet_catalog", "stats", "Tüm C satırlarını oku", "read", "sheetstats", "read_only",
@@ -179,6 +248,10 @@ def controls():
         "Yedi TMP_Text; sheet kapalı/yoksa kullanılamaz, inactive label eski olabilir.", response="text", doc="docs/stat-editor.md")
     add("progress_read", "campaign", "Görev / waypoint kataloğu", "read", "progressread", "read_only",
         "Yüklü id, seviye/XP/ödüller, eligibility ve gerçek waypoint sahneleri.", api="tools.progression_backend.read()", doc="docs/progression.md")
+    add("mastery_choose", "campaign", "Choose Mastery", "button", "masteryopen {save_id}", "view",
+        "Open the game's first mastery selection screen after the mastery quest is completed. Choose and confirm in the game. Existing masteries, passive allocations and rewards are unchanged by opening the screen.",
+        params=[save_id], api="tools.progression_backend.open_mastery(save_id)",
+        requires=("loaded_id_matches", "progressread.mastery.available=true"), doc="docs/progression.md")
     for id, label, cmd, description in (
         ("campaign_complete", "Ana + yan kampanyayı tamamla, en az seviye 55", "questscomplete",
          "Henüz bitmemiş eligible kampanya görevleri ve normal ödülleri; minimum 55; End of Time, MonolithHub, M_Rest waypointleri. Tekrar ödül vermez."),

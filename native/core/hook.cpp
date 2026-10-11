@@ -288,10 +288,16 @@ bool Freeze(std::vector<HANDLE>& held, std::vector<DWORD>& ids, std::vector<DWOR
     held.reserve(ids.size());
     bool inside = false;
     for (DWORD id : ids) {
-        HANDLE t = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, id);
+        HANDLE t = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_LIMITED_INFORMATION | SYNCHRONIZE, FALSE, id);
         if (!t) { *error = GetLastError(); inside = true; break; }
         if (SuspendThread(t) == static_cast<DWORD>(-1)) {
-            *error = GetLastError(); CloseHandle(t);
+            const DWORD failure=GetLastError();
+            // A thread may finish between enumeration and suspension. A
+            // signalled thread handle proves it cannot execute these bytes;
+            // never treat access denial on a live thread as safe.
+            const bool terminated=WaitForSingleObject(t,0)==WAIT_OBJECT_0;
+            CloseHandle(t);if(terminated)continue;
+            *error = failure;
             inside = true; break;
         }
         held.push_back(t);
@@ -300,7 +306,11 @@ bool Freeze(std::vector<HANDLE>& held, std::vector<DWORD>& ids, std::vector<DWOR
         if (GetThreadContext(t, &ctx)) {
             const auto rip = reinterpret_cast<const uint8_t*>(ctx.Rip);
             if (rip >= lo && rip < hi) { *error = ERROR_RETRY; inside = true; }
-        } else { *error = GetLastError(); inside = true; break; }
+        } else {
+            const DWORD failure=GetLastError();
+            if(WaitForSingleObject(t,0)==WAIT_OBJECT_0)continue;
+            *error=failure;inside=true;break;
+        }
     }
     if (!inside) return true;
     for (HANDLE t : held) {
