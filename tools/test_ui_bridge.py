@@ -559,6 +559,9 @@ class HttpTests(unittest.TestCase):
         self.headers = {'X-Epoch-Token':self.client.get('/api/bootstrap').json['token']}
 
     def test_preferences_script_is_served_with_the_player_ui(self):
+        with self.client.get('/ui/crafting-model.js') as crafting_response:
+            self.assertEqual(crafting_response.status_code, 200)
+            self.assertIn(b'EpochCrafting', crafting_response.data)
         with self.client.get('/ui/preferences.js') as response:
             self.assertEqual(response.status_code, 200)
             self.assertIn(b'EpochPreferences', response.data)

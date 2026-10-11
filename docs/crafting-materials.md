@@ -1,6 +1,6 @@
 # Crafting material stock
 
-Open Crafting, load an offline character and refresh materials. Enter the minimum
+Open **Crafting → Materials**, load an offline character and refresh materials. Enter the minimum
 quantity per material and press **Stock all materials**, then confirm. The default
 is 10,000; the allowed range is 1–1,000,000.
 
@@ -19,7 +19,7 @@ earlier batch may leave those additions; use the recovery backup to undo them.
 The action is never automatically repeated.
 
 The stock is saved rather than provided by a temporary gameplay multiplier.
-Keeping materials while crafting is a separate session setting and requires
+Keeping materials while crafting is a separate session setting under **Forge Settings** and requires
 the mod. Point budget multipliers are also session settings; this feature does
 not make expanded skill or passive budgets portable.
 

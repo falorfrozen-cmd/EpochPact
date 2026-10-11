@@ -60,18 +60,21 @@ profile or theme action invokes it.
 ## Custom gear workshop
 
 1. Put an equipment item in the game's forge.
-2. Open Crafting, refresh the selected item and load templates.
+2. Open **Crafting → Custom Items**, refresh the selected item and load item choices.
 3. Select one whole public Unique/Set template, or Exalted affixes only. Optionally
    search and select individual modifier lines from multiple Unique and Set sources.
-4. Choose up to seven distinct T7 affixes, and maximum or midpoint rolls. When
+4. Search and check up to seven distinct T7 affixes, and choose maximum or midpoint rolls. When
    adding a mixed modifier recipe, choose at most six regular affixes: the recipe
    occupies the seventh native affix slot and contains up to 64 distinct lines.
 5. Use the explicit craft button and confirm the selected character/item.
 
 This creates one replacement item after a recovery snapshot. It keeps the original
 equipment base and combines one whole Unique/Set template with the selected affixes.
-Materials are not consumed by this custom action. Empty affix selection preserves
-the existing list. Idols and crafting materials are excluded.
+Materials are not consumed by this custom action. Empty affix selection keeps the
+existing affix IDs. Without extra effects, their tiers stay unchanged; maximum
+mode maximizes their rolls and midpoint mode keeps their existing rolls. With a
+mixed effect recipe, kept affixes are rebuilt at T7 with the chosen roll quality.
+Idols and crafting materials are excluded.
 
 The native v6 format stores at most seven affixes. Eight are rejected before mutation;
 otherwise the native three-bit affix count would become zero on reload. Mixed recipes

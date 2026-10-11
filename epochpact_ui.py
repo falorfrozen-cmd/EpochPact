@@ -68,7 +68,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
 
     @app.get("/ui/<path:path>")
     def assets(path):
-        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js"):
+        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js", "crafting-model.js"):
             return send_from_directory(ROOT / "ui", path)
         if path.startswith("assets/"):
             return send_from_directory(ROOT / "ui/assets", path.removeprefix("assets/"))

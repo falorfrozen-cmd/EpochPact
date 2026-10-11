@@ -13,7 +13,7 @@ function harness(){
   return elements.get(selector);
  }
  const document={querySelector:element,querySelectorAll:s=>s==='[data-control-id]'?buttons:[],addEventListener(){},documentElement:{dataset:{}}};
- const context=vm.createContext({document,window:{EpochSession:Session,EpochStats:{},addEventListener(type,fn){(windowListeners[type]??=[]).push(fn);}},
+ const context=vm.createContext({document,window:{EpochSession:Session,EpochStats:{},EpochCrafting:require('../ui/crafting-model.js'),addEventListener(type,fn){(windowListeners[type]??=[]).push(fn);}},
   location:{hash:'#monolith'},setTimeout:()=>0,setInterval:()=>0,clearTimeout(){},console,fetch(){throw Error('unexpected HTTP call');}});
  context.FormData=class{constructor(form){this.fields=form.fields;}get(name){return this.fields[name]??null;}getAll(name){const value=this.get(name);return value==null?[]:[value];}};
  const source=fs.readFileSync(process.env.EPOCHPACT_UI_SOURCE||path.join(__dirname,'../ui/app.js'),'utf8');
@@ -37,6 +37,63 @@ function automaticHarness(){
  h.run(`catalog=fullCatalog;page='general';connected=connectionFixture('M_Rest');connected.player.name='Test';values={xp:1,gold:1,speed:1};appliedValues={...values};`);
  return h;
 }
+
+test('crafting categories expose only their own tasks, and tab/theme changes keep drafts without crafting',async()=>{
+ const h=automaticHarness();h.run(`page='crafting';workshopDraft={template_id:'5',affixes:['0'],perfect:'0',modifiers:[]};materialTarget='90000';values.craft_hope=73;dirty.add('craft_hope');`);
+ for(const section of ['forge','materials','custom','forge']){
+  const button={dataset:{craftSection:section},disabled:false};
+  await h.element('#page-content').listeners.click[0]({target:{closest:()=>button}});
+  h.run('shippingRenderPage()');const html=h.element('#page-content').innerHTML;
+  assert.equal(html.includes('data-id="craft_materials"'),section==='materials');
+  assert.equal(html.includes('data-id="craft_custom"'),section==='custom');
+  assert.equal(html.includes('data-setting="craft_hope"'),section==='forge');
+  assert.equal(h.element('#apply-draft').hidden,section!=='forge');
+ }
+ h.run(`setTheme('void-atlas')`);assert.equal(h.run('craftingSection'),'forge');
+ assert.equal(h.run('workshopDraft.affixes[0]'),'0');assert.equal(h.run('materialTarget'),'90000');assert.equal(h.run('values.craft_hope'),73);
+ assert.equal(h.calls.length,0);
+});
+
+test('glyph percentage changes stay in draft across refresh and apply once in order, with explicit game-default reset',async()=>{
+ const h=automaticHarness();h.run(`page='crafting';values.craft_hope=null;appliedValues.craft_hope=null;settingChanged('craft_hope',73);syncLootCraft('craft_read',{hopePercent:null,forgePreview:{player:{id:'0'}}});`);
+ assert.equal(h.run('values.craft_hope'),73);assert.equal(h.calls.length,0);
+ h.replies.push({ok:true,hopePercent:73},{ok:true,hopePercent:73,forgePreview:{player:{id:'0'}}});await h.run('applyDraft()');
+ assert.deepEqual(h.calls.map(x=>[x.id,x.args]),[['craft_hope',{value:73}],['craft_read',undefined]]);
+ h.run(`settingChanged('craft_hope',null)`);h.replies.push({ok:true,hopePercent:null},{ok:true,hopePercent:null});await h.run('applyDraft()');
+ assert.equal(h.calls[2].id,'craft_hope');assert.equal(h.calls[2].args.value,'reset');assert.equal(h.run('values.craft_hope'),null);
+ assert.equal(h.run('dirty.size'),0);assert.ok(h.calls.every(x=>!['craft_forge','craft_custom','craft_materials'].includes(x.id)));
+});
+
+test('advanced Forge sections stay open through refreshes and category changes without submitting actions',()=>{
+ const h=automaticHarness();h.run(`page='crafting';`);
+ for(const key of ['advanced','defaults'])h.element('#page-content').listeners.toggle[0]({target:{hasAttribute:()=>false,dataset:{craftDisclosure:key},open:true}});
+ h.run(`shippingRenderPage()`);assert.match(h.element('#page-content').innerHTML,/data-craft-disclosure="advanced" open/);assert.match(h.element('#page-content').innerHTML,/data-craft-disclosure="defaults" open/);
+ h.run(`craftingSection='materials';shippingRenderPage();craftingSection='forge';shippingRenderPage()`);
+ assert.match(h.element('#page-content').innerHTML,/data-craft-disclosure="advanced" open/);assert.equal(h.calls.length,0);
+});
+
+function customCraftHarness(){
+ const h=automaticHarness();h.run(`page='crafting';craftingSection='custom';cache.craft_read={forgePreview:{player:{...connected.player},canCustom:true,affixes:[{id:0,tier:1}]}};cache.craft_custom_catalog={ok:true,player:{...connected.player},items:[{id:5,name:'Example',set:true}],affixes:[{id:0,name:'Health'},{id:1,name:'Mana'}],modifiers:[{id:'u0:0',source:'Example',property:1,value:1,maximum:2,mode:0}]};workshopDraft={template_id:'5',affixes:['0','1'],perfect:'1',modifiers:['u0:0']};confirmAction=async()=>true;`);
+ h.context.customForm={dataset:{id:'craft_custom'},fields:{template_id:'-1',perfect:'0'},reportValidity:()=>true};return h;
+}
+test('custom item uses all selected checkboxes even when searches hide them and requires confirmation before one mutation',async()=>{
+ const h=customCraftHarness();h.run(`workshopFilters.affixes='missing';workshopFilters.modifiers='missing';confirmAction=async(title,message)=>{assertCustomMessage=message;return false;}`);
+ await h.run('formAction(customForm)');assert.equal(h.calls.length,0);assert.match(h.run('assertCustomMessage'),/2 selected T7 affixes/);
+ h.run('confirmAction=async()=>true');h.replies.push({ok:true,backup:'fixture-backup',history:[{backup:'fixture-backup'}],forgePreview:{player:{id:'0'},canCustom:true}});await h.run('formAction(customForm)');
+ assert.deepEqual(h.calls.map(x=>[x.id,x.args]),[['craft_custom',{template_id:5,affixes:'0,1',perfect:1,modifiers:'u0:0',expected_id:'0'}]]);
+ assert.equal(h.run('history.length'),1);
+});
+test('custom item invalid or stale catalog selections cannot dispatch a mutation',async()=>{
+ const h=customCraftHarness();h.run(`workshopDraft.affixes=['0','1','2'];`);await h.run('formAction(customForm)');assert.equal(h.calls.length,0);
+ h.run(`workshopDraft.affixes=['0'];confirmAction=async()=>{connected.player.id='999';return true;}`);await h.run('formAction(customForm)');assert.equal(h.calls.length,0);
+});
+test('workshop lists are bounded and filtering does not drop hidden selections or reformat unchanged catalogs',()=>{
+ const h=customCraftHarness();h.run(`cache.craft_custom_catalog.affixes=Array.from({length:500},(_,id)=>({id,name:'Affix '+id}));workshopDraft.affixes=['499'];workshopFilters.affixes='Affix 1';`);
+ const html=h.run(`workshopPicker('affixes')`);assert.equal([...html.matchAll(/data-workshop-pick/g)].length,40);
+ assert.equal(h.run(`workshopDraft.affixes[0]`),'499');assert.match(h.run(`workshopChips('affixes')`),/Affix 499/);
+ h.run(`const firstWorkshopEntries=workshopModifierEntries()`);assert.equal(h.run(`firstWorkshopEntries===workshopModifierEntries()`),true);
+ assert.equal(h.calls.length,0);
+});
 
 test('automatic handshake recovers from a first frame timeout without focus or any mutation',async()=>{
  const h=automaticHarness();h.run(`page='overview';connected={connected:false,offline:false};connectionNextCheck=0;`);
@@ -101,7 +158,7 @@ test('a confirmed save action cannot switch to a restarted process with the same
 });
 
 function materialsHarness(){
- const h=automaticHarness();h.run(`page='crafting';cache.craft_materials_read={ok:true,player:{...connected.player},kinds:{shards:1,runes:1,glyphs:1},materials:[{type:101,id:0,count:0}]};`);
+ const h=automaticHarness();h.run(`page='crafting';craftingSection='materials';cache.craft_materials_read={ok:true,player:{...connected.player},kinds:{shards:1,runes:1,glyphs:1},materials:[{type:101,id:0,count:0}]};`);
  h.button.dataset.controlId='craft_materials';
  h.context.materialForm={dataset:{id:'craft_materials'},fields:{value:'10000'},reportValidity:()=>true};
  return h;
@@ -364,13 +421,15 @@ test('player pages retain all usable controls and developer pages retain diagnos
  for(const mode of [false,true])for(const group of ['general','loot','crafting']){
   h.context.developerMode=mode;h.run('developer=developerMode');
   h.context.targetPage=group;h.run('page=targetPage;shippingRenderPage()');
-  const html=h.element('#page-content').innerHTML;
+  const htmls=group==='crafting'?['forge','materials','custom'].map(section=>{h.context.testCraftSection=section;h.run('craftingSection=testCraftSection;shippingRenderPage()');return h.element('#page-content').innerHTML;}):[h.element('#page-content').innerHTML];
+  const html=htmls.join('');
   const displayed=[...html.matchAll(/(?:data-setting|data-id)="([^"]+)"/g)].map(x=>x[1]);
   const refreshes=[...html.matchAll(/data-refresh="([^"]+)"/g)].map(x=>x[1]);
   const expected=h.context.fullCatalog.controls.filter(c=>c.group===group&&!['map_reveal','map_read','density_read',...(!mode?['pickup_radius_read']:[])].includes(c.id)).map(c=>c.id);
   assert.deepEqual([...new Set([...displayed,...refreshes])].sort(),expected.slice().sort(),group+' developer='+mode);
   assert.equal(new Set(displayed).size,displayed.length,'every control appears once');
  }
+ h.run(`craftingSection='forge';shippingRenderPage()`);
  assert.ok(h.element('#page-content').innerHTML.includes('Add an item to craft.'));
  assert.ok(h.element('#nav').innerHTML.includes('href="#crafting"'));
  assert.ok(h.element('#nav').innerHTML.includes('href="#loot"'));

@@ -40,8 +40,13 @@ let catalog, token, preview = false, developer = false, page = "overview", busy 
 const developerControls=new Set(["density_read","map_read","pickup_radius_read","sheet_catalog","sheet_open","resistance_labels","session_read","status","player_read","characters","play_offline","load_character"]);
 function playerControl(c){return developer||!developerControls.has(c.id);}
 let connected = {connected:false,offline:false}, values = {}, appliedValues = {}, dirty = new Set(), cache = {}, history = [], actorValues = {};
-let workshopDraft={template_id:"-1",affixes:[],perfect:"1",modifiers:[]},workshopOwner=null;
+const craftingModel=window.EpochCrafting;
+let craftingSection='forge',workshopAdvanced=false;
+const craftDisclosure={advanced:false,defaults:false};
+let workshopDraft=craftingModel.defaults(),workshopOwner=null;
 let workshopModifierFilter="";
+let workshopFilters={template:'',affixes:'',modifiers:''},workshopTemplateKind='all',workshopListLimits={affixes:40,modifiers:40};
+let workshopEntryCache={};
 let materialTarget="10000";
 // Only direct edits in General/Overview auto-apply. Reads, profiles and save
 // actions never enter this queue. One job at a time; latest unsent value wins.
@@ -233,7 +238,10 @@ function updateDisabled() {
   if(c.id==="mastery_choose"&&!preview&&cache.progress_read?.mastery?.available!==true)reason ||= cache.progress_read?.mastery?.reason||"Refresh live to check whether mastery selection is available.";
   if(button.dataset.unavailable==="true")reason ||= "This action is unavailable for the current selection.";
   if(c.id==="craft_forge"&&cache.craft_read?.forgePreview?.canForge!==true)reason ||= cache.craft_read?.forgePreview?.message||"Select an eligible item and material in the game forge, then read live.";
-  if(c.id==="craft_custom"&&(cache.craft_read?.forgePreview?.canCustom!==true||!cache.craft_custom_catalog?.items?.length))reason ||= "Select an equipment item in the game forge, refresh live, and load workshop templates.";
+  if(c.id==="craft_custom"){
+   reason ||= cache.craft_read?.forgePreview?.canCustom!==true?"Put an equipment item in the game's forge, then refresh the selected item.":craftingModel.problem(workshopDraft,cache.craft_custom_catalog,cache.craft_read?.forgePreview);
+   if(!preview&&cache.craft_custom_catalog?.player&&String(cache.craft_custom_catalog.player.id)!==String(connected.player?.id))reason ||= "Load item choices for the current character.";
+  }
   if(preview&&["craft_materials","craft_materials_read"].includes(c.id))reason ||= "Load an offline character to read or stock real crafting materials.";
   button.disabled=busy||!!reason;
   button.title=busy?"Waiting for the current operation.":reason||(!eligible(c)&&reconnectingRead?"Refresh game connection and live data.":"");
@@ -241,7 +249,8 @@ function updateDisabled() {
   if(hint){hint.textContent=reason;hint.hidden=!reason||busy;}
  });
  const autoPage=["general","overview"].includes(page),setupPage=page==="game_setup",manualDirty=[...dirty].filter(id=>!autoManaged(id));
- $("#apply-draft").hidden=autoPage||setupPage;$("#reset-draft").hidden=autoPage||setupPage;
+ const craftingActionPage=page==='crafting'&&craftingSection!=='forge';
+ $("#apply-draft").hidden=autoPage||setupPage||craftingActionPage;$("#reset-draft").hidden=autoPage||setupPage||craftingActionPage;
  $("#apply-draft").disabled=busy||!manualDirty.length||!connected.connected||(!preview&&!connected.offline);
  $("#reconcile").disabled=busy||!Object.keys(actorValues).length||(!preview&&!connected.offline);
  $("#refresh-connection").disabled=busy;
@@ -250,6 +259,7 @@ function updateDisabled() {
   const id=input.dataset.settingNumber||input.dataset.settingRange||input.dataset.settingToggle||input.dataset.settingChoice||input.dataset.settingReset||input.dataset.settingId,c=controlById(id);
   input.disabled=automaticSetting(c)?!eligible(c)||busy&&!autoRunning:busy;
  });
+ document.querySelectorAll('[data-craft-glyph-mode],[data-workshop-pick],[data-workshop-template]').forEach(input=>input.disabled=busy);
  $("#draft-label").innerHTML=(busy?"Working…":setupPage?"Game setup":autoErrors.size?"A setting needs attention":autoPending.size?"Applying changes…":autoPage?"Changes apply automatically":manualDirty.length?`${manualDirty.length} settings in draft`:"Ready")+"<span>"+(preview?"Preview; no changes to the game.":setupPage?"Choose your executable, then use the setup buttons.":"Save actions use their own buttons.")+"</span>";
  document.querySelectorAll("#stat-dialog button:not(#stat-close), #stat-dialog input, #stat-dialog select").forEach(b=>b.disabled=busy);
  const statAllowed=activeStat&&eligible(controlById(activeStat.tab==="aliases"?"stat_alias":activeStat.tab==="sheet"?"sheet_row":"raw_stat"));
@@ -283,7 +293,7 @@ async function refreshConnection(silent=true,refreshCurrent=true,{preservePage=f
  rememberMonolithOwner(connected);
  const result=await runTask({type:"connection"},{silent,background});if(!result){invalidateLive();updateDisabled();return;}
  const restarted=lastGameSession!=null&&result.sessionKey!=null&&lastGameSession!==result.sessionKey;
- if(restarted){invalidateLive({render:false});monoDrafts={};monoDraftOwner=null;monoTarget={timeline:null,difficulty:"normal"};workshopOwner=null;}
+ if(restarted){invalidateLive({render:false});monoDrafts={};monoDraftOwner=null;monoTarget={timeline:null,difficulty:"normal"};workshopOwner=null;workshopDraft=craftingModel.defaults();}
  if(result.sessionKey!=null)lastGameSession=result.sessionKey;
  const ownerChanged=rememberMonolithOwner(result);
  if(!preview&&(ownerChanged||!window.EpochSession.current({player:result.player},result)))invalidateLive({render:false});
@@ -329,14 +339,16 @@ function settingCard(c) {
 }
 function settingPanel(title,controls){return `<section class="panel"><div class="section-head"><h2>${title}</h2><span class="badge">${controls.every(automaticSetting)?"Changes apply automatically":"Use Apply changes below"}</span></div><div class="control-grid">${controls.map(settingCard).join("")}</div></section>`;}
 function actionCard(c, fields="", extra=""){
- const caption=c.id==="craft_materials"?"Stock all materials":c.id==="mastery_choose"?"Choose Mastery":c.widget==="read"?"Read live":c.lifetime==="game_save"?"Apply action":c.widget==="preview"?"Preview":"Apply";
+ const caption=c.id==="craft_materials"?"Stock all materials":c.id==="craft_forge"?"Craft once":c.id==="craft_reset"?"Restore game defaults":c.id==="mastery_choose"?"Choose Mastery":c.widget==="read"?"Read live":c.lifetime==="game_save"?"Apply action":c.widget==="preview"?"Preview":"Apply";
  return `<article class="control-card"><div class="control-top"><h3 class="control-title">${esc(c.label)}</h3><span class="badge ${c.lifetime==="game_save"?"save":""}">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><form class="control-form" data-id="${c.id}"><div class="form-grid">${fields||parameterFields(c)}</div>${extra}<p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" data-control-id="${c.id}" class="${c.lifetime==="game_save"||c.id==="mastery_choose"?"primary":""}">${caption}</button></div></form></article>`;
 }
 function options(list,selected,none=false){const picked=Array.isArray(selected)?selected.map(String):[String(selected)];return (none?`<option value="none" ${selected==null?'selected':''}>Clear selection (none)</option>`:"")+list.map(x=>`<option value="${esc(x.id)}" ${picked.includes(String(x.id))?"selected":""}>${esc(clean(x.uiLabel||x.name||x.id))}</option>`).join("");}
-function workshopModifierOptions(){
- const meta=catalog.characterStats||{},selected=workshopDraft.modifiers||[],query=workshopModifierFilter.trim().toLowerCase();
+function workshopModifierEntries(){
+ const meta=catalog.characterStats||{};
+ const source=cache.craft_custom_catalog?.modifiers||[];
+ if(workshopEntryCache.source===source&&workshopEntryCache.meta===meta&&workshopEntryCache.perfect===workshopDraft.perfect)return workshopEntryCache.entries;
  const names=value=>String(value||"").replace(/([a-z])([A-Z])/g,"$1 $2");
- const list=(cache.craft_custom_catalog?.modifiers||[]).map(x=>{
+ const entries=source.map(x=>{
   const stat=names(meta.properties?.find(p=>p.id===x.property)?.name||"Modifier "+x.property);
   const tags=(meta.tags||[]).filter(t=>t.id>0&&(x.tags&t.id)===t.id).map(t=>names(t.name));
   const ailment=names(meta.ailments?.find(a=>a.id===x.special&&a.id!==0)?.name);
@@ -344,7 +356,68 @@ function workshopModifierOptions(){
   const amount=x.mode===0?Number(value.toPrecision(6)):Number((value*100).toPrecision(6))+"% "+(x.mode===1?"increased":"more");
   return {...x,name:[x.source,stat,...tags,ailment,x.extra?"Variant "+x.extra:"",amount].filter(Boolean).join(" · ")};
  });
+ workshopEntryCache={source,meta,perfect:workshopDraft.perfect,entries};return entries;
+}
+function workshopModifierOptions(){
+ const selected=workshopDraft.modifiers||[],query=workshopModifierFilter.trim().toLowerCase(),list=workshopModifierEntries();
  return options(list.filter(x=>selected.includes(String(x.id))||!query||x.name.toLowerCase().includes(query)),selected);
+}
+function craftingControl(id,label,text){return {...controlById(id),label,description:text};}
+function glyphChanceCard(id,title,text){
+ const value=values[id]===undefined?(cache.craft_read?.[id==='craft_hope'?'hopePercent':'despairPercent']??null):values[id];
+ return `<article class="control-card" data-setting="${id}"><div class="control-top"><h3>${title}</h3><span class="badge">Session</span></div><p class="control-description">${text}</p><label class="craft-mode-label">Chance<select data-craft-glyph-mode="${id}"><option value="default" ${value==null?'selected':''}>Game default</option><option value="custom" ${value!=null?'selected':''}>Custom percentage</option></select></label>${value==null?'<p class="craft-default">Uses the game’s normal chance.</p>':`<div class="control-tools"><input type="range" min="0" max="100" step="1" value="${esc(value)}" data-setting-range="${id}" aria-label="${title} slider"><div class="stepper"><input type="number" min="0" max="100" step="any" value="${esc(value)}" required data-setting-number="${id}" aria-label="${title} percentage"></div><span class="unit">%</span></div>`}<div class="limits"><span data-setting-feedback="${id}" role="status">${settingFeedback(id)}</span></div></article>`;
+}
+function workshopPicker(kind){
+ const entries=kind==='affixes'?(cache.craft_custom_catalog?.affixes||[]).map(x=>({...x,name:clean(x.name)})):workshopModifierEntries();
+ const matches=craftingModel.filtered(entries,workshopFilters[kind]),selected=workshopDraft[kind],shown=matches.slice(0,workshopListLimits[kind]);
+ return `<div class="craft-pick-count">${matches.length} matches · ${selected.length} selected</div><div class="craft-pick-list">${shown.map(x=>`<label><input type="checkbox" data-workshop-pick="${kind}" value="${esc(x.id)}" ${selected.includes(String(x.id))?'checked':''}><span>${esc(x.name)}</span></label>`).join('')||`<p class="muted">${cache.craft_custom_catalog?.items?.length?'No matches. Try another search.':'Load item choices above to see the available options.'}</p>`}</div>${matches.length>shown.length?`<button type="button" class="quiet" data-workshop-more="${kind}">Show more (${shown.length} of ${matches.length})</button>`:''}`;
+}
+function workshopChips(kind){
+ const entries=kind==='affixes'?(cache.craft_custom_catalog?.affixes||[]):workshopModifierEntries();
+ return workshopDraft[kind].map(id=>`<button type="button" class="craft-chip" data-workshop-remove="${kind}" data-choice="${esc(id)}" aria-label="Remove ${esc(clean(entries.find(x=>String(x.id)===id)?.name||id))}">${esc(clean(entries.find(x=>String(x.id)===id)?.name||id))}<span aria-hidden="true"> ×</span></button>`).join('')||`<span class="muted">${kind==='affixes'?'No replacements selected. Current affixes are kept.':'No extra effects selected.'}</span>`;
+}
+function workshopTemplateOptions(){
+ const entries=(cache.craft_custom_catalog?.items||[]).map(x=>({...x,uiLabel:(x.set?'Set · ':'Unique · ')+clean(x.name)})),matches=craftingModel.filtered(entries,workshopFilters.template,workshopTemplateKind);
+ const selected=entries.find(x=>String(x.id)===workshopDraft.template_id);
+ if(selected&&!matches.includes(selected))matches.unshift(selected);
+ return `<option value="-1" ${workshopDraft.template_id==='-1'?'selected':''}>Exalted · no Unique / Set template</option>`+options(matches,workshopDraft.template_id);
+}
+function workshopSummary(){
+ const summary=craftingModel.summary(workshopDraft,cache.craft_custom_catalog),problem=craftingModel.problem(workshopDraft,cache.craft_custom_catalog,cache.craft_read?.forgePreview);
+ return `<dl class="craft-summary">${Object.entries({Result:summary.template,Affixes:summary.affixes,'Extra effects':summary.effects,Quality:summary.rolls}).map(([k,v])=>`<dt>${k}</dt><dd>${esc(clean(v))}</dd>`).join('')}</dl>${problem?`<p class="action-reason">${esc(problem)}</p>`:''}${workshopDraft.modifiers.length?'<p class="craft-portability">Extra effects require EpochPact and <strong>workshop-recipes.txt</strong> when reloading or moving this item to another PC. Keep that file with your saves.</p>':''}`;
+}
+function updateWorkshopUi(){
+ const focused=document.activeElement,focusKind=focused?.dataset?.workshopPick,focusValue=focused?.value;
+ for(const kind of ['affixes','modifiers']){
+  const list=$(`[data-workshop-list="${kind}"]`),chips=$(`[data-workshop-chips="${kind}"]`);
+  if(list)list.innerHTML=workshopPicker(kind);if(chips)chips.innerHTML=workshopChips(kind);
+ }
+ const summary=$('#workshop-summary');if(summary)summary.innerHTML=workshopSummary();updateDisabled();
+ if(focusKind)Array.from(document.querySelectorAll('[data-workshop-pick]')).find(x=>x.dataset.workshopPick===focusKind&&x.value===focusValue)?.focus();
+}
+function customWorkshop(){
+ const forge=cache.craft_read?.forgePreview,loaded=!!cache.craft_custom_catalog?.items?.length;
+ return `<section class="panel craft-workshop"><div class="section-head"><h2>Custom Items</h2><button data-refresh="craft_custom_catalog" data-control-id="craft_custom_catalog">${loaded?'Refresh item choices':'Load item choices'}</button></div><p class="muted">Keep your item’s equipment base. Choose its template and affixes, then review the result before creating it.</p><form class="control-form" data-id="craft_custom"><section class="craft-step"><h3><span>1</span>Select the item in the game</h3><p>Open the game’s forge and place the equipment item you want to change.</p><div class="craft-item-state"><span>${forge?.canCustom?`Equipment selected · ${forge.forgingPotential??'—'} Forging Potential · ${forge.affixes?.length??0} affixes`:'Waiting for an equipment item in the game’s forge.'}</span><button type="button" data-refresh="craft_read" data-control-id="craft_read">Refresh selected item</button></div></section><section class="craft-step"><h3><span>2</span>Choose a template</h3><p>Use Exalted for affixes only, or copy one Unique / Set template onto this base.</p><div class="craft-template-search"><label>Find a template<input type="search" data-workshop-search="template" value="${esc(workshopFilters.template)}" placeholder="Search item names..."></label><label>Type<select data-workshop-kind><option value="all" ${workshopTemplateKind==='all'?'selected':''}>All templates</option><option value="unique" ${workshopTemplateKind==='unique'?'selected':''}>Unique</option><option value="set" ${workshopTemplateKind==='set'?'selected':''}>Set</option></select></label></div><label>Template<select name="template_id" data-workshop-template>${workshopTemplateOptions()}</select></label></section><section class="craft-step"><h3><span>3</span>Choose T7 affixes</h3><p>Click to add or remove an affix. Choose up to ${workshopDraft.modifiers.length?6:7}; leave all unchecked to keep the item’s current affixes.</p><label>Find an affix<input type="search" data-workshop-search="affixes" value="${esc(workshopFilters.affixes)}" placeholder="Search health, damage, resistance..."></label><div data-workshop-list="affixes">${workshopPicker('affixes')}</div><div class="craft-chips" data-workshop-chips="affixes">${workshopChips('affixes')}</div></section><details class="craft-step craft-extra" data-workshop-advanced ${workshopAdvanced?'open':''}><summary>Add extra Unique / Set effects <span>Advanced · optional</span></summary><p>Mix individual effects from different items. Choose up to 64 lines. They share one affix slot, so only six regular affixes can be selected.</p><label>Find an effect<input type="search" data-workshop-search="modifiers" value="${esc(workshopFilters.modifiers)}" placeholder="Search a source item or effect..."></label><div data-workshop-list="modifiers">${workshopPicker('modifiers')}</div><div class="craft-chips" data-workshop-chips="modifiers">${workshopChips('modifiers')}</div></details><section class="craft-step"><h3><span>4</span>Review and create</h3><label>Roll quality<select name="perfect"><option value="1" ${workshopDraft.perfect==='1'?'selected':''}>Maximum rolls</option><option value="0" ${workshopDraft.perfect==='0'?'selected':''}>Midpoint rolls</option></select></label><p class="muted">Midpoint applies to newly chosen affixes and effects. Without extra effects, keeping current affixes preserves their tiers and midpoint mode keeps their existing rolls. Adding extra effects rebuilds kept affixes at T7 with the chosen rolls.</p><div id="workshop-summary">${workshopSummary()}</div><p class="muted">Replaces the selected item once and saves a recovery backup. This custom action does not consume crafting materials.</p><p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" class="primary" data-control-id="craft_custom">Create custom item</button></div></section></form></section>`;
+}
+function renderCrafting(){
+ const forge=cache.craft_read?.forgePreview,stock=cache.craft_materials_read,stockCurrent=window.EpochSession.current(stock,connected,preview);
+ const tabs=`<div class="craft-categories" role="group" aria-label="Crafting categories">${craftingModel.sections.map(x=>`<button type="button" data-craft-section="${x.id}" aria-pressed="${craftingSection===x.id}" aria-controls="craft-category-content"><strong>${x.label}</strong><span>${x.hint}</span></button>`).join('')}</div>`;
+ const pending=[...dirty].filter(id=>id.startsWith('craft_')).length;
+ const pendingNote=craftingSection!=='forge'&&pending?`<div class="note">${pending} Forge settings have unapplied changes. <button class="link-button" data-craft-section="forge">Review Forge Settings</button></div>`:'';
+ let html;
+ if(craftingSection==='materials'){
+  const info=stockCurrent?`${stock.kinds?.shards??0} shard types · ${stock.kinds?.runes??0} rune types · ${stock.kinds?.glyphs??0} glyph types`:'Load an offline character and refresh to read your crafting stash.';
+  html=`<section class="panel"><div class="section-head"><h2>Stock your materials</h2><button data-refresh="craft_materials_read" data-control-id="craft_materials_read">Refresh materials</button></div><p class="muted">Add shards, runes and glyphs to your saved crafting stash in one action.</p><p class="note">${esc(info)}</p>${actionCard(craftingControl('craft_materials','Minimum stock for every material','Raises each material to your chosen minimum. Higher quantities are kept. This adds a saved quantity once; it does not enable infinite materials.'))}<p class="muted">To keep materials while crafting, use Preserve materials in Forge Settings.</p></section>`;
+ }else if(craftingSection==='custom')html=customWorkshop();
+ else html=`<p class="note">These settings affect the game’s normal forge. Edit them here, then use <strong>Apply changes</strong> below. No item is crafted until you craft in the game or press Craft once.</p>`+
+  settingPanel('Preserve materials',[
+   craftingControl('craft_shards','Keep affix shards','Keep the shard used for a craft. You need at least one to begin.'),
+   craftingControl('craft_runes','Keep runes','Keep the rune used for a craft. You need at least one to begin.'),
+   craftingControl('craft_glyphs','Keep glyphs','Keep the glyph used for a craft. You need at least one to begin.')])+settingPanel('Forging Potential cost',[craftingControl('craft_fp','Forging Potential cost','0 = no FP cost · 0.5 = half cost · 1 = normal cost. Does not add FP to an item.')])+
+  `<section class="panel"><div class="section-head"><h2>Glyph chances</h2><span class="badge">Use Apply changes below</span></div><div class="control-grid">${glyphChanceCard('craft_hope','Glyph of Hope','Chance to prevent FP loss. Requires Basic Glyph of Hope.')}${glyphChanceCard('craft_despair','Glyph of Despair','Chance to seal an eligible T1–T4 affix. Other game requirements still apply.')}</div></section>`+
+  `<details class="panel craft-advanced" data-craft-disclosure="advanced" ${craftDisclosure.advanced?'open':''}><summary>Advanced forge options</summary>${settingPanel('Level requirement',[craftingControl('craft_level','Ignore affix crafting level','Skip the selected affix upgrade’s level check. Equipment level requirements stay unchanged.')])}<div class="section-head"><h2>Craft from EpochPact</h2><button data-refresh="craft_read" data-control-id="craft_read">Refresh selected craft</button></div><p class="note">${esc(forge?.canForge?'The selected craft is ready.':forge?.message||'Select an item and a shard or rune in the game’s forge, then refresh.')}</p>${actionCard(controlById('craft_forge'))}${developer?actionCard(controlById('craft_read')):''}</details>`+
+  `<details class="panel craft-advanced" data-craft-disclosure="defaults" ${craftDisclosure.defaults?'open':''}><summary>Restore game defaults</summary>${actionCard(craftingControl('craft_reset','Restore normal crafting','Reset all Forge settings. Crafted items and stocked materials are kept.'))}</details>`;
+ return tabs+pendingNote+`<div id="craft-category-content">${html}</div>`;
 }
 function field(name,label,html){return `<label>${esc(label)}${html}</label>`;}
 function parameterFields(c){
@@ -411,15 +484,7 @@ function renderPage(){
  }else if(page==="loot"){
   content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius")])+settingPanel("Quality rules",["loot_lp","loot_t7","loot_filter"].map(controlById))+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_affixes","loot_category"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
  }else if(page==="crafting"){
-  const forge=cache.craft_read?.forgePreview;
-  const stock=cache.craft_materials_read,stockCurrent=window.EpochSession.current(stock,connected,preview);
-  const stockInfo=stockCurrent&&stock.materials?.length?`${stock.kinds?.shards??0} shard types · ${stock.kinds?.runes??0} runes · ${stock.kinds?.glyphs??0} glyphs. Current quantities: ${Math.min(...stock.materials.map(x=>x.count))}–${Math.max(...stock.materials.map(x=>x.count))}.`:"Load an offline character and refresh materials to read the current stash.";
-  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Game forge</h2><button data-refresh="craft_read" data-control-id="craft_read">Refresh live</button></div><p class="note">${esc(forge?.canForge?"Selected craft is ready. Forge selected item once performs one craft and creates a backup.":forge?.message||"Select an item and materials in the game's forge, then refresh live.")}</p><div class="control-grid">${(developer?["craft_read","craft_forge"]:["craft_forge"]).map(id=>actionCard(controlById(id))).join("")}</div></section>`+
-   `<section class="panel"><div class="section-head"><h2>Crafting material stock</h2><button data-refresh="craft_materials_read" data-control-id="craft_materials_read">Refresh materials</button></div><p class="note">${esc(stockInfo)}</p>${actionCard(controlById("craft_materials"))}</section>`+
-   `<section class="panel"><div class="section-head"><h2>Custom gear workshop</h2><button data-refresh="craft_custom_catalog" data-control-id="craft_custom_catalog">Load templates</button></div><p class="note">Keep your selected item's base. Combine a whole Unique or Set template, T7 affixes and individual modifier lines from different items. The item is replaced once, with a recovery backup. Materials are not consumed by this custom action.</p>${actionCard(controlById("craft_custom"))}</section>`+
-   settingPanel("Cost and material preservation",["craft_fp","craft_shards","craft_runes","craft_glyphs"].map(controlById))+
-   `<section class="panel"><h2>Glyph chances</h2><div class="control-grid">${["craft_hope","craft_despair"].map(id=>actionCard(controlById(id))).join("")}</div></section>`+
-   settingPanel("Crafting requirements",[controlById("craft_level")])+`<section class="panel"><h2>Restore normal crafting</h2>${actionCard(controlById("craft_reset"))}</section>`;
+  content.innerHTML=renderCrafting();
  }else if(page==="skills"){
   const ids=keys=>keys.map(key=>controlById("build_"+key));
   content.innerHTML=cachedSummary("build_read")+`<section class="panel"><div class="section-head"><h2>Skill and point budgets</h2><button data-refresh="build_read" data-control-id="build_read">Refresh live</button></div><div class="summary-grid"><div class="summary"><strong>${cache.build_read?.passivePoints??"—"}</strong><span>Passive budget</span></div><div class="summary"><strong>${cache.build_read?.weaverPoints??"—"}</strong><span>Weaver budget</span></div></div><p class="note">Point multipliers are session settings. Individual node caps still apply. Existing allocations stay when you lower a budget. Available points stop at zero until the budget covers those allocations.</p></section>`+settingPanel("Experience and skill points",ids(["skillxp","skillpoints","passivepoints"]))+settingPanel("Weaver points",ids(["weaverpoints","weaverflat"]))+settingPanel("Tree connections",ids(["skillnodes","passivenodes","weavernodes"]))+settingPanel("Projectiles",ids(["projectiles","projectileflat"]))+`<section class="panel"><h2>Free respec</h2><p class="note">Refund points from the selected tree group. Levels and earned budgets stay. Each action creates a recovery backup and runs only after confirmation.</p><div class="control-grid">${["respec_skills","respec_passives","respec_weaver"].map(id=>actionCard(controlById(id))).join("")}</div></section>`;
@@ -631,7 +696,7 @@ function syncLootCraft(id,result){
  if(["craft_materials","craft_materials_read"].includes(id)){cache.craft_materials_read=result;return true;}
  if(id==="craft_custom_catalog"){
   const owner=result.player?.id;
-  if(owner!=null&&workshopOwner!=null&&String(owner)!==String(workshopOwner))workshopDraft={template_id:"-1",affixes:[],perfect:"1",modifiers:[]};
+  if(owner!=null&&workshopOwner!=null&&String(owner)!==String(workshopOwner))workshopDraft=craftingModel.defaults();
   workshopOwner=owner??workshopOwner;cache[id]=result;return true;
  }
  if(id==="build_read"||id.startsWith("build_")){
@@ -645,7 +710,7 @@ function syncLootCraft(id,result){
  cache[readId]={...cache[readId],...result};
  const toggle=x=>x===undefined?undefined:Number(x);
  const fresh=readId==="map_read"?{map_reveal:toggle(result.enabled)}:readId==="loot_read"?{loot_lp:result.minimumLP,loot_t7:toggle(result.t7),loot_filter:toggle(result.respectFilter)}:
-  {craft_fp:result.fpFactor,craft_shards:toggle(result.preserveShards),craft_runes:toggle(result.preserveRunes),craft_glyphs:toggle(result.preserveGlyphs),craft_level:toggle(result.bypassLevel)};
+  {craft_fp:result.fpFactor,craft_shards:toggle(result.preserveShards),craft_runes:toggle(result.preserveRunes),craft_glyphs:toggle(result.preserveGlyphs),craft_level:toggle(result.bypassLevel),craft_hope:result.hopePercent,craft_despair:result.despairPercent};
  for(const [key,value] of Object.entries(fresh))if(value!==undefined){appliedValues[key]=value;if(!dirty.has(key))values[key]=value;}
  return true;
 }
@@ -704,14 +769,21 @@ function formArgs(form,c){
  if(!preview&&connected.sessionKey)args.expected_session=connected.sessionKey;
  if(c.id==="craft_materials"||c.group==="inventory")args.expected_name=saveSnapshot(c)?.player?.name;
  if(c.id==="cof_join")args.switch_from_merchant=data.get("switch_from_merchant")==="on";
+ if(c.id==='craft_custom')Object.assign(args,craftingModel.args(workshopDraft));
  return args;
 }
 async function formAction(form,override){
  const c=controlById(override||form.dataset.id);if(!form.reportValidity())return;
+ if(c.id==='craft_custom'){
+  const problem=craftingModel.problem(workshopDraft,cache.craft_custom_catalog,cache.craft_read?.forgePreview);
+  if(problem){notify(problem,true);return;}
+ }
  // Capture this form's target before a confirmation or refresh can replace it.
  const args=formArgs(form,c),draftKey=monoDraftKey(c.id),submittedDraft=monoDrafts[draftKey],submittedName=connected.player?.name;
  if(c.lifetime==="game_save"||c.lifetime==="recovery"){
-  const accepted=await confirmAction(c.label,c.description+(c.lifetime==="recovery"?" The game will close normally and the selected operation backup will be restored.":" This action changes the game save. The backend creates a backup before applying it."));if(!accepted)return;
+  const summary=c.id==='craft_custom'?craftingModel.summary(workshopDraft,cache.craft_custom_catalog):null;
+  const message=summary?`Character: ${submittedName||'Loaded offline character'}\n${clean(summary.template)}\n${summary.affixes} · ${summary.effects} · ${summary.rolls}\n\nReplaces the item currently selected in the game’s forge. No materials are consumed. A recovery backup is created.${args.modifiers!=='none'?'\nExtra effects require EpochPact and workshop-recipes.txt when reloading or moving this item.':''}`:c.id==='craft_materials'?`Character: ${submittedName||'Loaded offline character'}\nMinimum stock: ${Number(args.value).toLocaleString()} of each shard, rune and glyph.\n\nHigher quantities are kept. Adds materials once to the shared crafting stash and creates a recovery backup. This does not enable infinite materials.`:c.description+(c.lifetime==="recovery"?" The game will close normally and the selected operation backup will be restored.":" This action changes the game save. The backend creates a backup before applying it.");
+  const accepted=await confirmAction(summary?'Create this custom item?':c.id==='craft_materials'?'Stock all materials?':c.label,message);if(!accepted)return;
  }
  if((c.lifetime==="game_save"||c.id==="mastery_choose")&&!preview){
   const snapshot=saveSnapshot(c);
@@ -721,6 +793,7 @@ async function formAction(form,override){
  }
  const result=await runTask({type:"control",id:c.id,args,operation:c.widget==="read"||c.widget==="preview"?"read":"set"},{show:true,title:c.label});
  if(!result)return;
+ if(c.id==='craft_reset')for(const id of [...dirty])if(id.startsWith('craft_')){dirty.delete(id);values[id]=appliedValues[id];}
  if(c.id==="mastery_choose"){
   if(cache.progress_read&&result.mastery)cache.progress_read.mastery=result.mastery;
   renderPage();
@@ -767,9 +840,13 @@ function setTheme(theme){
  if(catalog)renderPage();
 }
 content.addEventListener("submit",e=>{if(e.target.matches(".control-form")){e.preventDefault();void formAction(e.target);}});
+content.addEventListener('toggle',e=>{if(e.target.hasAttribute?.('data-workshop-advanced'))workshopAdvanced=e.target.open;if(e.target.dataset?.craftDisclosure)craftDisclosure[e.target.dataset.craftDisclosure]=e.target.open;},true);
 content.addEventListener("click",async e=>{
  const b=e.target.closest("button");if(!b||b.disabled)return;
- if(b.dataset.go)go(b.dataset.go);
+ if(b.dataset.go){if(b.dataset.craftTarget)craftingSection=b.dataset.craftTarget;go(b.dataset.go);}
+ else if(b.dataset.craftSection){craftingSection=b.dataset.craftSection;renderPage();}
+ else if(b.dataset.workshopMore){workshopListLimits[b.dataset.workshopMore]+=40;updateWorkshopUi();}
+ else if(b.dataset.workshopRemove){workshopDraft[b.dataset.workshopRemove]=workshopDraft[b.dataset.workshopRemove].filter(x=>x!==b.dataset.choice);updateWorkshopUi();}
  else if(b.id==="summon-baseline"){
   const data=cache.summons_read;if(!window.EpochSession.current(data,connected)||!data.summons?.length){notify("Refresh live summons before saving a damage baseline.",true);return;}
   summonBaselineOwner=automaticOwner();summonBaseline=Object.fromEntries(data.summons.map(s=>[s.instance,s.measuredDps]));$("#summon-live").innerHTML=summonTable();notify("Damage baseline saved for these active allies. Compare against the same target.");
@@ -833,6 +910,11 @@ function rememberMonolithInput(input){
 }
 content.addEventListener("input",e=>{
  const t=e.target;
+ if(t.dataset.workshopSearch){
+  const kind=t.dataset.workshopSearch;workshopFilters[kind]=t.value;
+  if(kind==='template'){const select=$('[data-workshop-template]');if(select)select.innerHTML=workshopTemplateOptions();}
+  else{workshopListLimits[kind]=40;updateWorkshopUi();}return;
+ }
  if(t.hasAttribute?.("data-workshop-filter")){workshopModifierFilter=t.value;const select=t.closest('form')?.querySelector('[name=modifiers]');if(select)select.innerHTML=workshopModifierOptions();return;}
  if(t.name==="value"&&t.closest('form')?.dataset.id==="craft_materials")materialTarget=t.value;
  rememberMonolithInput(t);
@@ -854,8 +936,12 @@ content.addEventListener("change",e=>{
  if(e.target.dataset.navFavorite){saveDisplayPreference("favorites",e.target.dataset.navFavorite,e.target.checked);navigation();return;}
  if(e.target.dataset.summonColumn){saveDisplayPreference("summonColumns",e.target.dataset.summonColumn,!e.target.checked);$("#summon-live").innerHTML=summonTable();return;}
  const t=e.target;rememberMonolithInput(t);
+ if(t.dataset.craftGlyphMode){settingChanged(t.dataset.craftGlyphMode,t.value==='default'?null:50);return;}
+ if(t.hasAttribute?.('data-workshop-kind')){workshopTemplateKind=t.value;const select=$('[data-workshop-template]');if(select)select.innerHTML=workshopTemplateOptions();return;}
+ if(t.dataset.workshopPick){const selected=workshopDraft[t.dataset.workshopPick],id=String(t.value);workshopDraft[t.dataset.workshopPick]=t.checked?[...new Set([...selected,id])]:selected.filter(x=>x!==id);updateWorkshopUi();return;}
  if(t.name==="value"&&t.closest('form')?.dataset.id==="craft_materials")materialTarget=t.value;
- if(t.closest('form')?.dataset.id==="craft_custom")workshopDraft[t.name]=["affixes","modifiers"].includes(t.name)?Array.from(t.selectedOptions,x=>x.value):t.value;
+ if(t.name&&t.closest('form')?.dataset.id==="craft_custom")workshopDraft[t.name]=["affixes","modifiers"].includes(t.name)?Array.from(t.selectedOptions,x=>x.value):t.value;
+ if(t.closest('form')?.dataset.id==='craft_custom')updateWorkshopUi();
  if(t.name==="perfect"&&t.closest('form')?.dataset.id==="craft_custom"){const select=t.closest('form').querySelector('[name=modifiers]');if(select)select.innerHTML=workshopModifierOptions();}
  if(t.dataset.settingRange)settingChanged(t.dataset.settingRange,Number(t.value));
  else if(t.dataset.settingNumber&&t.validity.valid)settingChanged(t.dataset.settingNumber,t.value===""?null:Number(t.value));
@@ -886,7 +972,7 @@ $("#reconcile").onclick=()=>void runTask({type:"reconcile"},{show:true,title:"Re
 $("#global-search").addEventListener("input",e=>{
  const q=e.target.value.trim().toLowerCase();if(!q){renderPage();return;}
  const matches=catalog.controls.filter(c=>playerControl(c)&&(c.label+" "+c.description+" "+c.id).toLowerCase().includes(q));
- content.innerHTML=`<section class="panel"><h2>Setting search · ${matches.length} results</h2><div class="control-grid">${matches.map(c=>`<button class="settings-card" data-go="${pages[c.group]?c.group:c.group==="session"||c.group==="recovery"?"settings":"stats"}"><h3>${esc(c.label)}</h3><p class="muted">${esc(c.description)}</p><span class="badge">${lifetime[c.lifetime]}</span></button>`).join("")}</div></section>`;
+ content.innerHTML=`<section class="panel"><h2>Setting search · ${matches.length} results</h2><div class="control-grid">${matches.map(c=>`<button class="settings-card" data-go="${pages[c.group]?c.group:c.group==="session"||c.group==="recovery"?"settings":"stats"}" ${c.group==='crafting'?`data-craft-target="${c.id.startsWith('craft_materials')?'materials':c.id.startsWith('craft_custom')?'custom':'forge'}"`:''}><h3>${esc(c.label)}</h3><p class="muted">${esc(c.description)}</p><span class="badge">${lifetime[c.lifetime]}</span></button>`).join("")}</div></section>`;
 });
 window.addEventListener("hashchange",()=>void openPage());
 async function init(){
@@ -896,7 +982,7 @@ async function init(){
   window.EpochLauncher?.init(boot.launcher,{run:runTask,isBusy:()=>busy,changed:async(reset=true)=>{if(reset){invalidateLive();dirty.clear();monoDrafts={};}await refreshConnection();}});
   try{const saved=JSON.parse(localStorage.getItem("epochpact.stat-favorites.v1")||"[]");if(Array.isArray(saved))statFavorites=new Set(saved.filter(x=>typeof x==="string"));}catch{}
   profileKey="epochpact.profiles."+(preview?"preview":"live");
-  for(const c of catalog.controls)if(["session","actor"].includes(c.lifetime)&&["number","toggle"].includes(c.widget))values[c.id]=appliedValues[c.id]=c.default;
+  for(const c of catalog.controls)if(["session","actor"].includes(c.lifetime)&&(["number","toggle"].includes(c.widget)||['craft_hope','craft_despair'].includes(c.id)))values[c.id]=appliedValues[c.id]=c.default;
   $("#preview-banner").hidden=!preview;let theme="chronoforge";try{theme=localStorage.getItem("epochpact.theme")||theme;}catch{}setTheme(theme);
   // Show the interface before waiting for the game's first Unity frame.
   await openPage();await refreshConnection();

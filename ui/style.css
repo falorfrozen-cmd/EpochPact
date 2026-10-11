@@ -62,3 +62,33 @@ dialog.stat-editor{max-width:740px;padding:0;scrollbar-color:var(--gold) var(--p
 .search-recipes{display:grid;gap:10px;}.search-recipes article{display:grid;grid-template-columns:minmax(150px,1fr) minmax(180px,2fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid #92734035;border-radius:4px;}
 .search-recipes code{user-select:text;overflow-wrap:anywhere;}
 @media(max-width:700px){.search-recipes article{grid-template-columns:1fr auto;}.search-recipes article span{grid-column:1/-1;grid-row:2;}.navigation-options>div{gap:10px;grid-template-columns:minmax(80px,1fr) auto auto;}}
+/* Crafting is organized by player intent, with bounded searchable pickers. */
+.main-scroll:has(.craft-categories) .hero{height:156px;padding:20px 28px}
+.main-scroll:has(.craft-categories) .hero h1{font-size:clamp(28px,2.5vw,38px);margin:8px 0 10px}
+.craft-categories{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:22px}
+.craft-categories button{text-align:left;padding:16px 18px;background:var(--panel);min-width:0}
+.craft-categories strong{display:block;font-size:15px}.craft-categories span{display:block;font-size:11px;color:var(--muted);line-height:1.5;margin-top:8px}
+.craft-categories button[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 -3px var(--accent);background:var(--soft)}
+.craft-mode-label{display:block;color:var(--muted);font-size:12px}.craft-default{color:var(--accent);font-size:13px;margin:18px 0}
+#craft-category-content .control-top .icon{display:none}#craft-category-content .control-grid:has(>article:only-child){grid-template-columns:1fr}#craft-category-content .control-description{min-height:0}
+#craft-category-content .control-tools{flex-wrap:wrap}
+.craft-pick-list>.muted{padding:8px 14px}
+.craft-advanced>summary{font-size:15px}.craft-advanced>.panel{margin:20px 0;border:0;padding:0;background:transparent}
+.craft-workshop>.muted{line-height:1.7}.craft-workshop .control-form{display:block}
+.craft-step{padding:24px 0;border-top:1px solid var(--line);margin-top:22px;min-width:0}
+.craft-step h3{display:flex;gap:12px;align-items:center;font-size:18px;margin:0 0 14px}
+.craft-step h3>span{display:grid;place-items:center;flex:0 0 30px;height:30px;border:1px solid var(--accent);color:var(--accent);border-radius:50%;font-size:13px}
+.craft-step p{font-size:13px;line-height:1.7;color:var(--muted)}.craft-step>label{display:block;font-size:12px;color:var(--muted);margin:14px 0}
+.craft-item-state{display:flex;align-items:center;gap:14px;justify-content:space-between;padding:16px;background:var(--soft);border:1px solid var(--line);border-radius:4px;font-size:13px;line-height:1.6}
+.craft-template-search{display:grid;grid-template-columns:minmax(0,2fr) minmax(130px,1fr);gap:14px}.craft-template-search label{color:var(--muted);font-size:12px;min-width:0}
+.craft-pick-count{font-size:11px;color:var(--muted);margin:14px 0 10px}.craft-pick-list{max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:4px;background:#0002;overscroll-behavior:contain}
+.craft-pick-list label{display:flex;gap:12px;align-items:flex-start;padding:11px 14px;border-bottom:1px solid #92734025;font-size:13px;line-height:1.6;color:var(--ink);cursor:pointer}
+.craft-pick-list label:has(input:checked){background:var(--soft)}.craft-pick-list input{width:16px;height:16px;margin:2px 0 0;flex:0 0 16px;accent-color:var(--accent)}
+.craft-pick-list span{overflow-wrap:anywhere}.craft-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;font-size:12px;line-height:1.6}
+.craft-chip{text-align:left;font-size:11px;padding:8px 10px;max-width:100%;overflow-wrap:anywhere;background:var(--soft);border-color:var(--accent)}
+.craft-extra summary{font-size:15px;line-height:1.6}.craft-extra summary>span{display:inline-block;font-size:11px;color:var(--muted);margin-left:12px}
+.craft-summary{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;padding:18px;border:1px solid var(--line);background:var(--soft);font-size:13px;line-height:1.6;margin:18px 0}
+.craft-summary dt{color:var(--muted)}.craft-summary dd{margin:0;overflow-wrap:anywhere}.craft-portability{padding:12px;border-left:2px solid var(--gold);color:var(--gold)!important}
+#confirm-message{white-space:pre-line}
+@media(max-width:900px){.craft-categories{gap:8px}.craft-categories button{padding:12px}.craft-categories strong{font-size:13px}.craft-categories span{font-size:10px}.craft-item-state{flex-wrap:wrap}}
+@media(max-width:600px){.craft-categories{grid-template-columns:1fr}.craft-categories span{margin-top:4px}.craft-template-search{grid-template-columns:1fr}.craft-summary{grid-template-columns:1fr;gap:6px}.craft-summary dd{margin-bottom:10px}}

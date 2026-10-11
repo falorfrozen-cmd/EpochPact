@@ -81,3 +81,11 @@ Report EpochPact **{{VERSION}}**, game/Steam build, Windows version, installatio
 Created by Falor. Community-made, not affiliated with Eleventh Hour Games. AI-assisted code/UI and AI-generated promotional artwork. Runtime and font credits are included. No game executable, GameAssembly.dll, game metadata, private logs or saves are distributed.
 
 **runtime-manifest.json** and **SHA256SUMS.txt** record every payload file's size and SHA-256. The separate outer ZIP hash verifies the complete download.
+
+## Crafting
+
+- **Forge Settings**: preserve materials, tune Forging Potential costs and choose game-default or custom glyph chances. Use **Apply changes** for these session settings.
+- **Materials**: enter a minimum stock, then press **Stock all materials** and confirm. This adds saved materials once; it does not enable infinity.
+- **Custom Items**: select equipment in the game forge, load item choices, choose a template and searchable affix checkboxes, then review and confirm. Extra Unique/Set effects are in an optional advanced section.
+
+Opening categories, searching and switching themes do not craft or grant materials. Extra mixed effects require EpochPact and its workshop-recipes.txt file when reloading or moving items.
