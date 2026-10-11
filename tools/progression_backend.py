@@ -17,9 +17,9 @@ _ipc_lock = threading.RLock()
 BACKUPS = le_session.GAME / "EpochPact" / "backups" / "progression"
 
 
-def request(command: str) -> dict:
+def request(command: str, *, timeout: float = 90) -> dict:
     with _ipc_lock:
-        reply = le_session.send(command, timeout=90)
+        reply = le_session.send(command, timeout=timeout)
     if not reply:
         raise RuntimeError("Oyun komuta yanıt vermedi.")
     try:

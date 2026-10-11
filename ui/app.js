@@ -38,11 +38,12 @@ let materialTarget="10000";
 const autoPending=new Map(),autoErrors=new Map(),autoApplied=new Set();
 let autoTimer,autoSending=null,autoRunning=false,autoGeneration=0;
 let liveReading=false;
+let connectionChecking=false,connectionNextCheck=0,lastGameSession=null;
 function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|pickupradius|autopickup|mapreveal) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
 function automaticOwner(){
  if(preview)return "preview";
  const p=connected.player;
- return connected.connected&&connected.offline&&connected.state==="InGame"&&!connected.transitioning&&p?.id!=null?JSON.stringify([String(p.id),p.name??""]):null;
+ return connected.connected&&connected.offline&&connected.state==="InGame"&&!connected.transitioning&&p?.id!=null?JSON.stringify([String(p.id),p.name??"",connected.sessionKey??null]):null;
 }
 function autoManaged(id){return autoPending.has(id)||autoErrors.has(id)||autoSending?.id===id;}
 function cancelAutomatic(){
@@ -93,7 +94,7 @@ async function flushAutomatic(force=false){
  let errorMessage="Could not apply this setting. Check the connection before retrying.";
  try{
   const args={value:edit.value};
-  if(!preview){const [expected_id,expected_name]=JSON.parse(edit.owner);Object.assign(args,{expected_id,expected_name});}
+  if(!preview){const [expected_id,expected_name,expected_session]=JSON.parse(edit.owner);Object.assign(args,{expected_id,expected_name});if(expected_session!=null)args.expected_session=expected_session;}
   const result=await runTask({type:"control",id,args},{silent:true,onError:message=>{errorMessage=message;}});
   if(edit.generation!==autoGeneration||edit.owner!==automaticOwner())return;
   if(!result){
@@ -106,12 +107,12 @@ async function flushAutomatic(force=false){
   if(Object.is(values[id],edit.value)&&!autoPending.has(id)&&!autoErrors.has(id))dirty.delete(id);
  }finally{autoSending=null;autoRunning=false;syncSettingUi(id);armAutomatic();}
 }
-function invalidateLive(){
+function invalidateLive({render=true}={}){
  cancelAutomatic();
  cache={};actorValues={};history=[];connected={connected:false,offline:false};
  if(activeStat){activeStat=null;$("#stat-dialog").close();}
  $("#connection").textContent="○ Game disconnected";$("#connection").classList.remove("connected");
- if(catalog)renderPage();
+ if(catalog&&render)renderPage();
 }
 const transport=window.EpochSession.create({fetch:(...args)=>fetch(...args),sleep,warn:message=>notify(message),
  isReadOnly:payload=>payload.type==="connection"||payload.type==="control"&&
@@ -248,8 +249,9 @@ function updateDisabled() {
 async function job(payload) {
  return transport.run(payload);
 }
-async function runTask(payload,{show=false,title="Operation result",silent=false,onError}={}) {
- if(busy)return null;busy=true;let errorBackup=false;updateDisabled();
+async function runTask(payload,{show=false,title="Operation result",silent=false,onError,background=false}={}) {
+ if(busy)return null;if(!background)busy=true;let errorBackup=false;if(!background)updateDisabled();
+ if(payload.type==="control"&&connected.sessionKey&&!preview)payload={...payload,args:{expected_session:connected.sessionKey,...payload.args}};
  try{
   const result=await job(payload);
   if(result.launcher)window.EpochLauncher?.update(result.launcher);
@@ -260,35 +262,50 @@ async function runTask(payload,{show=false,title="Operation result",silent=false
   if(show)resultDialog(result,title,payload);
   else if(!silent)notify(developer?result.preview?"Preview complete; the game was unchanged.":"Operation complete.":playerResult(payload,result));
   return result;
- }catch(error){const message=developer?error.message:playerError(error.message,payload)+(errorBackup?" A recovery backup is available in Settings.":"");onError?.(message);notify(message,true);return null;}
- finally{busy=false;updateDisabled();armAutomatic();}
+ }catch(error){const message=developer?error.message:playerError(error.message,payload)+(errorBackup?" A recovery backup is available in Settings.":"");onError?.(message);if(!background)notify(message,true);return null;}
+ finally{if(!background)busy=false;updateDisabled();armAutomatic();}
 }
-async function refreshConnection(silent=true,refreshCurrent=true,{preservePage=false}={}) {
- if(busy)return;
+async function refreshConnection(silent=true,refreshCurrent=true,{preservePage=false,background=false}={}) {
+ if(busy||connectionChecking)return;
+ connectionChecking=true;
+ try{
  const previous=connected;
  rememberMonolithOwner(connected);
- const result=await runTask({type:"connection"},{silent});if(!result){invalidateLive();updateDisabled();return;}
+ const result=await runTask({type:"connection"},{silent,background});if(!result){invalidateLive();updateDisabled();return;}
+ const restarted=lastGameSession!=null&&result.sessionKey!=null&&lastGameSession!==result.sessionKey;
+ if(restarted){invalidateLive({render:false});monoDrafts={};monoDraftOwner=null;monoTarget={timeline:null,difficulty:"normal"};workshopOwner=null;}
+ if(result.sessionKey!=null)lastGameSession=result.sessionKey;
  const ownerChanged=rememberMonolithOwner(result);
- if(!preview&&(ownerChanged||!window.EpochSession.current({player:result.player},result)))invalidateLive();
+ if(!preview&&(ownerChanged||!window.EpochSession.current({player:result.player},result)))invalidateLive({render:false});
  connected=result;
  // An editable snapshot belongs to the area where it was read, even when
  // the same character moves between an Echo and a Monolith hub.
  if(!preview&&cache.monolith_read&&!window.EpochSession.currentArea(cache.monolith_read,connected)){
   delete cache.monolith_read;delete cache.echo_read;
  }
- const label=preview?"● Preview":result.connected?(result.offline?"● Offline · "+result.state:"● "+result.state):"○ Game disconnected";
+ const label=preview?"● Preview":result.phase==="starting"?"◌ Connecting to game…":result.phase==="waiting_frame"?"◌ Waiting for game updates…":result.phase==="unavailable"?"◌ Reconnecting to game…":result.connected?(result.offline?"● Offline · "+result.state:"● "+result.state):"○ Game disconnected";
  $("#connection").textContent=label;$("#connection").title=result.error||result.text||label;
  $("#connection").classList.toggle("connected",result.connected);
  let valuesChanged=false;
  for(const [id,value] of Object.entries(result.values||{})){appliedValues[id]=value;if(!dirty.has(id)){valuesChanged ||= values[id]!==value;values[id]=value;}}
- const sameArea=preview||!ownerChanged&&window.EpochSession.current({player:previous.player},previous)&&window.EpochSession.currentArea({player:previous.player},connected);
+ const sameArea=preview||!restarted&&!ownerChanged&&window.EpochSession.current({player:previous.player},previous)&&window.EpochSession.currentArea({player:previous.player},connected);
+ const unchangedPending=!result.offline&&!previous.offline&&result.phase===previous.phase&&result.state===previous.state&&result.sessionKey===previous.sessionKey;
  // A focus read should not rebuild unchanged forms, steal input focus or lose
  // partially typed fields elsewhere in the interface.
- if(!preservePage||!sameArea||valuesChanged)renderPage();else updateDisabled();
+ if(!preservePage||!sameArea&&!unchangedPending||valuesChanged)renderPage();else updateDisabled();
  const readId=pageReadId();
  const masteryMayHaveChanged=page==="campaign"&&cache.progress_read?.mastery?.panelOpen===true;
- if(refreshCurrent&&readId&&(!cache[readId]||["general","loot","crafting"].includes(page)||masteryMayHaveChanged)&&eligible(controlById(readId)))await refreshSection(readId,{refreshConnectionFirst:false});
+ const recovered=background&&(!previous.offline||restarted)&&result.offline;
+ if((refreshCurrent||recovered)&&readId&&(!cache[readId]||["general","loot","crafting"].includes(page)||masteryMayHaveChanged)&&eligible(controlById(readId)))await refreshSection(readId,{refreshConnectionFirst:false});
+ }finally{connectionChecking=false;connectionNextCheck=Date.now()+(connected.offline?10000:["stopped","setup"].includes(connected.phase)?5000:2000);}
 }
+async function pollConnection(){
+ if(!catalog||preview||busy||connectionChecking||liveReading||autoRunning||autoPending.size||Date.now()<connectionNextCheck||window.EpochLauncher?.browsing())return;
+ // Only a read-only handshake is retried. Never repeat an accepted action or
+ // rebuild unchanged forms while the player types or compares values.
+ await refreshConnection(true,false,{preservePage:true,background:true});
+}
+setInterval(()=>void pollConnection(),1000);
 function syncSpeed(){
  const modes=actorValues["9:0:0:0"]?.modes;if(modes){appliedValues.speed=1+(modes.increased||0);if(!dirty.has("speed"))values.speed=appliedValues.speed;}
 }
@@ -652,6 +669,7 @@ function formArgs(form,c){
   if(c.id==="craft_custom"&&p.name==="modifiers")args.modifiers=data.getAll("modifiers").join(",")||"none";
  }
  if(c.parameters.some(p=>p.name==="save_id"))args.expected_id=saveSnapshot(c)?.player?.id;
+ if(!preview&&connected.sessionKey)args.expected_session=connected.sessionKey;
  if(c.id==="craft_materials"||c.group==="inventory")args.expected_name=saveSnapshot(c)?.player?.name;
  if(c.id==="cof_join")args.switch_from_merchant=data.get("switch_from_merchant")==="on";
  return args;
@@ -666,7 +684,7 @@ async function formAction(form,override){
  if((c.lifetime==="game_save"||c.id==="mastery_choose")&&!preview){
   const snapshot=saveSnapshot(c);
   const reason=window.EpochSession.saveActionReason(snapshot,connected,{monolith:c.group==="monolith"});
-  if(reason||String(args.expected_id)!==String(connected.player?.id)||submittedName&&connected.player?.name&&submittedName!==connected.player.name){notify(reason||"The character changed. Review the action for the loaded character.",true);return;}
+  if(reason||args.expected_session&&args.expected_session!==connected.sessionKey||String(args.expected_id)!==String(connected.player?.id)||submittedName&&connected.player?.name&&submittedName!==connected.player.name){notify(reason||"The game or character changed. Review the action for the loaded character.",true);return;}
   if(c.id==="mastery_choose"&&snapshot.mastery?.available!==true){notify(snapshot.mastery?.reason||"Refresh live to check mastery selection.",true);return;}
  }
  const result=await runTask({type:"control",id:c.id,args,operation:c.widget==="read"||c.widget==="preview"?"read":"set"},{show:true,title:c.label});
@@ -694,11 +712,12 @@ function settingChanged(id,value,delay=0){
 async function applyDraft(){
  if(busy||!dirty.size)return;
  for(const input of document.querySelectorAll('[data-setting-number]'))if(!input.reportValidity())return;
- const ids=[...dirty].filter(id=>!autoManaged(id));let applied=0;
+ const ids=[...dirty].filter(id=>!autoManaged(id)),expected_session=connected.sessionKey;let applied=0;
  let refreshForge=false;
  for(const id of ids){
   const c=controlById(id);if(!c||!["actor","session"].includes(c.lifetime))continue;
-  const submitted=values[id];const r=await runTask({type:"control",id,args:{value:submitted??"reset"}},{silent:true});
+  const submitted=values[id],args={value:submitted??"reset"};if(expected_session&&!preview)args.expected_session=expected_session;
+  const r=await runTask({type:"control",id,args},{silent:true});
   if(!r){notify(`${applied} settings applied; stopped after an error. Remaining drafts are kept.`,true);renderPage();return;}
   syncLootCraft(id,r);
   if(id.startsWith("craft_"))refreshForge=true;
@@ -835,10 +854,11 @@ async function init(){
   profileKey="epochpact.profiles."+(preview?"preview":"live");
   for(const c of catalog.controls)if(["session","actor"].includes(c.lifetime)&&["number","toggle"].includes(c.widget))values[c.id]=appliedValues[c.id]=c.default;
   $("#preview-banner").hidden=!preview;let theme="chronoforge";try{theme=localStorage.getItem("epochpact.theme")||theme;}catch{}setTheme(theme);
-  await refreshConnection();await openPage();
+  // Show the interface before waiting for the game's first Unity frame.
+  await openPage();await refreshConnection();
  }catch(error){content.innerHTML='<p class="empty">Could not start the interface.</p>';notify(error.message,true);}
 }
 void init();
-// Returning from the game refreshes its identity without a permanent polling
-// watcher. Opening the UI never submits campaign or reward mutations.
+// Focus refresh complements automatic startup/restart recovery. Both paths
+// read state only; opening the UI never submits campaign or reward mutations.
 window.addEventListener("focus",()=>{if(catalog&&!busy&&!window.EpochLauncher?.browsing())void refreshConnection(true,true,{preservePage:true});});

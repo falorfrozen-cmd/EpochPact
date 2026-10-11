@@ -61,7 +61,7 @@
   init(initial,options){state=initial;({run,changed,isBusy}=options);render();
    if(state&&!state.selected)document.querySelector('#setup-dialog').showModal();
   },
-  update(next){if(next){state=next;render();}},
+  update(next){if(next&&JSON.stringify(next)!==JSON.stringify(state)){state=next;render();}},
   mount(page){if(state&&['overview','settings','game_setup'].includes(page)){document.querySelector('#page-content').insertAdjacentHTML('afterbegin','<div data-launcher-panel></div>');render();}},
   disable,
   browsing:()=>pickerBusy,

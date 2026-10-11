@@ -124,6 +124,10 @@ kernel32.Process32NextW.restype = wt.BOOL
 WM_CLOSE = 0x0010
 SYNCHRONIZE = 0x00100000
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+kernel32.QueryFullProcessImageNameW.argtypes = [wt.HANDLE, wt.DWORD, wt.LPWSTR, ctypes.POINTER(wt.DWORD)]
+kernel32.QueryFullProcessImageNameW.restype = wt.BOOL
+kernel32.GetProcessTimes.argtypes = [wt.HANDLE] + [ctypes.POINTER(wt.FILETIME)] * 4
+kernel32.GetProcessTimes.restype = wt.BOOL
 
 
 def game_pids() -> list[int]:
@@ -150,6 +154,65 @@ def game_pids() -> list[int]:
         return pids
     finally:
         kernel32.CloseHandle(snapshot)
+
+
+def process_identity(pid: int) -> dict | None:
+    """Bind a connection to an executable and process creation time, not just a PID."""
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        error = ctypes.get_last_error()
+        if error == 87:  # The process exited between enumeration and this query.
+            return None
+        raise ctypes.WinError(error)
+    try:
+        code = wt.DWORD()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        if code.value != 259:
+            return None
+        image = ctypes.create_unicode_buffer(32768)
+        length = wt.DWORD(len(image))
+        if not kernel32.QueryFullProcessImageNameW(handle, 0, image, ctypes.byref(length)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        created, exited, system, user = (wt.FILETIME() for _ in range(4))
+        if not kernel32.GetProcessTimes(handle, ctypes.byref(created), ctypes.byref(exited),
+                                        ctypes.byref(system), ctypes.byref(user)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        ticks = (created.dwHighDateTime << 32) | created.dwLowDateTime
+        return {"processId": pid, "sessionKey": f"{pid}:{ticks}",
+                "startedNs": (ticks - 116444736000000000) * 100, "executable": image.value}
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def selected_game_process() -> dict | None:
+    expected = os.path.normcase(str((GAME / EXE).resolve()))
+    matches = []
+    pids = game_pids()
+    other_running = False
+    for pid in pids:
+        identity = process_identity(pid)
+        if identity and os.path.normcase(str(Path(identity["executable"]).resolve())) == expected:
+            matches.append(identity)
+        elif identity:
+            other_running = True
+    if len(matches) > 1:
+        raise RuntimeError("More than one copy of the selected game is running. Close the extra copy.")
+    if not matches and other_running:
+        raise RuntimeError("Last Epoch is running from a different folder. Select that executable in Game setup after closing the game.")
+    return matches[0] if matches else None
+
+
+def ipc_ready(process: dict) -> bool:
+    """Only the current game's freshly published capability can establish readiness."""
+    path = GAME / "EpochPact/ipc/protocol.json"
+    try:
+        protocol = json.loads(path.read_text(encoding="utf-8"))
+        return (protocol.get("version") == 2 and type(protocol.get("pid")) is int and
+                protocol["pid"] == process["processId"] and
+                path.stat().st_mtime_ns >= process["startedNs"])
+    except (OSError, ValueError, TypeError):
+        return False
 
 
 def game_window(pid: int) -> int | None:

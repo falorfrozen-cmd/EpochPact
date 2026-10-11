@@ -1,0 +1,47 @@
+{
+  "release": "0.1.2-dev.7",
+  "supportedGame": "Last Epoch Steam 1.5.2.1, offline",
+  "problem": "An initial Unity-frame timeout could leave the interface disconnected until a later focus/manual refresh; connection reads inherited a 90-second progression timeout.",
+  "changes": [
+    "Render the interface before the first connection check.",
+    "Automatically retry read-only connection checks, without overlapping actions, automatic edits or the executable picker.",
+    "Share a seven-second IPC deadline across the connection reads, preserving normal save-action timeouts.",
+    "Check the responding worker before waiting for Unity; distinguish startup, waiting-for-frame, disconnected and offline-ready states.",
+    "Bind readiness to the selected executable, PID, process creation time and freshly published protocol file.",
+    "Discard old-process snapshots, contributions and cleanup commands on restart, even for the same character.",
+    "Bind queued edits and confirmations to their original process session; never automatically repeat accepted mutations.",
+    "Refresh the open section once after recovery; preserve unchanged forms and unapplied same-session Monolith drafts.",
+    "An unavailable ancillary speed reading cannot disconnect a verified offline character."
+  ],
+  "validation": {
+    "pythonRegressionTests": {"passed": 217, "failed": 0},
+    "javascriptRegressionTests": {"passed": 97, "failed": 0},
+    "finalCompiledPackageChecks": {"passed": 20, "failed": 0, "scope": "Isolated installation/update/refusal fixtures, no-Python startup, HTTP assets and session/origin guards."},
+    "finalCompiledLive": {
+      "gameLaunches": 2,
+      "offlineCharacterLoads": 2,
+      "sameAppAcrossGameRestart": true,
+      "freshProcessSessionsVerified": true,
+      "gameExitCodes": [0, 0],
+      "readyConnectionReads": 12,
+      "readyRoundTripMs": {"minimum": 215.04, "maximum": 1430.12, "average": 496.76},
+      "maximumConnectionCheckMs": 5254.8,
+      "scope": "Final EXE and actual installed player DLL, normal offline menu, isolated EpConnectionTest character. The first checks encountered waiting_frame and then recovered to the loaded character. HTTP job polling is included in the timing measurements.",
+      "saveRestoration": {"originalFiles": 54, "originalSHA256Verified": true, "isolatedTestFilesArchived": 3},
+      "gameplayMutationsSubmitted": false
+    },
+    "limitations": "This validates standalone connection recovery on the supported local build. The affected players' machines and MelonLoader startup were not available for this validation. It does not establish that every gameplay feature works or provide a new antivirus result."
+  },
+  "package": {
+    "filename": "EpochPact-0.1.2-dev.7.zip",
+    "bytes": 26041605,
+    "files": 837,
+    "sha256": "ac26f7d51082ff59368a42ef870f6568e215ee68b12d81afa53743a7ee1012c2",
+    "allArchivedFileSizesAndHashesCompared": true,
+    "exeSHA256": "418188e56381ab3236269cd7dc06825633f096ffb693b96b786dda16b9dece5a",
+    "unchangedCoreSHA256": "ca1ab90b58558d957575fd288183821505e2b230fcdb5f1cffce958f4472d143",
+    "unchangedLoaderSHA256": "efc2b94d4578216010cf89695660c42cd1951afa19ecceeecbb1e5bcef6115bf",
+    "bootloader": "Previously verified locally source-built PyInstaller bootloader; no packer or obfuscation."
+  },
+  "localEvidence": "research/live/connection-fix-20261011/ (ignored, not included in the player download)"
+}

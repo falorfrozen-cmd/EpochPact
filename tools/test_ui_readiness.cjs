@@ -38,6 +38,68 @@ function automaticHarness(){
  return h;
 }
 
+test('automatic handshake recovers from a first frame timeout without focus or any mutation',async()=>{
+ const h=automaticHarness();h.run(`page='overview';connected={connected:false,offline:false};connectionNextCheck=0;`);
+ h.replies.push({ok:true,connected:true,offline:false,state:'SystemLoading',transitioning:true,phase:'waiting_frame',sessionKey:'10:1'});
+ await h.run('pollConnection()');assert.equal(h.run('connected.offline'),false);
+ assert.match(h.element('#connection').textContent,/Waiting for game updates/);
+ const ready={...h.connection('M_Rest'),sessionKey:'10:1',phase:'ready'};h.replies.push(ready);
+ h.run('connectionNextCheck=0');await h.run('pollConnection()');
+ assert.equal(h.run('connected.offline'),true);assert.match(h.element('#connection').textContent,/Offline/);
+ assert.deepEqual(h.calls.map(x=>x.type),['connection','connection']);
+ assert.equal(h.run('autoPending.size'),0);
+});
+
+test('background handshakes do not disable controls or redraw an unchanged form',async()=>{
+ const h=automaticHarness();h.run(`connected.sessionKey='10:1';lastGameSession='10:1';connectionNextCheck=0;`);
+ let release;h.context.testJob=async payload=>{h.calls.push(payload);return await new Promise(r=>release=r);};
+ h.run('job=testJob');
+ const pending=h.run('pollConnection()');
+ assert.equal(h.run('busy'),false);assert.equal(h.run('connectionChecking'),true);
+ await h.run('pollConnection()');assert.equal(h.calls.length,1);
+ release({...h.connection('M_Rest'),sessionKey:'10:1'});await pending;
+ assert.equal(h.run('pageRenderCount'),0);assert.equal(h.run('connectionChecking'),false);
+});
+
+test('connection monitor yields to actions, automatic edits and a native file picker',async()=>{
+ const h=automaticHarness();h.run('connectionNextCheck=0;busy=true');await h.run('pollConnection()');
+ h.run('busy=false;liveReading=true');await h.run('pollConnection()');
+ h.run('liveReading=false;queueAutomatic("xp",2,0)');await h.run('pollConnection()');
+ h.run('cancelAutomatic()');h.context.window.EpochLauncher={browsing:()=>true};await h.run('pollConnection()');
+ assert.equal(h.calls.length,0);
+});
+
+test('restart of the same character clears stale live snapshots and unsent edits',async()=>{
+ const h=automaticHarness();h.run(`connected.sessionKey='10:1';lastGameSession='10:1';cache.progress_read={player:{...connected.player}};queueAutomatic('xp',2,0);`);
+ const original=h.run('automaticOwner()');h.replies.push({...h.connection('M_Rest'),sessionKey:'11:2'});
+ await h.run('refreshConnection(true,false,{preservePage:true})');
+ assert.notEqual(h.run('automaticOwner()'),original);assert.equal(h.run('autoPending.size'),0);
+ assert.equal(h.run('cache.progress_read'),undefined);await h.run('flushAutomatic(true)');
+ assert.deepEqual(h.calls.map(x=>x.type),['connection']);
+});
+
+test('explicit actions carry the process session present when submitted',async()=>{
+ const h=automaticHarness();h.run(`connected.sessionKey='10:1'`);h.replies.push({ok:true});
+ await h.run(`runTask({type:'control',id:'campaign_complete',args:{expected_id:'0'}})`);
+ assert.equal(h.calls[0].args.expected_session,'10:1');assert.equal(h.calls.length,1);
+});
+
+test('recovery reads the currently open campaign once to enable real actions and never completes quests',async()=>{
+ const h=automaticHarness();h.run(`page='campaign';connected={connected:false,offline:false};connectionNextCheck=0;`);
+ h.replies.push({...h.connection('M_Rest'),sessionKey:'10:1'}, {ok:true,player:{id:'0',scene:'M_Rest'}});
+ await h.run('pollConnection()');
+ assert.deepEqual(h.calls.map(x=>[x.type,x.id]),[['connection',undefined],['control','progress_read']]);
+ h.run('connectionNextCheck=0');h.replies.push({...h.connection('M_Rest'),sessionKey:'10:1'});
+ await h.run('pollConnection()');assert.equal(h.calls.length,3);
+ assert.equal(h.calls.filter(x=>x.id==='campaign_complete').length,0);
+});
+
+test('a confirmed save action cannot switch to a restarted process with the same character',async()=>{
+ const h=materialsHarness();h.run(`connected.sessionKey='10:1';confirmAction=async()=>{connected.sessionKey='11:2';return true;};`);
+ await h.run('formAction(materialForm)');assert.equal(h.calls.length,0);
+ assert.match(h.element('#notification').textContent,/game or character changed/);
+});
+
 function materialsHarness(){
  const h=automaticHarness();h.run(`page='crafting';cache.craft_materials_read={ok:true,player:{...connected.player},kinds:{shards:1,runes:1,glyphs:1},materials:[{type:101,id:0,count:0}]};`);
  h.button.dataset.controlId='craft_materials';

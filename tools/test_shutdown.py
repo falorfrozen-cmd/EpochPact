@@ -14,6 +14,7 @@ class ShutdownTests(unittest.TestCase):
         self.commands = []
         self.player = {'id': '42', 'name': 'Test'}
         self.patchers = [patch.object(ui.le, 'game_pids', return_value=[123]),
+                         patch.object(ui.le, 'selected_game_process', return_value={'processId':123,'sessionKey':'123:100','startedNs':0}),
                          patch.object(ui.le, 'send', side_effect=self.send)]
         for p in self.patchers:
             p.start(); self.addCleanup(p.stop)
@@ -53,7 +54,7 @@ class ShutdownTests(unittest.TestCase):
 
     def test_already_closed_game_needs_no_ipc(self):
         self.bridge.temporary_resets[('xp', None)] = 'xp 1'
-        with patch.object(ui.le, 'game_pids', return_value=[]):
+        with patch.object(ui.le, 'selected_game_process', return_value=None):
             self.assertTrue(self.bridge.restore_session()['gameClosed'])
         self.assertFalse(self.commands)
 

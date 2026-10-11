@@ -88,7 +88,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
             elif payload["type"] == "connection":
                 launcher = setup.status() if setup else None
                 if setup and not launcher['installed']:
-                    result = {'ok': True, 'connected': False, 'offline': False, 'launcher': launcher,
+                    result = {'ok': True, 'connected': False, 'offline': False, 'phase': 'setup', 'launcher': launcher,
                               'error': 'Select the game and install the mod in Game setup.', 'preview': False, 'history': []}
                 else:
                     result = bridge.connection()

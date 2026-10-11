@@ -168,6 +168,8 @@ class BridgeTests(unittest.TestCase):
         for lens in self.live['cofread']['lenses']:
             lens['purchased'] = True
         self.patchers = [patch.object(ui.le, 'game_pids', return_value=[123]),
+                         patch.object(ui.le, 'selected_game_process', return_value={'processId':123,'sessionKey':'123:100','startedNs':0}),
+                         patch.object(ui.le, 'ipc_ready', return_value=True),
                          patch.object(ui.le, 'send', side_effect=self.send)]
         for p in self.patchers:
             p.start()
@@ -440,6 +442,70 @@ class BridgeTests(unittest.TestCase):
 
     def test_speed_connection_reads_owned_contribution_not_stale_speed_command(self):
         self.assertEqual(self.bridge.connection()['values']['speed'], 1.5)
+
+    def test_connection_recovers_after_first_unity_frame_timeout_without_mutation(self):
+        self.live['sessionread'] = {'ok':False, 'error':'the main thread did not pick the job up'}
+        pending = self.bridge.connection()
+        self.assertTrue(pending['ok']); self.assertTrue(pending['connected'])
+        self.assertFalse(pending['offline']); self.assertEqual(pending['phase'], 'waiting_frame')
+        self.assertEqual(self.commands, ['status','sessionread'])
+        self.live['sessionread'] = {'ok':True,'state':'InGame','transitioning':False}
+        ready = self.bridge.connection()
+        self.assertTrue(ready['offline']); self.assertEqual(ready['phase'], 'ready')
+        self.assertEqual(ready['sessionKey'], '123:100')
+        self.assertTrue(all(x in ('status','sessionread','identityread','statraw 9 0 0 0') for x in self.commands))
+
+    def test_starting_game_sends_no_command_before_current_protocol_is_published(self):
+        with patch.object(ui.le, 'ipc_ready', return_value=False):
+            result = self.bridge.connection()
+            self.assertEqual(result['phase'], 'starting'); self.assertFalse(result['connected'])
+            with self.assertRaisesRegex(RuntimeError, 'not connected yet'):
+                self.bridge.execute('xp', {'value':2})
+        self.assertEqual(self.commands, [])
+
+    def test_connection_uses_one_seven_second_budget_instead_of_ninety_per_read(self):
+        clock = [100.0]; calls=[]
+        def send(command, *, timeout):
+            calls.append((command,timeout)); clock[0] += 2
+            return self.send(command)
+        with patch.object(ui.time, 'monotonic', side_effect=lambda:clock[0]), patch.object(ui.le, 'send', side_effect=send):
+            result = self.bridge.connection()
+        self.assertTrue(result['offline'])
+        self.assertEqual([x[1] for x in calls], [7,5,3,1])
+
+    def test_ancillary_speed_read_failure_does_not_disconnect_verified_character(self):
+        original = self.send
+        with patch.object(ui.le, 'send', side_effect=lambda c,**kw: None if c.startswith('statraw') else original(c)):
+            result = self.bridge.connection()
+        self.assertTrue(result['offline']); self.assertEqual(result['phase'],'ready')
+        self.assertNotIn('speed',result['values'])
+
+    def test_restarting_same_character_discards_old_cleanup_and_rejects_queued_action(self):
+        self.bridge.connection()
+        self.bridge.temporary_resets[('xp',None)]='xp 1'
+        self.bridge.actor['21:0:0:0']={'key':{'sp':21,'tags':0,'special':0,'extra':0},'modes':{'added':20}}
+        self.bridge.cache['progress_read']={'player':self.player}
+        self.commands.clear()
+        with patch.object(ui.le, 'selected_game_process', return_value={'processId':124,'sessionKey':'124:200','startedNs':0}):
+            with self.assertRaisesRegex(RuntimeError,'game restarted'):
+                self.bridge.execute('campaign_complete',{'expected_id':'42','expected_session':'123:100'})
+            self.assertFalse(self.bridge.actor or self.bridge.temporary_resets or self.bridge.cache)
+            self.assertEqual(self.bridge.restore_session()['restored'],0)
+            self.assertEqual(self.commands,[])
+            result=self.bridge.connection(); self.assertEqual(result['sessionKey'],'124:200')
+
+    def test_identity_failure_cannot_enable_offline_controls(self):
+        self.live['identityread']={'ok':False,'error':'Character is transitioning'}
+        result=self.bridge.connection()
+        self.assertTrue(result['connected']); self.assertFalse(result['offline'])
+        self.assertIsNone(result['player']); self.assertEqual(result['phase'],'waiting_frame')
+
+    def test_stopped_game_returns_immediately_and_clears_owned_state(self):
+        self.bridge.connection(); self.bridge.temporary_resets[('xp',None)]='xp 1'; self.commands.clear()
+        with patch.object(ui.le, 'selected_game_process', return_value=None):
+            result=self.bridge.connection()
+        self.assertEqual(result['phase'],'stopped'); self.assertFalse(result['connected'])
+        self.assertEqual(self.commands,[]); self.assertFalse(self.bridge.temporary_resets)
 
     def test_stale_character_cannot_receive_save_mutation(self):
         with self.assertRaisesRegex(RuntimeError, 'character has changed'):
