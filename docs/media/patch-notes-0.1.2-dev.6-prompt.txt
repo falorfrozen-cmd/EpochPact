@@ -1,0 +1,102 @@
+Use case: ads-marketing / infographic-diagram.
+Create ONE polished, extremely readable high-resolution portrait patch-notes poster for Discord, approximately 2160 x 3840. The attached image is a STYLE REFERENCE ONLY: retain EpochPact's luxurious dark emerald, antique gold, glowing mint crystal aesthetic, gold filigree corners, ancient floating ruins, beautiful hourglass emblem, serif headings and crisp modern sans-serif body typography. Create a NEW composition and NEW text; do not retain any old copy from the reference.
+
+Design like a premium dark fantasy game update announcement, not a screenshot. Header: emerald hourglass in ornate gold astrolabe beside enormous EPOCHPACT wordmark, atmospheric distant ruined citadel, tasteful teal mist. Text is the priority: quiet nearly black emerald panel surfaces, ivory body text, gold headings, thin elegant dividers. Avoid background artwork under body text. Good typography, generous margins, no clipping, no illegible microtext. Keep icons restrained, around 15% of each card, so the copy remains large. No cartoony characters, no giant noisy artwork, no fake buttons, no QR codes. Every word below is English. Exact copy only; do not invent claims about safety, compatibility, testing or release status.
+
+Layout: cinematic header occupying around 12% height, a full-width BUG FIXES panel with two balanced text columns, then NEW FEATURES as ten equal cards in a two-column, five-row grid. Distinct small detailed fantasy icons for each card (skill orb, branching runes, crossed weapons, skeletal minion, flaming projectile, forge anvil, shrine/chest, inventory satchel, camera crystal, emerald UI panel). Then a readable full-width KNOWN LIMITATIONS panel, and footer with repository and Discord links. Make this one cohesive tall poster; all content below must fit with comfortable spacing. Use small emerald diamonds as bullets, not computer emojis.
+
+Text to render verbatim:
+
+Header:
+LAST EPOCH • OFFLINE TOOLS
+EPOCHPACT
+PATCH NOTES
+0.1.2-dev.6 • DEVELOPMENT BUILD
+
+Bug fixes panel:
+BUG FIXES
+Auto-pickup pauses during item inspection.
+Improved permissions, admin install and rollback.
+Fixed blank or outdated interface startup.
+Fixed stale disabled Apply buttons.
+Draft values survive Alt-Tab and refresh.
+Corrected stat bonuses and percentage conversion.
+Choose Mastery for eligible campaign characters.
+Readable results instead of raw diagnostic output.
+Fixed projectile double-scaling and crafting saves.
+
+Feature grid section title:
+NEW FEATURES
+
+Card 1:
+SKILL PROGRESSION
+Separate Skill XP multiplier.
+Passive point scaling, including 1.5x.
+Skill points scale with gear-granted levels.
+
+Card 2:
+TREE FREEDOM
+Skill, Passive and Weaver connection bypasses.
+Weaver multiplier and flat extra points.
+Point budgets and node caps still apply.
+
+Card 3:
+GEAR & BLESSINGS
+Offhand restriction bypass.
+Full set bonuses from one set piece.
+Max blessing rolls and 3 / 4 / 5 choices.
+
+Card 4:
+SUMMON CONTROL
+Summon stat editing and live stats.
+Lifetime scaling for Wraiths, Totems and Ballistas.
+
+Card 5:
+PROJECTILE CONTROL
+Projectile multiplier and flat extras.
+Beams and stationary areas are excluded.
+
+Card 6:
+CUSTOM CRAFTING
+Mix Unique and Set stat modifiers.
+Up to 64 custom lines + 6 regular T7 affixes.
+Stock crafting materials up to 1,000,000.
+
+Card 7:
+WORLD & PICKUP
+Adjustable auto-pickup radius.
+Nearby chest opening and shrine activation.
+One-use automatic portal interaction.
+
+Card 8:
+INVENTORY SHORTCUTS
+Open Stash or Vendor.
+Stash All from your inventory.
+
+Card 9:
+CAMERA & GRAPHICS
+Camera zoom and angle controls.
+Shadows, reflections, fog, bloom,
+ambient occlusion and motion blur options.
+
+Card 10:
+UI & COMPATIBILITY
+Dedicated Crafting menu.
+General edits apply automatically.
+Save actions keep their own buttons.
+MelonLoader bridge tested with 0.7.3.
+
+Limitations panel:
+KNOWN LIMITATIONS
+Mixed gear requires EpochPact and its local recipe file.
+Not every skill or modifier is live-tested; Abomination duration needs verification.
+Intermittent MelonLoader character-load crash under investigation.
+No fresh VirusTotal or Nexus scan for this build.
+
+Footer:
+WINDOWS x64 • OFFLINE ONLY
+github.com/falorfrozen-cmd/EpochPact
+discord.gg/q6aexZZSAf
+Created by Falor
+
+Prioritize spelling accuracy, clean line wrapping, sharp high-contrast body text, and a genuinely premium fantasy editorial design. Do not change the version, the 64 + 6 limits, or 1,000,000. The poster should feel like an official expansion patch announcement with beautiful artwork confined to edges/header and a highly readable structured center.
