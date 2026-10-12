@@ -115,6 +115,8 @@ class PlayerSetup:
         self.bridge.actor_owner = None
         self.bridge.history.clear()
         self.bridge.temporary_resets.clear()
+        self.bridge.process = None
+        self.bridge._verified_session = None
 
     def select(self, value):
         path = validate_executable(value)
@@ -134,7 +136,7 @@ class PlayerSetup:
         return {'ok': True, 'launcher': self.status(), 'message': 'Game location saved.'}
 
     def status(self, *, check_running=True):
-        result = {'selected': False, 'executable': str(self.executable or ''), 'installed': False,
+        result = {'selected': False, 'executable': str(self.executable or ''), 'installed': False, 'updateRequired': False,
                   'running': False, 'problem': self.problem, 'revision': self.revision}
         if check_running:
             try:
@@ -157,8 +159,9 @@ class PlayerSetup:
             loader_ready = le.is_ours(loader) or (result['melonLoader'] and melon_compat.owned_bridge(bridge) and
                 bundled_bridge.is_file() and hashlib.sha256(bridge.read_bytes()).digest() == hashlib.sha256(bundled_bridge.read_bytes()).digest())
             result['disabled'] = (le.GAME / 'EpochPact/disabled').exists()
-            result['installed'] = (loader_ready and core.is_file() and
-                                   hashlib.sha256(core.read_bytes()).hexdigest() == digest)
+            core_matches = core.is_file() and hashlib.sha256(core.read_bytes()).hexdigest() == digest
+            result['installed'] = loader_ready and core_matches
+            result['updateRequired'] = le.is_ours_core(core) and not core_matches
         except (OSError, ValueError):
             result['problem'] = 'The game location or bundled mod files are unavailable. Select the game again or restore the EpochPact download.'
         return result
@@ -171,6 +174,8 @@ class PlayerSetup:
             raise RuntimeError('Select Last Epoch.exe in Game setup first.')
         le.require_supported_build(le.GAME)
         if not state['installed']:
+            if state['updateRequired']:
+                raise RuntimeError('The installed mod belongs to another EpochPact package. Close Last Epoch and reinstall the mod from this complete package.')
             raise RuntimeError('Install or update the mod in Game setup first. Close the game before installing.')
         if state.get('disabled'):
             raise RuntimeError('EpochPact is disabled in this game folder. Remove the EpochPact disabled file before launching.')

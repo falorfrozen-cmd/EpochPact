@@ -64,3 +64,9 @@ Offline characters only. Game updates may require a new EpochPact release.
 Alpha limitation: a UnityPlayer crash on full game exit has also been observed
 with EpochPact completely removed. Closing EpochPact and restoring its temporary
 settings was verified separately; this release does not claim zero game crashes.
+
+Connection / update help
+Use the EXE and DLLs from the same complete package. After an update, close Last
+Epoch and use Game setup -> Reinstall / update mod. Replacing only the EXE does
+not update the game DLL. Mod connected / Waiting for character means the loader
+is connected; load an offline character and let its area finish loading.

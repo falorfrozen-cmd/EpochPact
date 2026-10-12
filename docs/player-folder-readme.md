@@ -89,3 +89,17 @@ Created by Falor. Community-made, not affiliated with Eleventh Hour Games. AI-as
 - **Custom Items**: select equipment in the game forge, load item choices, choose a template and searchable affix checkboxes, then review and confirm. Extra Unique/Set effects are in an optional advanced section.
 
 Opening categories, searching and switching themes do not craft or grant materials. Extra mixed effects require EpochPact and its workshop-recipes.txt file when reloading or moving items.
+
+## Connection and matching versions
+
+Use the EXE and DLLs from this complete package together. After updating, close
+Last Epoch and use **Game setup → Reinstall / update mod**. **Mod update required**
+means the installed core does not match this package; replacing only the EXE is
+not enough. Hash verification is still enforced.
+
+**Mod connected · Waiting for character…** means the DLL answered but the offline
+character or area is still loading. **Waiting for game updates…** means Unity has
+not processed a read yet. **Game data unavailable** is a data-read failure while
+the DLL remains connected. Gameplay controls wait until the character is ready.
+Connection recovery only reads game state; it never completes quests or grants
+rewards. A timed-out save action is never automatically resubmitted.

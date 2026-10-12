@@ -37,6 +37,12 @@ test('remembered installation skips first-run modal and never auto-launches',()=
  const h=harness({selected:true,installed:true,running:false,executable:'D:/Custom/Last Epoch.exe'});
  assert.equal(h.shown,0);assert.equal(h.calls.length,0);assert.match(h.panel.html,/D:\/Custom/);
 });
+test('owned runtime mismatch displays an update instruction instead of game disconnected',()=>{
+ const h=harness({selected:true,installed:false,updateRequired:true,running:false,executable:'D:/Custom/Last Epoch.exe'});
+ assert.match(h.panel.html,/Mod update required/);
+ assert.match(h.panel.html,/Close Last Epoch and reinstall/);assert.match(h.panel.html,/Reinstall \/ update mod/);
+ assert.equal(h.calls.length,0);
+});
 test('cancelled native picker submits no job and cannot install anything',async()=>{
  const h=harness();h.window.pywebview={api:{choose_game_executable:async()=>null}};
  await h.click('data-game-choose');assert.equal(h.calls.length,0);assert.equal(h.api.browsing(),false);

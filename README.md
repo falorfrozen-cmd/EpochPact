@@ -15,7 +15,9 @@ controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest changes: [0.1.2-dev.9 release notes](docs/patch-notes-0.1.2-dev.9.md),
+Latest changes: [0.1.2-dev.11 connection fixes](docs/patch-notes-0.1.2-dev.11.md),
+[connection and final package validation](docs/connection-validation-2026-10-12.md),
+[0.1.2-dev.10 Crafting improvements](docs/patch-notes-0.1.2-dev.10.md),
 [inventory, interaction, respec and summon-DPS validation](docs/player-feedback-validation-2026-10-12.md),
 [remaining-three validation](docs/remaining-three-validation-2026-10-11.md), and
 [player-feedback validation](docs/player-feedback-validation-2026-10-11.md).
@@ -33,7 +35,7 @@ scoped evidence for these changed paths.
 
 ## Player installation
 
-Download [the current Windows development package](https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.9),
+Download [the current Windows development package](https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.11),
 extract the complete ZIP and open `EpochPact/EpochPact.exe`. Keep
 `EpochPact.exe.config` and `_internal` beside it; no Python installation is
 needed. Choose `Last Epoch.exe` with **Browse** (the picker starts in Steam's folder,
@@ -42,6 +44,13 @@ then **Launch offline**. The selected location is remembered and can be changed 
 the sidebar's **Game setup** entry (also available in Settings). Installation and
 launch are explicit actions. An occupied interface port uses another local port
 with this executable's own backend; an older server is never reused.
+
+For this connection update, extract the **complete new ZIP**, close Last Epoch,
+and use **Game setup → Reinstall / update mod**. The EXE and installed native
+core must belong to the same package; replacing only the EXE is insufficient.
+Connection checks use protocol 3 and the actual Windows process session rather
+than the date or presence of `protocol.json`. A connected mod can still be waiting
+for an offline character or game updates; gameplay controls remain disabled then.
 
 Windows 10/11 x64, Microsoft Edge WebView2 Runtime and .NET Framework 4.8 are
 required. See [the player quick start](docs/player-quickstart.txt).
@@ -110,7 +119,7 @@ To package the player UI after building the native player artifact, install
 `python -m tools.build_player`. The output is `dist/EpochPact.exe` with a quick
 start, dependency notices and SHA256 build record. Python is bundled; the package
 excludes research builds and historical character snapshots. For the standard
-folder ZIP used by 0.1.2-dev.9, build with `--layout onedir`, then use:
+folder ZIP used by current releases, build with `--layout onedir`, then use:
 
 ```
 python -m tools.package_player_folder --bundle dist/EpochPact --output dist/share

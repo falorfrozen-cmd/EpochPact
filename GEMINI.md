@@ -4,6 +4,11 @@ Last Epoch modding project (current verified runtime: **1.5.2**, 2026-10-08): a 
 from outside, every line our own (no mod loader, no third-party hook library). Offline
 characters only all features refuse in online play.
 
+Current connection release: **0.1.2-dev.11**. See
+`docs/connection-validation-2026-10-12.md` for the scoped final tests, real-game
+restart checks and the unresolved full-game-exit crash. Crafting dev.10 and
+inventory/convenience dev.9 changes are retained.
+
 This file is the operating manual for an AI agent picking the project up (Gemini CLI reads
 `GEMINI.md` as context automatically). Deeper material:
 - `docs/ui-catalog.md` / `ui/catalog.json` — one UI contract for every implemented control,
@@ -83,6 +88,12 @@ py -3 tools/le_session.py restore-saves <backup folder>
 - The hook engine patches the first instructions with a 5-byte jump to a relay (within 2 GB),
   relocating RIP-relative operands and short jumps; anything it cannot decode is refused.
 - Command channel: `<game>\EpochPact\ipc\cmd.txt` in / nonce-matched `reply.json` out.
+  The GUI and its nested backends use protocol 3: `@nonce !PID:FILETIME command`.
+  Replies must match nonce, Windows PID and process creation FILETIME. A verified
+  `connectionping` establishes attachment; `protocol.json` is optional and its
+  modification time is never connection authority. A game restart invalidates
+  cached proof, character data and temporary cleanup ownership. Each connection
+  read has its own eight-second budget; submitted mutations are never replayed.
   Only nonce-less legacy commands append to `out.txt`. The loop attaches to
   IL2CPP only while commands run (an attached thread blocks the game's quit otherwise).
 - **The focus trap:** the game stops updating when its window is not focused, so

@@ -76,6 +76,9 @@ link /nologo /OUT:"%OUT%\items_test.exe" "%OUT%\tests\items_test.obj" "%OUT%\tes
 cl %CFLAGS% /EHa /Fo"%OUT%\tests\\" /Fe"%OUT%\game_read_test.exe" "%HERE%tests\game_read_test.cpp" || exit /b 1
 
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\stat_key_test.exe" "%HERE%tests\stat_key_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\ipc_protocol_test.exe" "%HERE%tests\ipc_protocol_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\ipc_protocol_host.exe" "%HERE%tests\ipc_protocol_host.cpp" || exit /b 1
+cl %CFLAGS% /EHa /Gy /Fo"%OUT%\tests\\" /Fe"%OUT%\identity_test.exe" "%HERE%tests\identity_test.cpp" /link /OPT:REF || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\density_test.exe" "%HERE%tests\density_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\build_rules_test.exe" "%HERE%tests\build_rules_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\convenience_rules_test.exe" "%HERE%tests\convenience_rules_test.cpp" || exit /b 1

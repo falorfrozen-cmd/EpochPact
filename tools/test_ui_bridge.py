@@ -144,6 +144,9 @@ class BridgeTests(unittest.TestCase):
 
     def setUp(self):
         self.bridge = ui.UiBridge()
+        # Action contracts below start after a completed authenticated handshake.
+        # Connection-specific tests always perform the real handshake path.
+        self.bridge._verified_session = '123:100'
         self.commands = []
         self.live = copy.deepcopy(self.bridge.catalog['liveState'])
         self.player = {'id': '42', 'name': 'Test', 'scene': 'M_Rest'}
@@ -178,6 +181,8 @@ class BridgeTests(unittest.TestCase):
     def send(self, command, **kwargs):
         import json
         self.commands.append(command)
+        if command == 'connectionping':
+            return json.dumps({'ok':True,'protocol':3,**{k:self.bridge.process[k] for k in ('processId','sessionKey')}})
         if command in self.live:
             return json.dumps(self.live[command])
         if command.startswith('stashread'):
@@ -450,22 +455,29 @@ class BridgeTests(unittest.TestCase):
         pending = self.bridge.connection()
         self.assertTrue(pending['ok']); self.assertTrue(pending['connected'])
         self.assertFalse(pending['offline']); self.assertEqual(pending['phase'], 'waiting_frame')
-        self.assertEqual(self.commands, ['status','sessionread'])
+        self.assertEqual(self.commands, ['connectionping','status','sessionread'])
         self.live['sessionread'] = {'ok':True,'state':'InGame','transitioning':False}
         ready = self.bridge.connection()
         self.assertTrue(ready['offline']); self.assertEqual(ready['phase'], 'ready')
         self.assertEqual(ready['sessionKey'], '123:100')
-        self.assertTrue(all(x in ('status','sessionread','identityread','statraw 9 0 0 0') for x in self.commands))
+        self.assertTrue(all(x in ('connectionping','status','sessionread','identityread','statraw 9 0 0 0') for x in self.commands))
 
-    def test_starting_game_sends_no_command_before_current_protocol_is_published(self):
+    def test_missing_protocol_does_not_block_authenticated_connection(self):
         with patch.object(ui.le, 'ipc_ready', return_value=False):
             result = self.bridge.connection()
-            self.assertEqual(result['phase'], 'starting'); self.assertFalse(result['connected'])
-            with self.assertRaisesRegex(RuntimeError, 'not connected yet'):
-                self.bridge.execute('xp', {'value':2})
-        self.assertEqual(self.commands, [])
+            self.assertEqual(result['phase'], 'ready'); self.assertTrue(result['connected'])
+        self.assertEqual(self.commands[0], 'connectionping')
 
-    def test_connection_uses_one_seven_second_budget_instead_of_ninety_per_read(self):
+    def test_handshake_failure_prevents_mutation(self):
+        self.bridge._verified_session = None
+        self.live['connectionping'] = {'ok':False,'error':'native unavailable'}
+        # Override the handshake fixture with a failed actual response.
+        with patch.object(ui.le,'send',return_value=json.dumps(self.live['connectionping'])):
+            with self.assertRaisesRegex(RuntimeError,'native unavailable'):
+                self.bridge.execute('xp', {'value':2})
+        self.assertNotIn('xp 2',self.commands)
+
+    def test_connection_assigns_an_independent_native_compatible_timeout_to_each_read(self):
         clock = [100.0]; calls=[]
         def send(command, *, timeout):
             calls.append((command,timeout)); clock[0] += 2
@@ -473,7 +485,7 @@ class BridgeTests(unittest.TestCase):
         with patch.object(ui.time, 'monotonic', side_effect=lambda:clock[0]), patch.object(ui.le, 'send', side_effect=send):
             result = self.bridge.connection()
         self.assertTrue(result['offline'])
-        self.assertEqual([x[1] for x in calls], [7,5,3,1])
+        self.assertEqual([x[1] for x in calls], [8,8,8,8,8])
 
     def test_ancillary_speed_read_failure_does_not_disconnect_verified_character(self):
         original = self.send
@@ -481,6 +493,30 @@ class BridgeTests(unittest.TestCase):
             result = self.bridge.connection()
         self.assertTrue(result['offline']); self.assertEqual(result['phase'],'ready')
         self.assertNotIn('speed',result['values'])
+
+    def test_ancillary_speed_reply_with_wrong_owner_revokes_connection(self):
+        original = self.send
+        def send(command, **kwargs):
+            if command.startswith('statraw'):
+                raise ui.le.GameSessionError('wrong session')
+            return original(command, **kwargs)
+        with patch.object(ui.le, 'send', side_effect=send):
+            result = self.bridge.connection()
+        self.assertFalse(result['connected']); self.assertFalse(result['offline'])
+        self.assertIsNone(result['player']); self.assertIsNone(self.bridge._verified_session)
+
+    def test_nested_backend_requests_inherit_the_verified_process_binding(self):
+        bindings = []
+        original = self.send
+        def send(command, **kwargs):
+            owner = ui.le._ipc_process.get()
+            bindings.append(owner() if callable(owner) else owner)
+            return original(command, **kwargs)
+        with patch.object(ui.le, 'send', side_effect=send):
+            self.bridge.execute('craft_custom_catalog', {}, 'read')
+        self.assertTrue(bindings)
+        self.assertTrue(all(x['sessionKey'] == '123:100' for x in bindings))
+        self.assertIsNone(ui.le._ipc_process.get())
 
     def test_restarting_same_character_discards_old_cleanup_and_rejects_queued_action(self):
         self.bridge.connection()
@@ -493,14 +529,29 @@ class BridgeTests(unittest.TestCase):
                 self.bridge.execute('campaign_complete',{'expected_id':'42','expected_session':'123:100'})
             self.assertFalse(self.bridge.actor or self.bridge.temporary_resets or self.bridge.cache)
             self.assertEqual(self.bridge.restore_session()['restored'],0)
-            self.assertEqual(self.commands,[])
+            self.assertEqual(self.commands,['connectionping'])
             result=self.bridge.connection(); self.assertEqual(result['sessionKey'],'124:200')
 
     def test_identity_failure_cannot_enable_offline_controls(self):
         self.live['identityread']={'ok':False,'error':'Character is transitioning'}
         result=self.bridge.connection()
         self.assertTrue(result['connected']); self.assertFalse(result['offline'])
-        self.assertIsNone(result['player']); self.assertEqual(result['phase'],'waiting_frame')
+        self.assertIsNone(result['player']); self.assertEqual(result['phase'],'character_loading')
+
+    def test_metadata_failure_is_not_reported_as_a_frame_timeout(self):
+        self.live['sessionread']={'ok':False,'error':'client session metadata unavailable'}
+        result=self.bridge.connection()
+        self.assertTrue(result['connected']); self.assertFalse(result['offline'])
+        self.assertEqual(result['phase'],'read_error')
+
+    def test_changed_reply_owner_revokes_the_dll_connection(self):
+        original=self.send
+        def send(command, **kwargs):
+            if command == 'sessionread': raise ui.le.GameSessionError('wrong session')
+            return original(command, **kwargs)
+        with patch.object(ui.le,'send',side_effect=send): result=self.bridge.connection()
+        self.assertFalse(result['connected']); self.assertEqual(result['phase'],'unavailable')
+        self.assertIsNone(self.bridge._verified_session)
 
     def test_stopped_game_returns_immediately_and_clears_owned_state(self):
         self.bridge.connection(); self.bridge.temporary_resets[('xp',None)]='xp 1'; self.commands.clear()

@@ -41,13 +41,15 @@ class ConnectionIdentityTests(unittest.TestCase):
     def test_protocol_from_previous_process_or_reused_pid_is_not_ready(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(le,'GAME',Path(directory)):
             path=Path(directory)/'EpochPact/ipc/protocol.json';path.parent.mkdir(parents=True)
-            current={'processId':123,'startedNs':time.time_ns()-1_000_000_000}
+            current={'processId':123,'sessionKey':'123:100','startedNs':time.time_ns()-1_000_000_000}
             self.assertFalse(le.ipc_ready(current))
             path.write_text(json.dumps({'version':2,'pid':122}))
             self.assertFalse(le.ipc_ready(current))
-            path.write_text(json.dumps({'version':2,'pid':123}))
+            path.write_text(json.dumps({'version':3,'pid':123,'sessionKey':'123:100'}))
             self.assertTrue(le.ipc_ready(current))
-            self.assertFalse(le.ipc_ready({**current,'startedNs':path.stat().st_mtime_ns+1}))
+            os.utime(path,(1,1))
+            self.assertTrue(le.ipc_ready(current))  # mtime is never authentication.
+            self.assertFalse(le.ipc_ready({**current,'sessionKey':'123:200'}))
             for data in ({'version':1,'pid':123},{'version':2,'pid':'123'}):
                 path.write_text(json.dumps(data));self.assertFalse(le.ipc_ready(current))
             path.write_text('incomplete publication');self.assertFalse(le.ipc_ready(current))

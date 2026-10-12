@@ -1,0 +1,120 @@
+{
+  "version": "0.1.2-dev.11",
+  "date": "2026-10-12",
+  "result": "connection checks passed; full game shutdown remains unresolved",
+  "automated": {
+    "python": {
+      "passed": 235
+    },
+    "javascript": {
+      "passed": 118
+    },
+    "nativePrograms": {
+      "passed": 17
+    },
+    "compiledPackage": {
+      "passed": 21,
+      "checks": [
+        "application-scoped CLR config is beside the EXE for Internet-marked managed DLLs",
+        "folder bundle inventory matches every file hash; no nested archives or build tools",
+        "bundled Python runtime",
+        "verified player DLL only",
+        "no historical character snapshots",
+        "current launcher source in EXE",
+        "compiled installer helper installs exact DLLs in custom Unicode folder without Python",
+        "compiled EXE fresh install from actual read-only bundled DLLs preserves source flags and exact bytes",
+        "compiled EXE updates actual read-only owned files with exact recovery backups and no leaked stages",
+        "compiled installer refuses another mod loader without changes",
+        "compiled installer refuses an unsupported game build before writing files",
+        "compiled helper returns code 20 for an unapproved receipt folder without installing or overwriting a file",
+        "first launch performs no selection, installation or gameplay mutation",
+        "compiled interface serves scripts, font and both theme assets",
+        "installation API rejects missing session token",
+        "compiled API rejects foreign Host and Origin even with a valid session token",
+        "compiled HTTP selection and explicit installation succeed through the serial job queue",
+        "fixture game is never executed; no game IPC or save backups created",
+        "fresh EXE process remembers selected path and issues a new session token",
+        "compiled EXE rejects a legacy shared port and serves Game setup from its own backend",
+        "compiled startup logs contain no exception"
+      ]
+    },
+    "compiledConnectionSimulator": {
+      "passed": 4,
+      "checks": [
+        "extracted frozen EXE connects with stale read-only protocol announcement and no external Python on PATH",
+        "same compiled backend reconnects after process restart; separate slow reads finish beyond seven seconds",
+        "owned core mismatch blocks connection explicitly; matching bytes restore readiness",
+        "current crafting/UI resources are served exactly; no gameplay mutations, save backups or recipes generated"
+      ],
+      "durationsMs": [
+        156.1,
+        8187.4,
+        101.8,
+        232.9
+      ],
+      "scope": "Final extracted frozen EXE and real Windows process/file IPC with production C++ parser; game data simulated. No live gameplay or desktop-close claim."
+    }
+  },
+  "realGame": {
+    "steamBuild": 25816319,
+    "publicVersion": "1.5.2.1",
+    "internalVersion": "1.5.2.2",
+    "finalCoreSessions": 2,
+    "staleReadonlyAnnouncement": true,
+    "missingAnnouncement": true,
+    "wrongPidRejectedBeforeMutation": true,
+    "oldCreationTimeRejectedBeforeMutation": true,
+    "sameCompiledBackendReconnectedAfterRestart": true,
+    "previousSessionTemporarySettingsNotInherited": true,
+    "webViewStartup": true,
+    "desktopNormalClose": {
+      "exitCode": 0,
+      "temporaryXPReset": true,
+      "gameStillRunning": true
+    },
+    "fullGameClose": [
+      {
+        "exitCodeHex": "0xC0000005",
+        "module": "UnityPlayer.dll",
+        "offsetHex": "0x109ad1"
+      },
+      {
+        "exitCodeHex": "0xC0000005",
+        "module": null,
+        "offsetHex": null
+      }
+    ],
+    "saveRestore": {
+      "originalFilesVerified": 54,
+      "testFilesRemovedFromLiveDirectory": 3
+    }
+  },
+  "artifacts": {
+    "exe": {
+      "file": "EpochPact.exe",
+      "bytes": 372244,
+      "sha256": "fa6e87df326ce8f1e22551666f7731f2455a5a5ab4480226eba7b0172337a153"
+    },
+    "core": {
+      "file": "EpochPact.Core.dll",
+      "bytes": 1535488,
+      "sha256": "2837a74618293beb643005b07e83d059df2f91dda42280ab283b5fa88e209f34"
+    },
+    "loader": {
+      "file": "version.dll",
+      "bytes": 112640,
+      "sha256": "9f006140935b4cb41d3a68f4b25033bb7bfc5810959265e676bba257013a18b4"
+    },
+    "zip": {
+      "file": "EpochPact-0.1.2-dev.11.zip",
+      "bytes": 26886873,
+      "sha256": "12b1a88abb6796259af85ead0ea38d1ccf9cbd732ecdab5594d450257d346d01"
+    }
+  },
+  "limits": [
+    "No exhaustive gameplay retest of all features.",
+    "No interactive UAC or other-player-PC installation test.",
+    "No new VirusTotal or Nexus scan result.",
+    "Full game exit crash is not resolved by this connection update."
+  ]
+}

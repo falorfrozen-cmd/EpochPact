@@ -65,7 +65,7 @@ class UiBridge:
         self.cache = {}
         self.temporary_resets = {}  # Explicit session writes only; never save actions.
         self.process = None
-        self._read_deadline = None
+        self._verified_session = None
         self.demo = copy.deepcopy(self.catalog["liveState"]) if preview else {}
         self.demo_values = {x["id"]: x["default"] for x in self.catalog["controls"]
                             if x["lifetime"] in ("session", "actor") and x["widget"] in ("number", "toggle")}
@@ -85,19 +85,13 @@ class UiBridge:
         result["language"] = locale["language"]
         return result
 
-    def _send(self, command):
-        return text_ok(le.send(command, timeout=self._read_timeout(15)))
-
-    def _read_timeout(self, maximum):
-        if self._read_deadline is None:
-            return maximum
-        remaining = self._read_deadline - time.monotonic()
-        if remaining <= 0:
-            raise TimeoutError("The connection check timed out. It will be checked again automatically.")
-        return min(maximum, remaining)
+    def _send(self, command, *, timeout=15):
+        with le.bound_process(self.process):
+            return text_ok(le.send(command, timeout=timeout))
 
     def _json(self, command, *, timeout=90):
-        result = progression.request(command, timeout=self._read_timeout(timeout))
+        with le.bound_process(self.process):
+            result = progression.request(command, timeout=timeout)
         if not result.get("ok"):
             raise RuntimeError(result.get("error", "Could not read game data."))
         return result
@@ -109,16 +103,24 @@ class UiBridge:
             # writes, snapshots or cleanup commands, even for the same character.
             self.cache.clear(); self.actor.clear(); self.history.clear()
             self.actor_owner = None; self.temporary_resets.clear()
+            self._verified_session = None
         self.process = process
         if require_ready and not process:
             raise RuntimeError("Last Epoch is not running. The interface is ready; the game is disconnected.")
-        if require_ready and not le.ipc_ready(process):
-            raise RuntimeError("The game is starting or the mod is not connected yet. Wait for the connection to recover automatically.")
+        if require_ready and self._verified_session != process['sessionKey']:
+            self._handshake(process)
         return process
+
+    def _handshake(self, process):
+        result = self._json('connectionping', timeout=8)
+        if result.get('protocol') != 3 or type(result.get('processId')) is not int or \
+                result['processId'] != process['processId'] or result.get('sessionKey') != process['sessionKey']:
+            raise le.GameSessionError('The player mod does not match this game session. Close the game and install this complete EpochPact package.')
+        self._verified_session = process['sessionKey']
 
     def _session(self):
         self._sync_process(require_ready=True)
-        return self._json("sessionread", timeout=6)
+        return self._json("sessionread", timeout=8)
 
     def _offline(self, session):
         if session.get("state") != "InGame" or session.get("transitioning") is not False:
@@ -135,7 +137,8 @@ class UiBridge:
                         "values": self.demo_values}
             process = None
             attached = False
-            self._read_deadline = time.monotonic() + 7
+            stage = 'handshake'
+            session = {}
             try:
                 process = self._sync_process()
                 base = {"ok": True, "connected": False, "offline": False, "preview": False,
@@ -145,13 +148,14 @@ class UiBridge:
                 if not process:
                     return {**base, "phase": "stopped", "state": "None", "transitioning": False,
                             "text": "Last Epoch is not running. Launch offline from Game setup."}
-                if not le.ipc_ready(process):
-                    return {**base, "phase": "starting", "text": "Waiting for the player mod to connect. Connection checks continue automatically."}
-                # status does not depend on a Unity frame. It distinguishes a
-                # responding native worker from a not-yet-updating game window.
-                status = self._send("status")["text"]
+                self._handshake(process)
                 attached = True
-                session = self._json("sessionread", timeout=6)
+                # Each Unity read may wait up to five seconds in the native
+                # dispatcher. Allow that wait plus IPC overhead independently.
+                stage = 'settings'
+                status = self._send("status", timeout=8)["text"]
+                stage = 'session'
+                session = self._json("sessionread", timeout=8)
                 offline = "gate: offline play" in status
                 player = None
                 values = {}
@@ -163,16 +167,19 @@ class UiBridge:
                 if match:
                     values["autopickup"] = int(match[1] == "on")
                 if session.get("state") == "InGame" and session.get("transitioning") is False and offline:
-                    identity = self._json("identityread", timeout=6)
+                    stage = 'character'
+                    identity = self._json("identityread", timeout=8)
                     if identity.get("offline") is not True or identity.get("player", {}).get("id") is None:
                         raise RuntimeError("The offline character is not ready yet.")
                     player = identity["player"]
                     # A missing ancillary stat must not erase a verified session.
                     values.pop("speed", None)
                     try:
-                        stat = self._send("statraw 9 0 0 0")["text"]
+                        stat = self._send("statraw 9 0 0 0", timeout=8)["text"]
                         owned = re.search(r"EpochPact added=[\d.eE+-]+ increased=([\d.eE+-]+) more=[\d.eE+-]+ attached=1", stat)
                         values["speed"] = 1 + float(owned[1]) if owned else 1
+                    except le.GameSessionError:
+                        raise
                     except (RuntimeError, OSError):
                         pass
                 offline = offline and player is not None
@@ -180,13 +187,23 @@ class UiBridge:
                         "phase": "ready" if offline else "loading" if session.get("state") != "InGame" or session.get("transitioning") else "online",
                         "text": status, "player": player}
             except (RuntimeError, OSError) as exc:
+                if isinstance(exc, le.GameSessionError):
+                    attached = False
+                message = english_exception(exc)
+                frame_wait = any(text in str(exc).lower() for text in (
+                    'main thread did not pick', 'game updates stopped between steps'))
+                character_wait = stage == 'character' and any(text in str(exc).lower() for text in (
+                    'enter a zone', 'character is not ready', 'character is transitioning',
+                    'offline character is not ready', 'required object/field unavailable'))
+                phase = ('waiting_frame' if frame_wait else 'character_loading' if character_wait else
+                         'read_error') if attached else 'unavailable'
+                if not attached:
+                    self._verified_session = None
                 return {"ok": True, "connected": attached, "offline": False, "preview": False,
-                        "player": None, "values": {}, "state": "SystemLoading", "transitioning": True,
+                        "player": None, "values": {}, "state": session.get('state', 'SystemLoading'), "transitioning": True,
                         "sessionKey": process["sessionKey"] if process else None,
                         "processId": process["processId"] if process else None,
-                        "phase": "waiting_frame" if attached else "unavailable", "error": english_exception(exc)}
-            finally:
-                self._read_deadline = None
+                        "phase": phase, "errorStage": stage, "error": message}
 
     def _parameters(self, control, supplied, operation):
         allowed = {x["name"] for x in control["parameters"]} - {"save_id"}
@@ -333,6 +350,12 @@ class UiBridge:
         return (player["id"], player["name"])
 
     def execute(self, cid, supplied=None, operation="set"):
+        # The identity is resolved after parameter validation. Nested backend
+        # modules inherit the same process binding without shared global state.
+        with progression._ipc_lock, le.bound_process(lambda: self.process):
+            return self._execute(cid, supplied, operation)
+
+    def _execute(self, cid, supplied=None, operation="set"):
         with progression._ipc_lock:
             if cid not in self.controls or operation not in ("set", "read", "reset"):
                 raise ValueError("Invalid control or operation.")

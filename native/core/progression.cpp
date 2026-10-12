@@ -170,8 +170,9 @@ struct Player {
     void* quests = nullptr;
     std::string name, id;
 };
-Player Current() {
-    if (!ready) throw std::runtime_error("progression metadata unavailable");
+Player Current(bool requireQuests = true) {
+    if ((requireQuests && !ready) || !m_actor || !m_offline)
+        throw std::runtime_error("player identity metadata unavailable");
     if (!game::IsOfflinePlay()) throw std::runtime_error(game::GateText());
     managed::RequireSession(4);
     Player player;
@@ -180,11 +181,13 @@ Player Current() {
     player.tracker = Get<void*>(player.actor, Offset("Actor", "characterDataTracker"));
     player.data = Get<void*>(player.tracker, Offset("CharacterDataTracker", "charData"));
     if (!player.data || !Value<bool>(m_offline, player.data)) throw std::runtime_error("loaded character is not offline");
-    void* holder = Invoke(m_holder, player.actor);
-    if (!holder || !game::IsAlive(holder)) throw std::runtime_error("player quest holder unavailable");
-    player.quests = Invoke(m_stateList, holder);
-    if (!player.quests || Get<void*>(player.quests, Offset("StatefulQuestList", "actor")) != player.actor)
-        throw std::runtime_error("quest list does not belong to the loaded character");
+    if (requireQuests) {
+        void* holder = Invoke(m_holder, player.actor);
+        if (!holder || !game::IsAlive(holder)) throw std::runtime_error("player quest holder unavailable");
+        player.quests = Invoke(m_stateList, holder);
+        if (!player.quests || Get<void*>(player.quests, Offset("StatefulQuestList", "actor")) != player.actor)
+            throw std::runtime_error("quest list does not belong to the loaded character");
+    }
     player.name = Text(Get<void*>(player.data, Offset("CharacterData", "<CharacterName>k__BackingField", "LE.Data")));
     // CharacterData inherits its save identifier; resolve through the actual class.
     const auto* getter = il2cpp::api().class_get_method_from_name(il2cpp::api().object_get_class(player.data), "get_Id", 0);
@@ -548,10 +551,12 @@ std::string Read() {
 }
 std::string Identity() {
     return Run([] {
-        const auto player = Current();
+        const auto player = Current(false);
         void* scene = Invoke(m_currentScene);
+        const auto sceneName = scene ? Text(Get<void*>(scene, Offset("SceneDetails", "Name"))) : std::string();
+        if (sceneName.empty()) throw std::runtime_error("Enter a zone with an offline character and wait for loading to finish.");
         return "{\"ok\":true,\"offline\":true,\"player\":{\"id\":" + Json(player.id) +
-            ",\"name\":" + Json(player.name) + ",\"scene\":" + Json(scene ? Text(Get<void*>(scene, Offset("SceneDetails", "Name"))) : "") + "}}";
+            ",\"name\":" + Json(player.name) + ",\"scene\":" + Json(sceneName) + "}}";
     });
 }
 

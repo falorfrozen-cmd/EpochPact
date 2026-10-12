@@ -107,6 +107,20 @@ test('automatic handshake recovers from a first frame timeout without focus or a
  assert.equal(h.run('autoPending.size'),0);
 });
 
+test('verified DLL waiting states keep gameplay disabled and display a connected mod',async()=>{
+ for(const [phase,label] of [['loading','Waiting for character'],['character_loading','Waiting for character'],['waiting_frame','Waiting for game updates'],['read_error','Game data unavailable']]){
+  const h=automaticHarness();h.replies.push({ok:true,connected:true,offline:false,player:null,values:{},state:'SystemLoading',transitioning:true,phase,sessionKey:'10:1'});
+  await h.run('refreshConnection(true,false)');
+  assert.match(h.element('#connection').textContent,/Mod connected/);assert.ok(h.element('#connection').textContent.includes(label));
+  assert.equal(h.button.disabled,true);assert.equal(h.run('autoPending.size'),0);assert.equal(h.calls.length,1);assert.equal(h.calls[0].type,'connection');
+ }
+});
+
+test('a mismatched installed package shows update required and never starts gameplay actions',async()=>{
+ const h=automaticHarness();h.replies.push({ok:true,connected:false,offline:false,phase:'update_required',error:'Close Last Epoch and reinstall the complete package.'});
+ await h.run('refreshConnection(true,false)');assert.match(h.element('#connection').textContent,/Mod update required/);assert.equal(h.button.disabled,true);assert.equal(h.calls.length,1);
+});
+
 test('background handshakes do not disable controls or redraw an unchanged form',async()=>{
  const h=automaticHarness();h.run(`connected.sessionKey='10:1';lastGameSession='10:1';connectionNextCheck=0;`);
  let release;h.context.testJob=async payload=>{h.calls.push(payload);return await new Promise(r=>release=r);};

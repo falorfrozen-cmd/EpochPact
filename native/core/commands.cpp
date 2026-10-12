@@ -25,6 +25,7 @@
 #include "xp.hpp"
 #include "build_controls.hpp"
 #include "convenience.hpp"
+#include "ipc_protocol.hpp"
 #include <mutex>
 #ifdef EPOCHPACT_RESEARCH
 #include "research.hpp"
@@ -82,6 +83,8 @@ std::string Execute(const std::string& line) {
     if (parts.empty()) return {};
     const std::string& cmd = parts[0];
     const std::vector<std::string> args(parts.begin() + 1, parts.end());
+    if (cmd == "connectionping") return args.empty() ? ipc::Ping(ipc::CurrentOwner()) :
+        "{\"ok\":false,\"error\":\"connectionping expects no arguments\"}";
     if(cmd=="buildread")return args.empty()?builds::Read():"{\"ok\":false,\"error\":\"buildread expects no arguments\"}";
     if(cmd=="treerespec")return args.size()==2?builds::Respec(args[0],args[1]):"{\"ok\":false,\"error\":\"use treerespec save-id skills|passives|weaver\"}";
     if(cmd=="inventoryread")return args.empty()?convenience::InventoryRead():"{\"ok\":false,\"error\":\"inventoryread expects no arguments\"}";
@@ -369,7 +372,11 @@ void Loop(il2cpp::Domain* domain) {
     EnsureDir(dir);
     const std::wstring in = dir + L"cmd.txt", out = dir + L"out.txt";
     files::Rotate(out, 1024 * 1024);
-    Publish(dir + L"protocol.json", "{\"version\":2,\"pid\":" + std::to_string(GetCurrentProcessId()) + "}");
+    const auto owner = ipc::CurrentOwner();
+    // An announcement is optional. Replies themselves prove process ownership;
+    // a protected/stale announcement cannot prevent a read-only handshake.
+    Publish(dir + L"protocol.json", "{\"version\":3,\"pid\":" + std::to_string(owner.pid) +
+        ",\"sessionKey\":\"" + owner.Key() + "\"}");
     const il2cpp::Api& a = il2cpp::api();
     while (!lifecycle::Stopping()) {
         mainthread::Housekeep();
@@ -394,19 +401,13 @@ void Loop(il2cpp::Domain* domain) {
                 if (lifecycle::Stopping()) break;
                 if (!line.empty() && line.back() == '\r') line.pop_back();
                 if (line.find_first_not_of(" \t") == std::string::npos) continue;
-                std::string nonce;
-                if (line[0] == '@') {
-                    const auto space = line.find(' ');
-                    if (space == std::string::npos || space < 2 || space > 65) continue;
-                    nonce = line.substr(1, space - 1);
-                    if (nonce.find_first_not_of("0123456789abcdef") != std::string::npos) continue;
-                    line = line.substr(space + 1);
-                }
-                const std::string reply = Execute(line);
-                Log("command: %s", line.c_str());
-                if (nonce.empty()) Append(out, "> " + line + "\r\n" + reply + "\r\n");
-                if (!nonce.empty()) Publish(dir + L"reply.json", "{\"nonce\":" + managed::Json(nonce) +
-                    ",\"reply\":" + managed::Json(reply) + "}");
+                const auto packet = ipc::Parse(line, owner.Key());
+                if (!packet.accepted && packet.error.empty()) continue;
+                const std::string reply = packet.accepted ? Execute(packet.command) :
+                    "{\"ok\":false,\"error\":" + managed::Json(packet.error) + "}";
+                Log("command%s: %s", packet.accepted ? "" : " rejected", packet.command.c_str());
+                if (packet.nonce.empty()) Append(out, "> " + packet.command + "\r\n" + reply + "\r\n");
+                else Publish(dir + L"reply.json", ipc::Reply(owner, packet.nonce, managed::Json(reply)));
             }
             if (thread) a.thread_detach(thread);
         }

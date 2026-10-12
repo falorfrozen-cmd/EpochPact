@@ -92,3 +92,6 @@ dialog.stat-editor{max-width:740px;padding:0;scrollbar-color:var(--gold) var(--p
 #confirm-message{white-space:pre-line}
 @media(max-width:900px){.craft-categories{gap:8px}.craft-categories button{padding:12px}.craft-categories strong{font-size:13px}.craft-categories span{font-size:10px}.craft-item-state{flex-wrap:wrap}}
 @media(max-width:600px){.craft-categories{grid-template-columns:1fr}.craft-categories span{margin-top:4px}.craft-template-search{grid-template-columns:1fr}.craft-summary{grid-template-columns:1fr;gap:6px}.craft-summary dd{margin-bottom:10px}}
+
+/* Longer connection states remain readable without hiding the DLL status. */
+.topbar #connection{max-width:380px;white-space:normal;line-height:1.3}

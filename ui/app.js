@@ -303,7 +303,7 @@ async function refreshConnection(silent=true,refreshCurrent=true,{preservePage=f
  if(!preview&&cache.monolith_read&&!window.EpochSession.currentArea(cache.monolith_read,connected)){
   delete cache.monolith_read;delete cache.echo_read;
  }
- const label=preview?"● Preview":result.phase==="starting"?"◌ Connecting to game…":result.phase==="waiting_frame"?"◌ Waiting for game updates…":result.phase==="unavailable"?"◌ Reconnecting to game…":result.connected?(result.offline?"● Offline · "+result.state:"● "+result.state):"○ Game disconnected";
+ const label=preview?"● Preview":result.phase==="update_required"?"◌ Mod update required":result.phase==="setup"?"○ Install the player mod":result.phase==="starting"?"◌ Connecting to game…":result.phase==="waiting_frame"?"● Mod connected · Waiting for game updates…":["character_loading","loading"].includes(result.phase)?"● Mod connected · Waiting for character…":result.phase==="read_error"?"● Mod connected · Game data unavailable":result.phase==="unavailable"?"◌ Reconnecting to game…":result.connected?(result.offline?"● Offline · "+result.state:"● "+result.state):"○ Game disconnected";
  $("#connection").textContent=label;$("#connection").title=result.error||result.text||label;
  $("#connection").classList.toggle("connected",result.connected);
  let valuesChanged=false;
@@ -317,7 +317,7 @@ async function refreshConnection(silent=true,refreshCurrent=true,{preservePage=f
  const masteryMayHaveChanged=page==="campaign"&&cache.progress_read?.mastery?.panelOpen===true;
  const recovered=background&&(!previous.offline||restarted)&&result.offline;
  if((refreshCurrent||recovered)&&readId&&(!cache[readId]||["general","loot","crafting"].includes(page)||masteryMayHaveChanged)&&eligible(controlById(readId)))await refreshSection(readId,{refreshConnectionFirst:false});
- }finally{connectionChecking=false;connectionNextCheck=Date.now()+(connected.offline?10000:["stopped","setup"].includes(connected.phase)?5000:2000);}
+ }finally{connectionChecking=false;connectionNextCheck=Date.now()+(connected.offline?10000:["stopped","setup","update_required","waiting_frame","read_error"].includes(connected.phase)?5000:2000);}
 }
 async function pollConnection(){
  if(!catalog||preview||busy||connectionChecking||liveReading||autoRunning||autoPending.size||Date.now()<connectionNextCheck||window.EpochLauncher?.browsing())return;

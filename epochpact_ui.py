@@ -88,8 +88,11 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
             elif payload["type"] == "connection":
                 launcher = setup.status() if setup else None
                 if setup and not launcher['installed']:
-                    result = {'ok': True, 'connected': False, 'offline': False, 'phase': 'setup', 'launcher': launcher,
-                              'error': 'Select the game and install the mod in Game setup.', 'preview': False, 'history': []}
+                    mismatch = launcher.get('updateRequired', False)
+                    result = {'ok': True, 'connected': False, 'offline': False,
+                              'phase': 'update_required' if mismatch else 'setup', 'launcher': launcher,
+                              'error': 'The installed mod belongs to a different EpochPact package. Close Last Epoch and reinstall the mod using this app.' if mismatch else
+                                       'Select the game and install the mod in Game setup.', 'preview': False, 'history': []}
                 else:
                     result = bridge.connection()
                     # Recovery is useful player information. A Settings-first

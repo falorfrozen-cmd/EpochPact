@@ -43,14 +43,38 @@ class SetupTests(unittest.TestCase):
         with self.assertRaises(RuntimeError): self.setup.require_ready()
         self.assertFalse((self.exe.parent / 'EpochPact').exists())
 
+    def test_owned_dll_from_another_package_requires_update_then_clears_after_install(self):
+        self.setup.select(str(self.exe))
+        self.assertTrue(self.setup.install()['ok'])
+        core=self.exe.parent/'EpochPact/EpochPact.Core.dll'
+        core.write_bytes(core.read_bytes()+b'isolated previous release fixture')
+        state=self.setup.status()
+        self.assertFalse(state['installed']);self.assertTrue(state['updateRequired'])
+        self.assertTrue(self.setup.install()['ok'])
+        state=self.setup.status()
+        self.assertTrue(state['installed']);self.assertFalse(state['updateRequired'])
+
+    def test_owned_core_mismatch_is_explicit_even_when_loader_is_missing(self):
+        self.setup.select(str(self.exe)); self.setup.install()
+        core = self.exe.parent / 'EpochPact/EpochPact.Core.dll'
+        core.write_bytes(core.read_bytes() + b'previous package fixture')
+        (self.exe.parent / 'version.dll').unlink()
+        state = self.setup.status()
+        self.assertFalse(state['installed']); self.assertTrue(state['updateRequired'])
+        with self.assertRaisesRegex(RuntimeError, 'another EpochPact package'):
+            self.setup.require_ready()
+
     def test_custom_path_is_persisted_and_reloaded_with_dynamic_recovery_boundary(self):
         self.bridge.actor = {'old-character': {}}
         self.bridge.history = [{'backup':'old-game'}]
+        self.bridge.process = {'processId':123,'sessionKey':'123:100'}
+        self.bridge._verified_session = '123:100'
         self.setup.select(str(self.exe))
         self.assertEqual(le.GAME, self.exe.parent)
         self.assertEqual(progression.BACKUPS, self.exe.parent / 'EpochPact/backups/progression')
         self.assertEqual(self.bridge.actor, {})
         self.assertEqual(self.bridge.history, [])
+        self.assertIsNone(self.bridge.process); self.assertIsNone(self.bridge._verified_session)
         reloaded = PlayerSetup(UiBridge(), config_path=self.setup.config_path)
         self.assertEqual(reloaded.executable, self.exe)
         moved = self.exe.with_name('moved.exe'); self.exe.rename(moved)

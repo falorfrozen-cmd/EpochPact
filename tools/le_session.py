@@ -18,6 +18,8 @@ as its own close button, so it saves and exits normally.
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+from contextvars import ContextVar
 import ctypes
 import ctypes.wintypes as wt
 import datetime as _dt
@@ -92,6 +94,17 @@ ROOT = resource_root()
 BUILD = ROOT / "native" / "build"
 OUT = runtime_root() / ('backups' if getattr(sys, 'frozen', False) else 'research/live')
 STEAM_APP = 899770
+_ipc_process = ContextVar('epochpact_ipc_process', default=None)
+
+
+@contextmanager
+def bound_process(process):
+    """Bind every nested backend request to one game process, on this worker only."""
+    token = _ipc_process.set(process)
+    try:
+        yield
+    finally:
+        _ipc_process.reset(token)
 MARK = "EpochPact\\EpochPact.Core.dll".encode("utf-16-le")  # only EpochPact's loader carries this
 
 user32 = ctypes.WinDLL("user32", use_last_error=True)
@@ -204,13 +217,16 @@ def selected_game_process() -> dict | None:
 
 
 def ipc_ready(process: dict) -> bool:
-    """Only the current game's freshly published capability can establish readiness."""
+    """Optional announcement matches this process; timestamps are never authority.
+
+    Connection readiness is established by an authenticated reply, not this file.
+    """
     path = GAME / "EpochPact/ipc/protocol.json"
     try:
         protocol = json.loads(path.read_text(encoding="utf-8"))
-        return (protocol.get("version") == 2 and type(protocol.get("pid")) is int and
+        return (protocol.get("version") == 3 and type(protocol.get("pid")) is int and
                 protocol["pid"] == process["processId"] and
-                path.stat().st_mtime_ns >= process["startedNs"])
+                protocol.get("sessionKey") == process["sessionKey"])
     except (OSError, ValueError, TypeError):
         return False
 
@@ -593,8 +609,11 @@ def modern_ipc(ipc: Path) -> bool:
     """A stale capability file from a stopped DLL is never trusted."""
     try:
         protocol = json.loads((ipc / "protocol.json").read_text(encoding="utf-8"))
-        if protocol.get("version") != 2 or type(protocol.get("pid")) is not int:
+        if protocol.get("version") not in (2, 3) or type(protocol.get("pid")) is not int:
             return False
+        if protocol['version'] == 3:
+            owner = process_identity(protocol['pid'])
+            return owner is not None and owner['sessionKey'] == protocol.get('sessionKey')
         handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, protocol["pid"])
         if not handle:
             return False
@@ -607,10 +626,21 @@ def modern_ipc(ipc: Path) -> bool:
         return False
 
 
-def send_packet(ipc: Path, command: str, timeout: float) -> str | None:
+class GameSessionError(RuntimeError):
+    """A reply cannot authenticate the game process that received the request."""
+
+
+def send_packet(ipc: Path, command: str, timeout: float, *, expected_process=None) -> str | None:
     nonce = secrets.token_hex(16)
+    binding = ''
+    if expected_process is not None:
+        key = expected_process.get('sessionKey')
+        if type(expected_process.get('processId')) is not int or not isinstance(key, str) or \
+                not re.fullmatch(r'[0-9]+:[0-9]+', key) or key.split(':')[0] != str(expected_process['processId']):
+            raise ValueError('Invalid expected game process.')
+        binding = '!' + key + ' '
     tmp = ipc / "cmd.tmp"
-    tmp.write_text(f"@{nonce} {command}\n", encoding="utf-8")
+    tmp.write_text(f"@{nonce} {binding}{command}\n", encoding="utf-8")
     deadline = time.monotonic() + timeout
     # A failed atomic rename has not submitted the command. Retry publication
     # with the SAME nonce; never publish it again once the rename succeeds.
@@ -625,7 +655,11 @@ def send_packet(ipc: Path, command: str, timeout: float) -> str | None:
     while time.monotonic() < deadline:
         try:
             packet = json.loads((ipc / "reply.json").read_text(encoding="utf-8"))
-            if packet.get("nonce") == nonce and isinstance(packet.get("reply"), str):
+            if isinstance(packet, dict) and packet.get("nonce") == nonce and isinstance(packet.get("reply"), str):
+                if expected_process is not None and (type(packet.get('processId')) is not int or
+                        packet['processId'] != expected_process['processId'] or
+                        packet.get('sessionKey') != expected_process['sessionKey']):
+                    raise GameSessionError('The reply belongs to an unverified game session. Close the game and install this complete EpochPact package. The request was not automatically repeated.')
                 return packet["reply"].strip()
         except (OSError, ValueError):
             pass  # Atomic publication or a transient Windows lock; never resend.
@@ -633,7 +667,7 @@ def send_packet(ipc: Path, command: str, timeout: float) -> str | None:
     return None
 
 
-def send(command: str, timeout: float = 10.0) -> str | None:
+def send(command: str, timeout: float = 10.0, *, expected_process=None) -> str | None:
     """Serialize request/reply pairs across all UI and CLI processes for this game."""
     identity = hashlib.sha256(os.path.normcase(str((GAME / 'EpochPact/ipc').resolve())).encode()).hexdigest()
     handle = kernel32.CreateMutexW(None, False, 'Local\\EpochPact.IPC.' + identity)
@@ -649,19 +683,28 @@ def send(command: str, timeout: float = 10.0) -> str | None:
             raise ctypes.WinError(ctypes.get_last_error())
         acquired = True
         remaining = timeout - (time.monotonic() - start)
-        return _send_locked(command, remaining) if remaining > 0 else None
+        owner = expected_process if expected_process is not None else _ipc_process.get()
+        if callable(owner):
+            owner = owner()
+        return _send_locked(command, remaining, expected_process=owner) if remaining > 0 else None
     finally:
         if acquired:
             kernel32.ReleaseMutex(handle)
         kernel32.CloseHandle(handle)
 
 
-def _send_locked(command: str, timeout: float) -> str | None:
+def _send_locked(command: str, timeout: float, *, expected_process=None) -> str | None:
     """Writes one command to cmd.txt and returns its reply from out.txt (None on timeout)."""
     ipc = GAME / "EpochPact" / "ipc"
     ipc.mkdir(parents=True, exist_ok=True)
+    if expected_process is not None:
+        return send_packet(ipc, command, timeout, expected_process=expected_process)
     if modern_ipc(ipc):
-        return send_packet(ipc, command, timeout)
+        protocol = json.loads((ipc / 'protocol.json').read_text(encoding='utf-8'))
+        owner = process_identity(protocol['pid']) if protocol['version'] == 3 else None
+        if protocol['version'] == 3 and (owner is None or owner['sessionKey'] != protocol.get('sessionKey')):
+            raise RuntimeError('The game restarted before the request was submitted. Refresh the connection; the action was not applied.')
+        return send_packet(ipc, command, timeout, expected_process=owner)
     out = ipc / "out.txt"
     start = out.stat().st_size if out.exists() else 0
     tmp = ipc / "cmd.tmp"
