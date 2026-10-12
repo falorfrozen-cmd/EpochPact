@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import MagicMock, patch
 
 from tools.desktop_config import NAME, validate
 
@@ -14,6 +15,22 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DesktopConfigTests(unittest.TestCase):
+    def test_invalid_inherited_console_does_not_prevent_interface_startup(self):
+        import epochpact_ui as desktop_ui
+        class BrokenConsole:
+            def write(self, _):
+                raise OSError(22, 'Invalid inherited Windows console handle')
+            def flush(self):
+                raise OSError(22, 'Invalid inherited Windows console handle')
+        server = MagicMock(server_port=18904)
+        with patch.object(sys, 'argv', ['EpochPact.exe', '--preview', '--no-open']), \
+             patch.object(sys, 'stdout', BrokenConsole()), \
+             patch.object(desktop_ui, 'UiBridge'), \
+             patch.object(desktop_ui, 'create_app'), \
+             patch.object(desktop_ui, 'interface_server', return_value=server):
+            desktop_ui.main()
+        server.serve_forever.assert_called_once_with()
+
     def test_missing_or_malformed_config_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / NAME

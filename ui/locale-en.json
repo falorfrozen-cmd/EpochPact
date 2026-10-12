@@ -43,7 +43,7 @@
     ],
     "loot_affixes": [
       "Wanted T7 affixes",
-      "Choose up to 64 affixes from the live list; leave the selection empty to accept any T7 affix."
+      "Search and sort the available affixes, then double-click to move choices between the two lists. Choose up to 64; an empty wanted list accepts any T7 affix."
     ],
     "loot_category": [
       "Pickup category",
@@ -504,6 +504,10 @@
     "pickup_radius_read": [
       "Pickup radius status",
       "Read the current pickup radius."
+    ],
+    "craft_t7": [
+      "Craft affixes up to T7",
+      "Upgrade existing T5 and T6 affixes with shards, one tier at a time. Stops at T7. Use plain shards or Basic Glyph of Hope for T6/T7. Material, Forging Potential and level requirements remain."
     ]
   },
   "researchOnly": {

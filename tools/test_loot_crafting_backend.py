@@ -44,7 +44,7 @@ class Controls(unittest.TestCase):
 class ExtendedControlsTests(unittest.TestCase):
     def test_new_toggles_reject_non_binary_values_without_ipc(self):
         with patch.object(backend.ipc, "request") as request:
-            for function in (backend.preserve_runes, backend.preserve_glyphs, backend.bypass_level, backend.reveal_map):
+            for function in (backend.preserve_runes, backend.preserve_glyphs, backend.bypass_level, backend.allow_t7, backend.reveal_map):
                 for value in (2, -1, 0.5, float("nan"), "1\ncraftforge 0", None):
                     with self.subTest(function=function.__name__, value=value), self.assertRaises(ValueError):
                         function(value)
@@ -53,9 +53,9 @@ class ExtendedControlsTests(unittest.TestCase):
     def test_new_toggle_commands_and_forge_submit_exactly_once(self):
         with patch.object(backend.ipc, "request", return_value={"ok": True}) as request:
             backend.preserve_runes(True); backend.preserve_glyphs(False); backend.bypass_level(1); backend.reveal_map(0)
-            backend.map_read(); backend.forge("0")
+            backend.map_read(); backend.forge("0");backend.allow_t7(1);backend.allow_t7(False)
             self.assertEqual([c.args[0] for c in request.call_args_list],
-                             ["craftrunes 1", "craftglyphs 0", "craftlevel 1", "mapreveal 0", "mapread", "craftforge 0"])
+                             ["craftrunes 1", "craftglyphs 0", "craftlevel 1", "mapreveal 0", "mapread", "craftforge 0", "craftt7 1", "craftt7 0"])
 
     def test_forge_requires_explicit_valid_save_identity(self):
         with patch.object(backend.ipc, "request") as request:

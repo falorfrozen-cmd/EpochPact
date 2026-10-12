@@ -13,7 +13,7 @@ function harness(){
   return elements.get(selector);
  }
  const document={querySelector:element,querySelectorAll:s=>s==='[data-control-id]'?buttons:[],addEventListener(){},documentElement:{dataset:{}}};
- const context=vm.createContext({document,window:{EpochSession:Session,EpochStats:{},EpochCrafting:require('../ui/crafting-model.js'),addEventListener(type,fn){(windowListeners[type]??=[]).push(fn);}},
+ const context=vm.createContext({document,window:{EpochSession:Session,EpochStats:{},EpochCrafting:require('../ui/crafting-model.js'),EpochAffixes:require('../ui/affix-picker.js'),addEventListener(type,fn){(windowListeners[type]??=[]).push(fn);}},
   location:{hash:'#monolith'},setTimeout:()=>0,setInterval:()=>0,clearTimeout(){},console,fetch(){throw Error('unexpected HTTP call');}});
  context.FormData=class{constructor(form){this.fields=form.fields;}get(name){return this.fields[name]??null;}getAll(name){const value=this.get(name);return value==null?[]:[value];}};
  const source=fs.readFileSync(process.env.EPOCHPACT_UI_SOURCE||path.join(__dirname,'../ui/app.js'),'utf8');
@@ -799,4 +799,25 @@ test('blank, zero, out-of-range and change-only edits survive loss of live bound
   const field=h.element('#page-content').innerHTML.match(/<input name="value"[^>]+>/g).at(-1);
   assert.doesNotMatch(field,/max="0"/);assert.equal(h.calls.length,0);
  }
+});
+
+
+test('wanted affix transfer, search and sorting stay local and submission includes hidden choices',async()=>{
+ const h=automaticHarness();h.run(`page='loot';connected.sessionKey='123:456';syncLootCraft('loot_read',{affixIds:[2],affixes:[{id:0,name:'Armor'},{id:1,name:'Fire Damage'},{id:2,name:'Cold Damage'}]});`);
+ h.element('[data-affix-list="available"]').selectedOptions=[{value:'0'}];h.run(`moveWantedAffixes('available')`);
+ const target={value:'Fire',hasAttribute:x=>x==='data-affix-search'};h.element('#page-content').listeners.input[0]({target});
+ assert.equal(h.calls.length,0);assert.equal(h.run(`wantedAffixes.selected.join(',')`),'2,0');assert.match(h.element('[data-affix-list="selected"]').innerHTML,/Cold Damage/);
+ h.context.affixForm={dataset:{id:'loot_affixes'},fields:{ids:'1'},reportValidity:()=>true};
+ h.replies.push({ok:true,affixIds:[2,0]});await h.run(`formAction(affixForm)`);
+ assert.deepEqual(h.calls.map(x=>[x.id,x.args]),[['loot_affixes',{ids:'2,0',expected_session:'123:456'}]]);assert.equal(h.run('wantedAffixes.dirty'),false);
+});
+test('wanted selection persists through failed apply, empty applies none, and stale owner cannot submit',async()=>{
+ const h=automaticHarness();h.run(`page='loot';connected.sessionKey='A';syncLootCraft('loot_read',{affixIds:[2],affixes:[{id:0,name:'Armor'},{id:2,name:'Cold Damage'}]});wantedAffixes.selected=[];wantedAffixes.dirty=true;`);
+ h.context.affixForm={dataset:{id:'loot_affixes'},fields:{},reportValidity:()=>true};h.replies.push({ok:false,error:'fixture refusal'});await h.run('formAction(affixForm)');
+ assert.equal(h.calls[0].args.ids,'none');assert.equal(h.run('wantedAffixes.dirty'),true);h.run(`connected.sessionKey='B'`);await h.run('formAction(affixForm)');assert.equal(h.calls.length,1);
+});
+test('T7 toggle is a Forge draft; reads preserve it and explicit Apply updates once without crafting',async()=>{
+ const h=automaticHarness();h.run(`page='crafting';values.craft_t7=0;appliedValues.craft_t7=0;settingChanged('craft_t7',1);syncLootCraft('craft_read',{allowT7:false});`);
+ assert.equal(h.run('values.craft_t7'),1);assert.equal(h.calls.length,0);h.replies.push({ok:true,allowT7:true},{ok:true,allowT7:true});await h.run('applyDraft()');
+ assert.deepEqual(h.calls.map(x=>x.id),['craft_t7','craft_read']);assert.equal(h.run('dirty.size'),0);assert.equal(h.run('values.craft_t7'),1);
 });

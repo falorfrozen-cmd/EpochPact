@@ -200,6 +200,10 @@ def controls():
     add("craft_fp", "crafting", "FP maliyet katsayısı", "number", "craftfp {value}", "session",
         "0 ücretsiz, 1 normal; örnek 0.5 yarı maliyet, yukarı yuvarlanır. FP üretmez, native eligibility korunur.", params=[parameter("value", "number", 0, 1)],
         default=1, reset="craftfp 1", api="tools.loot_crafting_backend.fp_factor(value)", current="liveState.craftread.fpFactor", requires=("loaded_actor",), doc="docs/loot-crafting.md")
+    add("craft_t7", "crafting", "Craft affixes up to T7", "toggle", "craftt7 {value}", "session",
+        "Upgrade existing unsealed T5 and T6 affixes one tier at a time with their shards. Stops at T7. T6/T7 upgrades use plain shards or Basic Glyph of Hope; other glyphs retain normal limits. Material, FP and level requirements remain.",
+        params=[value(0,1)], default=0, reset="craftt7 0", api="tools.loot_crafting_backend.allow_t7(value)",
+        current="liveState.craftread.allowT7", requires=("loaded_actor",), doc="docs/loot-crafting.md")
     for glyph, label in (("hope", "Glyph of Hope FP koruma ihtimali"), ("despair", "Glyph of Despair seal ihtimali")):
         add("craft_"+glyph, "crafting", label, "selector", "craft"+glyph+" {value}", "session",
             "Yüzde 0–100 veya reset; native glyph/affix uygunluğu gerekir. Despair T1–T4; Greater Hope ayrı desteklenmez.",
@@ -481,7 +485,7 @@ def validate(catalog):
     exposed = {c["commandTemplate"].split()[0] for c in controls if c["commandTemplate"]}
     # Private transport helpers used by existing backends, not additional user
     # features. Never expose a second travel/mutation button for these helpers.
-    internal = {"identityread", "frameread", "framereset", "monolithpanelready", "monolithrest", "craftcustom"}
+    internal = {"connectionping", "identityread", "frameread", "framereset", "monolithpanelready", "monolithrest", "craftcustom"}
     if roots - exposed - internal: raise ValueError(f"UI kataloğunda eksik normal komut: {roots - exposed - internal}")
     player = catalog["liveState"]["progressread"]["player"]
     for cmd in ("cofread", "monolithread", "factionread"):

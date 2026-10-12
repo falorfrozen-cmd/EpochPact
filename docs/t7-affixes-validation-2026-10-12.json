@@ -1,0 +1,87 @@
+{
+  "version": "0.1.2-dev.13",
+  "artifacts": {
+    "zipSHA256": "0f1cde24c8f27a67917bbe9efca660b3dc823233095880330dfb0614fc9bb29f",
+    "zipBytes": 31170810,
+    "exeSHA256": "d477f467ecd44122d2dcf62cf807ac1a77f86280a77efa84b4c30e6a4ff0f27c",
+    "coreSHA256": "2f9d34d97707972e6a8ada8fc5098690442bd2a0858fe054a7f622e3c86c676f",
+    "loaderSHA256": "d61ed60d5f94d21748cacc589fe4695790c8d33d19aaf74ddcab6182e48b39c7",
+    "entries": 963,
+    "manualAndBundledDLLsMatch": true
+  },
+  "automated": {
+    "python": 237,
+    "javascript": 126,
+    "nativePrograms": 17,
+    "hookEngineChecks": 50,
+    "compiledPackageChecks": 21,
+    "frozenIPCChecks": 4
+  },
+  "live": {
+    "character": "separate EpCraftTest copy",
+    "supportedGame": "Steam 1.5.2.1",
+    "internalGameVersion": "1.5.2.2",
+    "testCoreChecks": [
+      "T5 to T6 to T7",
+      "tier stop and toggle reset",
+      "Exalted rarity",
+      "native serialization preserves tier, roll and rarity",
+      "native affix values 67 to 130 to 163 for the test armor affix"
+    ],
+    "shippingCoreChecks": [
+      "neutral startup",
+      "T5 to T6 to T7 with shards 40 to 39 to 38 and FP 63 to 49 to 46",
+      "recovery backups",
+      "crafted T7 persists across a full game restart",
+      "EXE UI sets and clears wanted affix IDs 3 and 4",
+      "EXE T7 toggle enables and disables the native setting"
+    ],
+    "nativeFaults": 0,
+    "compiledBrowserViewport": {
+      "desktop": [
+        1280,
+        720
+      ],
+      "narrow": [
+        640,
+        900
+      ]
+    },
+    "pickerChecks": [
+      "two adjacent lists",
+      "double-click add and remove",
+      "search retains selected choices",
+      "A-Z and Z-A",
+      "empty selection restores any T7",
+      "search Enter does not submit"
+    ],
+    "shutdownExitCodes": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "saveRestore": {
+      "restoredFiles": 54,
+      "archivedTestFiles": 3,
+      "originalBytesVerified": true
+    }
+  },
+  "retainedPreFinalRarityFixChecks": [
+    "zero FP refused",
+    "Despair keeps native tier cap",
+    "Basic Hope at 100% keeps FP",
+    "shard and glyph preservation"
+  ],
+  "security": {
+    "localDefender": "no threats in exact release ZIP, EXE and core DLL",
+    "signature": "1.459.676.0",
+    "isVirusTotalOrNexusClearance": false
+  },
+  "limits": [
+    "T6/T7 extended shard upgrade supports no glyph or Basic Glyph of Hope; other glyphs retain native tier limits.",
+    "All affix families and glyph combinations have not been exhaustively tested.",
+    "Earlier intermittent full-game shutdown 0xC0000005 remains unresolved; five measured closes in this task returned zero."
+  ]
+}

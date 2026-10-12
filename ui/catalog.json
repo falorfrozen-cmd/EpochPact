@@ -1776,6 +1776,34 @@
       "documentation": "docs/loot-crafting.md"
     },
     {
+      "id": "craft_t7",
+      "group": "crafting",
+      "label": "Craft affixes up to T7",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "craftt7 {value}",
+      "pythonApi": "tools.loot_crafting_backend.allow_t7(value)",
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "craftt7 0",
+      "lifetime": "session",
+      "description": "Upgrade existing unsealed T5 and T6 affixes one tier at a time with their shards. Stops at T7. T6/T7 upgrades use plain shards or Basic Glyph of Hope; other glyphs retain normal limits. Material, FP and level requirements remain.",
+      "currentSource": "liveState.craftread.allowT7",
+      "requirements": [
+        "offline",
+        "loaded_actor"
+      ],
+      "documentation": "docs/loot-crafting.md"
+    },
+    {
       "id": "craft_hope",
       "group": "crafting",
       "label": "Glyph of Hope FP koruma ihtimali",
@@ -32206,7 +32234,7 @@
     ]
   },
   "counts": {
-    "controls": 121,
+    "controls": 122,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

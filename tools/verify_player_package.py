@@ -86,7 +86,7 @@ def main():
     assert metadata['flavor'] == 'player' and metadata['sha256'] == sha(core)
     assert sha(exe.read_bytes()) == json.loads((exe.parent / 'build-info.json').read_text())['sha256']
     assert extract('ui/launcher.js') == (ROOT / 'ui/launcher.js').read_bytes()
-    for script in ('app.js', 'session.js', 'preferences.js', 'crafting-model.js'):
+    for script in ('app.js', 'session.js', 'preferences.js', 'crafting-model.js', 'affix-picker.js'):
         assert extract('ui/' + script) == (ROOT / 'ui' / script).read_bytes(), script
     checks.extend(['bundled Python runtime', 'verified player DLL only',
                    'no historical character snapshots', 'current launcher source in EXE'])
@@ -260,7 +260,7 @@ def main():
             checks.append('first launch performs no selection, installation or gameplay mutation')
             index = request('/').decode()
             assert 'setup-dialog' in index and 'launcher.js' in index
-            for resource in ('app.js', 'style.css', 'stat-model.js', 'session.js', 'collection-ui.js', 'collection.css', 'launcher.js', 'preferences.js', 'crafting-model.js',
+            for resource in ('app.js', 'style.css', 'stat-model.js', 'session.js', 'collection-ui.js', 'collection.css', 'launcher.js', 'preferences.js', 'crafting-model.js', 'affix-picker.js',
                              'assets/chronoforge-art.png', 'assets/void-atlas-art.png', 'assets/inter.ttf', 'assets/monster-density.svg'):
                 assert len(request('/ui/' + resource)) > 0, resource
             checks.append('compiled interface serves scripts, font and both theme assets')

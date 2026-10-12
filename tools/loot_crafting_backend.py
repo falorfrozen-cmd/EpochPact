@@ -110,6 +110,10 @@ def bypass_level(value: bool) -> dict:
     return ipc.request(f"craftlevel {_toggle(value)}")
 
 
+def allow_t7(value: bool) -> dict:
+    return ipc.request(f"craftt7 {_toggle(value)}")
+
+
 def reveal_map(value: bool) -> dict:
     return ipc.request(f"mapreveal {_toggle(value)}")
 

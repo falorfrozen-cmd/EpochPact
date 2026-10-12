@@ -133,7 +133,7 @@ def verify(archive: Path, native_host: Path, assembly: Path):
             ready = job({'type': 'connection'}, token)
             assert ready['phase'] == 'ready' and ready['offline']
             report['checks'].append('owned core mismatch blocks connection explicitly; matching bytes restore readiness')
-            for asset in ('app.js', 'style.css', 'session.js', 'launcher.js', 'crafting-model.js', 'assets/chronoforge-art.png', 'assets/inter.ttf'):
+            for asset in ('app.js', 'style.css', 'session.js', 'launcher.js', 'crafting-model.js', 'affix-picker.js', 'assets/chronoforge-art.png', 'assets/inter.ttf'):
                 assert request('/ui/' + asset) == (app.parent / '_internal/ui' / asset).read_bytes()
             assert announcement.stat().st_mtime_ns == 1_000_000_000
             assert not (ipc / 'mutations').exists()

@@ -9,7 +9,7 @@ onedir = os.environ.get('EPOCHPACT_FREEZE_LAYOUT', 'onefile') == 'onedir'
 # Windows VERSIONINFO written by tools/build_player.py (publisher, product, version).
 version_file = os.environ.get('EPOCHPACT_VERSION_FILE') or None
 ui_files = ('index.html', 'app.js', 'style.css', 'stat-model.js', 'session.js',
-            'collection-ui.js', 'collection.css', 'launcher.js', 'preferences.js', 'crafting-model.js', 'locale-en.json', 'catalog.json', 'supported-game-builds.json')
+            'collection-ui.js', 'collection.css', 'launcher.js', 'preferences.js', 'crafting-model.js', 'affix-picker.js', 'locale-en.json', 'catalog.json', 'supported-game-builds.json')
 assets = ('chronoforge-art.png', 'chronoforge-reference.png', 'void-atlas-art.png',
           'void-atlas-reference.png', 'inter.ttf', 'inter-OFL.txt', 'monster-density.svg')
 datas = [(str(stage / 'ui' / name), 'ui') for name in ui_files]

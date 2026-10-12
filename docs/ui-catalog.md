@@ -5,7 +5,7 @@ Ana veri dosyası: [ui/catalog.json](../ui/catalog.json). Bu rehber ve JSON,
 Native komutlar, Python API'leri, parametre sınırları, nötr başlangıç değerleri,
 kalıcılık, gerçek seçenek ID'leri ve kaynak dosyalar burada bir arada.
 
-Üretim: `2026-10-12T01:22:59+07:00`; oyun okumalarının zamanı: `2026-10-12T01:22:59+07:00` (Asia/Bangkok).
+Üretim: `2026-10-12T01:22:59+07:00`; oyun okumalarının zamanı: `2026-10-08T11:35:03+07:00` (Asia/Bangkok).
 `default` nötr/başlangıç değeridir; `liveState`/`currentValues` yalnız tarihli okumadır.
 JSON yüklemek hiçbir ayarı oyuna uygulamaz; kayıtlı mod profili oluşturmaz.
 
@@ -13,7 +13,7 @@ JSON yüklemek hiçbir ayarı oyuna uygulamaz; kayıtlı mod profili oluşturmaz
 
 | Katalog | Adet |
 |---|---:|
-| Panel kontrolü / işlem | 121 |
+| Panel kontrolü / işlem | 122 |
 | SP stat türü | 134 |
 | Hazır stat adı | 72 |
 | Doğrulanmış C satırı | 206 |
@@ -169,6 +169,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `craft_materials_read` — Crafting material stock | `craftmaterialsread` | — | — | Okuma |
 | `craft_materials` — Maximize crafting materials | `craftmaterials {save_id} {value}` | value: 1…1000000 | 10000 | Oyun kaydı |
 | `craft_fp` — FP maliyet katsayısı | `craftfp {value}` | value: 0…1 | 1 | Oturum |
+| `craft_t7` — Craft affixes up to T7 | `craftt7 {value}` | value: 0…1 | 0 | Oturum |
 | `craft_hope` — Glyph of Hope FP koruma ihtimali | `crafthope {value}` | value: 0…100/reset | — | Oturum |
 | `craft_despair` — Glyph of Despair seal ihtimali | `craftdespair {value}` | value: 0…100/reset | — | Oturum |
 | `craft_shards` — Craft sırasında affix shard koru | `craftshards {value}` | value: 0…1 | 0 | Oturum |
@@ -184,6 +185,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Crafting material stock:** Read current native affix shard, rune and glyph quantities. Legacy/obsolete materials and affixes without a shard are excluded. API: `tools.loot_crafting_backend.materials_read()`.
 - **Maximize crafting materials:** Raise each current crafting shard, rune and glyph to at least the chosen quantity. Existing higher quantities are kept. Creates a recovery backup; the normal offline stash save retains these quantities without the mod. Shared stash characters share this stock. API: `tools.loot_crafting_backend.maximize_materials(save_id, value)`.
 - **FP maliyet katsayısı:** 0 ücretsiz, 1 normal; örnek 0.5 yarı maliyet, yukarı yuvarlanır. FP üretmez, native eligibility korunur. API: `tools.loot_crafting_backend.fp_factor(value)`. Reset: `craftfp 1`.
+- **Craft affixes up to T7:** Upgrade existing unsealed T5 and T6 affixes one tier at a time with their shards. Stops at T7. T6/T7 upgrades use plain shards or Basic Glyph of Hope; other glyphs retain normal limits. Material, FP and level requirements remain. API: `tools.loot_crafting_backend.allow_t7(value)`. Reset: `craftt7 0`.
 - **Glyph of Hope FP koruma ihtimali:** Yüzde 0–100 veya reset; native glyph/affix uygunluğu gerekir. Despair T1–T4; Greater Hope ayrı desteklenmez. API: `tools.loot_crafting_backend.glyph_chance("hope", value)`. Reset: `crafthope reset`.
 - **Glyph of Despair seal ihtimali:** Yüzde 0–100 veya reset; native glyph/affix uygunluğu gerekir. Despair T1–T4; Greater Hope ayrı desteklenmez. API: `tools.loot_crafting_backend.glyph_chance("despair", value)`. Reset: `craftdespair reset`.
 - **Craft sırasında affix shard koru:** Gerçekten tüketilen bir shardı normal AddShard API ile geri verir. API: `tools.loot_crafting_backend.preserve_shards(value)`. Reset: `craftshards 0`.

@@ -10,12 +10,14 @@ layout, build/test/live workflow, the current state and the traps) and
 `research/HANDOFF.md` (the full handoff report).
 
 Building the owner's UI? Start with [the complete UI catalog](docs/ui-catalog.md)
-and its machine-readable [ui/catalog.json](ui/catalog.json): all 121 implemented
+and its machine-readable [ui/catalog.json](ui/catalog.json): all 122 implemented
 controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest changes: [0.1.2-dev.12 inventory footer fix](docs/patch-notes-0.1.2-dev.12.md),
+Latest changes: [0.1.2-dev.13 T7 picker and forging](docs/patch-notes-0.1.2-dev.13.md),
+[T7 affix and final package validation](docs/t7-affixes-validation-2026-10-12.md),
+[0.1.2-dev.12 inventory footer fix](docs/patch-notes-0.1.2-dev.12.md),
 [inventory footer and final package validation](docs/inventory-footer-validation-2026-10-12.md),
 [0.1.2-dev.11 connection fixes](docs/patch-notes-0.1.2-dev.11.md),
 [connection and final package validation](docs/connection-validation-2026-10-12.md),
@@ -37,7 +39,7 @@ scoped evidence for these changed paths.
 
 ## Player installation
 
-Download [the current Windows development package](https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.12),
+Download [the current Windows development package](https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.13),
 extract the complete ZIP and open `EpochPact/EpochPact.exe`. Keep
 `EpochPact.exe.config` and `_internal` beside it; no Python installation is
 needed. Choose `Last Epoch.exe` with **Browse** (the picker starts in Steam's folder,

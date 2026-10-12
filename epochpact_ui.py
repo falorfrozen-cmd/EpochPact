@@ -68,7 +68,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
 
     @app.get("/ui/<path:path>")
     def assets(path):
-        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js", "crafting-model.js"):
+        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js", "crafting-model.js", "affix-picker.js"):
             return send_from_directory(ROOT / "ui", path)
         if path.startswith("assets/"):
             return send_from_directory(ROOT / "ui/assets", path.removeprefix("assets/"))
@@ -231,7 +231,14 @@ def main():
                      operation_log=None if args.preview else runtime_root() / "live/ui/operations.log")
     server = interface_server(app, args.port)
     url = f"http://127.0.0.1:{server.server_port}"
-    print(f"EpochPact {'PREVIEW' if args.preview else 'LIVE'}: {url}", flush=True)
+    announcement = f"EpochPact {'PREVIEW' if args.preview else 'LIVE'}: {url}"
+    logging.getLogger(__name__).info(announcement)
+    try:
+        print(announcement, flush=True)
+    except OSError:
+        # A GUI EXE can inherit an unusable redirected console handle on Windows.
+        # The interface must still open; the address is already in startup.log.
+        pass
     if args.no_open:
         server.serve_forever()
         return

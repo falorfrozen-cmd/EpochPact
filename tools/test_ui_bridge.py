@@ -602,6 +602,15 @@ class BridgeTests(unittest.TestCase):
 
 
 class HttpTests(unittest.TestCase):
+    def test_every_script_referenced_by_the_index_is_served(self):
+        index = self.client.get('/').get_data(as_text=True)
+        scripts = re.findall(r'<script[^>]+src="([^"]+)"', index)
+        self.assertIn('/ui/affix-picker.js', scripts)
+        for path in scripts:
+            with self.client.get(path) as response:
+                self.assertEqual(response.status_code, 200, path)
+                self.assertEqual(response.data, (ui.ROOT / path.lstrip('/')).read_bytes(), path)
+
     def setUp(self):
         self.bridge = ui.UiBridge(preview=True)
         self.app = create_app(self.bridge)

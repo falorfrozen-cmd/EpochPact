@@ -60,6 +60,7 @@ sayısının garantisi değildir.
 | `craftshards 0` | Normal shard tüketimi |
 | `craftrunes 0\|1` | Normal tüketim / gerçekten tüketilen bir rune'u geri ver |
 | `craftglyphs 0\|1` | Normal tüketim / gerçekten tüketilen bir glyph'i geri ver |
+| `craftt7 0\|1` | Normal T5 cap / opt-in shard upgrades of existing T5/T6 affixes to T6/T7; plain shards or Basic Hope, other glyphs retain native limits |
 | `craftlevel 0\|1` | Normal affix yükseltme seviye sınırı / sadece yerel Forge uygunluk kontrolünde sınırı kaldır |
 | `craftforge <offline save id>` | Seçili eşya ve materyalle bir normal Forge işlemi; öncesinde canlı eşya/kayıt yedeği |
 | `craftreset` | Bütün crafting ayarlarını nötr yap ve hook'ları kaldır |
@@ -147,3 +148,9 @@ ile karışmaz. Headless Edge arayüz kontrolü çoklu affix, tam LP adımı, FP
 taslağı, glyph input/reset ve mod reset değerlerini doğruladı; bu kontrol gerçek
 IPC veya kayıt kullanmaz. Kanıt: `research/live/loot-crafting-ui-check.json` ve
 `docs/ui-evidence/loot-crafting-preview.png`.
+
+## Wanted-affix interface (0.1.2-dev.13)
+
+Available and selected lists support double-click/Enter transfers, name/ID search and A–Z/Z–A sorting. Search never removes selections. Apply selection sends all selected IDs, not only the highlighted row. Empty selection is `lootaffixes none`. Drafts survive reads and failed requests; a verified character change clears the previous owner’s draft.
+
+See [T7 validation](t7-affixes-validation-2026-10-12.md) for real-game, compiled UI and scoped test evidence.

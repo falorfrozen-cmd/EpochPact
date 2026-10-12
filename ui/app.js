@@ -41,6 +41,8 @@ const developerControls=new Set(["density_read","map_read","pickup_radius_read",
 function playerControl(c){return developer||!developerControls.has(c.id);}
 let connected = {connected:false,offline:false}, values = {}, appliedValues = {}, dirty = new Set(), cache = {}, history = [], actorValues = {};
 const craftingModel=window.EpochCrafting;
+const affixPicker=window.EpochAffixes;
+let wantedAffixes=affixPicker.create();
 let craftingSection='forge',workshopAdvanced=false;
 const craftDisclosure={advanced:false,defaults:false};
 let workshopDraft=craftingModel.defaults(),workshopOwner=null;
@@ -124,6 +126,7 @@ async function flushAutomatic(force=false){
 }
 function invalidateLive({render=true}={}){
  cancelAutomatic();
+ wantedAffixes=affixPicker.create();
  cache={};actorValues={};history=[];connected={connected:false,offline:false};
  if(activeStat){activeStat=null;$("#stat-dialog").close();}
  $("#connection").textContent="○ Game disconnected";$("#connection").classList.remove("connected");
@@ -340,7 +343,27 @@ function settingCard(c) {
 function settingPanel(title,controls){return `<section class="panel"><div class="section-head"><h2>${title}</h2><span class="badge">${controls.every(automaticSetting)?"Changes apply automatically":"Use Apply changes below"}</span></div><div class="control-grid">${controls.map(settingCard).join("")}</div></section>`;}
 function actionCard(c, fields="", extra=""){
  const caption=c.id==="craft_materials"?"Stock all materials":c.id==="craft_forge"?"Craft once":c.id==="craft_reset"?"Restore game defaults":c.id==="mastery_choose"?"Choose Mastery":c.widget==="read"?"Read live":c.lifetime==="game_save"?"Apply action":c.widget==="preview"?"Preview":"Apply";
- return `<article class="control-card"><div class="control-top"><h3 class="control-title">${esc(c.label)}</h3><span class="badge ${c.lifetime==="game_save"?"save":""}">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><form class="control-form" data-id="${c.id}"><div class="form-grid">${fields||parameterFields(c)}</div>${extra}<p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" data-control-id="${c.id}" class="${c.lifetime==="game_save"||c.id==="mastery_choose"?"primary":""}">${caption}</button></div></form></article>`;
+ return `<article class="control-card ${c.id==='loot_affixes'?'affix-card':''}"><div class="control-top"><h3 class="control-title">${esc(c.label)}</h3><span class="badge ${c.lifetime==="game_save"?"save":""}">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><form class="control-form" data-id="${c.id}"><div class="form-grid">${fields||parameterFields(c)}</div>${extra}<p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" data-control-id="${c.id}" class="${c.lifetime==="game_save"||c.id==="mastery_choose"?"primary":""}">${c.id==='loot_affixes'?'Apply selection':caption}</button></div></form></article>`;
+}
+function wantedAffixFields(){
+ const owner=preview?'preview':automaticOwner();
+ if(owner&&owner!==wantedAffixes.owner)affixPicker.receive(wantedAffixes,[],owner);
+ const lists=affixPicker.lists(wantedAffixes,cache.loot_read?.affixes);
+ return `<div class="affix-picker"><div class="affix-tools"><label>Find an affix<input type="search" data-affix-search value="${esc(wantedAffixes.query)}" placeholder="Search name or ID…"></label><label>Sort<select data-affix-sort><option value="az" ${wantedAffixes.order==='az'?'selected':''}>Name · A–Z</option><option value="za" ${wantedAffixes.order==='za'?'selected':''}>Name · Z–A</option></select></label></div><div class="affix-lists"><div><label>Available affixes <span data-affix-available-count>${lists.available.length}</span><select size="10" data-affix-list="available" aria-label="Available T7 affixes">${options(lists.available)}</select></label><button type="button" data-affix-add>Add selected →</button></div><div><label>Wanted affixes <span data-affix-selected-count>${lists.selected.length} / 64</span><select size="10" data-affix-list="selected" aria-label="Selected wanted T7 affixes">${options(lists.selected)}</select></label><div class="actions"><button type="button" data-affix-remove>← Remove selected</button><button type="button" data-affix-clear>Clear all</button></div></div></div><p class="note" data-affix-status role="status">${wantedAffixes.dirty?'Selection changed · use Apply selection.':wantedAffixes.selected.length?'Selection applied.':'No selection accepts any T7 affix.'} Double-click an affix or press Enter to move it. Search only filters the available list.</p></div>`;
+}
+function updateWantedAffixLists(){
+ const lists=affixPicker.lists(wantedAffixes,cache.loot_read?.affixes);
+ for(const side of ['available','selected']){const node=$(`[data-affix-list="${side}"]`);if(node)node.innerHTML=options(lists[side]);}
+ $('[data-affix-available-count]').textContent=lists.available.length;
+ $('[data-affix-selected-count]').textContent=lists.selected.length+' / 64';
+ $('[data-affix-status]').textContent=wantedAffixes.dirty?'Selection changed · use Apply selection.':wantedAffixes.selected.length?'Selection applied.':'No selection accepts any T7 affix.';
+}
+function moveWantedAffixes(side,one){
+ const select=$(`[data-affix-list="${side}"]`);
+ const ids=one!==undefined?[one]:Array.from(select?.selectedOptions||[],x=>x.value);
+ if(side==='available'){const known=new Set(affixPicker.lists(wantedAffixes,cache.loot_read?.affixes).available.map(x=>x.id));if(ids.some(x=>!known.has(String(x))))return;}
+ if(!affixPicker.move(wantedAffixes,ids,side==='available')){notify('Choose at most 64 wanted affixes.',true);return;}
+ updateWantedAffixLists();
 }
 function options(list,selected,none=false){const picked=Array.isArray(selected)?selected.map(String):[String(selected)];return (none?`<option value="none" ${selected==null?'selected':''}>Clear selection (none)</option>`:"")+list.map(x=>`<option value="${esc(x.id)}" ${picked.includes(String(x.id))?"selected":""}>${esc(clean(x.uiLabel||x.name||x.id))}</option>`).join("");}
 function workshopModifierEntries(){
@@ -410,7 +433,7 @@ function renderCrafting(){
   html=`<section class="panel"><div class="section-head"><h2>Stock your materials</h2><button data-refresh="craft_materials_read" data-control-id="craft_materials_read">Refresh materials</button></div><p class="muted">Add shards, runes and glyphs to your saved crafting stash in one action.</p><p class="note">${esc(info)}</p>${actionCard(craftingControl('craft_materials','Minimum stock for every material','Raises each material to your chosen minimum. Higher quantities are kept. This adds a saved quantity once; it does not enable infinite materials.'))}<p class="muted">To keep materials while crafting, use Preserve materials in Forge Settings.</p></section>`;
  }else if(craftingSection==='custom')html=customWorkshop();
  else html=`<p class="note">These settings affect the game’s normal forge. Edit them here, then use <strong>Apply changes</strong> below. No item is crafted until you craft in the game or press Craft once.</p>`+
-  settingPanel('Preserve materials',[
+  settingPanel('Affix upgrade limit',[controlById('craft_t7')])+settingPanel('Preserve materials',[
    craftingControl('craft_shards','Keep affix shards','Keep the shard used for a craft. You need at least one to begin.'),
    craftingControl('craft_runes','Keep runes','Keep the rune used for a craft. You need at least one to begin.'),
    craftingControl('craft_glyphs','Keep glyphs','Keep the glyph used for a craft. You need at least one to begin.')])+settingPanel('Forging Potential cost',[craftingControl('craft_fp','Forging Potential cost','0 = no FP cost · 0.5 = half cost · 1 = normal cost. Does not add FP to an item.')])+
@@ -421,6 +444,7 @@ function renderCrafting(){
 }
 function field(name,label,html){return `<label>${esc(label)}${html}</label>`;}
 function parameterFields(c){
+ if(c.id==='loot_affixes')return wantedAffixFields();
  return c.parameters.filter(p=>p.name!=="save_id").map(p=>{
   const name=p.name;let html;
   if(name==="timeline")html=`<select name="timeline">${options(cache.monolith_read?.timelines||[],monoTarget.timeline)}</select>`;
@@ -482,7 +506,7 @@ function renderPage(){
  }else if(page==="inventory"){
   content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory shortcuts</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the currently selected stash tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_stash","inventory_vendor","inventory_stashall"].map(id=>actionCard(controlById(id))).join("")}</div></section>`;
  }else if(page==="loot"){
-  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius")])+settingPanel("Quality rules",["loot_lp","loot_t7","loot_filter"].map(controlById))+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_affixes","loot_category"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
+  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius")])+settingPanel("Quality rules",["loot_lp","loot_t7","loot_filter"].map(controlById))+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
  }else if(page==="crafting"){
   content.innerHTML=renderCrafting();
  }else if(page==="skills"){
@@ -708,9 +732,10 @@ function syncLootCraft(id,result){
  if(!readId)return false;
  if(id==="craft_forge")result={...result.crafting,...result};
  cache[readId]={...cache[readId],...result};
+ if(readId==='loot_read'&&Array.isArray(result.affixIds))affixPicker.receive(wantedAffixes,result.affixIds,preview?'preview':automaticOwner()||null,{force:id==='loot_reset'});
  const toggle=x=>x===undefined?undefined:Number(x);
  const fresh=readId==="map_read"?{map_reveal:toggle(result.enabled)}:readId==="loot_read"?{loot_lp:result.minimumLP,loot_t7:toggle(result.t7),loot_filter:toggle(result.respectFilter)}:
-  {craft_fp:result.fpFactor,craft_shards:toggle(result.preserveShards),craft_runes:toggle(result.preserveRunes),craft_glyphs:toggle(result.preserveGlyphs),craft_level:toggle(result.bypassLevel),craft_hope:result.hopePercent,craft_despair:result.despairPercent};
+  {craft_fp:result.fpFactor,craft_t7:toggle(result.allowT7),craft_shards:toggle(result.preserveShards),craft_runes:toggle(result.preserveRunes),craft_glyphs:toggle(result.preserveGlyphs),craft_level:toggle(result.bypassLevel),craft_hope:result.hopePercent,craft_despair:result.despairPercent};
  for(const [key,value] of Object.entries(fresh))if(value!==undefined){appliedValues[key]=value;if(!dirty.has(key))values[key]=value;}
  return true;
 }
@@ -761,7 +786,7 @@ setInterval(()=>void pollConveniences(),1000);
 function formArgs(form,c){
  const data=new FormData(form),args={};
  for(const p of c.parameters){if(p.name==="save_id")continue;let v=data.get(p.name);if(p.type==="optional_integer"&&(v===""||v===null))continue;
-  args[p.name]=c.id==="loot_affixes"?data.getAll("ids").join(",")||"none":p.type==="number_or_reset"?(v===""?null:Number(v)):p.type==="integer_or_none"&&v==="none"?null:p.type.includes("integer")||p.type==="number"?Number(v):v;
+  args[p.name]=c.id==="loot_affixes"?wantedAffixes.selected.join(",")||"none":p.type==="number_or_reset"?(v===""?null:Number(v)):p.type==="integer_or_none"&&v==="none"?null:p.type.includes("integer")||p.type==="number"?Number(v):v;
   if(c.id==="craft_custom"&&p.name==="affixes")args.affixes=data.getAll("affixes").join(",")||"keep";
   if(c.id==="craft_custom"&&p.name==="modifiers")args.modifiers=data.getAll("modifiers").join(",")||"none";
  }
@@ -774,6 +799,7 @@ function formArgs(form,c){
 }
 async function formAction(form,override){
  const c=controlById(override||form.dataset.id);if(!form.reportValidity())return;
+ if(c.id==='loot_affixes'&&wantedAffixes.owner!==(preview?'preview':automaticOwner())){notify('Refresh pickup rules for the loaded character before applying this selection.',true);return;}
  if(c.id==='craft_custom'){
   const problem=craftingModel.problem(workshopDraft,cache.craft_custom_catalog,cache.craft_read?.forgePreview);
   if(problem){notify(problem,true);return;}
@@ -844,6 +870,9 @@ content.addEventListener('toggle',e=>{if(e.target.hasAttribute?.('data-workshop-
 content.addEventListener("click",async e=>{
  const b=e.target.closest("button");if(!b||b.disabled)return;
  if(b.dataset.go){if(b.dataset.craftTarget)craftingSection=b.dataset.craftTarget;go(b.dataset.go);}
+ else if(b.hasAttribute?.('data-affix-add'))moveWantedAffixes('available');
+ else if(b.hasAttribute?.('data-affix-remove'))moveWantedAffixes('selected');
+ else if(b.hasAttribute?.('data-affix-clear')){affixPicker.move(wantedAffixes,[...wantedAffixes.selected],false);updateWantedAffixLists();}
  else if(b.dataset.craftSection){craftingSection=b.dataset.craftSection;renderPage();}
  else if(b.dataset.workshopMore){workshopListLimits[b.dataset.workshopMore]+=40;updateWorkshopUi();}
  else if(b.dataset.workshopRemove){workshopDraft[b.dataset.workshopRemove]=workshopDraft[b.dataset.workshopRemove].filter(x=>x!==b.dataset.choice);updateWorkshopUi();}
@@ -910,6 +939,7 @@ function rememberMonolithInput(input){
 }
 content.addEventListener("input",e=>{
  const t=e.target;
+ if(t.hasAttribute?.('data-affix-search')){wantedAffixes.query=t.value;updateWantedAffixLists();return;}
  if(t.dataset.workshopSearch){
   const kind=t.dataset.workshopSearch;workshopFilters[kind]=t.value;
   if(kind==='template'){const select=$('[data-workshop-template]');if(select)select.innerHTML=workshopTemplateOptions();}
@@ -936,6 +966,7 @@ content.addEventListener("change",e=>{
  if(e.target.dataset.navFavorite){saveDisplayPreference("favorites",e.target.dataset.navFavorite,e.target.checked);navigation();return;}
  if(e.target.dataset.summonColumn){saveDisplayPreference("summonColumns",e.target.dataset.summonColumn,!e.target.checked);$("#summon-live").innerHTML=summonTable();return;}
  const t=e.target;rememberMonolithInput(t);
+ if(t.hasAttribute?.('data-affix-sort')){wantedAffixes.order=t.value==='za'?'za':'az';updateWantedAffixLists();return;}
  if(t.dataset.craftGlyphMode){settingChanged(t.dataset.craftGlyphMode,t.value==='default'?null:50);return;}
  if(t.hasAttribute?.('data-workshop-kind')){workshopTemplateKind=t.value;const select=$('[data-workshop-template]');if(select)select.innerHTML=workshopTemplateOptions();return;}
  if(t.dataset.workshopPick){const selected=workshopDraft[t.dataset.workshopPick],id=String(t.value);workshopDraft[t.dataset.workshopPick]=t.checked?[...new Set([...selected,id])]:selected.filter(x=>x!==id);updateWorkshopUi();return;}
@@ -952,6 +983,8 @@ content.addEventListener("change",e=>{
  else if(t.name==="slot"&&t.closest('form')?.dataset.id==="cof_charges"){t.closest('form').querySelector('[name=value]').value=cache.cof_read?.slots.find(s=>s.index===Number(t.value))?.charges??"";}
  else if(t.name==="slot"&&t.closest('form')?.dataset.id==="cofprophecy"){const s=cache.cof_read?.slots.find(s=>s.index===Number(t.value));for(const name of ['reward','lens']){const select=t.closest('form').querySelector('[name='+name+']');const v=s?.[name==='reward'?'rewardId':'lens'];select.value=v==null?'none':String(v);if(select.selectedIndex<0)select.value='none';}}
 });
+content.addEventListener('dblclick',e=>{const option=e.target.closest('option'),select=e.target.closest('[data-affix-list]');if(select&&!busy)moveWantedAffixes(select.dataset.affixList,option?.value);});
+content.addEventListener('keydown',e=>{if(e.key!=='Enter')return;if(e.target.hasAttribute?.('data-affix-search')){e.preventDefault();return;}const select=e.target.closest('[data-affix-list]');if(select){e.preventDefault();if(!busy)moveWantedAffixes(select.dataset.affixList);}});
 $("#stat-form").addEventListener("submit",e=>{e.preventDefault();void statAction("set");});
 $("#stat-read").onclick=()=>void statAction("read");$("#stat-reset").onclick=()=>void statAction("reset");
 $("#stat-close").onclick=()=>$("#stat-dialog").close();$("#stat-mode").onchange=e=>changeStatMode(e.target.value);

@@ -4,7 +4,12 @@ Last Epoch modding project (current verified runtime: **1.5.2**, 2026-10-08): a 
 from outside, every line our own (no mod loader, no third-party hook library). Offline
 characters only all features refuse in online play.
 
-Current release: **0.1.2-dev.12**. Inventory shortcuts now occupy the measured
+Current release: **0.1.2-dev.13**. Wanted T7 affixes use the searchable dual-list
+picker (`ui/affix-picker.js`, shipped by both build_player.py and EpochPact.spec,
+served by epochpact_ui.py). Normal forging can opt into T6/T7 shard upgrades;
+plain shards and Basic Hope only for those extended tiers. See
+`docs/t7-affixes-validation-2026-10-12.md` for real-game and package evidence.
+Inventory placement from dev.12 is retained. Inventory shortcuts now occupy the measured
 footer gap after Sort; never place them outside the inventory or over currencies.
 See `docs/inventory-footer-validation-2026-10-12.md` for scale, simultaneous
 panel, matched-package and shutdown evidence. The connection protocol is retained
