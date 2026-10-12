@@ -40,9 +40,26 @@ numbers above come from the `qolread` counters over two snapshots 30 s apart.
 
 All native tests, 237 Python tests and 126 JavaScript tests passed.
 
-## Remaining
+## First inventory opening (0.46 s hitch)
 
-- The first inventory opening in a session creates the shortcuts once; this took
-  0.46 s in the measurement above (unchanged by this fix). Creating them lazily
-  over several frames, or caching the template lookups, would remove that one-time
-  hitch.
+The first opening in a session creates the shortcuts. A per-step profile written to
+core.log (`inventory shortcuts created: ...`) showed where the time went:
+
+| Step | Before | After |
+|---|---|---|
+| Hook installation (Button.OnPointerClick / OnSubmit) | 498 ms | 0 ms (installed at startup) |
+| Panel lookup (`FindObjectsOfType(InventoryPanelUI)`) | 51 ms | 0.001 ms |
+| Clone 3 buttons, labels, placement | ~2.5 ms | ~3.8 ms |
+| Whole first-open check | ~550 ms | 4.4 ms |
+
+Installing a hook briefly holds every game thread. `convenience::Init` now installs
+the two Button hooks and a hook on `InventoryPanelUI.OnEnable` while the game is
+still starting (`inventory shortcut hooks installed at startup` in core.log). The
+OnEnable hook remembers the panel, so creation needs no scene search; the search
+remains only as a fallback. If a startup installation fails, the previous lazy
+installation still runs. The Button hooks act only on EpochPact's own shortcut
+buttons and pass every other click to the game; menu clicks and character loading
+worked normally with them installed from startup.
+
+Measured with the same character and zone; all native, 237 Python and JavaScript
+tests passed.

@@ -219,6 +219,14 @@ bool ShortcutClick(void* button){
 }
 void Click(void* self,void* event,MethodInfo info){bool ours=false;game::Guarded([&]{ours=ShortcutClick(self);},nullptr);if(!ours)originalClick(self,event,info);}
 void Submit(void* self,void* event,MethodInfo info){bool ours=false;game::Guarded([&]{ours=ShortcutClick(self);},nullptr);if(!ours)originalSubmit(self,event,info);}
+// The game's own inventory panel, remembered when it is enabled, so creating the
+// shortcuts needs no FindObjectsOfType scene search (about 50 ms in play).
+game::Handle enabledInventoryPanel;
+void(*originalPanelEnable)(void*,MethodInfo)=nullptr;
+void PanelEnable(void* self,MethodInfo info){
+    originalPanelEnable(self,info);
+    if(!lifecycle::Stopping())game::Guarded([&]{enabledInventoryPanel.Set(self);},nullptr);
+}
 rules::Rect RectIn(void* transform,void* space){
     const auto rect=Value<rules::Rect>(M("RectTransform","get_rect",0,"UnityEngine","UnityEngine.CoreModule.dll"),transform);
     Vec3 lo{rect.x,rect.y,0},hi{rect.x+rect.w,rect.y+rect.h,0};void* la[]{&lo},*ha[]{&hi};
@@ -358,9 +366,16 @@ void InventoryButtons(){
         PlaceShortcuts();return;
     }
     ClearShortcuts();
-    ++inventorySearches;
-    auto panels=Find("LE.dll","","InventoryPanelUI");if(panels.empty()){inventoryStatus="inventory-closed";return;}
-    void* panel=panels.front();void* source=Get<void*>(panel,F("InventoryPanelUI","confirmRespecButton"));
+    // Creation profile: one core.log line per creation, so a slow step is visible.
+    std::string profile;uint64_t mark=Micros();
+    const auto phase=[&](const char* name){const auto now=Micros();profile+=std::string(" ")+name+"="+std::to_string((now-mark)/1000.0).substr(0,6)+"ms";mark=now;};
+    void* panel=enabledInventoryPanel.Get();
+    if(!panel){ // Enable hook unavailable or the panel was enabled before it went in.
+        ++inventorySearches;
+        auto panels=Find("LE.dll","","InventoryPanelUI");if(panels.empty()){inventoryStatus="inventory-closed";return;}
+        panel=panels.front();phase("find");
+    }else phase("panel");
+    void* source=Get<void*>(panel,F("InventoryPanelUI","confirmRespecButton"));
     void* parent=Get<void*>(panel,F("InventoryPanelUI","menuRectTransform"));if(!source||!parent){inventoryStatus="inventory-template-unavailable";return;}
     void* left=Get<void*>(panel,F("InventoryPanelUI","leftButtonsContainer"));if(!left){inventoryStatus="inventory-footer-unavailable";return;}
     Root footer(Invoke(M("Transform","get_parent",0,"UnityEngine","UnityEngine.CoreModule.dll"),left));
@@ -370,19 +385,23 @@ void InventoryButtons(){
     Root items(Invoke(M("Transform","get_parent",0,"UnityEngine","UnityEngine.CoreModule.dll"),footer.Get()));
     Root gridName(il2cpp::api().string_new("Inventory Grid "));void* ga[]{gridName.Get()};
     Root grid(Invoke(M("Transform","Find",1,"UnityEngine","UnityEngine.CoreModule.dll"),items.Get(),ga));
+    phase("footer");
     auto click=M("Button","OnPointerClick",1,"UnityEngine.UI","UnityEngine.UI.dll"),submit=M("Button","OnSubmit",1,"UnityEngine.UI","UnityEngine.UI.dll");
     std::string why;
     if(!hook::IsInstalled(click.code)&&!hook::Install(click.code,reinterpret_cast<void*>(&Click),reinterpret_cast<void**>(&originalClick),&why))throw std::runtime_error(why);
     if(!hook::IsInstalled(submit.code)&&!hook::Install(submit.code,reinterpret_cast<void*>(&Submit),reinterpret_cast<void**>(&originalSubmit),&why))throw std::runtime_error(why);
+    phase("hooks");
     auto* buttonType=game::FindClass("UnityEngine.UI.dll","UnityEngine.UI","Button");
     Root bt(il2cpp::api().type_get_object(il2cpp::api().class_get_type(buttonType)));
     Root templateObject(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),source));
     const auto* instantiate=Signature("Object","Instantiate",{"UnityEngine.Object","UnityEngine.Transform","System.Boolean"});
+    phase("template");
     for(auto pair:std::array<std::pair<const char*,const char*>,3>{{{"stash","Stash"},{"stashall","Stash all"},{"vendor","Vendor"}}}){
         bool world=false;void* a[]{templateObject.Get(),parent,&world};Root object(Invoke(instantiate,nullptr,a));
         bool off=false;void* offArgs[]{&off};Invoke(Method(object.Get(),"SetActive",1),object.Get(),offArgs);
         void* bargs[]{bt.Get()};Root button(Invoke(Signature("GameObject","GetComponent",{"System.Type"}),object.Get(),bargs));
         shortcuts.push_back({std::make_unique<Root>(button.Get()),std::make_unique<Root>(object.Get()),pair.first,pair.second,{}});
+        phase("clone");
         Root layoutType(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("UnityEngine.UI.dll","UnityEngine.UI","LayoutElement"))));
         void* la[]{layoutType.Get()};void* element=Invoke(Signature("GameObject","GetComponent",{"System.Type"}),object.Get(),la);
         if(!element)element=Invoke(Signature("GameObject","AddComponent",{"System.Type"}),object.Get(),la);
@@ -392,6 +411,7 @@ void InventoryButtons(){
         // localization component must not restore the original blessing label.
         // Only components below our cloned object are touched.
         bool inactive=true;
+        phase("layout");
         for(auto spec:std::array<std::tuple<const char*,const char*,const char*>,4>{{
             {"Unity.Localization.dll","UnityEngine.Localization.Components","LocalizeStringEvent"},
             {"LE.dll","PixelCrushers.DialogueSystem","LocalizeUIText"},
@@ -402,6 +422,7 @@ void InventoryButtons(){
             Root components(Invoke(Signature("GameObject","GetComponentsInChildren",{"System.Type","System.Boolean"}),object.Get(),a));
             for(uintptr_t i=0;i<Get<uintptr_t>(components.Get(),0x18);++i){void* component=Get<void*>(components.Get(),0x20+8*i);bool enabled=false;void* ea[]{&enabled};Invoke(M("Behaviour","set_enabled",1,"UnityEngine","UnityEngine.CoreModule.dll"),component,ea);}
         }
+        phase("localize");
         Root text(il2cpp::api().string_new(pair.second));
         for(bool tmp:{true,false}){
             Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass(tmp?"Unity.TextMeshPro.dll":"UnityEngine.UI.dll",tmp?"TMPro":"UnityEngine.UI",tmp?"TMP_Text":"Text"))));
@@ -412,6 +433,7 @@ void InventoryButtons(){
                 void* args[]{text.Get()};Invoke(Method(label,"set_text",1),label,args);}
         }
         if(shortcuts.back().labels.empty())throw std::runtime_error("Inventory shortcut has no supported text label.");
+        phase("labels");
         Root transform(Invoke(M("GameObject","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),object.Get()));
         // Parent to the inventory so closing/tabs inherit its visibility. The
         // measured footer gap determines the final horizontal row.
@@ -420,11 +442,13 @@ void InventoryButtons(){
         void* sa[]{&size},*pa[]{&pos},*sca[]{&scale};Invoke(M("RectTransform","set_sizeDelta",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),sa);
         Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),pa);Invoke(M("Transform","set_localScale",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),sca);
         bool on=true;void* args[]{&on};Invoke(Method(object.Get(),"SetActive",1),object.Get(),args);
+        phase("show");
     }
     inventoryPanel.Set(panel);menuTransform.Set(parent);footerTransform.Set(footer.Get());currencyTransform.Set(currency.Get());gridTransform.Set(grid.Get());
     currencyOriginalSize=Value<Vec2>(M("RectTransform","get_sizeDelta",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency.Get());
     currencyOriginalPosition=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency.Get());
     shortcutEnabled=false;inventoryStatus="created";PlaceShortcuts();
+    phase("place");Log("inventory shortcuts created:%s",profile.c_str());
 }
 void RestoreGraphics(){
     disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());
@@ -598,6 +622,19 @@ bool Init(){
     if(!(findObjects&&componentTransform&&transformPosition))return false;
     std::string why;
     if(!mainthread::RegisterFrameCallback(&Frame,&why)){Log("convenience bootstrap refused: %s",why.c_str());return false;}
+    // Installing a hook briefly holds every game thread (about 250 ms each here).
+    // Do it now, while the game is still starting, instead of on the first
+    // inventory opening in play. A failure keeps the previous lazy installation.
+    std::string hooks;
+    if(!game::Guarded([&]{try{
+        const std::tuple<game::MethodRef,void*,void**,const char*> specs[]{
+            {M("Button","OnPointerClick",1,"UnityEngine.UI","UnityEngine.UI.dll"),reinterpret_cast<void*>(&Click),reinterpret_cast<void**>(&originalClick),"Button.OnPointerClick"},
+            {M("Button","OnSubmit",1,"UnityEngine.UI","UnityEngine.UI.dll"),reinterpret_cast<void*>(&Submit),reinterpret_cast<void**>(&originalSubmit),"Button.OnSubmit"},
+            {M("InventoryPanelUI","OnEnable",0),reinterpret_cast<void*>(&PanelEnable),reinterpret_cast<void**>(&originalPanelEnable),"InventoryPanelUI.OnEnable"}};
+        for(const auto& [ref,detour,original,name]:specs){std::string reason;
+            if(!hook::IsInstalled(ref.code)&&!hook::Install(ref.code,detour,original,&reason))hooks+=std::string(" ")+name+": "+reason;}
+    }catch(const std::exception& e){hooks+=std::string(" ")+e.what();}},&hooks))hooks=" "+hooks;
+    Log("inventory shortcut hooks %s%s",hooks.empty()?"installed at startup":"deferred:",hooks.c_str());
     return true;
 }
 std::string Read(){return Run([]{return State();});}
