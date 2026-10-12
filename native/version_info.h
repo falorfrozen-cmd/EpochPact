@@ -3,7 +3,7 @@
 #pragma once
 
 #define EP_VERSION_NUM 0,1,2,13
-#define EP_VERSION_STR "0.1.2-dev.13"
+#define EP_VERSION_STR "0.1.2-dev.13.1"
 #define EP_COMPANY "Falor"
 #define EP_PRODUCT "EpochPact"
 #define EP_COPYRIGHT "Copyright (C) 2026 Falor"
