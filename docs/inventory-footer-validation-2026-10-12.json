@@ -1,0 +1,61 @@
+{
+  "version": "0.1.2-dev.12",
+  "artifacts": {
+    "zipSHA256": "79e8fd0d9b10739a452cd54677bf633fd22ca1955e0658bb1b13779c65105642",
+    "zipBytes": 26890666,
+    "exeSHA256": "5ea16e27cc9d94a0f8c9b18105765d449d38260536e5e243465b969a961b878a",
+    "coreSHA256": "a51e3b71f5b5748440312385333345f70a5e14f52605f41dae9a01616cd3bda0",
+    "loaderSHA256": "72cbb3a0dbc43b4864d08042c3d317577076d812af11ad82653884c0f403abd4",
+    "entries": 849,
+    "manualAndBundledDLLsMatch": true
+  },
+  "automated": {
+    "python": 235,
+    "javascript": 118,
+    "nativePrograms": 17,
+    "footerCombinations": 120,
+    "compiledPackageChecks": 21,
+    "frozenIPCChecks": 4
+  },
+  "live": {
+    "character": "separate EpFeedbackTest copy",
+    "nativeInventoryScalePercent": [
+      75,
+      100,
+      125,
+      150
+    ],
+    "scalerMethod": "initialized active native UISubScaler methods; settings file not rewritten",
+    "skillsAndInventoryTogether": true,
+    "passivesAndInventoryTogether": true,
+    "stashAndVendorToggle": true,
+    "blessingsAndClosedInventoryHideShortcuts": true,
+    "stashAllScope": "empty-inventory action and queued native button callback; non-empty transfers not retested in this pass",
+    "finalPlayerDLLConnected": true,
+    "finalDesktopAppExitCode": 0,
+    "appCloseRestoredXP": "x2 to x1; game remained alive",
+    "fullGameExitCode": "0xC0000005",
+    "fullGameFaultModule": "UnityPlayer.dll",
+    "fullGameFaultOffset": "0x109ad1",
+    "gameExitIssueResolved": false
+  },
+  "saves": {
+    "restoredFiles": 54,
+    "archivedTestFiles": 3,
+    "originalBytesVerified": true
+  },
+  "defender": {
+    "signature": "1.459.676.0",
+    "antivirusEnabled": true,
+    "realTimeProtectionEnabled": true,
+    "finalExeCoreZIP": "no threats reported",
+    "scope": "local Microsoft Defender scan only; no new VirusTotal/Nexus clearance claim"
+  },
+  "limits": [
+    "Native scaler fixtures exercise real game layout at four scales; they are not manual graphics-settings menu certification.",
+    "Extreme narrow layouts hide the row if no readable footer gap exists.",
+    "Protocol host checks simulate game data; live game evidence is listed separately.",
+    "Earlier harness request and status-format mistakes were corrected; their failures are not counted as product tests.",
+    "Full-game shutdown access violation remains unresolved."
+  ]
+}

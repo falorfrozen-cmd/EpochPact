@@ -4,7 +4,11 @@ Last Epoch modding project (current verified runtime: **1.5.2**, 2026-10-08): a 
 from outside, every line our own (no mod loader, no third-party hook library). Offline
 characters only all features refuse in online play.
 
-Current connection release: **0.1.2-dev.11**. See
+Current release: **0.1.2-dev.12**. Inventory shortcuts now occupy the measured
+footer gap after Sort; never place them outside the inventory or over currencies.
+See `docs/inventory-footer-validation-2026-10-12.md` for scale, simultaneous
+panel, matched-package and shutdown evidence. The connection protocol is retained
+from **0.1.2-dev.11**. See
 `docs/connection-validation-2026-10-12.md` for the scoped final tests, real-game
 restart checks and the unresolved full-game-exit crash. Crafting dev.10 and
 inventory/convenience dev.9 changes are retained.

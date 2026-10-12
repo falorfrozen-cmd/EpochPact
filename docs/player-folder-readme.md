@@ -50,7 +50,7 @@ To remove a standalone manual installation, close both programs and remove only 
 
 Session settings apply automatically after an edit. Campaign rewards, mastery selection, progression changes, material grants and free tree respec require their explicit action buttons. Opening the interface does not grant rewards or apply saved actions.
 
-Inventory shortcuts show **Stash**, **Stash all** and **Vendor**. Stash and Vendor toggle their windows. If there is no safe space beside the inventory, shortcuts are hidden; the Inventory page remains available.
+Inventory shortcuts show **Stash**, **Stash all** and **Vendor** in a horizontal row after Sort, inside the inventory footer. Stash and Vendor toggle their windows. The row follows the actual Transfer/Sort and currency bounds; exceptionally narrow footers hide the shortcuts rather than covering another control. The Inventory page remains available.
 
 Settings includes navigation favorites and hidden sections. Character stats and the summon table support hiding unwanted entries/columns. Stash Assistant includes copyable search examples.
 

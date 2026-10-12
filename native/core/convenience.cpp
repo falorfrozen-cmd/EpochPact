@@ -34,7 +34,7 @@ uint64_t lastScan=0,portalGrace=0,faults=0,openedChests=0,usedShrines=0,usedPort
 game::Handle owner;
 std::map<std::string,std::unique_ptr<Root>> typeRoots;
 struct Saved {std::unique_ptr<Root> value;std::unique_ptr<Root> volume;const il2cpp::Field* field;bool before;Setting* setting;};
-struct Shortcut{std::unique_ptr<Root> button;std::unique_ptr<Root> object;const char* action;const char* label;std::vector<std::unique_ptr<Root>> labels;};
+struct Shortcut{std::unique_ptr<Root> button;std::unique_ptr<Root> object;const char* action;const char* label;std::vector<std::unique_ptr<Root>> labels;rules::Rect placed{};};
 std::vector<Shortcut> shortcuts;
 game::Handle inventoryPanel;
 std::atomic<bool> shortcutBusy{false};
@@ -43,6 +43,7 @@ void(*originalSubmit)(void*,void*,MethodInfo)=nullptr;
 uint64_t lastButtons=0;
 bool shortcutEnabled=false;
 game::Handle menuTransform;
+game::Handle footerTransform,currencyTransform;
 struct Candidate{std::unique_ptr<Root> object;std::unique_ptr<Root> handler;int kind;uint64_t retryAfter=0;};
 std::vector<Candidate> candidates;
 std::vector<std::unique_ptr<Root>> pendingHandlers;
@@ -189,7 +190,7 @@ const il2cpp::Method* Signature(const char* cls,const char* name,std::initialize
 }
 void ClearShortcuts(){
     for(auto& b:shortcuts)if(game::IsAlive(b.object->Get())){void* a[]{b.object->Get()};Invoke(M("Object","Destroy",1,"UnityEngine","UnityEngine.CoreModule.dll"),nullptr,a);}
-    shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();
+    shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();
 }
 bool ShortcutClick(void* button){
     auto it=std::find_if(shortcuts.begin(),shortcuts.end(),[&](const Shortcut& s){return s.button->Get()==button;});
@@ -212,6 +213,19 @@ rules::Rect RectIn(void* transform,void* space){
     hi=Value<Vec3>(M("Transform","InverseTransformPoint",1,"UnityEngine","UnityEngine.CoreModule.dll"),space,ha);
     return {lo.x,lo.y,hi.x-lo.x,hi.y-lo.y};
 }
+rules::Rect CurrencyBounds(void* menu){
+    void* currency=currencyTransform.Get();if(!currency)return {};
+    rules::Rect occupied{};bool any=false;
+    int count=Value<int>(M("Transform","get_childCount",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency);
+    if(count<1||count>64)return {};
+    for(int i=0;i<count;++i){void* a[]{&i};Root child(Invoke(M("Transform","GetChild",1,"UnityEngine","UnityEngine.CoreModule.dll"),currency,a));
+        Root object(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),child.Get()));
+        if(!Value<bool>(Method(object.Get(),"get_activeInHierarchy",0),object.Get()))continue;
+        auto r=RectIn(child.Get(),menu);if(!rules::Valid(r))return {};
+        if(!any){occupied=r;any=true;}else{float right=std::max(occupied.x+occupied.w,r.x+r.w),top=std::max(occupied.y+occupied.h,r.y+r.h);occupied.x=std::min(occupied.x,r.x);occupied.y=std::min(occupied.y,r.y);occupied.w=right-occupied.x;occupied.h=top-occupied.y;}
+    }
+    return occupied;
+}
 void PlaceShortcuts(){
     void* menu=menuTransform.Get();if(!menu||shortcuts.empty())return;
     Root ct(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("UnityEngine.UIModule.dll","UnityEngine","Canvas"))));bool includeInactive=true;void* ca[]{ct.Get(),&includeInactive};
@@ -219,18 +233,26 @@ void PlaceShortcuts(){
     Root root(Invoke(M("Canvas","get_rootCanvas",0,"UnityEngine","UnityEngine.UIModule.dll"),canvas.Get()));
     Root rt(Invoke(componentTransform,root.Get()));
     const auto bounds=RectIn(menu,menu),screen=RectIn(rt.Get(),menu);
-    rules::Rect exclusion{};size_t count=0;void* ui=Ui();
-    if(Value<bool>(Method(ui,"IsStashOpen",0),ui)||Value<bool>(Method(ui,"IsShopOpen",0),ui)){
-        void* system=Get<void*>(ui,F("UIBase","_panelSystem"));
-        void* left=Get<void*>(system,F("PanelSystem","_leftPanelLocationRect","LE.UI.PanelSystem"));
-        if(left){exclusion=RectIn(left,menu);count=1;}
+    rules::Toolbar placement{};
+    void* footer=footerTransform.Get(),*currency=currencyTransform.Get();
+    if(footer&&currency){Root footerObject(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),footer));
+        if(Value<bool>(Method(footerObject.Get(),"get_activeInHierarchy",0),footerObject.Get())){
+            // Currency containers deliberately leave empty space. Measure each
+            // visible native currency, including counters enabled by factions.
+            const auto occupied=CurrencyBounds(menu);
+            if(rules::Valid(occupied))placement=rules::PlaceToolbar(bounds,screen,RectIn(footer,menu),RectIn(Get<void*>(inventoryPanel.Get(),F("InventoryPanelUI","leftButtonsContainer")),menu),occupied);
+        }
     }
-    const auto placement=rules::PlaceToolbar(bounds,screen,&exclusion,count);
     for(size_t i=0;i<shortcuts.size();++i){auto& b=shortcuts[i];bool show=placement.visible;void* a[]{&show};
         if(Value<bool>(Method(b.object->Get(),"get_activeSelf",0),b.object->Get())!=show)Invoke(Method(b.object->Get(),"SetActive",1),b.object->Get(),a);
-        if(show){Root tr(Invoke(M("GameObject","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),b.object->Get()));
-            Vec2 pos{placement.rect.x+placement.rect.w-bounds.x,placement.rect.y-bounds.y+static_cast<float>(i)*38};void* p[]{&pos};
-            Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),tr.Get(),p);}
+        if(show){const auto r=placement.buttons[i];
+            if(b.placed.x!=r.x||b.placed.y!=r.y||b.placed.w!=r.w||b.placed.h!=r.h){
+                Root tr(Invoke(M("GameObject","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),b.object->Get()));
+                Vec2 pos{r.x-bounds.x,r.y-bounds.y},size{r.w,r.h};void* p[]{&pos},*s[]{&size};
+                Invoke(M("RectTransform","set_sizeDelta",1,"UnityEngine","UnityEngine.CoreModule.dll"),tr.Get(),s);
+                Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),tr.Get(),p);b.placed=r;
+            }
+        }
     }
 }
 void InventoryButtons(){
@@ -243,6 +265,11 @@ void InventoryButtons(){
     auto panels=Find("LE.dll","","InventoryPanelUI");if(panels.empty())return;
     void* panel=panels.front();void* source=Get<void*>(panel,F("InventoryPanelUI","confirmRespecButton"));
     void* parent=Get<void*>(panel,F("InventoryPanelUI","menuRectTransform"));if(!source||!parent)return;
+    void* left=Get<void*>(panel,F("InventoryPanelUI","leftButtonsContainer"));if(!left)return;
+    Root footer(Invoke(M("Transform","get_parent",0,"UnityEngine","UnityEngine.CoreModule.dll"),left));
+    Root currencyName(il2cpp::api().string_new("Currencies"));void* findArgs[]{currencyName.Get()};
+    Root currency(Invoke(M("Transform","Find",1,"UnityEngine","UnityEngine.CoreModule.dll"),footer.Get(),findArgs));
+    if(!currency.Get())return; // Unsupported layout: no guessed screen coordinates.
     auto click=M("Button","OnPointerClick",1,"UnityEngine.UI","UnityEngine.UI.dll"),submit=M("Button","OnSubmit",1,"UnityEngine.UI","UnityEngine.UI.dll");
     std::string why;
     if(!hook::IsInstalled(click.code)&&!hook::Install(click.code,reinterpret_cast<void*>(&Click),reinterpret_cast<void**>(&originalClick),&why))throw std::runtime_error(why);
@@ -286,16 +313,15 @@ void InventoryButtons(){
         }
         if(shortcuts.back().labels.empty())throw std::runtime_error("Inventory shortcut has no supported text label.");
         Root transform(Invoke(M("GameObject","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),object.Get()));
-        // The complete menu is reserved for vanilla UI. This vertical strip
-        // grows outwards from its left edge, rather than into the currency bar.
-        Vec2 size{108,32},pos{-8,static_cast<float>(shortcuts.size()-1)*38},zero{0,0},pivot{1,0};Vec3 scale{1,1,1};
+        // Parent to the inventory so closing/tabs inherit its visibility. The
+        // measured footer gap determines the final horizontal row.
+        Vec2 size{80,26.4f},pos{0,0},zero{0,0};Vec3 scale{1,1,1};
         void* za[]{&zero};for(const char* name:{"set_anchorMin","set_anchorMax","set_pivot"})Invoke(M("RectTransform",name,1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),za);
-        void* piva[]{&pivot};Invoke(M("RectTransform","set_pivot",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),piva);
         void* sa[]{&size},*pa[]{&pos},*sca[]{&scale};Invoke(M("RectTransform","set_sizeDelta",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),sa);
         Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),pa);Invoke(M("Transform","set_localScale",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),sca);
         bool on=true;void* args[]{&on};Invoke(Method(object.Get(),"SetActive",1),object.Get(),args);
     }
-    inventoryPanel.Set(panel);menuTransform.Set(parent);shortcutEnabled=false;PlaceShortcuts();
+    inventoryPanel.Set(panel);menuTransform.Set(parent);footerTransform.Set(footer.Get());currencyTransform.Set(currency.Get());shortcutEnabled=false;PlaceShortcuts();
 }
 void RestoreGraphics(){
     disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());
@@ -591,19 +617,52 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
     void* ui=Ui();
     if(action=="frames-start"){frameGaps.clear();previousFrame=0;measureFrames=true;maximumInteractionMicros=maximumDiscoveryMicros=0;return State();}
     if(action=="frames-stop"){measureFrames=false;std::ostringstream out;out<<"{\"ok\":true,\"gapsMicros\":[";bool comma=false;for(auto value:frameGaps){if(comma)out<<',';comma=true;out<<value;}return out.str()+"]}";}
+    if(action.rfind("scaler-",0)==0){InventoryButtons();void* menu=menuTransform.Get();if(!menu)throw std::runtime_error("Open the inventory first.");
+        const int percent=std::stoi(action.substr(7));if(percent<75||percent>150)throw std::runtime_error("Unsupported native scaler fixture.");
+        Root menuObject(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),menu));
+        Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","UISubScaler"))));
+        bool inactive=true;void* args[]{type.Get(),&inactive};Root scalers(Invoke(Signature("GameObject","GetComponentsInChildren",{"System.Type","System.Boolean"}),menuObject.Get(),args));
+        const auto count=Get<uintptr_t>(scalers.Get(),0x18);float value=percent/100.f;
+        for(uintptr_t i=0;i<count;++i){void* scaler=Get<void*>(scalers.Get(),0x20+8*i);
+            Root object(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),scaler));
+            if(!Get<bool>(scaler,F("UISubScaler","_initialized"))||!Value<bool>(Method(object.Get(),"get_activeInHierarchy",0),object.Get()))continue;
+            if(percent==100)Invoke(Method(scaler,"UpdateScale",0),scaler);
+            else{void* a[]{&value};for(auto [flag,method]:std::array<std::pair<const char*,const char*>,6>{{
+                    {"_rootScaling","UpdateRootScale"},{"_objectScaling","UpdateObjectScale"},{"_textScaling","UpdateTextScale"},{"_enableLayoutElementScaling","ScaleLayoutElements"},{"_enableLayoutGroupSpacing","ChangeLayoutGroupSpacing"},{"_canvasScaling","UpdateCanvasScale"}}})
+                    if(Get<bool>(scaler,F("UISubScaler",flag)))Invoke(Method(scaler,method,1),scaler,a);
+                if(Get<bool>(scaler,F("UISubScaler","_enforceScreenFit")))Invoke(Method(scaler,"FitRectToScreen",0),scaler);}}
+        PlaceShortcuts();return "{\"ok\":true,\"nativeScalers\":"+std::to_string(count)+",\"percent\":"+std::to_string(percent)+"}";
+    }
     if(action.rfind("menu-scale-",0)==0){InventoryButtons();void* menu=menuTransform.Get();if(!menu)throw std::runtime_error("Open the inventory first.");
         if(!testMenuScaleSaved){testOriginalMenuScale=Value<Vec3>(M("Transform","get_localScale",0,"UnityEngine","UnityEngine.CoreModule.dll"),menu);testMenuScaleSaved=true;}
         const auto percent=std::stoi(action.substr(11));if(percent<50||percent>200)throw std::runtime_error("Unsupported scale fixture.");
         Vec3 scale{testOriginalMenuScale.x*percent/100.f,testOriginalMenuScale.y*percent/100.f,testOriginalMenuScale.z};void* a[]{&scale};
         Invoke(M("Transform","set_localScale",1,"UnityEngine","UnityEngine.CoreModule.dll"),menu,a);PlaceShortcuts();return State();}
+    if(action=="layout-tree"){InventoryButtons();void* menu=menuTransform.Get();if(!menu)throw std::runtime_error("Open the inventory first.");
+        Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("UnityEngine.CoreModule.dll","UnityEngine","RectTransform"))));
+        Root menuObject(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),menu));
+        bool inactive=true;void* args[]{type.Get(),&inactive};Root children(Invoke(Signature("GameObject","GetComponentsInChildren",{"System.Type","System.Boolean"}),menuObject.Get(),args));
+        std::ostringstream out;out<<"{\"ok\":true,\"rects\":[";bool comma=false;
+        for(uintptr_t i=0;i<Get<uintptr_t>(children.Get(),0x18);++i){void* tr=Get<void*>(children.Get(),0x20+8*i);Root obj(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),tr));
+            auto r=RectIn(tr,menu);Root parent(Invoke(M("Transform","get_parent",0,"UnityEngine","UnityEngine.CoreModule.dll"),tr));
+            if(comma)out<<',';comma=true;out<<"{\"name\":"<<Json(Text(Invoke(Method(obj.Get(),"get_name",0),obj.Get())))<<",\"parent\":"<<Json(parent.Get()?Text(Invoke(Method(parent.Get(),"get_name",0),parent.Get())):"")
+                <<",\"active\":"<<Boolean(Value<bool>(Method(obj.Get(),"get_activeInHierarchy",0),obj.Get()))<<",\"rect\":["<<r.x<<','<<r.y<<','<<r.w<<','<<r.h<<"]}";}
+        return out.str()+"]}";}
     if(action=="layout"){InventoryButtons();void* menu=menuTransform.Get();if(!menu)throw std::runtime_error("Open the inventory first.");
         const auto menuRect=RectIn(menu,menu);std::ostringstream out;out<<"{\"ok\":true,\"buttons\":[";bool comma=false;
-        void* footer=Get<void*>(inventoryPanel.Get(),F("InventoryPanelUI","leftButtonsContainer"));const auto footerRect=RectIn(footer,menu);
+        void* left=Get<void*>(inventoryPanel.Get(),F("InventoryPanelUI","leftButtonsContainer"));const auto leftRect=RectIn(left,menu);
+        const auto footerRect=RectIn(footerTransform.Get(),menu),currencies=CurrencyBounds(menu);
         for(auto& b:shortcuts){Root tr(Invoke(M("GameObject","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),b.object->Get()));const auto r=RectIn(tr.Get(),menu);
-            if(comma)out<<',';comma=true;out<<"{\"action\":"<<Json(b.action)<<",\"visible\":"<<Boolean(Value<bool>(Method(b.object->Get(),"get_activeSelf",0),b.object->Get()))<<",\"menuOverlap\":"<<Boolean(rules::Overlaps(r,menuRect))<<",\"footerOverlap\":"<<Boolean(rules::Overlaps(r,footerRect))<<",\"labels\":[";
+            if(comma)out<<',';comma=true;out<<"{\"action\":"<<Json(b.action)<<",\"visible\":"<<Boolean(Value<bool>(Method(b.object->Get(),"get_activeInHierarchy",0),b.object->Get()))<<",\"insideInventory\":"<<Boolean(rules::Inside(r,menuRect))<<",\"insideFooter\":"<<Boolean(rules::Inside(r,footerRect))<<",\"vanillaControlsOverlap\":"<<Boolean(rules::Overlaps(r,leftRect))<<",\"currencyOverlap\":"<<Boolean(rules::Overlaps(r,currencies))<<",\"labels\":[";
             bool next=false;for(auto& label:b.labels){if(next)out<<',';next=true;out<<Json(Text(Invoke(Method(label->Get(),"get_text",0),label->Get())));}out<<"],\"rect\":["<<r.x<<','<<r.y<<','<<r.w<<','<<r.h<<"]}";}
         return out.str()+"]}";}
     if(action=="inventory-open"){bool show=true,appearances=false,stash=false,last=false;int tab=0;void* a[]{&show,&appearances,&stash,&tab,&last};Invoke(Method(ui,"openInventory",5),ui,a);return State();}
+    if(action=="skills-open"){Invoke(Method(ui,"SkillsKeyDown",0),ui);return "{\"ok\":true}";}
+    if(action=="inventory-open-beside"){bool overlapping=false,cosmetics=false,dontOpen=false,sound=false;int tab=0;void* a[]{&overlapping,&cosmetics,&dontOpen,&tab,&sound};Invoke(Method(ui,"openInventory",5),ui,a);return State();}
+    if(action=="passives-open"){bool respec=false;void* a[]{&respec};Invoke(Method(ui,"OpenPassivePanel",1),ui,a);return "{\"ok\":true,\"passivesOpen\":"+std::string(Boolean(Value<bool>(Method(ui,"IsPassivesPanelOpen",0),ui)))+"}";}
+    if(action=="passives-close"){Invoke(Method(ui,"closePassiveTree",0),ui);return State();}
+    if(action=="skills-close"){bool tooltip=true;void* a[]{&tooltip};Invoke(Method(ui,"closeSkills",1),ui,a);return State();}
+    if(action=="blessings-open"){bool sound=false,respec=false;void* a[]{&sound,&respec};Invoke(Method(inventoryPanel.Get(),"OpenBlessingPanel",2),inventoryPanel.Get(),a);return State();}
     if(action=="panels-close"){bool sound=false;void* a[]{&sound};Invoke(Method(ui,"closeShop",0),ui);Invoke(Method(ui,"closeStash",1),ui,a);Invoke(Method(ui,"closeInventory",0),ui);return State();}
     if(action=="panels")return "{\"ok\":true,\"inventory\":"+std::string(Boolean(Value<bool>(Method(ui,"IsInventoryOpen",0),ui)))+",\"stash\":"+Boolean(Value<bool>(Method(ui,"IsStashOpen",0),ui))+",\"shop\":"+Boolean(Value<bool>(Method(ui,"IsShopOpen",0),ui))+",\"buttons\":"+std::to_string(shortcuts.size())+"}";
     if(action=="screenshot"){
@@ -751,5 +810,5 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
     throw std::runtime_error("Unknown convenience check.");
 });}
 #endif
-void ReleaseRoots(){monitorUntil=0;monitoredAllies.clear();damageOwner.Reset();disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();ClearInteractions();saved.clear();typeRoots.clear();owner.Reset();active=false;}
+void ReleaseRoots(){monitorUntil=0;monitoredAllies.clear();damageOwner.Reset();disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();ClearInteractions();saved.clear();typeRoots.clear();owner.Reset();active=false;}
 }
