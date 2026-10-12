@@ -1,0 +1,82 @@
+{
+  "observedAt": "2026-10-12T01:13:11.311307+00:00",
+  "version": "0.1.2-dev.11",
+  "originalDetection": {
+    "packageVersion": "0.1.2-dev.10",
+    "product": "Microsoft Defender Antivirus",
+    "name": "Trojan:Win32/Wacatac.C!ml",
+    "detectedFile": "version.dll",
+    "pathsInsideArchive": [
+      "CopyToGame/version.dll",
+      "EpochPact/_internal/native/build/version.dll"
+    ],
+    "actionSuccess": true,
+    "didThreatExecute": false,
+    "causeEstablished": false
+  },
+  "currentDefinitionVersion": "1.459.676.0",
+  "customScans": [
+    {
+      "sample": "dev.11 loader",
+      "exitCode": 0,
+      "result": "No threats found"
+    },
+    {
+      "sample": "dev.11 ZIP",
+      "exitCode": 0,
+      "result": "No threats found"
+    },
+    {
+      "sample": "dev.11 extracted runtime folder",
+      "exitCode": 0,
+      "result": "No threats found"
+    },
+    {
+      "sample": "unchanged dev.10 ZIP",
+      "exitCode": 0,
+      "result": "No threats found"
+    }
+  ],
+  "scanMode": "Custom MpCmdRun scan with DisableRemediation for diagnostic sample preservation; real-time, behavior and downloaded-file protection remained enabled. No security settings changed.",
+  "chromeDownload": {
+    "completed": true,
+    "source": "https://github.com/falorfrozen-cmd/EpochPact/releases/download/v0.1.2-dev.11/EpochPact-0.1.2-dev.11.zip",
+    "bytes": 26886873,
+    "sha256": "12b1a88abb6796259af85ead0ea38d1ccf9cbd732ecdab5594d450257d346d01",
+    "matchesPublishedPackage": true,
+    "archiveInventoryVerified": true,
+    "newDefenderDetectionRecorded": false,
+    "downloadManagerUiVerified": false
+  },
+  "artifacts": {
+    "oldZIP": {
+      "file": "EpochPact-0.1.2-dev.10.zip",
+      "bytes": 26876561,
+      "sha256": "9280a3af2bac1b79b94f720287b3920b8ec3dd88284f984f534de57304ef9ace"
+    },
+    "currentZIP": {
+      "file": "EpochPact-0.1.2-dev.11.zip",
+      "bytes": 26886873,
+      "sha256": "12b1a88abb6796259af85ead0ea38d1ccf9cbd732ecdab5594d450257d346d01"
+    },
+    "currentLoader": {
+      "file": "version.dll",
+      "bytes": 112640,
+      "sha256": "9f006140935b4cb41d3a68f4b25033bb7bfc5810959265e676bba257013a18b4"
+    }
+  },
+  "changes": [
+    "Updated installed Defender security intelligence.",
+    "Recorded and verified current scans and actual Chrome download.",
+    "No source or binary changed merely to obtain a different hash.",
+    "No AV exclusion, quarantine restoration or protection bypass performed."
+  ],
+  "limits": [
+    "This verifies this computer and these definitions; it is not an all-vendor/all-computer safety certification.",
+    "The prior detection cause and vendor false-positive determination are not established.",
+    "Custom scans do not prove that browser/cloud verdicts are identical.",
+    "Chrome download-manager navigation was blocked by browser tool policy; the completed download was verified by returned path, bytes, SHA-256 and inventory.",
+    "The scan exclusion-check command was denied access, so this report makes no claim that all existing user exclusions were inspected.",
+    "No new VirusTotal scan or Microsoft analyst submission was made."
+  ]
+}
