@@ -827,7 +827,7 @@ test('display page shows minimap, tier controls and the tier palette without sen
  const html=h.element('#page-content').innerHTML;
  for(const id of ['map_minimapsize','map_minimapzoom','map_minimapopacity','map_overlayopacity','map_overlayzoom','tier_icons','tier_tooltips','tier_lines','tier_color'])assert.ok(html.includes(`="${id}"`),id);
  assert.equal([...html.matchAll(/data-tier-color="(\d)"/g)].map(x=>x[1]).join(''),'12345678');
- assert.ok(html.includes('value="#E0315A"'));
+ assert.ok(html.includes('value="#FF0044"'));
  for(const id of ['map_minimapsize','tier_icons','tier_tooltips'])assert.ok(h.run(`automaticSetting(controlById("${id}"))`),id);
  assert.equal(h.calls.length,0);
 });
@@ -836,11 +836,11 @@ test('a customised tier palette is pushed once per character and the default pal
  h.context.localStorage={getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=String(v);},removeItem:k=>{delete store[k];}};
  h.run(`connected.sessionKey='k';automaticOwner=()=>'owner-1'`);
  await h.run('applyTierPalette()');assert.equal(h.calls.length,0);
- h.run(`tierPaletteApplied.clear()`);store['epochpact.tier-palette.v1']=JSON.stringify(['FFFFFF','4DA6FF','FFD84D','E07A2E','B36BFF','4CD964','123ABC','7FE5F0']);
+ h.run(`tierPaletteApplied.clear()`);store['epochpact.tier-palette.v1']=JSON.stringify(['FFFFFF','2E8BFF','FFD700','FF5500','AA55FF','00FF00','123ABC','00FFFF']);
  h.replies.push({ok:true});await h.run('applyTierPalette()');
  assert.deepEqual(h.calls.map(c=>[c.id,c.args.tier,c.args.color]),[['tier_color',7,'123ABC']]);
  await h.run('applyTierPalette()');assert.equal(h.calls.length,1);
- store['epochpact.tier-palette.v1']='["bad"]';assert.equal(h.run('storedTierPalette()[6]'),'E0315A');
+ store['epochpact.tier-palette.v1']='["bad"]';assert.equal(h.run('storedTierPalette()[6]'),'FF0044');
 });
 test('loot filter files panel lists filters and routes export, duplicate and backup to the launcher',async()=>{
  const h=automaticHarness();h.run(`page='loot'`);

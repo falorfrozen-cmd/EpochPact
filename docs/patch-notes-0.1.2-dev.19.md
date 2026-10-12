@@ -26,8 +26,30 @@ interface font, plus the open points of dev.18.
 ## Item tiers
 
 - New **Colour affix lines by tier**: the whole affix line in its tier colour,
-  alone or together with the T1–T8 tags. An open tooltip updates at once when a
-  colour changes.
+  alone or together with the T1–T8 tags.
+- Sealed, primordial and corrupted affix lines get their tier tag too.
+- New default colours (a player's palette, T2 and T5 slightly lighter for
+  readability): T1 `FFFFFF`, T2 `2E8BFF`, T3 `FFD700`, T4 `FF5500`, T5 `AA55FF`,
+  T6 `00FF00`, T7 `FF0044`, T8 `00FFFF`.
+- Fixed: after a setting or colour change, an item whose tooltip was already
+  shown kept the old look until another item was hovered.
+
+## In-game report
+
+- Press **F8** in the game to save a report (screenshot, state, logs and a
+  description file) in `Last Epoch\EpochPact\reports`. The key can be changed
+  or turned off in Settings. Nothing is uploaded; zip the folder and share it on
+  Discord.
+
+## App
+
+- The version is shown in the sidebar, and a notice appears when a newer
+  release is published (can be turned off).
+- Sections reopen where you left them (can be turned off).
+- The Game setup panel is no longer repeated on Overview and Settings; Overview
+  shows one status line.
+- Navigation and favorites: section names and their checkboxes sit side by
+  side.
 
 ## Checked again
 

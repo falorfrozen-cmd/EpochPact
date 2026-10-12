@@ -596,6 +596,18 @@
     "font_read": [
       "Font status",
       "Read the font choice, Windows font families and counters."
+    ],
+    "report_read": [
+      "In-game report",
+      "Read the in-game report hotkey and the reports folder."
+    ],
+    "report_key": [
+      "In-game report hotkey",
+      "Key that saves a report while the game window is in front: screenshot, game and EpochPact state and recent logs in <game>/EpochPact/reports. Remembered by the mod; off disables it."
+    ],
+    "report_now": [
+      "Create in-game report now",
+      "Save the same report as the hotkey, from EpochPact."
     ]
   },
   "researchOnly": {

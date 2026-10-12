@@ -2,14 +2,14 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 
 function harness(initial={selected:false,installed:false,running:false,executable:''}){
- const listeners={},calls=[],changes=[];let shown=0,closed=0,busy=false;
+ const listeners={},calls=[],changes=[],inserted=[];let shown=0,closed=0,busy=false;
  const input={value:'',defaultValue:''},panel={
   querySelector(){return input;},
   set innerHTML(value){this.html=value;const match=value.match(/value="([^"]*)"/);input.value=input.defaultValue=match?.[1]||'';}
  };
  const dialog={showModal(){shown++;},close(){closed++;}},feedback={classList:{toggle(){}}};
  const document={addEventListener(type,fn){listeners[type]=fn;},
-  querySelector:s=>s==='#setup-dialog'?dialog:{insertAdjacentHTML(){}},
+  querySelector:s=>s==='#setup-dialog'?dialog:{insertAdjacentHTML(_,value){inserted.push(value);}},
   querySelectorAll:s=>s==='[data-launcher-panel]'?[panel]:s==='[data-game-path]'?[input]:s==='[data-setup-feedback]'?[feedback]:[]};
  const window={},ctx=vm.createContext({window,document});
  vm.runInContext(fs.readFileSync(path.join(__dirname,'../ui/launcher.js'),'utf8'),ctx);
@@ -19,7 +19,7 @@ function harness(initial={selected:false,installed:false,running:false,executabl
   return {ok:true,launcher:{...initial,selected:true,executable:payload.args.executable??initial.executable},message:'Saved'};
  },changed:async reset=>changes.push(reset)});
  async function click(attribute){const button={disabled:false,hasAttribute:x=>x===attribute,closest:()=>panel};await listeners.click({target:{closest:()=>button}});}
- return {window,api,calls,changes,panel,input,feedback,click,
+ return {window,api,calls,changes,inserted,panel,input,feedback,click,
   type:value=>{input.value=value;listeners.input({target:{value,matches:()=>true}});},
   setBusy:v=>busy=v,get shown(){return shown;},get closed(){return closed;}};
 }
@@ -69,7 +69,7 @@ test('a typed executable path survives background refresh and page remount',()=>
  const h=harness();h.type('D:/Custom/Last Epoch.exe');
  h.api.update({selected:false,installed:false,running:false,executable:''});
  assert.equal(h.input.value,'D:/Custom/Last Epoch.exe');
- h.input.value=h.input.defaultValue='';h.api.mount('settings');
+ h.input.value=h.input.defaultValue='';h.api.mount('game_setup');
  assert.equal(h.input.value,'D:/Custom/Last Epoch.exe');
  assert.equal(h.calls.length,0);
 });
@@ -80,4 +80,10 @@ test('successful selection replaces the draft with the validated location',async
  h.api.update({selected:true,installed:false,running:false,executable:'D:/New/Last Epoch.exe'});
  assert.equal(h.input.value,'D:/New/Last Epoch.exe');
  assert.equal(h.calls.length,1);
+});
+test('the full setup panel is only on Game setup; Overview shows one status line, Settings shows none',()=>{
+ const h=harness();h.inserted.length=0;
+ h.api.mount('settings');assert.deepEqual(h.inserted,[]);
+ h.api.mount('overview');assert.ok(h.inserted[0].includes('data-launcher-summary'));
+ h.api.mount('game_setup');assert.ok(h.inserted[1].includes('data-launcher-panel'));
 });

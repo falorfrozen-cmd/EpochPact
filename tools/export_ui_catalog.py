@@ -49,7 +49,7 @@ def controls():
     items = []
     def add(id, group, label, widget, command, lifetime, description, *, params=(),
             default=None, reset=None, api=None, response="json", current=None, requires=(), doc=None):
-        offline = [] if id in {"session_read", "status", "characters", "play_offline", "load_character"} else ["offline"]
+        offline = [] if id in {"session_read", "status", "characters", "play_offline", "load_character", "report_read", "report_key", "report_now"} else ["offline"]
         items.append(dict(id=id, group=group, label=label, widget=widget,
             availability="implemented", commandTemplate=command, pythonApi=api,
             responseFormat=response, parameters=list(params), default=default,
@@ -279,6 +279,12 @@ def controls():
         params=[parameter("tier","integer",1,8),parameter("color","single_token")],reset="tiercolor reset",doc="docs/player-conveniences.md")
     add("tier_read","display","Tier display status","read","tierread","read_only","Read tier display settings, palette and counters.",doc="docs/player-conveniences.md")
     add("map_settings_read","display","Map display settings","read","mapsettings","read_only","Read minimap and overlay display settings.",doc="docs/player-conveniences.md")
+    add("report_read","session","In-game report","read","reportread","read_only","Read the in-game report hotkey and the reports folder.",doc="docs/player-conveniences.md")
+    add("report_key","session","In-game report hotkey","selector","reportkey {key}","view",
+        "Key that saves a report while the game window is in front: screenshot, game and EpochPact state and recent logs in <game>/EpochPact/reports. Remembered by the mod; off disables it.",
+        params=[parameter("key","enum",choices=["F5","F6","F7","F8","F9","F10","F11","F12","off"])],default="F8",doc="docs/player-conveniences.md")
+    add("report_now","session","Create in-game report now","button","reportnow","view",
+        "Save the same report as the hotkey, from EpochPact.",doc="docs/player-conveniences.md")
     add("font_family","display","Interface font","selector","fontset family {family}","session",
         "Use a Windows font for the game's interface text; game restores the original fonts. Characters the font lacks use the game's font.",
         params=[parameter("family","single_token")],default="game",reset="fontset family game",doc="docs/player-conveniences.md")

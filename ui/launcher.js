@@ -3,12 +3,20 @@
  'use strict';
  let state=null,run,changed,isBusy,confirm,elevation=false,pickerBusy=false,pathDraft=null;
  const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ function statusText(){return state.updateRequired?'Mod update required':state.melonLoader?(state.installed?'MelonLoader bridge installed':'MelonLoader detected'):state.foreignLoader?'Another mod loader is installed':state.disabled?'Mod disabled':state.installed?'Player mod installed':state.selected?'Ready to install':'Choose your game';}
  function section(){
   if(!state)return '';
-  const status=state.updateRequired?'Mod update required':state.melonLoader?(state.installed?'MelonLoader bridge installed':'MelonLoader detected'):state.foreignLoader?'Another mod loader is installed':state.disabled?'Mod disabled':state.installed?'Player mod installed':state.selected?'Ready to install':'Choose your game';
+  const status=statusText();
   return `<section class="panel game-setup"><div class="section-head"><h2>Game setup</h2><span class="badge">${status}</span></div><p class="muted">${state.updateRequired?'The installed mod belongs to another EpochPact package. Close Last Epoch and reinstall using this complete download.':'Select your Last Epoch executable once. Install the mod with the game closed, then launch offline.'}</p><label>Game executable<div class="game-path-row"><input data-game-path aria-label="Last Epoch executable path" value="${escape(state.executable)}" placeholder="Select Last Epoch.exe"><button data-game-choose>Browse…</button><button data-game-save>Save path</button></div></label><p data-game-problem class="muted">${escape(state.problem||'The file picker opens in your Steam folder. You can browse to any other installation.')}</p><div class="actions"><button data-game-install> ${state.installed||state.updateRequired?'Reinstall / update mod':'Install mod'}</button>${elevation?'<button data-game-elevate>Install as administrator</button>':''}${state.installed||state.updateRequired?'<button data-game-uninstall>Uninstall mod</button>':''}<button class="primary" data-game-launch>${state.running?'Game running':'Launch offline'}</button></div><p class="muted">${state.running?'Close the game before installing or changing its location.':'Offline characters only. No gameplay settings are applied on startup.'}</p><p data-setup-feedback class="setup-feedback" role="status"></p><p class="muted">Need help? <a href="https://discord.gg/q6aexZZSAf" target="_blank" rel="noopener">EpochPact Discord</a></p></section>`;
  }
+ // Overview: one line with the state and the next step; the full panel lives on Game setup.
+ function summary(){
+  if(!state)return '';
+  const needsSetup=!state.selected||!state.installed||state.updateRequired||state.disabled||state.foreignLoader;
+  return `<section class="panel game-setup setup-summary"><div class="section-head"><h2>Game</h2><span class="badge">${statusText()}</span></div><div class="actions">${needsSetup?'<a class="button primary" href="#game_setup">Open Game setup</a>':''}${state.installed&&!state.updateRequired?`<button ${needsSetup?'':'class="primary"'} data-game-launch>${state.running?'Game running':'Launch offline'}</button>`:''}</div><p data-setup-feedback class="setup-feedback" role="status"></p></section>`;
+ }
  function render(){
+  for(const node of document.querySelectorAll('[data-launcher-summary]'))node.innerHTML=summary();
   for(const node of document.querySelectorAll('[data-launcher-panel]')){
    const input=node.querySelector('[data-game-path]');
    if(input&&input.value!==input.defaultValue)pathDraft=input.value;
@@ -66,7 +74,7 @@
    if(state&&!state.selected)document.querySelector('#setup-dialog').showModal();
   },
   update(next){if(next&&JSON.stringify(next)!==JSON.stringify(state)){state=next;render();}},
-  mount(page){if(state&&['overview','settings','game_setup'].includes(page)){document.querySelector('#page-content').insertAdjacentHTML('afterbegin','<div data-launcher-panel></div>');render();}},
+  mount(page){if(!state)return;if(page==='game_setup')document.querySelector('#page-content').insertAdjacentHTML('afterbegin','<div data-launcher-panel></div>');else if(page==='overview')document.querySelector('#page-content').insertAdjacentHTML('afterbegin','<div data-launcher-summary></div>');else return;render();},
   disable,
   browsing:()=>pickerBusy,
   failure(result){if(result?.requiresElevation){elevation=true;if(result.launcher)state=result.launcher;render();}},

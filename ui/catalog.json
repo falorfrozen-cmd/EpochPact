@@ -2572,6 +2572,76 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "report_read",
+      "group": "session",
+      "label": "In-game report",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "reportread",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read the in-game report hotkey and the reports folder.",
+      "currentSource": null,
+      "requirements": [],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "report_key",
+      "group": "session",
+      "label": "In-game report hotkey",
+      "widget": "selector",
+      "availability": "implemented",
+      "commandTemplate": "reportkey {key}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "key",
+          "type": "enum",
+          "choices": [
+            "F5",
+            "F6",
+            "F7",
+            "F8",
+            "F9",
+            "F10",
+            "F11",
+            "F12",
+            "off"
+          ]
+        }
+      ],
+      "default": "F8",
+      "resetCommand": null,
+      "lifetime": "view",
+      "description": "Key that saves a report while the game window is in front: screenshot, game and EpochPact state and recent logs in <game>/EpochPact/reports. Remembered by the mod; off disables it.",
+      "currentSource": null,
+      "requirements": [],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "report_now",
+      "group": "session",
+      "label": "Create in-game report now",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "reportnow",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "view",
+      "description": "Save the same report as the hotkey, from EpochPact.",
+      "currentSource": null,
+      "requirements": [],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "font_family",
       "group": "display",
       "label": "Interface font",
@@ -32809,7 +32879,7 @@
     ]
   },
   "counts": {
-    "controls": 144,
+    "controls": 147,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

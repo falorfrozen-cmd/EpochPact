@@ -43,6 +43,32 @@ reinstalled the player core.
   (a name with a space) worked, an unknown font was refused with a message;
   Game font + size 1 restored all 3,001 texts. 0 faults.
 
+## Player feedback round (same release)
+
+| Request | Change | Measured in the game |
+|---|---|---|
+| Tier labels on corrupted affixes | Regular, primordial and corrupted sealed lines (`sealedAffix`, `sealedPrimordialAffix`, `sealedCorruptedAffix`) are tagged; `TooltipItemManager.ForceUpdateTooltip` after a setting/colour change. | Item sealed with the game's `AddRandomRegularSealedAffix`: sealed line `T6`, then `T8` after `MakeAffixSealedPrimordialAffix`; switching off restored every line exactly; 0 mismatches, 0 faults. A corrupted sealed affix could not be created on the test character; it uses the same code path. |
+| New default palette | `FFFFFF 2E8BFF FFD700 FF5500 AA55FF 00FF00 FF0044 00FFFF` (player's palette; T2/T5 lightened from contrast 4.3/3.2 to 5.3/4.6 on the tooltip background). | Tags and lines drawn with the new colours. |
+| In-game bug report (#15) | `report.cpp`: F8 (F5–F12/off) while the game is in front → `<game>/EpochPact/reports/<time>` with screenshot, info, logs, description; game notification. | `reportnow`: folder with `screenshot.png` (2.4 MB), `info.txt`, `core-log.txt`, `description.txt`; user name absent from info and log; notice "EpochPact/reports/2026-10-12_232546" (a `` in the first version was read as a line break by the game's text). Key F9 saved and read back. The physical F8 press was not automated. |
+| Version and update notice | Sidebar version; `/api/update` reads `releases/latest` once in the background; links only to the EpochPact releases page. | Unit tests (4). |
+| Scroll position, navigation layout, Game setup | Per-section scroll memory (option); compact navigation grid; full setup panel only on Game setup, one status line on Overview. | JS tests. |
+
+## Performance
+
+Test character idle in town, 15 s windows, frame gaps from the main-thread hook
+(75 FPS cap):
+
+| | Mean | p99 | Max | Frames > 50 ms |
+|---|---|---|---|---|
+| Features off, idle | 13.33 ms | 14.40 ms | 18.6 ms | 0 |
+| Features off, inventory opened/closed every 1.5 s | 13.39 ms | 17.45 ms | 27.5 ms | 0 |
+| All on (tier icons, tags, lines, minimap 1.3×, overlay 0.6, Arial ×1.1, Auto Pickup radius 0 every 0.25 s), idle | 13.33 ms | 14.21 ms | 16.7 ms | 0 |
+| All on, inventory opened/closed | 13.43 ms | 18.86 ms | 53.0 ms | 1 |
+
+The single 53 ms frame came with the first inventory opening after switching
+to Arial (the font builds its characters on first use). 0 faults in all
+modules.
+
 ## Crash found during development
 
 Two of the first five stash sessions crashed the game (access violation; one in

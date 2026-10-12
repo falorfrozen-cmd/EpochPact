@@ -13,7 +13,7 @@ JSON yüklemek hiçbir ayarı oyuna uygulamaz; kayıtlı mod profili oluşturmaz
 
 | Katalog | Adet |
 |---|---:|
-| Panel kontrolü / işlem | 144 |
+| Panel kontrolü / işlem | 147 |
 | SP stat türü | 134 |
 | Hazır stat adı | 72 |
 | Doğrulanmış C satırı | 206 |
@@ -305,6 +305,9 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
+| `report_read` — In-game report | `reportread` | — | — | Okuma |
+| `report_key` — In-game report hotkey | `reportkey {key}` | key: F5/F6/F7/F8/F9/F10/F11/F12/off | F8 | Görünüm |
+| `report_now` — Create in-game report now | `reportnow` | — | — | Görünüm |
 | `session_read` — Bağlantı / geçiş durumu | `sessionread` | — | — | Okuma |
 | `status` — Tüm mod ayarları / sayaçlar | `status` | — | — | Okuma |
 | `player_read` — Yüklü karakter kimliği | `playerread` | — | — | Okuma |
@@ -312,6 +315,9 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `play_offline` — Play Offline | `playoffline` | — | — | Görünüm |
 | `load_character` — Çevrimdışı karakter yükle | `loadname {name} {level}` | level: 1…100 | — | Görünüm |
 
+- **In-game report:** Read the in-game report hotkey and the reports folder.
+- **In-game report hotkey:** Key that saves a report while the game window is in front: screenshot, game and EpochPact state and recent logs in <game>/EpochPact/reports. Remembered by the mod; off disables it.
+- **Create in-game report now:** Save the same report as the hotkey, from EpochPact.
 - **Bağlantı / geçiş durumu:** InGame ve transitioning=false kontrolü.
 - **Tüm mod ayarları / sayaçlar:** Offline gate, etkin çarpanlar ve hata/hook durumları.
 - **Yüklü karakter kimliği:** İsim/seviye/IsOffline; save id için progressread kullan.

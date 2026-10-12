@@ -20,7 +20,8 @@ from flask import Flask, jsonify, request, send_from_directory
 from tools.ui_bridge import ROOT, UiBridge
 from tools.ui_language import english_exception, english_result
 from tools.app_paths import runtime_root, user_root
-from tools.player_setup import FILTER_ACTIONS, PlayerSetup, DesktopDialogs
+from tools import update_check
+from tools.player_setup import FILTER_ACTIONS, PlayerSetup, DesktopDialogs, app_version
 
 
 def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
@@ -80,8 +81,25 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
 
     @app.get("/api/bootstrap")
     def bootstrap():
-        return jsonify(app_id="epochpact-ui-v1", setup_version=1 if setup else 0, preview=bridge.preview, developer=developer,
+        return jsonify(app_id="epochpact-ui-v1", setup_version=1 if setup else 0, preview=bridge.preview, developer=developer, version=app_version(),
                        token=token, catalog=bridge.public_catalog(), launcher=setup.status() if setup else None)
+
+    # One background check per app start; game commands never wait for it.
+    update_state = {"started": False, "result": None}
+    update_lock = threading.Lock()
+
+    @app.get("/api/update")
+    def update():
+        with update_lock:
+            if not update_state["started"]:
+                update_state["started"] = True
+                def run():
+                    result = update_check.check(app_version())
+                    with update_lock:
+                        update_state["result"] = result
+                threading.Thread(target=run, name="epochpact-update-check", daemon=True).start()
+            result = update_state["result"]
+        return jsonify(result if result is not None else {"ok": True, "pending": True})
 
     def perform(payload, revision):
         try:

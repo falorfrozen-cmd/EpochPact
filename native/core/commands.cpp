@@ -27,6 +27,7 @@
 #include "item_tiers.hpp"
 #include "stash_rules.hpp"
 #include "fonts.hpp"
+#include "report.hpp"
 #include "convenience.hpp"
 #include "ipc_protocol.hpp"
 #include <mutex>
@@ -102,6 +103,9 @@ std::string Execute(const std::string& line) {
     if(cmd=="lootlogclear")return args.empty()?items::ClearLootLog():"{\"ok\":false,\"error\":\"lootlogclear expects no arguments\"}";
     if(cmd=="pickupnow")return args.empty()?items::PickupNow():"{\"ok\":false,\"error\":\"pickupnow expects no arguments\"}";
     if(cmd=="pickupradius"){double value=0;if(args.empty())return items::RadiusStatus();return args.size()==1&&statedit::Number(args[0],&value)?items::SetRadius(value):"{\"ok\":false,\"error\":\"use pickupradius 0..60\"}";}
+    if(cmd=="reportread")return args.empty()?report::Read():"{\"ok\":false,\"error\":\"reportread expects no arguments\"}";
+    if(cmd=="reportkey")return args.size()==1?report::SetKey(args[0]):"{\"ok\":false,\"error\":\"use reportkey F5-F12|off\"}";
+    if(cmd=="reportnow")return args.empty()?report::Create("app"):"{\"ok\":false,\"error\":\"reportnow expects no arguments\"}";
     if(cmd=="fontread")return args.empty()?fonts::Read():"{\"ok\":false,\"error\":\"fontread expects no arguments\"}";
     if(cmd=="fontset")return args.size()==2?fonts::Set(args[0],args[1]):"{\"ok\":false,\"error\":\"use fontset family <name|game> | fontset scale 0.7-1.5\"}";
     if(cmd=="stashrules")return args.size()==1?stashrules::Read(args[0]):"{\"ok\":false,\"error\":\"use stashrules save-id\"}";

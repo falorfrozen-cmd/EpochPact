@@ -128,7 +128,9 @@ values are re-applied on the next frame after a new area's map loads.
   example `7 6 5 4`). The label is a copy of the icon's own quantity text, so it
   scales with the game's interface. Display only; items are unchanged.
 - **Tier tags in tooltips** adds a coloured `T1`–`T8` tag in front of each
-  prefix, suffix and sealed affix in item tooltips.
+  prefix, suffix and sealed affix (regular, primordial and corrupted) in item
+  tooltips. Sealed lines keep the game's own sealed colour; the tag shows the
+  tier.
 - **Colour affix lines by tier** colours the whole affix line in its tier
   colour (rich-text colour; the game resets the text's own colour property).
   Both can be used together or separately. The game's original line text is
@@ -136,10 +138,14 @@ values are re-applied on the next frame after a new area's map loads.
   shows a different number of affix lines than the item has, that tooltip is
   left unchanged instead of guessing (`tierread` counts it as
   `tooltipMismatches`).
-- **Tier colours**: default T1 white, T2 blue, T3 yellow, T4 orange, T5 purple,
-  T6 green, T7 red, T8 light blue. Each tier can be changed; your colours are
-  remembered on this device and applied whenever a character is ready. An open
-  tooltip is redrawn when a colour or setting changes.
+- **Tier colours**: default T1 white `FFFFFF`, T2 blue `2E8BFF`, T3 gold
+  `FFD700`, T4 burnt orange `FF5500`, T5 purple `AA55FF`, T6 green `00FF00`, T7
+  red-pink `FF0044`, T8 cyan `00FFFF` (a player's palette; T2 and T5 slightly
+  lighter so they stay readable on the dark tooltip). Each tier can be changed; your colours are
+  remembered on this device and applied whenever a character is ready. A
+  changed colour or setting also rebuilds the game's tooltip
+  (`TooltipItemManager.ForceUpdateTooltip`), so an item shown before the change
+  is not left with the old look.
 
 ### Text and font
 
@@ -207,6 +213,25 @@ and tabs (offline only).
 Every change writes a recovery backup of the saves first (the same history as
 Stash all). An open stash panel is rebuilt so new folders and tabs appear at
 once.
+
+## In-game report and app
+
+- **In-game report:** while the game window is in front, **F8** (Settings →
+  In-game report: F5–F12 or off; remembered by the mod) saves a folder in
+  `<game>/EpochPact/reports/<date_time>` with `screenshot.png` (taken by the
+  game), `info.txt` (versions and the same read-only state the app shows),
+  `core-log.txt`, recent app logs and `description.txt` to fill in. The game
+  shows a short "EpochPact report saved" notice. Windows user and computer names
+  and the profile path are masked; nothing is uploaded. The key is only read
+  (`GetAsyncKeyState`), no input is sent. Settings → Support report in the app
+  also saves its ZIP in the same folder.
+- **Version:** the sidebar shows the EpochPact version. At startup the app reads
+  the latest GitHub release of EpochPact once (no player data is sent) and shows
+  a "New version" link when one exists; Settings → Version turns it off.
+- **Scroll position:** each section reopens where it was left (Settings →
+  Navigation and favorites; on by default).
+- **Game setup** has its own section; Overview shows a one-line status with
+  Launch offline or a link to Game setup when something is needed.
 
 ## Live summons
 

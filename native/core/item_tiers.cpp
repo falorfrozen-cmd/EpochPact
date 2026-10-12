@@ -16,6 +16,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace ep::tiers {
@@ -24,7 +25,7 @@ using namespace managed;
 using MethodInfo = const il2cpp::Method*;
 struct Color { float r, g, b, a; };
 struct Vec2 { float x, y; };
-constexpr std::array<uint32_t, 8> kDefaultPalette{0xFFFFFF, 0x4DA6FF, 0xFFD84D, 0xE07A2E, 0xB36BFF, 0x4CD964, 0xE0315A, 0x7FE5F0};
+constexpr std::array<uint32_t, 8> kDefaultPalette{0xFFFFFF, 0x2E8BFF, 0xFFD700, 0xFF5500, 0xAA55FF, 0x00FF00, 0xFF0044, 0x00FFFF};
 std::array<uint32_t, 8> palette = kDefaultPalette;
 std::atomic<bool> iconsOn{false}, tooltipsOn{false}, linesOn{false};
 std::map<void*, std::unique_ptr<Root>> labels;  // InventoryItemUI -> our TMP label
@@ -227,6 +228,11 @@ std::string Compose(const SavedColor& saved) {
     out += linesOn.load() ? "<color=#" + hex + ">" + saved.original + "</color>" : saved.original;
     return out;
 }
+// The game keeps a built tooltip for the same item; ask it to rebuild so a
+// setting or palette change also reaches tooltips built before the change.
+void RebuildGameTooltip() {
+    game::Guarded([] { if (auto m = game::FindMethod("LE.dll", "", "TooltipItemManager", "ForceUpdateTooltip", 0)) Invoke(m); }, nullptr);
+}
 // After a setting or palette change: re-draw the lines of a tooltip that is open.
 void RedrawTooltips() {
     if (!tooltipsOn.load() && !linesOn.load()) {
@@ -275,13 +281,16 @@ void d_affixesText(void* self, void* itemData, void* info, MethodInfo m) {
     ++tooltipUpdates;
     if (!game::Guarded([&] {
         // Regular prefixes and suffixes are listed in the item's own order,
-        // each in its own pooled line list; the sealed affix has its own line.
-        std::vector<int> prefixes, suffixes; int sealedTier = 0;
+        // each in its own pooled line list; sealed (regular, primordial and
+        // corrupted) affixes each have their own line.
+        std::vector<int> prefixes, suffixes; int sealedTier = 0, primordialTier = 0, corruptedTier = 0;
         for (void* affix : Entries(Get<void*>(itemData, F("ItemData", "affixes")))) {
             if (!affix) continue;
             const int tier = Value<int>(M("ItemAffix", "get_DisplayTier", 0), affix);
             if (Value<bool>(M("ItemAffix", "get_IsSealed", 0), affix)) {
                 if (Value<bool>(M("ItemAffix", "get_IsSealedRegular", 0), affix)) sealedTier = tier;
+                else if (Value<bool>(M("ItemAffix", "get_IsSealedPrimordial", 0), affix)) primordialTier = tier;
+                else if (Value<bool>(M("ItemAffix", "get_IsSealedCorrupted", 0), affix)) corruptedTier = tier;
                 continue;
             }
             const int type = Get<int>(affix, F("ItemAffix", "affixType"));
@@ -293,10 +302,11 @@ void d_affixesText(void* self, void* itemData, void* info, MethodInfo m) {
         for (size_t i = 0; i < prefixes.size(); ++i) MarkLine(prefixLines[i], prefixes[i]);
         for (size_t i = 0; i < suffixes.size(); ++i) MarkLine(suffixLines[i], suffixes[i]);
         lastTooltipTier = prefixes.empty() ? (suffixes.empty() ? lastTooltipTier : suffixes.front()) : prefixes.front();
-        void* sealed = Get<void*>(self, F("UITooltipItem", "sealedAffix"));
-        if (sealedTier && sealed && game::IsAlive(sealed)) {
-            Root go(Invoke(M("Component", "get_gameObject", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), sealed));
-            if (Value<bool>(Method(go.Get(), "get_activeSelf", 0), go.Get())) MarkLine(sealed, sealedTier);
+        for (const auto& [field, tier] : {std::pair<const char*, int>{"sealedAffix", sealedTier}, {"sealedPrimordialAffix", primordialTier}, {"sealedCorruptedAffix", corruptedTier}}) {
+            void* line = tier ? Get<void*>(self, F("UITooltipItem", field)) : nullptr;
+            if (!line || !game::IsAlive(line)) continue;
+            Root go(Invoke(M("Component", "get_gameObject", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), line));
+            if (Value<bool>(Method(go.Get(), "get_activeSelf", 0), go.Get())) MarkLine(line, tier);
         }
     }, nullptr)) ++faults;
 }
@@ -378,19 +388,20 @@ std::string Set(const std::string& key, int value) {
             }
             (key == "lines" ? linesOn : tooltipsOn) = value != 0;
             RedrawTooltips();
+            RebuildGameTooltip();
         }
         return State();
     });
 }
 std::string SetColor(const std::string& tier, const std::string& hex) {
-    if (tier == "reset") return Run([] { palette = kDefaultPalette; RefreshIcons(false); RedrawTooltips(); return State(); });
+    if (tier == "reset") return Run([] { palette = kDefaultPalette; RefreshIcons(false); RedrawTooltips(); RebuildGameTooltip(); return State(); });
     int index = 0;
     if (tier.size() != 1 || tier[0] < '1' || tier[0] > '8') return "{\"ok\":false,\"error\":\"use tiercolor <1-8> <RRGGBB> or tiercolor reset\"}";
     index = tier[0] - '1';
     if (hex.size() != 6 || hex.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos)
         return "{\"ok\":false,\"error\":\"colour must be six hexadecimal digits, for example E0315A\"}";
     const uint32_t rgb = static_cast<uint32_t>(std::stoul(hex, nullptr, 16));
-    return Run([&] { palette[static_cast<size_t>(index)] = rgb; RefreshIcons(false); RedrawTooltips(); return State(); });
+    return Run([&] { palette[static_cast<size_t>(index)] = rgb; RefreshIcons(false); RedrawTooltips(); RebuildGameTooltip(); return State(); });
 }
 void ReleaseRoots() { labels.clear(); tooltipColors.clear(); iconsOn = false; tooltipsOn = false; linesOn = false; }
 

@@ -81,8 +81,9 @@ class ReportTests(unittest.TestCase):
             setup.reveal = shown.append
             result = setup.execute('report', {'description': 'Stash all moved nothing', 'screenshot': False})
         self.assertTrue(result['ok']); self.assertTrue(result['report'].startswith('EpochPact-report-'))
-        self.assertEqual(shown, [self.user / 'reports'])
-        self.assertTrue((self.user / 'reports' / result['report']).is_file())
+        # Saved next to the in-game hotkey reports, in the game folder.
+        self.assertEqual(shown, [exe.parent / 'EpochPact' / 'reports'])
+        self.assertTrue((exe.parent / 'EpochPact' / 'reports' / result['report']).is_file())
         with self.assertRaises(ValueError):
             setup.execute('report', {'description': 'x' * 5000})
 

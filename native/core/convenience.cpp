@@ -973,6 +973,23 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
     if(action=="passives-close"){Invoke(Method(ui,"closePassiveTree",0),ui);return State();}
     if(action=="skills-close"){bool tooltip=true;void* a[]{&tooltip};Invoke(Method(ui,"closeSkills",1),ui,a);return State();}
     if(action=="blessings-open"){bool sound=false,respec=false;void* a[]{&sound,&respec};Invoke(Method(inventoryPanel.Get(),"OpenBlessingPanel",2),inventoryPanel.Get(),a);return State();}
+    if(action=="seal-regular"||action=="seal-primordial"){
+        // Disposable character only: the game's own sealing on the first inventory item with affixes.
+        void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
+        Root content(Invoke(Method(inventory,"GetContent",0),inventory));
+        for(void* entry:Entries(content.Get())){
+            void* data=entry?Get<void*>(entry,F("ItemContainerEntry","data")):nullptr;
+            void* affixes=data?Get<void*>(data,F("ItemData","affixes")):nullptr;
+            if(!affixes||Entries(affixes).size()<2)continue;
+            if(action=="seal-regular"){int tier=5;void* a[]{&tier};Invoke(Method(data,"AddRandomRegularSealedAffix",1),data,a);}
+            else{void* first=Entries(affixes).front();bool flag=true;void* a[]{first,&flag};Invoke(Method(data,"MakeAffixSealedPrimordialAffix",2),data,a);}
+            std::ostringstream out;out<<"{\"ok\":true,\"affixes\":[";bool comma=false;
+            for(void* affix:Entries(Get<void*>(data,F("ItemData","affixes")))){if(!affix)continue;if(comma)out<<',';comma=true;
+                out<<"{\"tier\":"<<Value<int>(M("ItemAffix","get_DisplayTier",0),affix)<<",\"sealed\":"<<Get<int>(affix,F("ItemAffix","sealedAffixType"))<<'}';}
+            return out.str()+"]}";
+        }
+        throw std::runtime_error("No inventory item with at least two affixes.");
+    }
     if(action=="tooltip-first"||action=="tooltip-close"){
         // Opens the game's own item tooltip for the first visible inventory item
         // with affixes, exactly as hovering it would, so tooltip display hooks
@@ -981,7 +998,12 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
         if(managers.empty())throw std::runtime_error("Tooltip manager unavailable.");
         void* manager=managers.front();
         if(action=="tooltip-close"){Invoke(Method(manager,"CloseTooltip",0),manager);return "{\"ok\":true}";}
-        for(void* icon:Find("LE.dll","","InventoryItemUI")){
+        // An item with a sealed affix first (it has its own tooltip line), then any item with affixes.
+        auto icons=Find("LE.dll","","InventoryItemUI");
+        auto sealedOf=[&](void* icon){void* e=Get<void*>(icon,F("InventoryItemUI","<EntryRef>k__BackingField"));void* d=e?Get<void*>(e,F("ItemContainerEntry","data")):nullptr;
+            void* list=d?Get<void*>(d,F("ItemData","affixes")):nullptr;if(!list)return false;for(void* x:Entries(list))if(x&&Get<int>(x,F("ItemAffix","sealedAffixType")))return true;return false;};
+        std::stable_partition(icons.begin(),icons.end(),sealedOf);
+        for(void* icon:icons){
             Root go(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),icon));
             if(!Value<bool>(Method(go.Get(),"get_activeInHierarchy",0),go.Get()))continue;
             void* entry=Get<void*>(icon,F("InventoryItemUI","<EntryRef>k__BackingField"));
@@ -999,13 +1021,20 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
             for(void* affix:Entries(affixes)){if(!affix)continue;if(comma)out<<',';comma=true;
                 out<<"{\"type\":"<<Get<int>(affix,F("ItemAffix","affixType"))<<",\"tier\":"<<Value<int>(M("ItemAffix","get_DisplayTier",0),affix)<<",\"sealed\":"<<Boolean(Value<bool>(M("ItemAffix","get_IsSealed",0),affix))<<'}';}
             out<<"],\"lines\":[";comma=false;
-            if(void* tooltip=game::StaticObject(game::FindStaticField("LE.dll","","UITooltipItem","instance")))
+            if(void* tooltip=game::StaticObject(game::FindStaticField("LE.dll","","UITooltipItem","instance"))){
+                for(const char* field:{"sealedAffix","sealedPrimordialAffix","sealedCorruptedAffix"}){
+                    void* line=Get<void*>(tooltip,F("UITooltipItem",field));if(!line||!game::IsAlive(line))continue;
+                    Root lg(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),line));
+                    if(!Value<bool>(Method(lg.Get(),"get_activeSelf",0),lg.Get()))continue;
+                    void* text=Get<void*>(line,F("UITooltipItemAffix","_text"));if(!text)continue;
+                    if(comma)out<<',';comma=true;out<<Json(std::string(field)+": "+Text(Invoke(Method(text,"get_text",0),text)).substr(0,140));}
                 for(const char* list:{"prefixesText","suffixesText"})
                     for(void* line:Entries(Get<void*>(tooltip,F("UITooltipItem",list)))){
                         if(!line||!game::IsAlive(line))continue;Root lg(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),line));
                         if(!Value<bool>(Method(lg.Get(),"get_activeSelf",0),lg.Get()))continue;
                         void* text=Get<void*>(line,F("UITooltipItemAffix","_text"));if(!text)continue;
                         if(comma)out<<',';comma=true;out<<Json(std::string(list)+": "+Text(Invoke(Method(text,"get_text",0),text)).substr(0,120));}
+            }
             return out.str()+"]}";
         }
         throw std::runtime_error("No visible inventory item with affixes.");

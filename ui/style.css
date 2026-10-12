@@ -55,7 +55,9 @@ dialog.stat-editor{max-width:740px;padding:0;scrollbar-color:var(--gold) var(--p
 .summon-table th{color:var(--accent,#8ce0b8);font-weight:600}
 /* Display preferences remain usable in both themes and narrow app windows. */
 .nav-customize{display:block;padding:12px 22px;font-size:.8rem;color:var(--muted);}
-.navigation-options>div{display:grid;grid-template-columns:minmax(140px,1fr) auto auto;gap:18px;align-items:center;padding:12px 0;border-bottom:1px solid #92734035;}
+.navigation-options{max-width:460px}.navigation-options>div{display:grid;grid-template-columns:minmax(120px,200px) auto auto;justify-content:start;column-gap:18px;align-items:center;padding:8px 0;border-bottom:1px solid #92734035;}
+.app-version{display:block;margin-top:6px;opacity:.7;font-size:12px}.update-notice{display:block;margin-top:6px;font-size:12px;color:#73deb0}.update-notice a{color:inherit}
+.setup-summary .actions{margin-top:0}
 .navigation-options label,.column-options label{display:flex;align-items:center;gap:8px;}
 .navigation-options input,.column-options input{width:auto;accent-color:#73deb0;}
 .display-options{margin:14px 0;}.column-options{display:flex;gap:16px;flex-wrap:wrap;padding:16px 0;}

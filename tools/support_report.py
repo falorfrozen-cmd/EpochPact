@@ -128,7 +128,16 @@ def create(game_dir: Path | None, setup_state: dict, description: str = '', scre
         raise ValueError('Invalid description.')
     description = description.strip()[:DESCRIPTION_LIMIT]
     redact = redactor()
-    folder = output or (user_root() / 'reports')
+    # Next to the in-game (hotkey) reports in the game folder; the user folder
+    # when the game is unknown or its folder cannot be written.
+    folder = output
+    if folder is None and game_dir:
+        try:
+            folder = Path(game_dir) / 'EpochPact' / 'reports'
+            folder.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            folder = None
+    folder = folder or (user_root() / 'reports')
     folder.mkdir(parents=True, exist_ok=True)
     stamp = _dt.datetime.now().strftime('%Y%m%d-%H%M%S')
     path = folder / f'EpochPact-report-{stamp}.zip'
