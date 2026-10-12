@@ -49,9 +49,24 @@ reinstalled the player core.
 |---|---|---|
 | Tier labels on corrupted affixes | Regular, primordial and corrupted sealed lines (`sealedAffix`, `sealedPrimordialAffix`, `sealedCorruptedAffix`) are tagged; `TooltipItemManager.ForceUpdateTooltip` after a setting/colour change. | Item sealed with the game's `AddRandomRegularSealedAffix`: sealed line `T6`, then `T8` after `MakeAffixSealedPrimordialAffix`; switching off restored every line exactly; 0 mismatches, 0 faults. A corrupted sealed affix could not be created on the test character; it uses the same code path. |
 | New default palette | `FFFFFF 2E8BFF FFD700 FF5500 AA55FF 00FF00 FF0044 00FFFF` (player's palette; T2/T5 lightened from contrast 4.3/3.2 to 5.3/4.6 on the tooltip background). | Tags and lines drawn with the new colours. |
-| In-game bug report (#15) | `report.cpp`: F8 (F5–F12/off) while the game is in front → `<game>/EpochPact/reports/<time>` with screenshot, info, logs, description; game notification. | `reportnow`: folder with `screenshot.png` (2.4 MB), `info.txt`, `core-log.txt`, `description.txt`; user name absent from info and log; notice "EpochPact/reports/2026-10-12_232546" (a `` in the first version was read as a line break by the game's text). Key F9 saved and read back. The physical F8 press was not automated. |
+| In-game bug report (#15) | `report.cpp`: F8 (F5–F12/off) while the game is in front → `<game>/EpochPact/reports/<time>` with screenshot, info, logs, description; game notification. | `reportnow`: folder with `screenshot.png` (2.4 MB), `info.txt`, `core-log.txt`, `description.txt`; user name absent from info and log; notice "EpochPact/reports/2026-10-12_232546" (a `
+` in the first version was read as a line break by the game's text). Key F9 saved and read back. The physical F8 press was not automated. |
 | Version and update notice | Sidebar version; `/api/update` reads `releases/latest` once in the background; links only to the EpochPact releases page. | Unit tests (4). |
 | Scroll position, navigation layout, Game setup | Per-section scroll memory (option); compact navigation grid; full setup panel only on Game setup, one status line on Overview. | JS tests. |
+
+## Damage meter
+
+`damagesession start|stop|reset`: the `ProtectionClass.ApplyDamage` detour adds
+each hit to the attacker's type (one float bucket per second for 3,600 s);
+allies are re-read once a second in the frame callback; the detour is removed on
+Stop and after 10 s without readers.
+
+Measured in Z52 (test character warped next to an enemy spawner, Ballista cast,
+30 attack orders): RogueBallista 6 hits / 482 damage and the character 4 hits /
+127 damage over 7 combat seconds; the Ballista was gone by the end (the live
+summons list was empty) while the session kept its values. Stop: hook removed,
+values frozen; Reset: empty; 0 faults. Frame time with the session running
+13.33 ms mean / 14.26 ms p99 versus 13.44 / 17.67 without it (same spot).
 
 ## Performance
 

@@ -69,7 +69,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
 
     @app.get("/ui/<path:path>")
     def assets(path):
-        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js", "crafting-model.js", "affix-picker.js", "loot-log.js", "feed.js"):
+        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js", "crafting-model.js", "affix-picker.js", "loot-log.js", "feed.js", "damage-meter.js", "damage.js"):
             return send_from_directory(ROOT / "ui", path)
         if path.startswith("assets/"):
             return send_from_directory(ROOT / "ui/assets", path.removeprefix("assets/"))
@@ -78,6 +78,10 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
     @app.get("/feed")
     def feed():
         return send_from_directory(ROOT / "ui", "feed.html")
+
+    @app.get("/damage")
+    def damage():
+        return send_from_directory(ROOT / "ui", "damage.html")
 
     @app.get("/api/bootstrap")
     def bootstrap():

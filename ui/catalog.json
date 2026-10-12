@@ -1040,6 +1040,56 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "damage_session_read",
+      "group": "summons",
+      "label": "Damage session",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "damagesession",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read the damage session: per ally type and your character, DPS over 10 s, 60 s, 10 min and 60 min, averages, totals and hits.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "damage_session",
+      "group": "summons",
+      "label": "Damage session control",
+      "widget": "selector",
+      "availability": "implemented",
+      "commandTemplate": "damagesession {action}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "action",
+          "type": "enum",
+          "choices": [
+            "start",
+            "stop",
+            "reset"
+          ]
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "view",
+      "description": "Start, stop or reset the damage session. Damage is only recorded while it runs; stopped values stay until reset.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "summons_read",
       "group": "summons",
       "label": "Live summoned allies",
@@ -32879,7 +32929,7 @@
     ]
   },
   "counts": {
-    "controls": 147,
+    "controls": 149,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

@@ -235,6 +235,20 @@ once.
 
 ## Live summons
 
+### Damage meter (session)
+
+The Summons page's **Damage meter** records damage only while it runs: **Start**
+installs the damage hook, **Stop** removes it (no cost while stopped; the hook is
+also removed about 10 s after the Live summons table stops reading). While it
+runs, damage dealt by your character and by every ally your summons created is
+added per ally type: total, hits, biggest hit, DPS over the last 10 s, 60 s,
+10 min and 60 min, the session average and the average over seconds with
+damage ("in combat"). Values stay after Stop, when you switch windows or after
+allies die, until **Reset**. **Copy as CSV** copies the table; **Open damage
+window** shows it in a small always-on-top window (windowed or borderless game)
+with its own Start/Stop/Reset and opacity. Allies are found once a second.
+
+
 Allies are grouped by type by default: one row per type (for example
 "Skeleton ×5", "Bone Golem", "Blood Golem"). Grouped rows add measured DPS, last
 hit and health across the group and average armour, damage increase and

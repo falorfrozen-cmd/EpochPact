@@ -93,6 +93,7 @@ std::string Execute(const std::string& line) {
     if(cmd=="treerespec")return args.size()==2?builds::Respec(args[0],args[1]):"{\"ok\":false,\"error\":\"use treerespec save-id skills|passives|weaver\"}";
     if(cmd=="inventoryread")return args.empty()?convenience::InventoryRead():"{\"ok\":false,\"error\":\"inventoryread expects no arguments\"}";
     if(cmd=="qolread")return args.empty()?convenience::Read():"{\"ok\":false,\"error\":\"qolread expects no arguments\"}";
+    if(cmd=="damagesession")return args.size()<=1?convenience::DamageSession(args.empty()?"":args[0]):"{\"ok\":false,\"error\":\"use damagesession [start|stop|reset]\"}";
     if(cmd=="summonread")return args.empty()?convenience::Summons():"{\"ok\":false,\"error\":\"summonread expects no arguments\"}";
     if(cmd=="qolset"){double value=0;return args.size()==2&&statedit::Number(args[1],&value)?convenience::Set(args[0],value):"{\"ok\":false,\"error\":\"use qolset setting value\"}";}
     if(cmd=="tierread")return args.empty()?tiers::Read():"{\"ok\":false,\"error\":\"tierread expects no arguments\"}";

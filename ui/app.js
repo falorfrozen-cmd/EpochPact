@@ -530,6 +530,7 @@ async function openPage(){
  if(page==="loot"&&!preview)await refreshSection("pickup_radius_read",{refreshConnectionFirst:false});
  if(page==="display")await refreshSection("build_read",{refreshConnectionFirst:false});
  if(page==="settings"&&!preview&&connected.connected&&controlById("report_read"))await refreshSection("report_read",{refreshConnectionFirst:false});
+ if(page==="summons"&&!preview&&connected.connected&&controlById("damage_session_read")){const r=await job({type:"control",id:"damage_session_read",operation:"read"}).catch(()=>null);if(r?.ok){cache.damage_session_read=r;renderDamage();}}
  if(page==="world")await refreshSection("map_read",{refreshConnectionFirst:false});
  if(page==="crafting"&&!preview&&eligible(controlById("craft_materials_read")))await refreshSection("craft_materials_read",{refreshConnectionFirst:false});
  if(["general","monolith"].includes(page)&&!cache.build_read&&controlById("build_read")&&eligible(controlById("build_read")))await refreshSection("build_read",{refreshConnectionFirst:false});
@@ -561,7 +562,7 @@ function renderPage(){
  }else if(page==="summons"){
   const aliases=catalog.characterStats.aliases;
   const summonStats=aliases.map((row,index)=>({row,index})).filter(x=>/^minion|^maxcompanions/.test(x.row.name));
-  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Live summoned allies</h2><button data-refresh="summons_read" data-control-id="summons_read">Refresh allies</button></div>${summonColumnPicker()}<div class="actions"><button id="summon-baseline">Save damage baseline</button><button id="summon-baseline-clear">Clear baseline</button></div><div id="summon-live">${summonTable()}</div></section>`+settingPanel("Summon lifetime",[controlById("build_summonduration")])+`<section class="panel"><h2>Minion and companion bonuses</h2><p class="muted">These controls use the existing character stat editor. Minion tags keep these bonuses separate from your own damage and health.</p><div class="control-grid">${summonStats.map(x=>`<button class="settings-card" data-summon-stat="${x.index}"><h3>${esc(ST.name(x.row,"aliases"))}</h3><p class="muted">Edit bonus →</p></button>`).join("")}</div></section>`;
+  content.innerHTML=damagePanel()+`<section class="panel"><div class="section-head"><h2>Live summoned allies</h2><button data-refresh="summons_read" data-control-id="summons_read">Refresh allies</button></div>${summonColumnPicker()}<div class="actions"><button id="summon-baseline">Save damage baseline</button><button id="summon-baseline-clear">Clear baseline</button></div><div id="summon-live">${summonTable()}</div></section>`+settingPanel("Summon lifetime",[controlById("build_summonduration")])+`<section class="panel"><h2>Minion and companion bonuses</h2><p class="muted">These controls use the existing character stat editor. Minion tags keep these bonuses separate from your own damage and health.</p><div class="control-grid">${summonStats.map(x=>`<button class="settings-card" data-summon-stat="${x.index}"><h3>${esc(ST.name(x.row,"aliases"))}</h3><p class="muted">Edit bonus →</p></button>`).join("")}</div></section>`;
  }else if(page==="stats")renderStats();
  else if(page==="campaign"){
   const mastery=window.EpochSession.current(cache.progress_read,connected,preview)?cache.progress_read?.mastery:null;
@@ -907,6 +908,17 @@ function ingameReportPanel(){
  if(!c)return "";
  return `<p class="muted">While playing, press <b>${esc(key==="off"?"the hotkey":key)}</b> to save a report in <code>Last Epoch\\EpochPact\\reports</code>: a screenshot of that moment, game and EpochPact state, recent logs and a <code>description.txt</code> to fill in. The game shows a short notice. Nothing is uploaded; zip the folder and share it in the EpochPact Discord. Windows user and computer names are masked.</p><div class="form-grid"><label>Hotkey<select data-report-key data-control-id="report_key">${c.parameters[0].choices.map(k=>`<option value="${k}" ${k===key?"selected":""}>${k==="off"?"Off":k}</option>`).join("")}</select></label></div><div class="actions"><button data-report-now data-control-id="report_now">Create report now</button><button data-refresh="report_read" data-control-id="report_read">Refresh</button>${r?.last?`<span class="muted">Last: ${esc(r.last.split(/[\\/]/).pop())}</span>`:""}</div>`;
 }
+// ---- damage session (on only while the player wants it)
+function damagePanel(){
+ if(!controlById("damage_session"))return "";
+ const s=cache.damage_session_read,D=window.EpochDamage,win=window.pywebview?.api?.open_damage_window?'<button data-damage-window>Open damage window</button>':"";
+ return `<section class="panel" id="damage-panel"><div class="section-head"><h2>Damage meter</h2><div class="actions"><button class="${s?.active?"":"primary"}" data-damage-action="${s?.active?"stop":"start"}" data-control-id="damage_session">${s?.active?"Stop":"Start"}</button><button data-damage-action="reset" data-control-id="damage_session">Reset</button><button data-damage-csv ${s?.types?.length?"":"disabled"}>Copy as CSV</button>${win}</div></div><p class="muted">Records damage by your allies (grouped by type) and your character only while it runs, so it costs nothing when stopped. Values stay after Stop until Reset, also when you switch windows. The damage window stays on top of a windowed or borderless game.</p><p class="note" id="damage-status">${esc(D?D.status(s):"")}</p><div id="damage-live">${D?D.table(s):""}</div></section>`;
+}
+function renderDamage(){const node=$("#damage-panel");if(node)node.outerHTML=damagePanel();updateDisabled();}
+async function damageAction(action){
+ const r=await runTask({type:"control",id:"damage_session",args:{action}},{silent:true});
+ if(r?.ok){cache.damage_session_read=r;renderDamage();}
+}
 let lootEntries=[],lootOwner=null;
 function lootTable(){return window.EpochLootLog?window.EpochLootLog.table(lootEntries):'<p class="empty">No pickups yet.</p>';}
 function lootPanel(){
@@ -948,6 +960,7 @@ async function pollConveniences(){
  finally{liveReading=false;armAutomatic();}
 }
 setInterval(()=>void pollConveniences(),1000);
+setInterval(()=>{if(page==="summons"&&!preview&&!document.hidden&&!busy&&cache.damage_session_read?.active)void job({type:"control",id:"damage_session_read",operation:"read"}).then(r=>{if(r?.ok&&page==="summons"){cache.damage_session_read=r;const live=$("#damage-live"),status=$("#damage-status");if(live)live.innerHTML=window.EpochDamage.table(r);if(status)status.textContent=window.EpochDamage.status(r);}}).catch(()=>{});},1000);
 function formArgs(form,c){
  const data=new FormData(form),args={};
  for(const p of c.parameters){if(p.name==="save_id")continue;let v=data.get(p.name);if(p.type==="optional_integer"&&(v===""||v===null))continue;
@@ -1048,6 +1061,9 @@ content.addEventListener("click",async e=>{
  else if(b.dataset.tierReset!==undefined){try{localStorage.removeItem("epochpact.tier-palette.v1");}catch{}const r=await runTask({type:"control",id:"tier_color",operation:"reset"},{silent:true});if(r?.ok){notify("Tier colours reset.");renderPage();}}
  else if(b.dataset.stashRules)await stashRulesAction(b.dataset.stashRules,b.dataset.stashRules==="create"?{hidden:$("#stash-rules-hidden")?.checked?1:0,disabled:$("#stash-rules-disabled")?.checked?1:0}:{});
  else if(b.dataset.reportNow!==undefined){const r=await runTask({type:"control",id:"report_now"},{silent:true});if(r?.ok){notify(`Report saved: ${r.folder.split(/[\\/]/).pop()} (in the game's EpochPact\\reports folder).`);void refreshSection("report_read");}}
+ else if(b.dataset.damageAction)await damageAction(b.dataset.damageAction);
+ else if(b.dataset.damageCsv!==undefined){const text=window.EpochDamage.csv(cache.damage_session_read);try{await navigator.clipboard.writeText(text);notify("Damage table copied as CSV.");}catch{const area=document.createElement("textarea");area.value=text;document.body.appendChild(area);area.select();document.execCommand("copy");area.remove();notify("Damage table copied as CSV.");}}
+ else if(b.dataset.damageWindow!==undefined){try{await window.pywebview.api.open_damage_window();}catch{notify("Could not open the damage window.",true);}}
  else if(b.id==="report-create"){
   const r=await runTask({type:"launcher",action:"report",args:{description:$("#report-description").value,screenshot:$("#report-screenshot").checked}},{silent:true});
   if(r?.ok){notify(r.message);$("#report-description").value="";}

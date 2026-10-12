@@ -385,7 +385,7 @@ FILTER_ACTIONS = ('filters', 'filter_import', 'filter_export', 'filter_duplicate
 
 
 class FeedWindowApi:
-    """js_api of the loot feed window: only its own opacity."""
+    """js_api of an always-on-top window (loot feed, damage): only its own opacity."""
     TITLE = 'EpochPact Loot Feed'
 
     def set_feed_opacity(self, percent):
@@ -406,12 +406,17 @@ class FeedWindowApi:
         return bool(user32.SetLayeredWindowAttributes(hwnd, 0, round(percent * 255 / 100), LWA_ALPHA))
 
 
+class DamageWindowApi(FeedWindowApi):
+    TITLE = 'EpochPact Damage'
+
+
 class DesktopDialogs:
     def __init__(self):
         # pywebview reflects public js_api attributes recursively. Never expose
         # its native window/.NET object graph to that bridge.
         self._window = None
         self._feed = None
+        self._damage = None
         self._url = None
 
     def open_loot_feed(self):
@@ -433,6 +438,26 @@ class DesktopDialogs:
 
     def _feed_closed(self):
         self._feed = None
+
+    def open_damage_window(self):
+        """The damage session over a windowed/borderless game."""
+        import webview
+        if self._damage is not None:
+            try:
+                self._damage.restore()
+                self._damage.show()
+                return True
+            except Exception:
+                self._damage = None
+        if not self._url:
+            return False
+        self._damage = webview.create_window(DamageWindowApi.TITLE, self._url + '/damage', js_api=DamageWindowApi(), width=520, height=360,
+                                             min_size=(320, 200), on_top=True, background_color='#091310')
+        self._damage.events.closed += self._damage_closed
+        return True
+
+    def _damage_closed(self):
+        self._damage = None
 
     def choose_filter_file(self):
         import webview

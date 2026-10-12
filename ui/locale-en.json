@@ -608,6 +608,14 @@
     "report_now": [
       "Create in-game report now",
       "Save the same report as the hotkey, from EpochPact."
+    ],
+    "damage_session_read": [
+      "Damage session",
+      "Read the damage session: per ally type and your character, DPS over 10 s, 60 s, 10 min and 60 min, averages, totals and hits."
+    ],
+    "damage_session": [
+      "Damage session control",
+      "Start, stop or reset the damage session. Damage is only recorded while it runs; stopped values stay until reset."
     ]
   },
   "researchOnly": {

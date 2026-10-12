@@ -121,6 +121,11 @@ def controls():
         'Clear the recent pickups list. Items and gold are unchanged.',doc="docs/player-conveniences.md")
     add("pickup_now","loot","Pick up everything now","button","pickupnow","view",
         'Collect every drop the game has loaded right now, ignoring the radius. Your pickup rules, categories, loot filter and inventory space still apply. Runs across several frames.',doc="docs/player-conveniences.md")
+    add("damage_session_read","summons","Damage session","read","damagesession","read_only",
+        "Read the damage session: per ally type and your character, DPS over 10 s, 60 s, 10 min and 60 min, averages, totals and hits.",doc="docs/player-conveniences.md")
+    add("damage_session","summons","Damage session control","selector","damagesession {action}","view",
+        "Start, stop or reset the damage session. Damage is only recorded while it runs; stopped values stay until reset.",
+        params=[parameter("action","enum",choices=["start","stop","reset"])],doc="docs/player-conveniences.md")
     add("summons_read","summons","Live summoned allies","read","summonread","read_only",
         "Read each active player-owned summon: health, armour, uncapped resistances and global damage increase. These are actual live values; damage increase is not skill DPS.",doc="docs/player-conveniences.md")
     add("inventory_read","inventory","Live inventory","read","inventoryread","read_only",

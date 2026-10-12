@@ -1,10 +1,10 @@
 {
   "version": "0.1.2-dev.19",
   "files": {
-    "EpochPact.exe": {"sha256": "cdb5a2823bc5eb7ca88663e7a5fe7836e19cea3cdca8d76c6cfa968510c76d79", "malicious": 0, "engines": 69},
-    "EpochPact.Core.dll": {"sha256": "59dfdd18e45c5eee7f6be0a610713a4d748753a4d4479f17ba9d8c58c818cc36", "malicious": 0, "engines": 69},
-    "version.dll": {"sha256": "93591e4d8cc760632c66c921d6dbbe5d51e8b19f52bebf4439419df99b6b72bd", "malicious": 1, "engines": 69, "detections": ["Cynet: Malicious (score: 100)"]}
+    "EpochPact.exe": {"sha256": "5b2b27187f2e5508eef011ffc023a47dd211f39775e94dcaad5432ca48e9224d", "virusTotal": "not run (browser connection unavailable at release)", "localDefender": "No threats found"},
+    "EpochPact.Core.dll": {"sha256": "21866b7a78bb16717bd5d1bb443450b8411bead2c3faf4a2a4eda220a3a1087a", "virusTotal": "not run (browser connection unavailable at release)", "localDefender": "No threats found"},
+    "version.dll": {"sha256": "7b99b46c59a630c0bd334b5966cca5be0845870756a9ac48410b07051066e440", "virusTotal": "not run (browser connection unavailable at release)", "localDefender": "No threats found"}
   },
-  "zip": {"sha256": "021a3b67c37074ba376eccb75dd7e76a2ae57cb670a4e6e7c99edf71cb4aacb0", "virusTotal": "not uploaded (over the browser upload limit)", "localDefender": "No threats found"},
-  "note": "Fresh browser uploads on 2026-10-12; counts read from the VirusTotal file pages. The Cynet verdict on the loader matches every earlier loader build; its cause is not established."
+  "zip": {"sha256": "e78f27132aa0f50de31e31f6a605b5608243dd1ee805041470070dbb330729e2", "localDefender": "No threats found"},
+  "note": "An earlier dev.19 candidate (before the feedback round) scored EXE 0/69, Core 0/69, loader 1/69 (Cynet, as every loader build). The released files were scanned with Windows Defender only."
 }

@@ -34,6 +34,15 @@ interface font, plus the open points of dev.18.
 - Fixed: after a setting or colour change, an item whose tooltip was already
   shown kept the old look until another item was hovered.
 
+## Damage meter (Summons page)
+
+- **Start / Stop / Reset**: damage by your allies (per type) and your character
+  is kept for the whole session — DPS over 10 s, 60 s, 10 min and 60 min,
+  averages, totals, hits and biggest hit. Nothing disappears when you switch
+  windows or allies die; it is only measured while running.
+- **Open damage window**: the table in a small always-on-top window over a
+  windowed or borderless game. **Copy as CSV** for your own analysis.
+
 ## In-game report
 
 - Press **F8** in the game to save a report (screenshot, state, logs and a

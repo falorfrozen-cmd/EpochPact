@@ -13,7 +13,7 @@ layout, build/test/live workflow, the current state and the traps) and
 `research/HANDOFF.md` (the full handoff report).
 
 Building the owner's UI? Start with [the complete UI catalog](docs/ui-catalog.md)
-and its machine-readable [ui/catalog.json](ui/catalog.json): all 147 implemented
+and its machine-readable [ui/catalog.json](ui/catalog.json): all 149 implemented
 controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.

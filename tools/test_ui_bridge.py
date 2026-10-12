@@ -204,7 +204,7 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','stashrule','report','summonread','inventoryread','inventoryaction ')):
+        if command.startswith(('qolread','qolset ','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','stashrule','report','damagesession','summonread','inventoryread','inventoryaction ')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})

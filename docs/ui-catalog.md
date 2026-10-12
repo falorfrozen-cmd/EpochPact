@@ -13,7 +13,7 @@ JSON yüklemek hiçbir ayarı oyuna uygulamaz; kayıtlı mod profili oluşturmaz
 
 | Katalog | Adet |
 |---|---:|
-| Panel kontrolü / işlem | 147 |
+| Panel kontrolü / işlem | 149 |
 | SP stat türü | 134 |
 | Hazır stat adı | 72 |
 | Doğrulanmış C satırı | 206 |
@@ -398,9 +398,13 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
 | `build_summonduration` — Summon lifetime multiplier | `buildset summonduration {value}` | value: 1…10 | 1 | Oturum |
+| `damage_session_read` — Damage session | `damagesession` | — | — | Okuma |
+| `damage_session` — Damage session control | `damagesession {action}` | action: start/stop/reset | — | Görünüm |
 | `summons_read` — Live summoned allies | `summonread` | — | — | Okuma |
 
 - **Summon lifetime multiplier:** Extend player-owned summon expiry timers and slow native health decay, including Wraith/Abomination paths. AI, attacks and combat damage remain normal. Permanent minions remain permanent. Reset: `buildset summonduration 1`.
+- **Damage session:** Read the damage session: per ally type and your character, DPS over 10 s, 60 s, 10 min and 60 min, averages, totals and hits.
+- **Damage session control:** Start, stop or reset the damage session. Damage is only recorded while it runs; stopped values stay until reset.
 - **Live summoned allies:** Read each active player-owned summon: health, armour, uncapped resistances and global damage increase. These are actual live values; damage increase is not skill DPS.
 
 ## Display & Camera

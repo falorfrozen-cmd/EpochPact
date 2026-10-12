@@ -1,4 +1,5 @@
 #include "convenience.hpp"
+#include "stat_editor.hpp"
 #include "managed.hpp"
 #include "hook.hpp"
 #include "items.hpp"
@@ -12,6 +13,7 @@
 #include <atomic>
 #include <cmath>
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <limits>
 #include <set>
@@ -92,6 +94,14 @@ uint64_t lastDroppedDamage=0;
 uint64_t monitorUntil=0,monitorStarted=0;
 std::map<void*,std::unique_ptr<Root>> monitoredAllies;
 game::Handle damageOwner;
+// ---- damage session: on/off by the player; per ally type totals and one
+// bucket per second for the last hour. The hook only adds to counters.
+struct DamageType{std::string name;double total=0;uint64_t hits=0;float maxHit=0;std::array<float,3600> buckets{};std::array<uint32_t,3600> seconds{};};
+std::vector<DamageType> damageTypes;
+std::unordered_map<void*,size_t> damageActorType;   // live ally (or the player) -> type
+std::map<void*,std::unique_ptr<Root>> damageActorRoots;
+std::atomic<bool> damageSession{false};
+uint64_t damageSessionStart=0,damageSessionEnd=0,damageCombatSeconds=0,damageLastCombatSecond=0,damageAllyRefresh=0,damageHits=0;
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
 uint64_t testDamageCalls=0,testDamageOwned=0;
 float testDamagePrimary=0,testDamageSecondary=0;
@@ -106,6 +116,17 @@ DamageResult ObserveDamage(void* self,void* stats,void* source,float factor,void
     // native tuple's second field is also sent to the game's damage events.
     // Collection has no allocations and expires when the Summons page stops polling.
     const auto now=GetTickCount64();
+    if(damageSession.load(std::memory_order_relaxed)&&!lifecycle::Stopping()&&std::isfinite(result.damage)&&result.damage>0){
+        if(auto it=damageActorType.find(attacker);it!=damageActorType.end()){
+            auto& type=damageTypes[it->second];
+            const uint32_t second=static_cast<uint32_t>((now-damageSessionStart)/1000)+1;  // 0 = empty bucket
+            auto& slot=type.seconds[second%type.seconds.size()];
+            if(slot!=second){slot=second;type.buckets[second%type.buckets.size()]=0;}
+            type.buckets[second%type.buckets.size()]+=result.damage;
+            type.total+=result.damage;++type.hits;type.maxHit=std::max(type.maxHit,result.damage);++damageHits;
+            if(second!=damageLastCombatSecond){damageLastCombatSecond=second;++damageCombatSeconds;}
+        }
+    }
     if(!lifecycle::Stopping()&&now<monitorUntil&&monitoredAllies.contains(attacker)&&std::isfinite(result.damage)&&result.damage>0){
         auto& sample=damageSamples[damageSampleIndex++%damageSamples.size()];
         if(sample.time&&now-sample.time<=5000)lastDroppedDamage=now;
@@ -708,6 +729,55 @@ void Interactions(void* actor){
     }
     maximumInteractionMicros=std::max(maximumInteractionMicros,Micros()-start);
 }
+std::string AllyType(void* actor){
+    Root gameObject(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),actor));
+    std::string name=Text(Invoke(M("Object","get_name",0,"UnityEngine","UnityEngine.CoreModule.dll"),gameObject.Get()));
+    for(size_t at;(at=name.find("(Clone)"))!=std::string::npos;)name.erase(at,7);
+    while(!name.empty()&&name.back()==' ')name.pop_back();
+    return name.empty()?"Ally":name;
+}
+// The player and every ally the player's summons created (recursively).
+void RefreshDamageAllies(){
+    void* player=Actor();if(!player)return;
+    for(auto it=damageActorRoots.begin();it!=damageActorRoots.end();){
+        if(!game::IsAlive(it->first)){damageActorType.erase(it->first);it=damageActorRoots.erase(it);}else ++it;
+    }
+    auto typeIndex=[](const std::string& name){
+        for(size_t i=0;i<damageTypes.size();++i)if(damageTypes[i].name==name)return i;
+        damageTypes.push_back(DamageType{name});return damageTypes.size()-1;};
+    if(!damageActorType.contains(player)){damageActorType[player]=typeIndex("You");damageActorRoots.emplace(player,std::make_unique<Root>(player));}
+    std::vector<void*> creators{player};std::set<void*> seen{player};
+    for(size_t ci=0;ci<creators.size()&&seen.size()<=256;++ci){
+        void* tracker=Get<void*>(creators[ci],F("Actor","summonTracker"));if(!tracker)continue;
+        for(void* summon:Entries(Get<void*>(tracker,F("SummonTracker","summons")))){
+            if(!summon||!game::IsAlive(summon))continue;
+            void* actor=Get<void*>(summon,F("Summoned","actor"));if(!actor||!game::IsAlive(actor)||!seen.insert(actor).second)continue;
+            creators.push_back(actor);
+            if(!damageActorType.contains(actor)){damageActorType[actor]=typeIndex(AllyType(actor));damageActorRoots.emplace(actor,std::make_unique<Root>(actor));}
+        }
+    }
+}
+std::string DamageState(){
+    const auto now=damageSession.load()?GetTickCount64():damageSessionEnd;
+    const double elapsed=damageSessionStart?std::max(0.0,(now-damageSessionStart)/1000.0):0;
+    const uint32_t current=static_cast<uint32_t>(elapsed)+1;
+    std::map<size_t,int> live;for(const auto& [actor,index]:damageActorType)++live[index];
+    auto window=[&](const DamageType& t,uint32_t span){double sum=0;for(size_t i=0;i<t.seconds.size();++i)if(t.seconds[i]&&t.seconds[i]+span>current&&t.seconds[i]<=current)sum+=t.buckets[i];
+        const double seconds=std::min<double>(span,std::max(1.0,elapsed));return sum/seconds;};
+    std::ostringstream out;out.setf(std::ios::fixed);out.precision(1);
+    out<<"{\"ok\":true,\"active\":"<<Boolean(damageSession.load())<<",\"elapsedSeconds\":"<<elapsed<<",\"combatSeconds\":"<<damageCombatSeconds<<",\"hits\":"<<damageHits<<",\"hooked\":"<<Boolean(hook::IsInstalled(M("ProtectionClass","ApplyDamage",5).code))<<",\"types\":[";
+    DamageType team{"Allies total"};double allyTotal=0;uint64_t allyHits=0;float allyMax=0;bool comma=false;
+    std::array<double,4> teamWindows{};const std::array<uint32_t,4> spans{10,60,600,3600};
+    for(size_t i=0;i<damageTypes.size();++i){const auto& t=damageTypes[i];if(comma)out<<',';comma=true;
+        std::array<double,4> w{};for(size_t k=0;k<4;++k){w[k]=window(t,spans[k]);if(t.name!="You")teamWindows[k]+=w[k];}
+        if(t.name!="You"){allyTotal+=t.total;allyHits+=t.hits;allyMax=std::max(allyMax,t.maxHit);}
+        out<<"{\"name\":"<<Json(t.name)<<",\"live\":"<<live[i]<<",\"total\":"<<t.total<<",\"hits\":"<<t.hits<<",\"maxHit\":"<<t.maxHit
+           <<",\"dps10\":"<<w[0]<<",\"dps60\":"<<w[1]<<",\"dps600\":"<<w[2]<<",\"dps3600\":"<<w[3]
+           <<",\"average\":"<<(elapsed>0?t.total/elapsed:0)<<",\"combatAverage\":"<<(damageCombatSeconds?t.total/damageCombatSeconds:0)<<'}';}
+    out<<"],\"allies\":{\"total\":"<<allyTotal<<",\"hits\":"<<allyHits<<",\"maxHit\":"<<allyMax<<",\"dps10\":"<<teamWindows[0]<<",\"dps60\":"<<teamWindows[1]
+       <<",\"dps600\":"<<teamWindows[2]<<",\"dps3600\":"<<teamWindows[3]<<",\"average\":"<<(elapsed>0?allyTotal/elapsed:0)<<",\"combatAverage\":"<<(damageCombatSeconds?allyTotal/damageCombatSeconds:0)<<"}}";
+    return out.str();
+}
 void Frame(){
     ++frameUpdates;
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
@@ -723,6 +793,15 @@ void Frame(){
             game::Guarded([]{ClearShortcuts();},nullptr);
         }
         const auto spent=Micros()-started;inventoryMicros+=spent;maximumInventoryMicros=std::max(maximumInventoryMicros,spent);
+    }
+    if(damageSession.load(std::memory_order_relaxed)&&clock>=damageAllyRefresh+1000){
+        damageAllyRefresh=clock;
+        if(!game::Guarded([]{RefreshDamageAllies();},nullptr))++faults;
+    }
+    if(!damageSession.load(std::memory_order_relaxed)&&clock>monitorUntil+10000&&clock>=damageAllyRefresh+5000){
+        // Nothing reads damage: the hook is removed so it costs nothing.
+        damageAllyRefresh=clock;
+        game::Guarded([]{auto damage=M("ProtectionClass","ApplyDamage",5);std::string why;if(hook::IsInstalled(damage.code))hook::Remove(damage.code,&why);},nullptr);
     }
     if(!active.load(std::memory_order_relaxed))return;
     const auto now=GetTickCount64();
@@ -811,6 +890,22 @@ std::string Set(const std::string& key,double value){return Run([&]{
     try {if(key!="chests"&&key!="shrines"&&key!="portals")Graphics();}
     catch(...){(*it)->value=previous;try{Graphics();}catch(...){++faults;}throw;}
     return State();
+});}
+std::string DamageSession(const std::string& action){return Run([=]{
+    if(action=="start"){
+        if(!Actor())throw std::runtime_error("Load an offline character first.");
+        auto damage=M("ProtectionClass","ApplyDamage",5);std::string why;
+        if(!hook::IsInstalled(damage.code)&&!hook::Install(damage.code,reinterpret_cast<void*>(&ObserveDamage),reinterpret_cast<void**>(&originalDamage),&why))throw std::runtime_error(why);
+        damageTypes.clear();damageActorType.clear();damageActorRoots.clear();damageCombatSeconds=damageLastCombatSecond=damageHits=0;
+        damageSessionStart=GetTickCount64();damageSessionEnd=0;RefreshDamageAllies();damageAllyRefresh=GetTickCount64();damageSession=true;
+    }else if(action=="stop"){
+        if(damageSession.exchange(false))damageSessionEnd=GetTickCount64();
+        damageActorType.clear();damageActorRoots.clear();
+    }else if(action=="reset"){
+        const bool was=damageSession.load();damageTypes.clear();damageActorType.clear();damageActorRoots.clear();damageCombatSeconds=damageLastCombatSecond=damageHits=0;
+        damageSessionStart=GetTickCount64();damageSessionEnd=damageSessionStart;if(was)RefreshDamageAllies();
+    }else if(!action.empty())throw std::runtime_error("use damagesession [start|stop|reset]");
+    return DamageState();
 });}
 std::string Summons(){return Run([]{
     const auto c=Current();void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));
@@ -901,7 +996,17 @@ std::string Inventory(const std::string& id,const std::string& action){
     result.pop_back();return result+",\"backup\":"+Json(backup)+"}";
 }
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
-std::string Test(const std::string& id,const std::string& action){return Run([=]() -> std::string {
+std::string Test(const std::string& id,const std::string& action){
+    if(action.rfind("visit-",0)==0){
+        // A combat area for the damage session check; the waypoint request
+        // queues its own main-thread job, so it is not nested in Run.
+        const auto permission=Run([=]{const auto c=Current(id);if(c.name!="EpFeedbackTest")throw std::runtime_error("Convenience checks require the isolated EpFeedbackTest character.");return std::string("{\"ok\":true}");});
+        if(permission!="{\"ok\":true}")return permission;
+        const auto result=statedit::Waypoints(action.substr(6),id);
+        const bool ok=result.rfind("travel: normal waypoint transition requested",0)==0;
+        return std::string("{\"ok\":")+Boolean(ok)+",\"result\":"+Json(result)+"}";
+    }
+    return Run([=]() -> std::string {
     const auto c=Current(id);if(c.name!="EpFeedbackTest")throw std::runtime_error("Convenience checks require the isolated EpFeedbackTest character.");
     void* ui=Ui();
     if(action=="currency-max"||action=="currency-normal"||action=="currency-read"){
@@ -1385,6 +1490,15 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
         void* constructor=Get<void*>(source,F("Actor","abilityObjectConstructor"));float delay=0;int castType=1;bool mutate=true;
         void* args[]{constructor,&p,&direction,&delay,&castType,&mutate,nullptr};Invoke(Method(ability.Get(),"CastAfterDelay",7),ability.Get(),args);
         return "{\"ok\":true,\"requested\":true,\"ability\":"+Json(Text(Get<void*>(ability.Get(),F("Ability","abilityName"))))+"}";
+    }
+    if(action=="near-spawner"){
+        // Enemies spawn when the player comes near: warp next to the nearest enemy spawner.
+        auto start=Position(c.actor);void* nearest=nullptr;double distance=1.e30;
+        for(void* spawner:Find("LE.dll","","Spawner")){if(!game::IsAlive(spawner))continue;auto p=Position(spawner);double x=p.x-start.x,z=p.z-start.z,d=x*x+z*z;if(d>25&&d<distance){distance=d;nearest=spawner;}}
+        if(!nearest)throw std::runtime_error("No enemy spawner in this scene.");
+        auto p=Position(nearest);p.x-=3;void* agent=Get<void*>(c.actor,F("Actor","navMeshAgent"));void* args[]{&p};
+        if(!Value<bool>(Method(agent,"Warp",1),agent,args))throw std::runtime_error("Native NavMesh warp refused.");
+        return "{\"ok\":true,\"distance\":"+std::to_string(std::sqrt(distance))+"}";
     }
     if(action=="enemies"||action=="near-enemy"){
         void* alignment=Get<void*>(Get<void*>(c.actor,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
