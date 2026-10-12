@@ -15,16 +15,18 @@ from tools.package_nexus_release import ROOT, safe_archive_name, sha, verify_arc
 from tools.package_review_bundle import read_bundle
 
 
-def package(bundle: Path, output: Path):
+def package(bundle: Path, output: Path, *, revision: str | None = None):
     info, files = read_bundle(bundle)
     version = info['version']
     if not re.fullmatch(r'[a-zA-Z0-9.-]+', version):
         raise ValueError('Invalid player version')
+    if revision is not None and not re.fullmatch(r'[a-zA-Z0-9.-]+', revision):
+        raise ValueError('Invalid package revision')
     resources = bundle / '_internal'
     payload = {'EpochPact/' + name: path.read_bytes() for name, path in files.items()}
     additions = {
-        'CopyToGame/version.dll': resources / 'native/build/version.dll',
-        'CopyToGame/EpochPact/EpochPact.Core.dll': resources / 'native/build/player/EpochPact.Core.dll',
+        'Manual Installation/version.dll': resources / 'native/build/version.dll',
+        'Manual Installation/EpochPact/EpochPact.Core.dll': resources / 'native/build/player/EpochPact.Core.dll',
         'README.md': ROOT / 'docs/player-folder-readme.md',
         'DISTRIBUTION-PERMISSIONS.txt': ROOT / 'docs/nexus/DISTRIBUTION-PERMISSIONS.txt',
         'THIRD-PARTY-NOTICES.txt': resources / 'THIRD-PARTY-NOTICES.txt',
@@ -38,10 +40,13 @@ def package(bundle: Path, output: Path):
                     discord='https://discord.gg/q6aexZZSAf',
                     runtime=[n for n in payload if n.lower().endswith(('.exe', '.dll', '.pyd', '.pyc'))],
                     files=[dict(path=n, bytes=len(d), sha256=sha(d)) for n, d in sorted(payload.items())])
+    if revision is not None:
+        manifest['packageRevision'] = revision
     payload['runtime-manifest.json'] = (json.dumps(manifest, indent=2) + '\n').encode()
     payload['SHA256SUMS.txt'] = ''.join(f'{sha(d)}  {n}\n' for n, d in sorted(payload.items())).encode()
     output.mkdir(parents=True, exist_ok=True)
-    destination = output / f'EpochPact-{version}.zip'
+    suffix = f'-{revision}' if revision is not None else ''
+    destination = output / f'EpochPact-{version}{suffix}.zip'
     with zipfile.ZipFile(destination, 'x', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for name, data in sorted(payload.items()):
             entry = zipfile.ZipInfo(safe_archive_name(name), date_time=(2026, 10, 12, 0, 0, 0))
@@ -57,7 +62,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--bundle', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--revision', help='Packaging-only revision; EXE/DLL version stays unchanged')
     args = parser.parse_args()
-    result = package(args.bundle, args.output)
+    result = package(args.bundle, args.output, revision=args.revision)
     print(json.dumps({k: v for k, v in result.items() if k != 'runtime'} | {
         'runtimeFiles': len(result['runtime'])}, indent=2))

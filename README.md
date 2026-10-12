@@ -130,7 +130,9 @@ python -m tools.package_player_folder --bundle dist/EpochPact --output dist/shar
 ```
 
 The packager verifies the complete input inventory, keeps matching DLLs in its
-manual CopyToGame option, and records file/ZIP hashes. It refuses to overwrite
+optional **Manual Installation** folder, and records file/ZIP hashes. The recommended
+path is **EpochPact/EpochPact.exe → Game setup → Install mod**; manual copying is
+an alternative, not an additional step. The packager refuses to overwrite
 an existing archive.
 
 ```

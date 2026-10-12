@@ -1,5 +1,14 @@
 # EpochPact 0.1.2-dev.13
 
+## Package layout clarification
+
+The current download is **EpochPact-0.1.2-dev.13-package.1.zip**. `CopyToGame`
+has been renamed to **Manual Installation** and README now explains both methods.
+For the recommended setup, open **EpochPact/EpochPact.exe → Game setup → Install mod**;
+ignore the manual folder. Manual copying is an alternative, not an extra step.
+This packaging revision contains the identical tested EXE, DLLs and app resources;
+no reinstall is needed if dev.13 is already working.
+
 ## Wanted T7 affixes
 
 - Two lists: **Available affixes** and **Wanted affixes**.

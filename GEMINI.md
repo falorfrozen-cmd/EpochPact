@@ -9,6 +9,10 @@ picker (`ui/affix-picker.js`, shipped by both build_player.py and EpochPact.spec
 served by epochpact_ui.py). Normal forging can opt into T6/T7 shard upgrades;
 plain shards and Basic Hope only for those extended tiers. See
 `docs/t7-affixes-validation-2026-10-12.md` for real-game and package evidence.
+Current ZIP packaging revision is **package.1**: the optional native-copy folder
+is **Manual Installation**, not CopyToGame. The recommended app installer already
+has the same DLLs. README explains choosing one method. Runtime bytes are identical
+to the originally tested dev.13 build; see `docs/package-layout-2026-10-12.md`.
 Inventory placement from dev.12 is retained. Inventory shortcuts now occupy the measured
 footer gap after Sort; never place them outside the inventory or over currencies.
 See `docs/inventory-footer-validation-2026-10-12.md` for scale, simultaneous

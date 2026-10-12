@@ -70,9 +70,10 @@ class ReviewBundleTests(unittest.TestCase):
         before = archive.read_bytes()
         with zipfile.ZipFile(archive) as entries:
             self.assertNotIn('ManualReview', archive.name)
-            self.assertEqual(entries.read('CopyToGame/version.dll'),
+            self.assertFalse(any(name.startswith('CopyToGame/') for name in entries.namelist()))
+            self.assertEqual(entries.read('Manual Installation/version.dll'),
                              entries.read('EpochPact/_internal/native/build/version.dll'))
-            self.assertEqual(entries.read('CopyToGame/EpochPact/EpochPact.Core.dll'),
+            self.assertEqual(entries.read('Manual Installation/EpochPact/EpochPact.Core.dll'),
                              entries.read('EpochPact/_internal/native/build/player/EpochPact.Core.dll'))
             self.assertEqual(entries.read('EpochPact/' + NAME), (self.bundle / NAME).read_bytes())
             self.assertNotIn(b'{{VERSION}}', entries.read('README.md'))
@@ -80,6 +81,14 @@ class ReviewBundleTests(unittest.TestCase):
         self.assertEqual(verify_archive(archive)['sha256'], result['sha256'])
         with self.assertRaises(FileExistsError):
             player_package(self.bundle, self.root / 'player')
+        self.assertEqual(archive.read_bytes(), before)
+
+        revised = player_package(self.bundle, self.root / 'player', revision='package.1')
+        self.assertEqual(revised['version'], result['version'])
+        self.assertEqual(revised['file'], 'EpochPact-fixture-review.1-package.1.zip')
+        with zipfile.ZipFile(self.root / 'player' / revised['file']) as entries:
+            self.assertEqual(json.loads(entries.read('runtime-manifest.json'))['packageRevision'], 'package.1')
+            self.assertEqual(entries.read('EpochPact/EpochPact.exe'), (self.bundle / 'EpochPact.exe').read_bytes())
         self.assertEqual(archive.read_bytes(), before)
 
     def test_same_size_executable_tampering_is_rejected(self):

@@ -2,6 +2,14 @@
 
 Your timeline. Your rules. Last Epoch offline tools for Windows x64.
 
+## Start here — choose one installation method
+
+**Recommended:** open **EpochPact/EpochPact.exe**, select your game in **Game setup**, and press **Install mod**. The app already includes the required DLLs. You can ignore the **Manual Installation** folder entirely.
+
+**Alternative:** **Manual Installation** contains the same two game DLLs for people who want to copy them themselves. Follow the manual steps below instead of pressing **Install mod**. It is not an additional installation step.
+
+Keep the **EpochPact** app folder complete, including **EpochPact.exe.config** and **_internal**. Do not copy the whole ZIP into your game folder.
+
 ## Requirements
 
 - Legitimate Steam Last Epoch **1.5.2.1**, build **25816319** (internal version 1.5.2.2). Unknown GameAssembly.dll builds are refused by Game setup.
@@ -25,7 +33,7 @@ An existing supported MelonLoader installation is preserved; the app installs it
 
 1. Close the game and app. Back up your existing mod files and offline saves.
 2. Confirm the supported game version/hash in **supported-game-builds.json** before copying.
-3. Copy only the contents of **CopyToGame** into the folder containing **Last Epoch.exe**:
+3. Open **Manual Installation** and copy only its contents into the folder containing **Last Epoch.exe**. Do not copy the folder named **Manual Installation** itself:
 
 ```
 <game folder>/version.dll

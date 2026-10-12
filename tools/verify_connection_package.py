@@ -44,7 +44,7 @@ def verify(archive: Path, native_host: Path, assembly: Path):
         shutil.copy2(native_host, fixture)
         shutil.copy2(assembly, game / 'GameAssembly.dll')
         (game / 'Last Epoch_Data').mkdir()
-        shutil.copytree(extracted / 'CopyToGame', game, dirs_exist_ok=True)
+        shutil.copytree(extracted / 'Manual Installation', game, dirs_exist_ok=True)
         ipc = game / 'EpochPact/ipc'
         ipc.mkdir()
         announcement = ipc / 'protocol.json'
