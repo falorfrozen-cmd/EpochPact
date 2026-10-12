@@ -328,8 +328,30 @@ void PlaceShortcuts(){
         }
     }
 }
+// The inventory/stash/shop panel state through direct calls to the game's own
+// UIBase queries: no scene search, no boxing, no managed allocation per check.
+bool InventoryVisible(){
+    static const il2cpp::Field* instance=game::FindStaticField("LE.dll","","UIBase","instance");
+    static const void* resolvedFor=nullptr;
+    static const il2cpp::Method* queries[3]{};
+    void* ui=game::StaticObject(instance);if(!ui||!game::IsAlive(ui))return false;
+    // Resolve on the instance's runtime class once (as PanelOpen does), then call directly.
+    const void* cls=il2cpp::api().object_get_class(ui);
+    if(cls!=resolvedFor){
+        int i=0;for(const char* name:{"IsInventoryOpen","IsStashOpen","IsShopOpen"})queries[i++]=Method(ui,name,0);
+        resolvedFor=cls;
+    }
+    using Query=bool(*)(void*,const il2cpp::Method*);
+    for(const auto* q:queries)if(reinterpret_cast<Query>(*reinterpret_cast<void* const*>(q))(ui,q))return true;
+    return false;
+}
 void InventoryButtons(){
     ++inventoryChecks;
+    // The shortcuts are children of the inventory panel and hide with it. While it
+    // is closed there is nothing to place, and a closed (inactive) panel cannot be
+    // found anyway: FindObjectsOfType skips it. Searching four times a second
+    // during play only cost frame time.
+    if(!InventoryVisible()){if(shortcuts.empty())inventoryStatus="inventory-closed";return;}
     if(!shortcuts.empty()&&inventoryPanel.Get()){
         bool enabled=!shortcutBusy;if(shortcutEnabled!=enabled){shortcutEnabled=enabled;void* a[]{&enabled};
             for(auto& b:shortcuts)Invoke(Method(b.button->Get(),"set_interactable",1),b.button->Get(),a);}
