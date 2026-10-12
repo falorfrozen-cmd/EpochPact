@@ -55,6 +55,7 @@ let materialTarget="10000";
 const autoPending=new Map(),autoErrors=new Map(),autoApplied=new Set();
 let autoTimer,autoSending=null,autoRunning=false,autoGeneration=0;
 let liveReading=false;
+const convenienceNextRead={};
 let connectionChecking=false,connectionNextCheck=0,lastGameSession=null;
 function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|pickupradius|autopickup|mapreveal) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
 function automaticOwner(){
@@ -771,6 +772,8 @@ async function pollConveniences(){
  if(!catalog||preview||document.hidden||busy||liveReading||autoRunning||autoPending.size||activeStat)return;
  const id=page==="summons"?"summons_read":page==="world"?"qol_read":null;
  if(!id||!eligible(controlById(id)))return;
+ // Each read runs on the game's main thread: summons DPS every 2 s, world counters every 5 s.
+ const now=Date.now();if(now<(convenienceNextRead[id]||0))return;convenienceNextRead[id]=now+(id==="summons_read"?2000:5000);
  liveReading=true;const owner=automaticOwner();
  try{
   const r=await job({type:"control",id,operation:"read"});

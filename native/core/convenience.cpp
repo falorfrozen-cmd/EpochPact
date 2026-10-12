@@ -42,7 +42,7 @@ void(*originalClick)(void*,void*,MethodInfo)=nullptr;
 void(*originalSubmit)(void*,void*,MethodInfo)=nullptr;
 uint64_t lastButtons=0;
 bool shortcutEnabled=false;
-uint64_t frameUpdates=0,inventoryChecks=0;
+uint64_t frameUpdates=0,inventoryChecks=0,inventoryMicros=0,maximumInventoryMicros=0,inventorySearches=0;
 const char* inventoryStatus="waiting-for-frame";
 game::Handle menuTransform;
 game::Handle footerTransform,currencyTransform,gridTransform;
@@ -219,6 +219,14 @@ bool ShortcutClick(void* button){
 }
 void Click(void* self,void* event,MethodInfo info){bool ours=false;game::Guarded([&]{ours=ShortcutClick(self);},nullptr);if(!ours)originalClick(self,event,info);}
 void Submit(void* self,void* event,MethodInfo info){bool ours=false;game::Guarded([&]{ours=ShortcutClick(self);},nullptr);if(!ours)originalSubmit(self,event,info);}
+// The game's own inventory panel, remembered when it is enabled, so creating the
+// shortcuts needs no FindObjectsOfType scene search (about 50 ms in play).
+game::Handle enabledInventoryPanel;
+void(*originalPanelEnable)(void*,MethodInfo)=nullptr;
+void PanelEnable(void* self,MethodInfo info){
+    originalPanelEnable(self,info);
+    if(!lifecycle::Stopping())game::Guarded([&]{enabledInventoryPanel.Set(self);},nullptr);
+}
 rules::Rect RectIn(void* transform,void* space){
     const auto rect=Value<rules::Rect>(M("RectTransform","get_rect",0,"UnityEngine","UnityEngine.CoreModule.dll"),transform);
     Vec3 lo{rect.x,rect.y,0},hi{rect.x+rect.w,rect.y+rect.h,0};void* la[]{&lo},*ha[]{&hi};
@@ -328,16 +336,46 @@ void PlaceShortcuts(){
         }
     }
 }
+// The inventory/stash/shop panel state through direct calls to the game's own
+// UIBase queries: no scene search, no boxing, no managed allocation per check.
+bool InventoryVisible(){
+    static const il2cpp::Field* instance=game::FindStaticField("LE.dll","","UIBase","instance");
+    static const void* resolvedFor=nullptr;
+    static const il2cpp::Method* queries[3]{};
+    void* ui=game::StaticObject(instance);if(!ui||!game::IsAlive(ui))return false;
+    // Resolve on the instance's runtime class once (as PanelOpen does), then call directly.
+    const void* cls=il2cpp::api().object_get_class(ui);
+    if(cls!=resolvedFor){
+        int i=0;for(const char* name:{"IsInventoryOpen","IsStashOpen","IsShopOpen"})queries[i++]=Method(ui,name,0);
+        resolvedFor=cls;
+    }
+    using Query=bool(*)(void*,const il2cpp::Method*);
+    for(const auto* q:queries)if(reinterpret_cast<Query>(*reinterpret_cast<void* const*>(q))(ui,q))return true;
+    return false;
+}
 void InventoryButtons(){
     ++inventoryChecks;
+    // The shortcuts are children of the inventory panel and hide with it. While it
+    // is closed there is nothing to place, and a closed (inactive) panel cannot be
+    // found anyway: FindObjectsOfType skips it. Searching four times a second
+    // during play only cost frame time.
+    if(!InventoryVisible()){if(shortcuts.empty())inventoryStatus="inventory-closed";return;}
     if(!shortcuts.empty()&&inventoryPanel.Get()){
         bool enabled=!shortcutBusy;if(shortcutEnabled!=enabled){shortcutEnabled=enabled;void* a[]{&enabled};
             for(auto& b:shortcuts)Invoke(Method(b.button->Get(),"set_interactable",1),b.button->Get(),a);}
         PlaceShortcuts();return;
     }
     ClearShortcuts();
-    auto panels=Find("LE.dll","","InventoryPanelUI");if(panels.empty()){inventoryStatus="inventory-closed";return;}
-    void* panel=panels.front();void* source=Get<void*>(panel,F("InventoryPanelUI","confirmRespecButton"));
+    // Creation profile: one core.log line per creation, so a slow step is visible.
+    std::string profile;uint64_t mark=Micros();
+    const auto phase=[&](const char* name){const auto now=Micros();profile+=std::string(" ")+name+"="+std::to_string((now-mark)/1000.0).substr(0,6)+"ms";mark=now;};
+    void* panel=enabledInventoryPanel.Get();
+    if(!panel){ // Enable hook unavailable or the panel was enabled before it went in.
+        ++inventorySearches;
+        auto panels=Find("LE.dll","","InventoryPanelUI");if(panels.empty()){inventoryStatus="inventory-closed";return;}
+        panel=panels.front();phase("find");
+    }else phase("panel");
+    void* source=Get<void*>(panel,F("InventoryPanelUI","confirmRespecButton"));
     void* parent=Get<void*>(panel,F("InventoryPanelUI","menuRectTransform"));if(!source||!parent){inventoryStatus="inventory-template-unavailable";return;}
     void* left=Get<void*>(panel,F("InventoryPanelUI","leftButtonsContainer"));if(!left){inventoryStatus="inventory-footer-unavailable";return;}
     Root footer(Invoke(M("Transform","get_parent",0,"UnityEngine","UnityEngine.CoreModule.dll"),left));
@@ -347,19 +385,23 @@ void InventoryButtons(){
     Root items(Invoke(M("Transform","get_parent",0,"UnityEngine","UnityEngine.CoreModule.dll"),footer.Get()));
     Root gridName(il2cpp::api().string_new("Inventory Grid "));void* ga[]{gridName.Get()};
     Root grid(Invoke(M("Transform","Find",1,"UnityEngine","UnityEngine.CoreModule.dll"),items.Get(),ga));
+    phase("footer");
     auto click=M("Button","OnPointerClick",1,"UnityEngine.UI","UnityEngine.UI.dll"),submit=M("Button","OnSubmit",1,"UnityEngine.UI","UnityEngine.UI.dll");
     std::string why;
     if(!hook::IsInstalled(click.code)&&!hook::Install(click.code,reinterpret_cast<void*>(&Click),reinterpret_cast<void**>(&originalClick),&why))throw std::runtime_error(why);
     if(!hook::IsInstalled(submit.code)&&!hook::Install(submit.code,reinterpret_cast<void*>(&Submit),reinterpret_cast<void**>(&originalSubmit),&why))throw std::runtime_error(why);
+    phase("hooks");
     auto* buttonType=game::FindClass("UnityEngine.UI.dll","UnityEngine.UI","Button");
     Root bt(il2cpp::api().type_get_object(il2cpp::api().class_get_type(buttonType)));
     Root templateObject(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),source));
     const auto* instantiate=Signature("Object","Instantiate",{"UnityEngine.Object","UnityEngine.Transform","System.Boolean"});
+    phase("template");
     for(auto pair:std::array<std::pair<const char*,const char*>,3>{{{"stash","Stash"},{"stashall","Stash all"},{"vendor","Vendor"}}}){
         bool world=false;void* a[]{templateObject.Get(),parent,&world};Root object(Invoke(instantiate,nullptr,a));
         bool off=false;void* offArgs[]{&off};Invoke(Method(object.Get(),"SetActive",1),object.Get(),offArgs);
         void* bargs[]{bt.Get()};Root button(Invoke(Signature("GameObject","GetComponent",{"System.Type"}),object.Get(),bargs));
         shortcuts.push_back({std::make_unique<Root>(button.Get()),std::make_unique<Root>(object.Get()),pair.first,pair.second,{}});
+        phase("clone");
         Root layoutType(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("UnityEngine.UI.dll","UnityEngine.UI","LayoutElement"))));
         void* la[]{layoutType.Get()};void* element=Invoke(Signature("GameObject","GetComponent",{"System.Type"}),object.Get(),la);
         if(!element)element=Invoke(Signature("GameObject","AddComponent",{"System.Type"}),object.Get(),la);
@@ -369,6 +411,7 @@ void InventoryButtons(){
         // localization component must not restore the original blessing label.
         // Only components below our cloned object are touched.
         bool inactive=true;
+        phase("layout");
         for(auto spec:std::array<std::tuple<const char*,const char*,const char*>,4>{{
             {"Unity.Localization.dll","UnityEngine.Localization.Components","LocalizeStringEvent"},
             {"LE.dll","PixelCrushers.DialogueSystem","LocalizeUIText"},
@@ -379,6 +422,7 @@ void InventoryButtons(){
             Root components(Invoke(Signature("GameObject","GetComponentsInChildren",{"System.Type","System.Boolean"}),object.Get(),a));
             for(uintptr_t i=0;i<Get<uintptr_t>(components.Get(),0x18);++i){void* component=Get<void*>(components.Get(),0x20+8*i);bool enabled=false;void* ea[]{&enabled};Invoke(M("Behaviour","set_enabled",1,"UnityEngine","UnityEngine.CoreModule.dll"),component,ea);}
         }
+        phase("localize");
         Root text(il2cpp::api().string_new(pair.second));
         for(bool tmp:{true,false}){
             Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass(tmp?"Unity.TextMeshPro.dll":"UnityEngine.UI.dll",tmp?"TMPro":"UnityEngine.UI",tmp?"TMP_Text":"Text"))));
@@ -389,6 +433,7 @@ void InventoryButtons(){
                 void* args[]{text.Get()};Invoke(Method(label,"set_text",1),label,args);}
         }
         if(shortcuts.back().labels.empty())throw std::runtime_error("Inventory shortcut has no supported text label.");
+        phase("labels");
         Root transform(Invoke(M("GameObject","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),object.Get()));
         // Parent to the inventory so closing/tabs inherit its visibility. The
         // measured footer gap determines the final horizontal row.
@@ -397,11 +442,13 @@ void InventoryButtons(){
         void* sa[]{&size},*pa[]{&pos},*sca[]{&scale};Invoke(M("RectTransform","set_sizeDelta",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),sa);
         Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),pa);Invoke(M("Transform","set_localScale",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),sca);
         bool on=true;void* args[]{&on};Invoke(Method(object.Get(),"SetActive",1),object.Get(),args);
+        phase("show");
     }
     inventoryPanel.Set(panel);menuTransform.Set(parent);footerTransform.Set(footer.Get());currencyTransform.Set(currency.Get());gridTransform.Set(grid.Get());
     currencyOriginalSize=Value<Vec2>(M("RectTransform","get_sizeDelta",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency.Get());
     currencyOriginalPosition=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency.Get());
     shortcutEnabled=false;inventoryStatus="created";PlaceShortcuts();
+    phase("place");Log("inventory shortcuts created:%s",profile.c_str());
 }
 void RestoreGraphics(){
     disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());
@@ -544,11 +591,12 @@ void Frame(){
 #endif
     if(lifecycle::Stopping())return;
     const auto clock=GetTickCount64();
-    if(clock>=lastButtons+250){lastButtons=clock;std::string why;
+    if(clock>=lastButtons+250){lastButtons=clock;std::string why;const auto started=Micros();
         if(!game::Guarded([]{if(Actor())InventoryButtons();else if(!shortcuts.empty())ClearShortcuts();},&why)){
             ++faults;lastButtons=clock+14000;Log("inventory buttons: %s",why.c_str());
             game::Guarded([]{ClearShortcuts();},nullptr);
         }
+        const auto spent=Micros()-started;inventoryMicros+=spent;maximumInventoryMicros=std::max(maximumInventoryMicros,spent);
     }
     if(!active.load(std::memory_order_relaxed))return;
     const auto now=GetTickCount64();
@@ -565,7 +613,7 @@ void Frame(){
 }
 std::string State(){std::ostringstream out;out<<"{\"ok\":true,\"settings\":{";bool comma=false;for(auto* s:settings){if(comma)out<<',';comma=true;out<<Json(s->key)<<":{\"value\":"<<s->value<<",\"available\":"<<Boolean(mainthread::HookInstalled())<<'}';}
     unsigned visible=0;for(auto& b:shortcuts)if(Value<bool>(Method(b.object->Get(),"get_activeInHierarchy",0),b.object->Get()))++visible;
-    return out.str()+"},\"inventoryButtons\":"+std::to_string(shortcuts.size())+",\"inventoryButtonsVisible\":"+std::to_string(visible)+",\"frameUpdates\":"+std::to_string(frameUpdates)+",\"inventoryChecks\":"+std::to_string(inventoryChecks)+",\"inventoryStatus\":"+Json(inventoryStatus)+",\"graphicsOverrides\":"+std::to_string(saved.size())+",\"chestsOpened\":"+std::to_string(openedChests)+",\"shrinesUsed\":"+std::to_string(usedShrines)+",\"portalsUsed\":"+std::to_string(usedPortals)+",\"interactionCandidates\":"+std::to_string(candidates.size())+",\"interactionChecks\":"+std::to_string(interactionChecks)+",\"sceneSearches\":"+std::to_string(sceneSearches)+",\"maximumDiscoveryMicros\":"+std::to_string(maximumDiscoveryMicros)+",\"maximumInteractionMicros\":"+std::to_string(maximumInteractionMicros)+",\"faults\":"+std::to_string(faults)+"}";}
+    return out.str()+"},\"inventoryButtons\":"+std::to_string(shortcuts.size())+",\"inventoryButtonsVisible\":"+std::to_string(visible)+",\"frameUpdates\":"+std::to_string(frameUpdates)+",\"inventoryChecks\":"+std::to_string(inventoryChecks)+",\"inventorySearches\":"+std::to_string(inventorySearches)+",\"inventoryMicros\":"+std::to_string(inventoryMicros)+",\"maximumInventoryMicros\":"+std::to_string(maximumInventoryMicros)+",\"inventoryStatus\":"+Json(inventoryStatus)+",\"graphicsOverrides\":"+std::to_string(saved.size())+",\"chestsOpened\":"+std::to_string(openedChests)+",\"shrinesUsed\":"+std::to_string(usedShrines)+",\"portalsUsed\":"+std::to_string(usedPortals)+",\"interactionCandidates\":"+std::to_string(candidates.size())+",\"interactionChecks\":"+std::to_string(interactionChecks)+",\"sceneSearches\":"+std::to_string(sceneSearches)+",\"maximumDiscoveryMicros\":"+std::to_string(maximumDiscoveryMicros)+",\"maximumInteractionMicros\":"+std::to_string(maximumInteractionMicros)+",\"faults\":"+std::to_string(faults)+"}";}
 }
 bool Init(){
     findObjects=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Object","FindObjectsOfType",2);
@@ -574,6 +622,19 @@ bool Init(){
     if(!(findObjects&&componentTransform&&transformPosition))return false;
     std::string why;
     if(!mainthread::RegisterFrameCallback(&Frame,&why)){Log("convenience bootstrap refused: %s",why.c_str());return false;}
+    // Installing a hook briefly holds every game thread (about 250 ms each here).
+    // Do it now, while the game is still starting, instead of on the first
+    // inventory opening in play. A failure keeps the previous lazy installation.
+    std::string hooks;
+    if(!game::Guarded([&]{try{
+        const std::tuple<game::MethodRef,void*,void**,const char*> specs[]{
+            {M("Button","OnPointerClick",1,"UnityEngine.UI","UnityEngine.UI.dll"),reinterpret_cast<void*>(&Click),reinterpret_cast<void**>(&originalClick),"Button.OnPointerClick"},
+            {M("Button","OnSubmit",1,"UnityEngine.UI","UnityEngine.UI.dll"),reinterpret_cast<void*>(&Submit),reinterpret_cast<void**>(&originalSubmit),"Button.OnSubmit"},
+            {M("InventoryPanelUI","OnEnable",0),reinterpret_cast<void*>(&PanelEnable),reinterpret_cast<void**>(&originalPanelEnable),"InventoryPanelUI.OnEnable"}};
+        for(const auto& [ref,detour,original,name]:specs){std::string reason;
+            if(!hook::IsInstalled(ref.code)&&!hook::Install(ref.code,detour,original,&reason))hooks+=std::string(" ")+name+": "+reason;}
+    }catch(const std::exception& e){hooks+=std::string(" ")+e.what();}},&hooks))hooks=" "+hooks;
+    Log("inventory shortcut hooks %s%s",hooks.empty()?"installed at startup":"deferred:",hooks.c_str());
     return true;
 }
 std::string Read(){return Run([]{return State();});}
@@ -710,7 +771,7 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
         }
         return "{\"ok\":true,\"gold\":"+std::to_string(Get<int>(gold,F("GoldTracker","value")))+",\"ancientBones\":"+std::to_string(Get<int>(bones,F("AncientBonesTracker","value")))+"}";
     }
-    if(action=="frames-start"){frameGaps.clear();previousFrame=0;measureFrames=true;maximumInteractionMicros=maximumDiscoveryMicros=0;return State();}
+    if(action=="frames-start"){frameGaps.clear();previousFrame=0;measureFrames=true;maximumInteractionMicros=maximumDiscoveryMicros=0;inventoryChecks=inventorySearches=inventoryMicros=maximumInventoryMicros=0;return State();}
     if(action=="frames-stop"){measureFrames=false;std::ostringstream out;out<<"{\"ok\":true,\"gapsMicros\":[";bool comma=false;for(auto value:frameGaps){if(comma)out<<',';comma=true;out<<value;}return out.str()+"]}";}
     if(action.rfind("scaler-",0)==0){InventoryButtons();void* menu=menuTransform.Get();if(!menu)throw std::runtime_error("Open the inventory first.");
         const int percent=std::stoi(action.substr(7));if(percent<75||percent>150)throw std::runtime_error("Unsupported native scaler fixture.");
