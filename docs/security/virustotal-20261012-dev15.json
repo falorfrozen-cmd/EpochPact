@@ -1,0 +1,16 @@
+{
+  "version": "0.1.2-dev.15",
+  "uploadedBy": "browser upload, 2026-10-12",
+  "files": {
+    "EpochPact.exe": {"sha256": "ac7d3397b6ac73534ebebb42f81f7f8924d25006c9476f8a2fc0c103ce51f439", "malicious": 0, "suspicious": 0, "undetected": 71, "typeUnsupported": 4,
+      "url": "https://www.virustotal.com/gui/file/ac7d3397b6ac73534ebebb42f81f7f8924d25006c9476f8a2fc0c103ce51f439"},
+    "EpochPact.Core.dll": {"sha256": "881704693dac796702cbfc799a62801e7182d5c1f9d48b95d46e817cc37b1cb4", "malicious": 0, "suspicious": 0, "undetected": 71, "typeUnsupported": 4,
+      "url": "https://www.virustotal.com/gui/file/881704693dac796702cbfc799a62801e7182d5c1f9d48b95d46e817cc37b1cb4"},
+    "version.dll": {"sha256": "87bc09879e08909748652212619a47c6b526c9ff4b9ae0f50f11dd115a0c65ed", "malicious": 1, "suspicious": 0, "undetected": 70, "typeUnsupported": 4,
+      "detections": ["Cynet: Malicious (score: 100)"],
+      "url": "https://www.virustotal.com/gui/file/87bc09879e08909748652212619a47c6b526c9ff4b9ae0f50f11dd115a0c65ed"}
+  },
+  "zip": {"sha256": "b7a689ddf44015f62b3331a3632af794c5f211ae6cc3487b9dcb8b8e28cc1315", "virusTotal": "not uploaded (over the browser upload limit)",
+    "localDefender": "No threats found, MpCmdRun custom scan, security intelligence 1.459.682.0; extracted app folder also clean"},
+  "note": "The Cynet verdict on the loader matches earlier loader builds. Its cause is not established; it is not described as a false positive here."
+}

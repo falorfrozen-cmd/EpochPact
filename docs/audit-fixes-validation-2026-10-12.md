@@ -77,4 +77,12 @@ has 847 entries instead of 963.
 Non-empty Stash all and a full stash; Monolith readback in the script; UAC
 approval; another PC; every summon/skill/encounter; MelonLoader with this core;
 full-game-exit crash history (three clean exits here are not a fix).
-Antivirus results are recorded separately.
+
+## Antivirus
+
+VirusTotal (fresh uploads, 2026-10-12): EpochPact.exe 0/71, EpochPact.Core.dll
+0/71, version.dll 1/71 (Cynet "Malicious (score: 100)", as with earlier loader
+builds; cause not established). The ZIP exceeds the browser upload limit; local
+Microsoft Defender (1.459.682.0) found no threats in the ZIP or the extracted app
+folder. Details: [security/virustotal-20261012-dev15.json](security/virustotal-20261012-dev15.json).
+This is not clearance by every engine or by Nexus Mods.
