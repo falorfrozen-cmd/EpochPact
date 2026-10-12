@@ -953,6 +953,53 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "pickup_interval",
+      "group": "loot",
+      "label": "Auto pickup interval",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "pickupinterval {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 10
+        }
+      ],
+      "default": 0.25,
+      "resetCommand": "pickupinterval 0.25",
+      "lifetime": "session",
+      "description": "How often automatic collection scans for drops: 0.25 s (default) up to 10 s. Longer intervals do less work per second. When the game reports a full inventory, equipment waits until you open and close your inventory; gold, potions, tomes, bones and materials continue.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "pickup_now",
+      "group": "loot",
+      "label": "Pick up everything now",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "pickupnow",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "view",
+      "description": "Collect every drop the game has loaded right now, ignoring the radius. Your pickup rules, categories, loot filter and inventory space still apply. Runs across several frames.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "summons_read",
       "group": "summons",
       "label": "Live summoned allies",
@@ -32234,7 +32281,7 @@
     ]
   },
   "counts": {
-    "controls": 122,
+    "controls": 124,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

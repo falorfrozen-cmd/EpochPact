@@ -15,6 +15,20 @@ The radius slider accepts 0–60 game units. `0` preserves collection of all loa
 drops; a positive value requires a valid player position and only collects drops
 inside that distance. It does not load distant or unloaded objects.
 
+The interval control chooses how often collection scans: 0.25 s (default) up to
+10 s. Longer intervals do less work per second.
+
+When the game shows its own "inventory full" message, equipment labels are no
+longer retried every scan. Gold, potions, tomes, ancient bones and crafting
+materials (shards, runes, glyphs) keep being collected. Equipment collection
+resumes after you open and then close your inventory. `pickupradius` reports
+`inventoryFull`, `inventoryFullEvents` and `skippedWhileFull`.
+
+**Pick up everything now** collects every drop the game has loaded, ignoring the
+radius, up to 32 pickups per frame over a few frames. Loot rules, categories, the
+loot filter and inventory space still apply; it clears an earlier full pause and
+retries once.
+
 ## World & Exploration
 
 Chest and shrine switches use the normal condition handler within three game
@@ -61,7 +75,18 @@ items that do not fit stay in inventory. The final result reports moved and
 remaining item counts and tells the player when the stash had no room. Actions are serialized with the normal IPC worker and
 reject a changed loaded-character identity.
 
+Stash tab memory: EpochPact remembers the stash tab that was open when the
+stash closed and selects it again when the stash opens after a game restart (the
+game itself keeps it within one session). The tab is stored as a single number in
+`<game>/EpochPact/stash-tab.txt`. A deleted tab falls back to the game's default.
+
 ## Live summons
+
+Allies are grouped by type by default: one row per type (for example
+"Skeleton ×5", "Bone Golem", "Blood Golem"). Grouped rows add measured DPS, last
+hit and health across the group and average armour, damage increase and
+resistances. "Show each ally separately" in Visible columns restores one row per
+ally; the choice is remembered on this device.
 
 The Summons page refreshes every two seconds while visible and connected. It reads
 living allies owned by the player and their descendants, including companions,

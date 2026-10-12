@@ -6,7 +6,9 @@
 #include "commands.hpp"
 #include "lifecycle.hpp"
 #include "convenience_rules.hpp"
+#include "common.hpp"
 #include <array>
+#include <fstream>
 #include <atomic>
 #include <cmath>
 #include <map>
@@ -235,6 +237,84 @@ void Submit(void* self,void* event,MethodInfo info){bool ours=false;game::Guarde
 // shortcuts needs no FindObjectsOfType scene search (about 50 ms in play).
 game::Handle enabledInventoryPanel;
 void(*originalPanelEnable)(void*,MethodInfo)=nullptr;
+// Stash tab memory: the game reopens the stash on its default tab. Remember
+// the tab that was active when the stash closed and select it again through
+// the tab bar's own click path once the reopened panel has built its tabs.
+int lastStashTab=-1;
+game::Handle pendingStashPanel;
+unsigned stashRestoreTicks=0;
+uint64_t stashRestores=0,stashRestoreFailures=0;
+const char* kPanelNs="LE.UI.PanelSystem";
+// The remembered tab survives zone changes in memory and game restarts in
+// <game>\EpochPact\stash-tab.txt (one integer; written only when it changes).
+std::wstring StashTabPath(){return PluginDir()+L"stash-tab.txt";}
+void LoadStashTab(){
+    std::ifstream in(StashTabPath());int tab=-1;
+    if(in>>tab&&tab>=0&&tab<100000)lastStashTab=tab;
+}
+void RememberStashTab(int tab){
+    if(tab<0||tab==lastStashTab)return;
+    lastStashTab=tab;
+    const std::wstring path=StashTabPath(),temp=path+L".pending";
+    {std::ofstream out(temp,std::ios::trunc);if(!out)return;out<<tab<<'\n';if(!out)return;}
+    if(!MoveFileExW(temp.c_str(),path.c_str(),MOVEFILE_REPLACE_EXISTING))DeleteFileW(temp.c_str());
+}
+void* StashControls(void* panel){return panel?Get<void*>(panel,F("StashPanelV2","_stashControls",kPanelNs)):nullptr;}
+int ActiveStashTab(void* controls){return Get<int>(controls,F("NewStashTabbedUIControls","<ActiveTabId>k__BackingField"));}
+void(*originalStashOpen)(void*,void*,int,MethodInfo)=nullptr;
+void(*originalStashClose)(void*,MethodInfo)=nullptr;
+void StashOpen(void* self,void* system,int location,MethodInfo info){
+    originalStashOpen(self,system,location,info);
+    if(!lifecycle::Stopping()&&lastStashTab>=0)game::Guarded([&]{pendingStashPanel.Set(self);stashRestoreTicks=0;},nullptr);
+}
+void StashClose(void* self,MethodInfo info){
+    if(!lifecycle::Stopping())game::Guarded([&]{
+        pendingStashPanel.Reset();
+        if(void* controls=StashControls(self);controls&&game::IsAlive(controls))RememberStashTab(ActiveStashTab(controls));
+    },nullptr);
+    originalStashClose(self,info);
+}
+// The 1.5 stash uses StashTabbedUIControls (activeTab / SwitchToStashTab);
+// StashPanelV2 above covers the newer panel when a game build enables it.
+game::Handle pendingLegacyStash;
+void(*originalLegacyEnable)(void*,MethodInfo)=nullptr;
+void(*originalLegacyDisable)(void*,MethodInfo)=nullptr;
+int LegacyTab(void* controls){return Get<int>(controls,F("StashTabbedUIControls","activeTab"));}
+void LegacyStashEnable(void* self,MethodInfo info){
+    originalLegacyEnable(self,info);
+    if(!lifecycle::Stopping()&&lastStashTab>=0)game::Guarded([&]{pendingLegacyStash.Set(self);stashRestoreTicks=0;},nullptr);
+}
+void LegacyStashDisable(void* self,MethodInfo info){
+    if(!lifecycle::Stopping())game::Guarded([&]{pendingLegacyStash.Reset();RememberStashTab(LegacyTab(self));},nullptr);
+    originalLegacyDisable(self,info);
+}
+void RestoreLegacyStashTab(){
+    void* controls=pendingLegacyStash.Get();
+    if(!controls)return;
+    if(!game::IsAlive(controls)||++stashRestoreTicks>120){pendingLegacyStash.Reset();++stashRestoreFailures;return;}
+    // Wait for the tab bar's own asynchronous rebuild before switching.
+    if(Get<bool>(controls,F("StashTabbedUIControls","_isUpdatingTabs"))||stashRestoreTicks<3)return;
+    if(LegacyTab(controls)==lastStashTab){pendingLegacyStash.Reset();if(stashRestoreTicks>3)++stashRestores;return;}
+    if(stashRestoreTicks>60){pendingLegacyStash.Reset();lastStashTab=-1;++stashRestoreFailures;return;}  // tab gone
+    int id=lastStashTab;bool flag=false;void* args[]{&id,&flag};
+    Invoke(Method(controls,"SwitchToStashTab",2),controls,args);
+}
+// Runs on the frame callback while a reopened stash waits for its tab bar.
+void RestoreStashTab(){
+    void* panel=pendingStashPanel.Get();
+    if(!panel)return;
+    if(!game::IsAlive(panel)||++stashRestoreTicks>120){pendingStashPanel.Reset();++stashRestoreFailures;return;}
+    void* controls=StashControls(panel);
+    if(!controls||!game::IsAlive(controls))return;
+    if(ActiveStashTab(controls)==lastStashTab){pendingStashPanel.Reset();if(stashRestoreTicks>1)++stashRestores;return;}
+    // The tab may not exist any more (deleted) or may not be built yet.
+    void* tabs=Get<void*>(controls,F("NewStashTabbedUIControls","_tabById"));
+    if(!tabs)return;
+    int id=lastStashTab;void* has[]{&id};
+    if(!Value<bool>(Method(tabs,"ContainsKey",1),tabs,has)){if(stashRestoreTicks>20){pendingStashPanel.Reset();lastStashTab=-1;}return;}
+    int button=0;void* args[]{&id,&button,nullptr};
+    Invoke(Method(controls,"TriggerTabClicked",3),controls,args);
+}
 void PanelEnable(void* self,MethodInfo info){
     originalPanelEnable(self,info);
     if(!lifecycle::Stopping())game::Guarded([&]{enabledInventoryPanel.Set(self);},nullptr);
@@ -634,6 +714,8 @@ void Frame(){
     if(measureFrames){const auto sample=Micros();if(previousFrame&&frameGaps.size()<10000)frameGaps.push_back(sample-previousFrame);previousFrame=sample;}
 #endif
     if(lifecycle::Stopping())return;
+    if(pendingStashPanel.Get()&&!game::Guarded([]{RestoreStashTab();},nullptr)){pendingStashPanel.Reset();++stashRestoreFailures;}
+    if(pendingLegacyStash.Get()&&!game::Guarded([]{RestoreLegacyStashTab();},nullptr)){pendingLegacyStash.Reset();++stashRestoreFailures;}
     const auto clock=GetTickCount64();
     if(clock>=lastButtons+250){lastButtons=clock;std::string why;const auto started=Micros();
         if(!game::Guarded([]{if(Actor())InventoryButtons();else if(!shortcuts.empty())ClearShortcuts();},&why)){
@@ -674,7 +756,7 @@ void Frame(){
 }
 std::string State(){std::ostringstream out;out<<"{\"ok\":true,\"settings\":{";bool comma=false;for(auto* s:settings){if(comma)out<<',';comma=true;out<<Json(s->key)<<":{\"value\":"<<s->value<<",\"available\":"<<Boolean(mainthread::HookInstalled())<<'}';}
     unsigned visible=0;for(auto& b:shortcuts)if(Value<bool>(Method(b.object->Get(),"get_activeInHierarchy",0),b.object->Get()))++visible;
-    return out.str()+"},\"inventoryButtons\":"+std::to_string(shortcuts.size())+",\"inventoryButtonsVisible\":"+std::to_string(visible)+",\"frameUpdates\":"+std::to_string(frameUpdates)+",\"inventoryChecks\":"+std::to_string(inventoryChecks)+",\"inventorySearches\":"+std::to_string(inventorySearches)+",\"inventoryMicros\":"+std::to_string(inventoryMicros)+",\"maximumInventoryMicros\":"+std::to_string(maximumInventoryMicros)+",\"inventoryStatus\":"+Json(inventoryStatus)+",\"graphicsOverrides\":"+std::to_string(saved.size())+",\"chestsOpened\":"+std::to_string(openedChests)+",\"shrinesUsed\":"+std::to_string(usedShrines)+",\"portalsUsed\":"+std::to_string(usedPortals)+",\"interactionCandidates\":"+std::to_string(candidates.size())+",\"interactionChecks\":"+std::to_string(interactionChecks)+",\"sceneSearches\":"+std::to_string(sceneSearches)+",\"maximumDiscoveryMicros\":"+std::to_string(maximumDiscoveryMicros)+",\"maximumInteractionMicros\":"+std::to_string(maximumInteractionMicros)+",\"graphicsScans\":"+std::to_string(graphicsScans)+",\"activeScene\":"+std::to_string(ActiveScene())+",\"graphicsScene\":"+std::to_string(graphicsScene)+",\"interactionScene\":"+std::to_string(interactionScene)+",\"maximumGraphicsMicros\":"+std::to_string(maximumGraphicsMicros)+",\"faults\":"+std::to_string(faults)+"}";}
+    return out.str()+"},\"inventoryButtons\":"+std::to_string(shortcuts.size())+",\"inventoryButtonsVisible\":"+std::to_string(visible)+",\"frameUpdates\":"+std::to_string(frameUpdates)+",\"inventoryChecks\":"+std::to_string(inventoryChecks)+",\"inventorySearches\":"+std::to_string(inventorySearches)+",\"inventoryMicros\":"+std::to_string(inventoryMicros)+",\"maximumInventoryMicros\":"+std::to_string(maximumInventoryMicros)+",\"inventoryStatus\":"+Json(inventoryStatus)+",\"graphicsOverrides\":"+std::to_string(saved.size())+",\"chestsOpened\":"+std::to_string(openedChests)+",\"shrinesUsed\":"+std::to_string(usedShrines)+",\"portalsUsed\":"+std::to_string(usedPortals)+",\"interactionCandidates\":"+std::to_string(candidates.size())+",\"interactionChecks\":"+std::to_string(interactionChecks)+",\"sceneSearches\":"+std::to_string(sceneSearches)+",\"maximumDiscoveryMicros\":"+std::to_string(maximumDiscoveryMicros)+",\"maximumInteractionMicros\":"+std::to_string(maximumInteractionMicros)+",\"lastStashTab\":"+std::to_string(lastStashTab)+",\"stashTabRestores\":"+std::to_string(stashRestores)+",\"stashTabRestoreFailures\":"+std::to_string(stashRestoreFailures)+",\"graphicsScans\":"+std::to_string(graphicsScans)+",\"activeScene\":"+std::to_string(ActiveScene())+",\"graphicsScene\":"+std::to_string(graphicsScene)+",\"interactionScene\":"+std::to_string(interactionScene)+",\"maximumGraphicsMicros\":"+std::to_string(maximumGraphicsMicros)+",\"faults\":"+std::to_string(faults)+"}";}
 }
 bool Init(){
     findObjects=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Object","FindObjectsOfType",2);
@@ -683,6 +765,7 @@ bool Init(){
     if(!(findObjects&&componentTransform&&transformPosition))return false;
     std::string why;
     if(!mainthread::RegisterFrameCallback(&Frame,&why)){Log("convenience bootstrap refused: %s",why.c_str());return false;}
+    LoadStashTab();
     // Installing a hook briefly holds every game thread (about 250 ms each here).
     // Do it now, while the game is still starting, instead of on the first
     // inventory opening in play. A failure keeps the previous lazy installation.
@@ -691,7 +774,11 @@ bool Init(){
         const std::tuple<game::MethodRef,void*,void**,const char*> specs[]{
             {M("Button","OnPointerClick",1,"UnityEngine.UI","UnityEngine.UI.dll"),reinterpret_cast<void*>(&Click),reinterpret_cast<void**>(&originalClick),"Button.OnPointerClick"},
             {M("Button","OnSubmit",1,"UnityEngine.UI","UnityEngine.UI.dll"),reinterpret_cast<void*>(&Submit),reinterpret_cast<void**>(&originalSubmit),"Button.OnSubmit"},
-            {M("InventoryPanelUI","OnEnable",0),reinterpret_cast<void*>(&PanelEnable),reinterpret_cast<void**>(&originalPanelEnable),"InventoryPanelUI.OnEnable"}};
+            {M("InventoryPanelUI","OnEnable",0),reinterpret_cast<void*>(&PanelEnable),reinterpret_cast<void**>(&originalPanelEnable),"InventoryPanelUI.OnEnable"},
+            {M("StashPanelV2","OnOpen",2,kPanelNs),reinterpret_cast<void*>(&StashOpen),reinterpret_cast<void**>(&originalStashOpen),"StashPanelV2.OnOpen"},
+            {M("StashPanelV2","OnClose",0,kPanelNs),reinterpret_cast<void*>(&StashClose),reinterpret_cast<void**>(&originalStashClose),"StashPanelV2.OnClose"},
+            {M("StashTabbedUIControls","OnEnable",0),reinterpret_cast<void*>(&LegacyStashEnable),reinterpret_cast<void**>(&originalLegacyEnable),"StashTabbedUIControls.OnEnable"},
+            {M("StashTabbedUIControls","OnDisable",0),reinterpret_cast<void*>(&LegacyStashDisable),reinterpret_cast<void**>(&originalLegacyDisable),"StashTabbedUIControls.OnDisable"}};
         for(const auto& [ref,detour,original,name]:specs){std::string reason;
             if(!hook::IsInstalled(ref.code)&&!hook::Install(ref.code,detour,original,&reason))hooks+=std::string(" ")+name+": "+reason;}
     }catch(const std::exception& e){hooks+=std::string(" ")+e.what();}},&hooks))hooks=" "+hooks;
@@ -887,6 +974,31 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
     if(action=="skills-close"){bool tooltip=true;void* a[]{&tooltip};Invoke(Method(ui,"closeSkills",1),ui,a);return State();}
     if(action=="blessings-open"){bool sound=false,respec=false;void* a[]{&sound,&respec};Invoke(Method(inventoryPanel.Get(),"OpenBlessingPanel",2),inventoryPanel.Get(),a);return State();}
     if(action=="panels-close"){bool sound=false;void* a[]{&sound};Invoke(Method(ui,"closeShop",0),ui);Invoke(Method(ui,"closeStash",1),ui,a);Invoke(Method(ui,"closeInventory",0),ui);return State();}
+    if(action.rfind("drop-gold-",0)==0){
+        // Disposable test character only: one native gold pile at a distance.
+        const int distance=std::stoi(action.substr(10));if(distance<1||distance>80)throw std::runtime_error("Unsupported gold distance.");
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","","GroundItemManager","instance"));
+        if(!manager)throw std::runtime_error("Ground item manager unavailable.");
+        Vec3 at=Position(c.actor);at.x+=static_cast<float>(distance);int amount=25;bool local=true;
+        void* args[]{c.actor,&amount,&at,&local};Invoke(M("GroundItemManager","dropGoldForPlayer",4),manager,args);
+        return "{\"ok\":true,\"dropped\":"+std::to_string(amount)+",\"distance\":"+std::to_string(distance)+"}";
+    }
+    if(action=="inventory-full"){
+        // Calls the game's own notification (through EpochPact's detour).
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","","GroundItemManager","instance"));
+        if(!manager)throw std::runtime_error("Ground item manager unavailable.");
+        void* args[]{c.actor};Invoke(M("GroundItemManager","showInventoryFullNofication",1),manager,args);return "{\"ok\":true}";
+    }
+    if(action=="stash-tabs"||action.rfind("stash-tab-",0)==0){
+        void* legacy=nullptr;for(void* candidate:Find("LE.dll","","StashTabbedUIControls"))if(game::IsAlive(candidate)){legacy=candidate;break;}
+        void* panel=nullptr;for(void* candidate:Find("LE.dll",kPanelNs,"StashPanelV2"))if(game::IsAlive(candidate)){panel=candidate;break;}
+        void* controls=StashControls(panel);
+        if(!legacy&&!controls)throw std::runtime_error("Open the stash first.");
+        if(action!="stash-tabs"){int id=std::stoi(action.substr(10));
+            if(legacy){bool flag=false;void* args[]{&id,&flag};Invoke(Method(legacy,"SwitchToStashTab",2),legacy,args);}
+            else{int button=0;void* args[]{&id,&button,nullptr};Invoke(Method(controls,"TriggerTabClicked",3),controls,args);}}
+        return "{\"ok\":true,\"ui\":\""+std::string(legacy?"legacy":"v2")+"\",\"active\":"+std::to_string(legacy?LegacyTab(legacy):ActiveStashTab(controls))+",\"remembered\":"+std::to_string(lastStashTab)+",\"restores\":"+std::to_string(stashRestores)+",\"restoreFailures\":"+std::to_string(stashRestoreFailures)+"}";
+    }
     if(action=="panels")return "{\"ok\":true,\"inventory\":"+std::string(Boolean(Value<bool>(Method(ui,"IsInventoryOpen",0),ui)))+",\"stash\":"+Boolean(Value<bool>(Method(ui,"IsStashOpen",0),ui))+",\"shop\":"+Boolean(Value<bool>(Method(ui,"IsShopOpen",0),ui))+",\"buttons\":"+std::to_string(shortcuts.size())+"}";
     if(action=="screenshot"){
         auto capture=game::FindMethod("UnityEngine.ScreenCaptureModule.dll","UnityEngine","ScreenCapture","CaptureScreenshot",2);

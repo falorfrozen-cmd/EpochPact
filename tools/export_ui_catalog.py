@@ -112,6 +112,11 @@ def controls():
         "Limit automatic collection to 1–60 game units. Zero collects all loaded drops, as in earlier versions. Item tooltips pause collection.",
         params=[parameter("value","number",0,60)],default=0,reset="pickupradius 0",doc="docs/player-conveniences.md")
     add("pickup_radius_read","loot","Pickup radius status","read","pickupradius","read_only","Read the current pickup radius.",doc="docs/player-conveniences.md")
+    add("pickup_interval","loot","Auto pickup interval","number","pickupinterval {value}","session",
+        'How often automatic collection scans for drops: 0.25 s (default) up to 10 s. Longer intervals do less work per second. When the game reports a full inventory, equipment waits until you open and close your inventory; gold, potions, tomes, bones and materials continue.',
+        params=[parameter("value","number",0.25,10)],default=0.25,reset="pickupinterval 0.25",doc="docs/player-conveniences.md")
+    add("pickup_now","loot","Pick up everything now","button","pickupnow","view",
+        'Collect every drop the game has loaded right now, ignoring the radius. Your pickup rules, categories, loot filter and inventory space still apply. Runs across several frames.',doc="docs/player-conveniences.md")
     add("summons_read","summons","Live summoned allies","read","summonread","read_only",
         "Read each active player-owned summon: health, armour, uncapped resistances and global damage increase. These are actual live values; damage increase is not skill DPS.",doc="docs/player-conveniences.md")
     add("inventory_read","inventory","Live inventory","read","inventoryread","read_only",

@@ -116,6 +116,17 @@ bool Accept(void* label) {
     if (result) ++accepted; else ++rejected;
     return result;
 }
+bool IsMaterial(void* label) {
+    bool material = false;
+    game::Guarded([&] {
+        if (!ready || !game::IsAlive(label)) return;
+        void* item = Invoke(getItem, label);
+        if (!item) return;
+        Root pin(item);
+        material = Value<bool>(isShard, item) || Value<bool>(isRune, item) || Value<bool>(isGlyph, item);
+    }, nullptr);
+    return material;
+}
 bool Category(int index) { return index>=0 && index<5 && policy.categories[index]; }
 std::string Read() {
     return Run([] {

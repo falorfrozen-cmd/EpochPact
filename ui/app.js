@@ -5,7 +5,7 @@ const clean = s => String(s ?? "").replace(/<[^>]*>/g, "");
 const preferencesApi=window.EpochPreferences;
 let displayPreferences;
 try{displayPreferences=preferencesApi?.load(localStorage);}catch{}
-displayPreferences??={favorites:[],hidden:[],summonColumns:[],hiddenStats:[]};
+displayPreferences??={favorites:[],hidden:[],summonColumns:[],hiddenStats:[],summonOptions:[]};
 let showHiddenStats=false;
 function saveDisplayPreference(name,id,enabled){
  if(!preferencesApi)return;
@@ -57,7 +57,38 @@ let autoTimer,autoSending=null,autoRunning=false,autoGeneration=0;
 let liveReading=false;
 const convenienceNextRead={};
 let connectionChecking=false,connectionNextCheck=0,lastGameSession=null;
-function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|pickupradius|autopickup|mapreveal) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
+// Startup profile: off by default, so opening EpochPact still applies nothing.
+// When chosen, it is applied once per game session and character after that
+// offline character is ready. Only session/actor settings are stored; quests,
+// rewards and other save actions never are.
+const startupApplied=new Set();
+function storageKey(name){return `epochpact.${name}.${preview?"preview":"live"}`;}
+function readStored(name,fallback){try{const v=JSON.parse(localStorage.getItem(storageKey(name))??"null");return v??fallback;}catch{return fallback;}}
+function writeStored(name,value){try{localStorage.setItem(storageKey(name),JSON.stringify(value));return true;}catch{return false;}}
+function profileSetting(c){return Boolean(c&&["session","actor"].includes(c.lifetime)&&["number","toggle"].includes(c.widget));}
+function rememberLastSettings(){
+ if(preview||readStored("startup-profile","")!=="__last__")return;
+ const last={};for(const c of catalog.controls)if(profileSetting(c)&&appliedValues[c.id]!=null&&!Object.is(appliedValues[c.id],c.default))last[c.id]=appliedValues[c.id];
+ writeStored("last-settings",last);
+}
+function startupProfile(){
+ const name=readStored("startup-profile","");if(!name)return null;
+ if(name==="__last__")return {name:"your last used settings",values:readStored("last-settings",{})};
+ let profiles={};try{profiles=JSON.parse(localStorage.getItem(profileKey)||"{}");}catch{}
+ return Object.hasOwn(profiles,name)?{name:`profile “${name}”`,values:profiles[name]}:null;
+}
+function applyStartupProfile(){
+ const owner=automaticOwner();if(preview||!owner||startupApplied.has(owner)||busy||autoRunning||autoPending.size)return;
+ const profile=startupProfile();if(!profile)return;
+ startupApplied.add(owner);
+ let changes=0;
+ for(const [id,v] of Object.entries(profile.values||{})){const c=controlById(id);
+  if(profileSetting(c)&&eligible(c)&&!Object.is(appliedValues[id],v)){values[id]=v;dirty.add(id);changes++;}}
+ if(!changes)return;
+ notify(`Applying ${profile.name} (${changes} setting${changes===1?"":"s"}).`);
+ setTimeout(()=>void applyDraft(),0);
+}
+function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|pickupradius|pickupinterval|autopickup|mapreveal) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
 function automaticOwner(){
  if(preview)return "preview";
  const p=connected.player;
@@ -184,6 +215,7 @@ function playerResult(payload,result){
   campaign_complete:result.mastery?.needsSelection?"Campaign completed with normal rewards. Use Choose Mastery to finish your character.":"Campaign completed with normal rewards.",waypoints_unlock:"All waypoints unlocked.",
   mastery_choose:"Mastery selection opened in the game. Choose and confirm your mastery there.",
   inventory_stash:result.opened===false?"Stash closed in the game.":"Stash opened in the game.",inventory_vendor:result.opened===false?"Vendor closed in the game.":"Vendor opened in the game.",
+  pickup_now:`Picked up ${result.picked??0} drops.${result.inventoryFull?" Your inventory is full: equipment waits until you open and close your inventory.":""}`,
   inventory_stashall:(result.remaining??0)>0?`Moved ${result.moved??0} items to your stash. ${result.remaining} items stayed in your inventory: the stash had no room for them. Free stash space or add a stash tab, then try again.`:`Moved ${result.moved??0} items to your stash. Your inventory is empty; equipped items were not moved.`,
   monolith_unlock:"Normal and Empowered timelines unlocked.",monolith_select:`Timeline selected.${where}`,
   cof_rank:`Circle of Fortune rank set to ${a.value}.`,cof_favor:`Favor set to ${a.value}.`,
@@ -278,6 +310,7 @@ async function runTask(payload,{show=false,title="Operation result",silent=false
  if(payload.type==="control"&&connected.sessionKey&&!preview)payload={...payload,args:{expected_session:connected.sessionKey,...payload.args}};
  try{
   const result=await job(payload);
+  if(payload.type==="control"&&result.ok&&profileSetting(controlById(payload.id)))setTimeout(rememberLastSettings,0);
   if(result.launcher)window.EpochLauncher?.update(result.launcher);
   if(result.requiresElevation)window.EpochLauncher?.failure(result);
   if(result.history)history=result.history;
@@ -321,6 +354,7 @@ async function refreshConnection(silent=true,refreshCurrent=true,{preservePage=f
  const masteryMayHaveChanged=page==="campaign"&&cache.progress_read?.mastery?.panelOpen===true;
  const recovered=background&&(!previous.offline||restarted)&&result.offline;
  if((refreshCurrent||recovered)&&readId&&(!cache[readId]||["general","loot","crafting"].includes(page)||masteryMayHaveChanged)&&eligible(controlById(readId)))await refreshSection(readId,{refreshConnectionFirst:false});
+ if(result.offline)applyStartupProfile();
  }finally{connectionChecking=false;connectionNextCheck=Date.now()+(connected.offline?10000:["stopped","setup","update_required","waiting_frame","read_error"].includes(connected.phase)?5000:2000);}
 }
 async function pollConnection(){
@@ -333,7 +367,7 @@ setInterval(()=>void pollConnection(),1000);
 function syncSpeed(){
  const modes=actorValues["9:0:0:0"]?.modes;if(modes){appliedValues.speed=1+(modes.increased||0);if(!dirty.has("speed"))values.speed=appliedValues.speed;}
 }
-function unitFor(c){return c.id==="pickup_radius"?" units":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["craft_fp","build_weaverflat","build_projectileflat","build_blessingoptions"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
+function unitFor(c){return c.id==="pickup_radius"?" units":c.id==="pickup_interval"?" s":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["craft_fp","build_weaverflat","build_projectileflat","build_blessingoptions"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
 function settingDisplayValue(id,value){return id==="speed"&&Number.isFinite(value)?Number(value.toFixed(6)):value;}
 function settingCard(c) {
  const p=c.parameters.find(x=>x.name==="value"),v=settingDisplayValue(c.id,values[c.id]??c.default),unit=unitFor(c);
@@ -507,7 +541,7 @@ function renderPage(){
  }else if(page==="inventory"){
   content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory shortcuts</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the currently selected stash tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_stash","inventory_vendor","inventory_stashall"].map(id=>actionCard(controlById(id))).join("")}</div></section>`;
  }else if(page==="loot"){
-  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius")])+settingPanel("Quality rules",["loot_lp","loot_t7","loot_filter"].map(controlById))+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
+  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius"),controlById("pickup_interval")])+`<section class="panel"><h2>Collect now</h2>${cache.pickup_radius_read?.inventoryFull?`<p class="note">Your inventory is full. Equipment pickup is paused until you open and close your inventory; gold, potions, tomes, bones and materials are still collected.</p>`:""}<div class="control-grid">${actionCard(controlById("pickup_now"))}</div></section>`+settingPanel("Quality rules",["loot_lp","loot_t7","loot_filter"].map(controlById))+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
  }else if(page==="crafting"){
   content.innerHTML=renderCrafting();
  }else if(page==="skills"){
@@ -690,7 +724,7 @@ async function statAction(operation,context=activeStat){
 function renderSettings(){
  let profiles={};try{profiles=JSON.parse(localStorage.getItem(profileKey)||"{}");}catch{}
  const theme=document.documentElement.dataset.theme;
- content.innerHTML=`<section class="panel"><h2>Appearance · Theme</h2><p class="muted">Both themes use the same settings. Switching themes sends no game commands, and your choice is remembered.</p><div class="control-grid theme-grid">${[["chronoforge","Chronoforge","Jade time crystal · aged gold · ancient temple"],["void-atlas","Void Atlas","Violet time rift · horizontal navigation · Void observatory"]].map(([id,title,note])=>`<button data-theme-pick="${id}" class="settings-card ${theme===id?"selected":""}" aria-pressed="${theme===id}"><img src="/ui/assets/${id}-reference.png" alt="${title} design reference"><h3>${title}</h3><p class="muted">${note}</p></button>`).join("")}</div></section><section class="panel"><h2>Draft profiles</h2><div class="note">Profiles load settings into a draft. Quests, rewards, balances and save actions are not stored or automatically applied.</div><div class="form-grid"><label>Profile name<input id="profile-name" placeholder="Example: Balanced"></label><label>Saved draft<select id="profile-select">${Object.keys(profiles).map(name=>`<option>${esc(name)}</option>`).join("")}</select></label></div><div class="actions"><button id="profile-save">Save draft</button><button id="profile-load">Load draft</button><button id="profile-delete">Delete profile</button></div></section>${developer?`<section class="panel"><h2>Game connection</h2><div class="control-grid">${["session_read","status","player_read","characters","play_offline","load_character"].map(id=>actionCard(controlById(id))).join("")}</div></section>`:""}<section class="panel"><h2>Recovery backups</h2><p class="muted">Changes to your game save create a backup. Restore a selected backup to undo that change; the game closes normally first.</p>${history.length?`<div class="table-wrap"><table><thead><tr><th>Action</th><th>Time</th><th>Result</th></tr></thead><tbody>${history.map(x=>`<tr><td>${esc(controlById(x.control)?.label)}</td><td>${new Date(x.time*1000).toLocaleTimeString("en-GB")}</td><td>${x.ok?"Complete":"Error / backup available"}</td></tr>`).join("")}</tbody></table></div>`:'<p class="empty">No save actions have been performed in this session.</p>'}${actionCard(controlById("undo"))}</section>`;
+ content.innerHTML=`<section class="panel"><h2>Appearance · Theme</h2><p class="muted">Both themes use the same settings. Switching themes sends no game commands, and your choice is remembered.</p><div class="control-grid theme-grid">${[["chronoforge","Chronoforge","Jade time crystal · aged gold · ancient temple"],["void-atlas","Void Atlas","Violet time rift · horizontal navigation · Void observatory"]].map(([id,title,note])=>`<button data-theme-pick="${id}" class="settings-card ${theme===id?"selected":""}" aria-pressed="${theme===id}"><img src="/ui/assets/${id}-reference.png" alt="${title} design reference"><h3>${title}</h3><p class="muted">${note}</p></button>`).join("")}</div></section><section class="panel"><h2>Draft profiles</h2><div class="note">Profiles store session settings only. Quests, rewards, balances and save actions are never stored or automatically applied.</div><div class="form-grid"><label>Profile name<input id="profile-name" placeholder="Example: Balanced"></label><label>Saved draft<select id="profile-select">${Object.keys(profiles).map(name=>`<option>${esc(name)}</option>`).join("")}</select></label></div><div class="actions"><button id="profile-save">Save draft</button><button id="profile-load">Load draft</button><button id="profile-delete">Delete profile</button></div><label class="startup-profile">Apply at startup<select id="startup-profile">${(()=>{const chosen=readStored("startup-profile","");return [["","Off — start with the game's normal values"],["__last__","My last used settings"],...Object.keys(profiles).map(n=>[n,`Profile: ${n}`])].map(([v,l])=>`<option value="${esc(v)}" ${chosen===v?"selected":""}>${esc(l)}</option>`).join("");})()}</select></label><p class="muted">Applied once each time an offline character is ready, after you start EpochPact or the game. Closing EpochPact still returns the game to its normal values.</p></section>${developer?`<section class="panel"><h2>Game connection</h2><div class="control-grid">${["session_read","status","player_read","characters","play_offline","load_character"].map(id=>actionCard(controlById(id))).join("")}</div></section>`:""}<section class="panel"><h2>Recovery backups</h2><p class="muted">Changes to your game save create a backup. Restore a selected backup to undo that change; the game closes normally first.</p>${history.length?`<div class="table-wrap"><table><thead><tr><th>Action</th><th>Time</th><th>Result</th></tr></thead><tbody>${history.map(x=>`<tr><td>${esc(controlById(x.control)?.label)}</td><td>${new Date(x.time*1000).toLocaleTimeString("en-GB")}</td><td>${x.ok?"Complete":"Error / backup available"}</td></tr>`).join("")}</tbody></table></div>`:'<p class="empty">No save actions have been performed in this session.</p>'}${actionCard(controlById("undo"))}</section>`;
  content.insertAdjacentHTML("beforeend",navigationPicker());
 }
 async function refreshSection(id,{refreshConnectionFirst=true}={}){
@@ -712,7 +746,10 @@ async function refreshSection(id,{refreshConnectionFirst=true}={}){
  renderPage();
 }
 function syncLootCraft(id,result){
- if(id==="pickup_radius"||id==="pickup_radius_read"){cache[id]=result;appliedValues[id]=result.radius;if(!dirty.has(id)&&!autoManaged(id))values[id]=result.radius;return true;}
+ if(["pickup_radius","pickup_radius_read","pickup_interval"].includes(id)){cache.pickup_radius_read={...cache.pickup_radius_read,...result};
+  if(result.radius!=null){appliedValues.pickup_radius=result.radius;if(!dirty.has("pickup_radius")&&!autoManaged("pickup_radius"))values.pickup_radius=result.radius;}
+  if(result.intervalSeconds!=null){appliedValues.pickup_interval=result.intervalSeconds;if(!dirty.has("pickup_interval")&&!autoManaged("pickup_interval"))values.pickup_interval=result.intervalSeconds;}
+  return true;}
  if(id==="qol_read"||id.startsWith("qol_")){
   cache.qol_read={...cache.qol_read,...result};
   for(const [key,item] of Object.entries(result.settings||{})){const cid="qol_"+key;appliedValues[cid]=item.value;if(!dirty.has(cid)&&!autoManaged(cid))values[cid]=item.value;}
@@ -740,6 +777,25 @@ function syncLootCraft(id,result){
  for(const [key,value] of Object.entries(fresh))if(value!==undefined){appliedValues[key]=value;if(!dirty.has(key))values[key]=value;}
  return true;
 }
+// One row per ally type: "Skeleton ×5". Damage and health are totals for the
+// group; armour, damage increase and resistances are averages.
+function summonName(s){return clean(s.name).replace(/\(Clone\)/g,"").trim()||"Ally";}
+function summonRows(summons,individual){
+ if(individual)return summons.map(s=>({...s,label:summonName(s),count:1,members:[s]}));
+ const groups=new Map();
+ for(const s of summons){const key=summonName(s);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(s);}
+ const sum=(list,f)=>list.reduce((t,s)=>t+(Number.isFinite(Number(f(s)))?Number(f(s)):0),0);
+ const avg=(list,f)=>{const v=list.map(f).map(Number).filter(Number.isFinite);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;};
+ return [...groups].map(([label,list])=>({label,count:list.length,members:list,measuredDps:sum(list,s=>s.measuredDps),
+  lastDamage:list.reduce((m,s)=>Math.max(m,Number(s.lastDamage)||0),0),health:sum(list,s=>s.health),maxHealth:sum(list,s=>s.maxHealth),
+  armour:avg(list,s=>s.armour),damageIncreased:avg(list,s=>s.damageIncreased),
+  resistances:Object.fromEntries(["Physical","Fire","Cold","Lightning","Void","Necrotic","Poison"].map(n=>[n,avg(list,s=>s.resistances?.[n])]))}));
+}
+function summonChange(row){
+ const tracked=row.members.filter(s=>summonBaseline[s.instance]!=null);
+ if(!tracked.length)return null;
+ return tracked.reduce((t,s)=>t+(Number(s.measuredDps)||0)-summonBaseline[s.instance],0);
+}
 function summonTable(){
  const data=cache.summons_read;
  if(preview)return '<p class="note">Load an offline character to inspect real summoned allies.</p>';
@@ -749,13 +805,15 @@ function summonTable(){
  if(summonBaselineOwner&&summonBaselineOwner!==automaticOwner()){summonBaseline={};summonBaselineOwner="";}
  const fmt=n=>Number.isFinite(Number(n))?Number(n).toLocaleString("en-US",{maximumFractionDigits:1}):"—";
  const columns=summonColumns.filter(n=>!displayPreferences.summonColumns.includes(n));
- const cell=(s,n)=>n==="Measured DPS"?fmt(s.measuredDps):n==="Last damage"?fmt(s.lastDamage):n==="DPS change"?(summonBaseline[s.instance]==null?"—":`${s.measuredDps>=summonBaseline[s.instance]?"+":""}${fmt(s.measuredDps-summonBaseline[s.instance])}`):n==="Health"?`${fmt(s.health)} / ${fmt(s.maxHealth)}`:n==="Armour"?fmt(s.armour):n==="Damage increase"?fmt(s.damageIncreased)+"%":fmt(s.resistances?.[n])+"%";
- return `${data.damageSampleClipped?'<p class="note">Damage event capacity was reached. These numbers are a lower bound until a fresh five-second window is collected.</p>':""}<div class="table-scroll"><table class="summon-table"><thead><tr><th>Ally</th>${columns.map(n=>`<th>${n}</th>`).join("")}</tr></thead><tbody>${data.summons.map(s=>`<tr><td>${esc(clean(s.name).replace(/\(Clone\)/g,"").trim())}</td>${columns.map(n=>`<td>${cell(s,n)}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="muted">Measured DPS uses damage actually applied in a rolling five-second window (${fmt(data.damageWindowSeconds)} seconds collected), including mitigation and critical hits. Attack a target to measure damage; changing gear alone cannot reveal exact combat DPS. Compare on the same target and encounter. Damage increase remains a separate bonus. Updates once per second while visible.</p>`;
+ const individual=displayPreferences.summonOptions?.includes("individual");
+ const rows=summonRows(data.summons,individual);
+ const cell=(s,n)=>n==="Measured DPS"?fmt(s.measuredDps):n==="Last damage"?fmt(s.lastDamage):n==="DPS change"?(c=>c==null?"—":`${c>=0?"+":""}${fmt(c)}`)(summonChange(s)):n==="Health"?`${fmt(s.health)} / ${fmt(s.maxHealth)}`:n==="Armour"?fmt(s.armour):n==="Damage increase"?fmt(s.damageIncreased)+"%":fmt(s.resistances?.[n])+"%";
+ return `${data.damageSampleClipped?'<p class="note">Damage event capacity was reached. These numbers are a lower bound until a fresh five-second window is collected.</p>':""}<div class="table-scroll"><table class="summon-table"><thead><tr><th>${individual?"Ally":"Ally type"}</th>${columns.map(n=>`<th>${n}</th>`).join("")}</tr></thead><tbody>${rows.map(s=>`<tr><td>${esc(s.label)}${s.count>1?` <span class="muted">×${s.count}</span>`:""}</td>${columns.map(n=>`<td>${cell(s,n)}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="muted">Measured DPS uses damage actually applied in a rolling five-second window (${fmt(data.damageWindowSeconds)} seconds collected), including mitigation and critical hits. Attack a target to measure damage; changing gear alone cannot reveal exact combat DPS. Compare on the same target and encounter. Damage increase remains a separate bonus. ${individual?"":"Grouped rows add damage and health across the group and average armour, damage increase and resistances. "}Updates every two seconds while visible.</p>`;
 }
 let summonBaseline={};
 let summonBaselineOwner="";
 const summonColumns=["Measured DPS","Last damage","DPS change","Health","Armour","Damage increase","Physical","Fire","Cold","Lightning","Void","Necrotic","Poison"];
-function summonColumnPicker(){return `<details class="display-options"><summary>Visible columns</summary><div class="column-options">${summonColumns.map(n=>`<label><input type="checkbox" data-summon-column="${esc(n)}" ${displayPreferences.summonColumns.includes(n)?"":"checked"}>${n}</label>`).join("")}</div></details>`;}
+function summonColumnPicker(){return `<details class="display-options"><summary>Visible columns</summary><div class="column-options"><label><input type="checkbox" data-summon-option="individual" ${displayPreferences.summonOptions?.includes("individual")?"checked":""}>Show each ally separately</label>${summonColumns.map(n=>`<label><input type="checkbox" data-summon-column="${esc(n)}" ${displayPreferences.summonColumns.includes(n)?"":"checked"}>${n}</label>`).join("")}</div></details>`;}
 function navigationPicker(){return `<section class="panel"><h2>Navigation and favorites</h2><p class="muted">Choose visible sections and pin favorites to the top. These choices stay on this device.</p><div class="navigation-options">${Object.entries(pages).map(([id,p])=>`<div><strong>${p[0]}</strong><label><input type="checkbox" data-nav-visible="${id}" ${displayPreferences.hidden.includes(id)?"":"checked"} ${["overview","settings"].includes(id)?"disabled":""}>Visible</label><label><input type="checkbox" data-nav-favorite="${id}" ${displayPreferences.favorites.includes(id)?"checked":""}>Favorite</label></div>`).join("")}</div><button id="display-preferences-reset">Restore all sections and stats</button></section>`;}
 const stashQueries=[
  ["LP2+","Uniques with at least 2 Legendary Potential"],
@@ -965,8 +1023,15 @@ content.addEventListener("input",e=>{
  }
 });
 content.addEventListener("change",e=>{
+ if(e.target.id==="startup-profile"){
+  const value=e.target.value;writeStored("startup-profile",value);
+  if(value==="__last__")rememberLastSettings();
+  notify(value?"Startup profile saved. It applies when an offline character is ready.":"Startup profile turned off. EpochPact starts with the game's normal values.");
+  if(value)applyStartupProfile();return;
+ }
  if(e.target.dataset.navVisible){saveDisplayPreference("hidden",e.target.dataset.navVisible,!e.target.checked);navigation();return;}
  if(e.target.dataset.navFavorite){saveDisplayPreference("favorites",e.target.dataset.navFavorite,e.target.checked);navigation();return;}
+ if(e.target.dataset.summonOption){saveDisplayPreference("summonOptions",e.target.dataset.summonOption,e.target.checked);$("#summon-live").innerHTML=summonTable();return;}
  if(e.target.dataset.summonColumn){saveDisplayPreference("summonColumns",e.target.dataset.summonColumn,!e.target.checked);$("#summon-live").innerHTML=summonTable();return;}
  const t=e.target;rememberMonolithInput(t);
  if(t.hasAttribute?.('data-affix-sort')){wantedAffixes.order=t.value==='za'?'za':'az';updateWantedAffixLists();return;}

@@ -7,6 +7,9 @@
 #include "smart_loot.hpp"
 #include "managed.hpp"
 #include "pickup_rules.hpp"
+#include "mainthread.hpp"
+#include <algorithm>
+#include <cmath>
 #include <memory>
 
 #include <atomic>
@@ -66,6 +69,14 @@ std::atomic<double> g_radius{0.0};
 std::atomic<uint64_t> g_scans{0}, g_calls{0};
 std::atomic<bool> g_autoFirst{false};
 std::atomic<unsigned long> g_lastScan{0};
+// Player-chosen scan interval: 0.25 s (the original) up to 10 s.
+std::atomic<unsigned> g_intervalMs{250};
+// Set when the game shows its own "inventory full" notification. Equipment
+// labels are skipped until the player closes the inventory panel; gold,
+// potions, tomes, bones and materials keep being collected.
+std::atomic<bool> g_inventoryFull{false};
+bool g_inventoryWasOpen = false;
+std::atomic<uint64_t> g_fullEvents{0}, g_fullSkipped{0};
 
 // ItemTooltipOrganizer keeps every live pickable label in a static DList; ground item
 // labels add themselves to it. DList<T> wraps a List<T> in its first instance field at
@@ -90,6 +101,30 @@ size_t g_labelFollowerOffset = 0;
 game::MethodRef m_getActor, m_componentTransform, m_transformPosition, m_followerPosition;
 game::MethodRef m_activeTooltipItem;             // TooltipSystem includes V2/container/controller tooltips
 game::MethodRef m_componentObject,m_activeHierarchy;
+
+game::MethodRef m_inventoryFull, m_isInventoryOpen;
+using InventoryFullFn = void (*)(void* self, void* actor, const Method* m);
+InventoryFullFn o_inventoryFull = nullptr;
+void d_inventoryFull(void* self, void* actor, const Method* m) {
+    o_inventoryFull(self, actor, m);  // the player still sees the game's own message
+    g_inventoryFull = true;
+    g_fullEvents.fetch_add(1, std::memory_order_relaxed);
+}
+// UIBase.IsInventoryOpen through its code pointer: no boxing in the frame path.
+bool InventoryOpen() {
+    if (!g_uiField || !m_isInventoryOpen) return false;
+    void* ui = game::StaticObject(g_uiField);
+    if (!ui || !game::IsAlive(ui)) return false;
+    return reinterpret_cast<bool (*)(void*, const Method*)>(m_isInventoryOpen.code)(ui, m_isInventoryOpen.info);
+}
+// Resume once the player has opened and closed the inventory after it filled.
+void TrackInventoryFull() {
+    if (!g_inventoryFull.load(std::memory_order_relaxed)) { g_inventoryWasOpen = false; return; }
+    bool open = false;
+    if (!game::Guarded([&] { open = InventoryOpen(); }, nullptr)) return;
+    if (open) g_inventoryWasOpen = true;
+    else if (g_inventoryWasOpen) { g_inventoryWasOpen = false; g_inventoryFull = false; }
+}
 
 bool InspectingItem() {
     // A failed/missing hover read must pause collection, not dismiss a tooltip.
@@ -206,8 +241,11 @@ int SnapshotList(void* listObj, void** out, int cap, F&& keep) {
     return n;
 }
 
-void PickAll() {
+struct PickResult { int calls = 0, candidates = 0, skippedFull = 0; };
+PickResult PickAll(int maxCalls = 8, bool everywhere = false) {
+    PickResult result;
     void* labels[kMaxPerScan];
+    bool labelMaterial[kMaxPerScan]{};
     void* gold[kMaxPerScan];
     void* potions[kMaxPerScan];
     void* xp[kMaxPerScan];
@@ -231,8 +269,9 @@ void PickAll() {
                     void* inner = *reinterpret_cast<void* const*>(static_cast<char*>(dlist) + kListItems);
                     labelCount = SnapshotList(inner, labels, kMaxPerScan, [&](void* label) {
                         ++labelSeen;
-                        return *reinterpret_cast<void* const*>(label) == g_groundItemLabel && InRadius(label,player,true) && smartloot::Accept(label);
+                        return *reinterpret_cast<void* const*>(label) == g_groundItemLabel && (everywhere || InRadius(label,player,true)) && smartloot::Accept(label);
                     });
+                    for (int i = 0; i < labelCount; ++i) labelMaterial[i] = smartloot::IsMaterial(labels[i]);
                 }
             }
             // Gold, potions, tomes and bones, through the manager's own active lists.
@@ -243,7 +282,7 @@ void PickAll() {
                     for (int i = 0; i < 5; ++i) {
                         if (!smartloot::Category(i) || !g_activeLists[i].pick || !g_activeLists[i].offset) continue;
                         void* listObj = *reinterpret_cast<void* const*>(static_cast<char*>(mgr) + g_activeLists[i].offset);
-                        *count[i] = SnapshotList(listObj, out[i], kMaxPerScan, [&](void* object) { return InRadius(object,player,false); });
+                        *count[i] = SnapshotList(listObj, out[i], kMaxPerScan, [&](void* object) { return everywhere || InRadius(object,player,false); });
                     }
                 }
             }
@@ -257,11 +296,13 @@ void PickAll() {
         const std::pair<void**,int> snapshots[]{{labels,labelCount},{gold,goldCount},{potions,potionCount},
             {xp,xpCount},{favor,favorCount},{bones,boneCount}};
         for (const auto& [list,count] : snapshots) for (int i=0;i<count;++i) roots.push_back(std::make_unique<managed::Root>(list[i]));
-    }, nullptr)) return;
+    }, nullptr)) return result;
+    result.candidates = labelCount + goldCount + potionCount + xpCount + favorCount + boneCount;
     int calls = 0;
     if (m_requestPickup) {
         for (int i = 0; i < labelCount; ++i) {
-            if (calls >= 8 || InspectingItem()) break;
+            if (calls >= maxCalls || InspectingItem()) break;
+            if (!labelMaterial[i] && g_inventoryFull.load(std::memory_order_relaxed)) { ++result.skippedFull; continue; }
             if (game::Guarded([&] { if(game::IsAlive(labels[i])) { Pickup(labels[i],m_requestPickup,0); ++calls; } },nullptr)) {}
         }
     }
@@ -279,15 +320,18 @@ void PickAll() {
         ++kind;
         if (!l.pick->code) continue;
         for (int i = 0; i < l.count; ++i) {
-            if (calls >= 8 || InspectingItem()) break;
+            if (calls >= maxCalls || InspectingItem()) break;
             game::Guarded([&] { if(game::IsAlive(l.list[i])) { Pickup(l.list[i],*l.pick,kind); ++calls; } },nullptr);
         }
     }
 
+    if (result.skippedFull) g_fullSkipped.fetch_add(static_cast<uint64_t>(result.skippedFull));
+    result.calls = calls;
     if (calls) g_calls.fetch_add(static_cast<uint64_t>(calls));
     if (g_autoFirst.exchange(false))
         Log("autopickup: first scan: item labels %d picked (%d seen), gold %d, potions %d, xp tomes %d, favor %d, bones %d; %d calls",
             labelCount, labelSeen, goldCount, potionCount, xpCount, favorCount, boneCount, calls);
+    return result;
 }
 
 using TickFn = void (*)(void* self, float deltaTime, const Method* m);
@@ -303,11 +347,12 @@ void d_distantTick(void* self, float deltaTime, const Method* m) {
     if(inspectingBeforeTick) return;
     o_distantTick(self, deltaTime, m);  // the game's own distant pickup stays in charge
     if (!active) return;
+    TrackInventoryFull();
     if (inspectingBeforeTick || InspectingItem()) return;  // Leave both the tooltip and scan timer alone.
     if (!smartloot::CanCollect()) return;
     const unsigned long now = GetTickCount();
     unsigned long last = g_lastScan.load(std::memory_order_relaxed);
-    if (now - last < 250) return;
+    if (now - last < g_intervalMs.load(std::memory_order_relaxed)) return;
     if (!g_lastScan.compare_exchange_strong(last, now, std::memory_order_relaxed)) return;
     g_scans.fetch_add(1, std::memory_order_relaxed);
     PickAll();
@@ -377,6 +422,14 @@ bool Init() {
     g_activeLists[3] = list("activeFavorTomes", "LE.dll", "PickupFavorTomeInteraction", "PickUp");
     g_activeLists[4] = list("activeAncientBones", "LE.dll", "PickupAncientBonesInteraction", "PickUp");
 
+    m_isInventoryOpen = game::FindMethod("LE.dll", "", "UIBase", "IsInventoryOpen", 0);
+    m_inventoryFull = game::FindMethod("LE.dll", "", "GroundItemManager", "showInventoryFullNofication", 1);
+    std::string fullWhy = "method not found";
+    const bool fullHook = m_inventoryFull && m_isInventoryOpen &&
+        (hook::IsInstalled(m_inventoryFull.code) || hook::Install(m_inventoryFull.code, reinterpret_cast<void*>(&d_inventoryFull),
+                                                                   reinterpret_cast<void**>(&o_inventoryFull), &fullWhy));
+    Log("items: inventory-full pause %s%s", fullHook ? "ready" : "unavailable: ", fullHook ? "" : fullWhy.c_str());
+
     Log("items: RollRarity %s; autopickup: tick %s, label list %s, manager %s, GroundItemLabel %s, requestPickup %s, hover guard %s; active lists "
         "gold %d potion %d xp %d favor %d bone %d",
         h_rollRarity.ref ? "found" : "MISSING", h_distantTick.ref ? "found" : "MISSING", g_labelListField ? "found" : "MISSING",
@@ -422,7 +475,34 @@ std::string SetAuto(double on) {
 std::string Status() { return feature::Line(g_rarity) + "\n" + AutoStatus(); }
 
 bool IsInspectingItem(){return InspectingItem();}
-std::string RadiusStatus(){return "{\"ok\":true,\"radius\":"+std::to_string(g_radius.load())+",\"allLoaded\":"+(g_radius.load()==0?"true":"false")+"}";}
+std::string RadiusStatus(){
+    char interval[32];std::snprintf(interval,sizeof interval,"%.2f",g_intervalMs.load()/1000.0);
+    return "{\"ok\":true,\"radius\":"+std::to_string(g_radius.load())+",\"allLoaded\":"+(g_radius.load()==0?"true":"false")+
+        ",\"intervalSeconds\":"+interval+",\"inventoryFull\":"+(g_inventoryFull.load()?"true":"false")+
+        ",\"inventoryFullEvents\":"+std::to_string(g_fullEvents.load())+",\"skippedWhileFull\":"+std::to_string(g_fullSkipped.load())+
+        ",\"inventoryFullPause\":"+(o_inventoryFull?"true":"false")+"}";}
+std::string SetInterval(double seconds){
+    if(!std::isfinite(seconds)||seconds<0.25||seconds>10)return "{\"ok\":false,\"error\":\"Pickup interval must be between 0.25 and 10 seconds.\"}";
+    g_intervalMs=static_cast<unsigned>(std::lround(seconds*1000));g_lastScan=0;return RadiusStatus();
+}
+std::string PickupNow(){
+    // One explicit sweep of every loaded drop, ignoring the radius: up to 32
+    // pickups per frame so a crowded area never stalls one frame. The loot
+    // filter, categories, inventory capacity and tooltip pause still apply.
+    if(!smartloot::CanCollect())return "{\"ok\":false,\"error\":\"Load an offline character first.\"}";
+    g_inventoryFull=false;g_inventoryWasOpen=false;
+    int picked=0,steps=0,skipped=0,idle=0;std::string why;
+    const bool ran=mainthread::RunSteps([&]{
+        if(InspectingItem())return false;
+        const auto r=PickAll(32,true);picked+=r.calls;skipped+=r.skippedFull;++steps;
+        // Picked objects leave the lists over the next frames; stop after two
+        // sweeps without a new pickup or after a bounded number of frames.
+        idle=r.calls?0:idle+1;
+        return idle>=2||steps>=240;
+    },5000,&why);
+    if(!ran)return std::string("{\"ok\":false,\"error\":\"")+(why.find("pick the job up")!=std::string::npos?"The game is not updating. Return to the game window and try again.":"Close the item card in the game, then try again.")+"\",\"picked\":"+std::to_string(picked)+"}";
+    return "{\"ok\":true,\"picked\":"+std::to_string(picked)+",\"steps\":"+std::to_string(steps)+",\"inventoryFull\":"+(g_inventoryFull.load()?"true":"false")+",\"skippedWhileFull\":"+std::to_string(skipped)+"}";
+}
 std::string SetRadius(double radius){
     if(!std::isfinite(radius)||radius<0||radius>60)return "{\"ok\":false,\"error\":\"Pickup radius must be between 0 and 60.\"}";
     if(radius!=0 && (!g_labelFollowerOffset||!m_followerPosition||!m_getActor||!m_componentTransform||!m_transformPosition))return "{\"ok\":false,\"error\":\"Pickup range metadata is unavailable.\"}";

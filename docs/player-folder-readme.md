@@ -58,6 +58,8 @@ To remove the mod, close Last Epoch and press **Game setup → Uninstall mod**. 
 
 Session settings apply automatically after an edit. Campaign rewards, mastery selection, progression changes, material grants and free tree respec require their explicit action buttons. Opening the interface does not grant rewards or apply saved actions.
 
+Closing EpochPact returns the game to its normal values. To get your settings back automatically, open **Settings → Draft profiles → Apply at startup** and choose **My last used settings** or a saved profile. It is applied once each time an offline character is ready. It is off by default.
+
 Inventory shortcuts show **Stash**, **Stash all** and **Vendor** in their own centered row below the item grid, above the game's Transfer/Sort and currency footer. The grid is scaled slightly to make room; item cells stay square and every currency digit stays visible. Stash and Vendor toggle their windows. If the inventory bounds are unsupported, the shortcuts are hidden rather than covering another control. The Inventory page remains available.
 
 Settings includes navigation favorites and hidden sections. Character stats and the summon table support hiding unwanted entries/columns. Stash Assistant includes copyable search examples.

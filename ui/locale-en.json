@@ -508,6 +508,14 @@
     "craft_t7": [
       "Craft affixes up to T7",
       "Upgrade existing T5 and T6 affixes with shards, one tier at a time. Stops at T7. Use plain shards or Basic Glyph of Hope for T6/T7. Material, Forging Potential and level requirements remain."
+    ],
+    "pickup_interval": [
+      "Auto pickup interval",
+      "How often automatic collection scans for drops: 0.25 s (default) up to 10 s. Longer intervals do less work per second. When the game reports a full inventory, equipment waits until you open and close your inventory; gold, potions, tomes, bones and materials continue."
+    ],
+    "pickup_now": [
+      "Pick up everything now",
+      "Collect every drop the game has loaded right now, ignoring the radius. Your pickup rules, categories, loot filter and inventory space still apply. Runs across several frames."
     ]
   },
   "researchOnly": {

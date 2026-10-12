@@ -1,7 +1,7 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.EpochPreferences=api;})(typeof window==='object'?window:globalThis,function(){
  'use strict';
  const key='epochpact.display-preferences.v1';
- const defaults=()=>({favorites:[],hidden:[],summonColumns:[],hiddenStats:[]});
+ const defaults=()=>({favorites:[],hidden:[],summonColumns:[],hiddenStats:[],summonOptions:[]});
  function sanitize(input){
   const out=defaults();
   for(const name of Object.keys(out))out[name]=Array.isArray(input?.[name])?[...new Set(input[name].filter(x=>typeof x==='string'&&x.length<=120))].slice(0,1000):[];

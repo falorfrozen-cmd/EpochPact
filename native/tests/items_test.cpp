@@ -1,5 +1,6 @@
 // Execute the real auto-pickup detour, snapshot walk and managed pickup calls
 // against a controlled game facade. This is not a live Last Epoch test.
+#include <functional>
 #include "../core/items.cpp"
 #include <cstring>
 #include <stdexcept>
@@ -13,6 +14,7 @@ bool modernMetadata = true, modernFault = false, uiFault = false;
 bool uiAlive = true, systemAlive = true, closeOnTick = false;
 bool cardVisible=true;
 int tickCalls = 0, pickups = 0, roots = 0;
+bool materialLabels = false;
 int hoverField, uiField, listField, labelClass, pickupMethod;
 void* hovered = nullptr;
 void* activeItem = nullptr;
@@ -104,6 +106,10 @@ namespace smartloot {
 bool CanCollect() { return fixture::offline && fixture::collectable; }
 bool Accept(void*) { return true; }
 bool Category(int) { return true; }
+bool IsMaterial(void*) { return fixture::materialLabels; }
+}
+namespace mainthread {
+bool RunSteps(std::function<bool()> step, unsigned, std::string*) { for (int i = 0; i < 1000; ++i) if (step()) return true; return false; }
 }
 }
 
@@ -174,6 +180,24 @@ int main() {
     ep::items::SetAuto(0); collectable = true; hoverReadable = false; ep::items::Init();
     Check(ep::items::SetAuto(1).find("hover state was not found") != std::string::npos &&
           !ep::hook::IsInstalled(reinterpret_cast<void*>(&Tick)), "missing hover metadata refuses activation");
+    // Inventory full: equipment labels wait, materials continue, explicit sweep retries.
+    ep::items::SetAuto(0); hoverReadable = true; ep::items::Init(); ep::items::SetAuto(1);
+    ep::items::g_inventoryFull = true; const int fullBefore = pickups; Due(); Tick(nullptr, 0, nullptr);
+    Check(pickups == fullBefore && ep::items::g_fullSkipped.load() >= 2, "full inventory skips equipment labels instead of retrying them");
+    materialLabels = true; Due(); Tick(nullptr, 0, nullptr);
+    Check(pickups == fullBefore + 2, "materials are still collected while the inventory is full");
+    materialLabels = false;
+    Check(ep::items::SetInterval(0.1).find("between 0.25 and 10") != std::string::npos &&
+          ep::items::SetInterval(2).find("\"intervalSeconds\":2.00") != std::string::npos, "pickup interval is bounded and reported");
+    const auto intervalScan = ep::items::g_lastScan.load(); Tick(nullptr, 0, nullptr);
+    Check(ep::items::g_lastScan.load() != intervalScan, "a new interval starts with an immediate scan");
+    const int slowBefore = pickups; Tick(nullptr, 0, nullptr);
+    Check(pickups == slowBefore, "the chosen interval rate-limits the following scan");
+    ep::items::g_inventoryFull = true;
+    const auto now = ep::items::PickupNow();
+    Check(now.find("\"ok\":true") != std::string::npos && !ep::items::g_inventoryFull.load() && pickups > slowBefore,
+          "explicit pick-up-now clears the full pause and collects every loaded drop");
+    ep::items::SetInterval(0.25);
     std::printf("items_test: %d/%d passed\n", passed, total);
     return total - passed;
 }
