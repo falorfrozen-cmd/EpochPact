@@ -8,6 +8,9 @@
 #include <iostream>
 
 std::atomic<unsigned> updates{0};
+std::atomic<unsigned> callbacks{0};
+void ObserveFrame(){callbacks.fetch_add(1);}
+void AnotherFrame(){}
 #pragma optimize("", off)
 __declspec(noinline) void Update(void*, const ep::il2cpp::Method*) { updates.fetch_add(1); }
 #pragma optimize("", on)
@@ -30,6 +33,11 @@ int main() {
     check(ep::mainthread::Post([&]{posted=true;}),"owned bootstrap queues without waiting");
     check(!posted,"bootstrap waits for a Unity frame");Update(nullptr,nullptr);
     check(posted,"bootstrap executes on the next frame");
+    check(ep::mainthread::RegisterFrameCallback(&ObserveFrame),"register owned callback on UI dispatcher");
+    check(ep::mainthread::RegisterFrameCallback(&ObserveFrame),"same callback registration is idempotent");
+    check(!ep::mainthread::RegisterFrameCallback(&AnotherFrame),"different callback cannot replace owned work");
+    Update(nullptr,nullptr);
+    check(callbacks==1,"idle UI frame invokes callback without command or camera update");
     auto drain = [&](auto& future) {
         const auto until = GetTickCount64() + 2000;
         while (future.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready && GetTickCount64() < until) {
@@ -50,16 +58,21 @@ int main() {
     check(telemetry.find("\"hookInstalls\":1") != std::string::npos, "hook installed exactly once");
     check(telemetry.find("\"pendingJobs\":0") != std::string::npos, "completion and cancellation balance pending count");
     const auto before = updates.load();
+    const auto callbacksBefore = callbacks.load();
     for (int i = 0; i < 1000; ++i) Update(nullptr, nullptr);
     check(updates.load() == before + 1000, "idle frames still call original Update");
+    check(callbacks.load()==callbacksBefore+1000,"each idle frame observes exactly once");
     auto ending = std::async(std::launch::async, [&] { return ep::mainthread::Run([&] { steps = 999; }, 5000, nullptr); });
     const auto deadline = GetTickCount64() + 1000;
     while (ep::mainthread::Telemetry().find("\"pendingJobs\":1") == std::string::npos && GetTickCount64() < deadline) Sleep(1);
     ep::mainthread::Stop();
+    const auto stoppedCallbacks=callbacks.load();
     check(ending.wait_for(std::chrono::milliseconds(200)) == std::future_status::ready && !ending.get(), "shutdown cancels pending job immediately");
     Update(nullptr, nullptr); check(steps == 4, "shutdown mutation never executes");
+    check(callbacks.load()==stoppedCallbacks,"shutdown prevents callback before runtime cleanup");
     check(!ep::mainthread::Run([] {}, 5000, nullptr), "shutdown rejects new work without waiting");
     check(!ep::mainthread::Post([] {}),"shutdown rejects owned bootstrap");
+    check(!ep::mainthread::RegisterFrameCallback(&ObserveFrame),"shutdown rejects callback registration");
     std::cout << "mainthread: " << tests - failed << '/' << tests << " passed\n";
     return failed ? 1 : 0;
 }

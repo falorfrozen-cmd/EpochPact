@@ -11,6 +11,7 @@
 #include <cmath>
 #include <map>
 #include <memory>
+#include <limits>
 #include <set>
 #include <sstream>
 #include <tuple>
@@ -27,8 +28,7 @@ struct Setting{const char* key;std::atomic<double> value{0};};
 Setting chests{"chests"},shrines{"shrines"},portals{"portals"},shadows{"shadows"},reflections{"reflections"},
     bloom{"bloom"},motionBlur{"motionblur"},occlusion{"occlusion"},fog{"fog"};
 std::array<Setting*,9> settings{&chests,&shrines,&portals,&shadows,&reflections,&bloom,&motionBlur,&occlusion,&fog};
-game::MethodRef frame,findObjects,componentTransform,transformPosition;
-void(*originalFrame)(void*,MethodInfo)=nullptr;
+game::MethodRef findObjects,componentTransform,transformPosition;
 std::atomic<bool> active{false};
 uint64_t lastScan=0,portalGrace=0,faults=0,openedChests=0,usedShrines=0,usedPortals=0;
 game::Handle owner;
@@ -42,8 +42,14 @@ void(*originalClick)(void*,void*,MethodInfo)=nullptr;
 void(*originalSubmit)(void*,void*,MethodInfo)=nullptr;
 uint64_t lastButtons=0;
 bool shortcutEnabled=false;
+uint64_t frameUpdates=0,inventoryChecks=0;
+const char* inventoryStatus="waiting-for-frame";
 game::Handle menuTransform;
-game::Handle footerTransform,currencyTransform;
+game::Handle footerTransform,currencyTransform,gridTransform;
+Vec2 currencyOriginalSize{},currencyOriginalPosition{};
+bool currencyResized=false;
+Vec2 footerOriginalPosition{};
+bool footerSplit=false;
 struct Candidate{std::unique_ptr<Root> object;std::unique_ptr<Root> handler;int kind;uint64_t retryAfter=0;};
 std::vector<Candidate> candidates;
 std::vector<std::unique_ptr<Root>> pendingHandlers;
@@ -189,8 +195,17 @@ const il2cpp::Method* Signature(const char* cls,const char* name,std::initialize
     }throw std::runtime_error(std::string("Missing overload: ")+cls+"."+name);
 }
 void ClearShortcuts(){
+    if(footerSplit&&footerTransform.Get()&&game::IsAlive(footerTransform.Get())){
+        void* args[]{&footerOriginalPosition};Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),footerTransform.Get(),args);
+    }
+    if(currencyResized&&currencyTransform.Get()&&game::IsAlive(currencyTransform.Get())){
+        void* size[]{&currencyOriginalSize},*position[]{&currencyOriginalPosition};
+        Invoke(M("RectTransform","set_sizeDelta",1,"UnityEngine","UnityEngine.CoreModule.dll"),currencyTransform.Get(),size);
+        Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),currencyTransform.Get(),position);
+    }
+    currencyResized=false;footerSplit=false;
     for(auto& b:shortcuts)if(game::IsAlive(b.object->Get())){void* a[]{b.object->Get()};Invoke(M("Object","Destroy",1,"UnityEngine","UnityEngine.CoreModule.dll"),nullptr,a);}
-    shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();
+    shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();gridTransform.Reset();
 }
 bool ShortcutClick(void* button){
     auto it=std::find_if(shortcuts.begin(),shortcuts.end(),[&](const Shortcut& s){return s.button->Get()==button;});
@@ -226,6 +241,64 @@ rules::Rect CurrencyBounds(void* menu){
     }
     return occupied;
 }
+void FitCurrencies(){
+    void* currency=currencyTransform.Get();
+    Root object(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency));
+    Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("UnityEngine.UI.dll","UnityEngine.UI","HorizontalLayoutGroup"))));
+    void* args[]{type.Get()};Root group(Invoke(Signature("GameObject","GetComponent",{"System.Type"}),object.Get(),args));
+    if(!group.Get())return;
+    // Keep the native right edge, font, formatting, events and interaction.
+    // Give the native group enough width to lay out the full balance strings.
+    float width=0;int visible=0;
+    const int count=Value<int>(M("Transform","get_childCount",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency);
+    if(count<1||count>64)return;
+    for(int i=0;i<count;++i){void* a[]{&i};Root child(Invoke(M("Transform","GetChild",1,"UnityEngine","UnityEngine.CoreModule.dll"),currency,a));
+        Root go(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),child.Get()));
+        if(!Value<bool>(Method(go.Get(),"get_activeInHierarchy",0),go.Get()))continue;
+        void* ca[]{child.Get()};const float preferred=Value<float>(M("LayoutUtility","GetPreferredWidth",1,"UnityEngine.UI","UnityEngine.UI.dll"),nullptr,ca);
+        if(!std::isfinite(preferred)||preferred<0)return;
+        width+=preferred;++visible;
+    }
+    if(!visible)return;
+    Root padding(Invoke(Method(group.Get(),"get_padding",0),group.Get()));
+    width+=Value<int>(Method(padding.Get(),"get_left",0),padding.Get())+Value<int>(Method(padding.Get(),"get_right",0),padding.Get());
+    width+=std::max(0.f,Value<float>(Method(group.Get(),"get_spacing",0),group.Get()))*(visible-1);
+    const auto size=Value<Vec2>(M("RectTransform","get_sizeDelta",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency);
+    if(!currencyResized){currencyOriginalSize=size;currencyOriginalPosition=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency);}
+    const float desired=std::max(currencyOriginalSize.x,width);
+    if(std::abs(size.x-desired)<.1f)return;
+    const auto pivot=Value<Vec2>(M("RectTransform","get_pivot",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency);
+    Vec2 nextSize{desired,size.y},position=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency);
+    position.x-=(desired-size.x)*(1-pivot.x);
+    void* sa[]{&nextSize},*pa[]{&position};currencyResized=true;
+    Invoke(M("RectTransform","set_sizeDelta",1,"UnityEngine","UnityEngine.CoreModule.dll"),currency,sa);
+    Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),currency,pa);
+    void* ra[]{currency};Invoke(M("LayoutRebuilder","ForceRebuildLayoutImmediate",1,"UnityEngine.UI","UnityEngine.UI.dll"),nullptr,ra);
+}
+void CenterY(void* transform,void* menu,float center){
+    const auto rect=RectIn(transform,menu);
+    const float change=center-(rect.y+rect.h/2);if(std::abs(change)<.05f)return;
+    Root parent(Invoke(M("Transform","get_parent",0,"UnityEngine","UnityEngine.CoreModule.dll"),transform));
+    const auto local=Value<rules::Rect>(M("RectTransform","get_rect",0,"UnityEngine","UnityEngine.CoreModule.dll"),parent.Get());
+    const float scale=RectIn(parent.Get(),menu).h/local.h;if(!std::isfinite(scale)||scale<=0)return;
+    auto pos=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),transform);pos.y+=change/scale;
+    void* args[]{&pos};Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform,args);
+}
+void ReflowFooter(void* menu,rules::Rect screen){
+    void* footer=footerTransform.Get(),*currency=currencyTransform.Get(),*grid=gridTransform.Get();if(!grid)return;
+    const auto f=RectIn(footer,menu),c=CurrencyBounds(menu),left=RectIn(Get<void*>(inventoryPanel.Get(),F("InventoryPanelUI","leftButtonsContainer")),menu);
+    if(c.x-(left.x+left.w)-12>=236){
+        if(footerSplit){
+            void* args[]{&footerOriginalPosition};Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),footer,args);
+            auto pos=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency);pos.y=currencyOriginalPosition.y;
+            void* ca[]{&pos};Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),currency,ca);footerSplit=false;
+        }return;
+    }
+    const auto rows=rules::SplitFooter(RectIn(menu,menu),screen,RectIn(grid,menu),f,left,c);
+    if(!rows.visible)return;
+    if(!footerSplit){footerOriginalPosition=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),footer);footerSplit=true;currencyResized=true;}
+    CenterY(footer,menu,rows.controlsCenter);CenterY(currency,menu,rows.currencyCenter);
+}
 void PlaceShortcuts(){
     void* menu=menuTransform.Get();if(!menu||shortcuts.empty())return;
     Root ct(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("UnityEngine.UIModule.dll","UnityEngine","Canvas"))));bool includeInactive=true;void* ca[]{ct.Get(),&includeInactive};
@@ -239,7 +312,7 @@ void PlaceShortcuts(){
         if(Value<bool>(Method(footerObject.Get(),"get_activeInHierarchy",0),footerObject.Get())){
             // Currency containers deliberately leave empty space. Measure each
             // visible native currency, including counters enabled by factions.
-            const auto occupied=CurrencyBounds(menu);
+            FitCurrencies();ReflowFooter(menu,screen);const auto occupied=CurrencyBounds(menu);
             if(rules::Valid(occupied))placement=rules::PlaceToolbar(bounds,screen,RectIn(footer,menu),RectIn(Get<void*>(inventoryPanel.Get(),F("InventoryPanelUI","leftButtonsContainer")),menu),occupied);
         }
     }
@@ -256,20 +329,24 @@ void PlaceShortcuts(){
     }
 }
 void InventoryButtons(){
+    ++inventoryChecks;
     if(!shortcuts.empty()&&inventoryPanel.Get()){
         bool enabled=!shortcutBusy;if(shortcutEnabled!=enabled){shortcutEnabled=enabled;void* a[]{&enabled};
             for(auto& b:shortcuts)Invoke(Method(b.button->Get(),"set_interactable",1),b.button->Get(),a);}
         PlaceShortcuts();return;
     }
     ClearShortcuts();
-    auto panels=Find("LE.dll","","InventoryPanelUI");if(panels.empty())return;
+    auto panels=Find("LE.dll","","InventoryPanelUI");if(panels.empty()){inventoryStatus="inventory-closed";return;}
     void* panel=panels.front();void* source=Get<void*>(panel,F("InventoryPanelUI","confirmRespecButton"));
-    void* parent=Get<void*>(panel,F("InventoryPanelUI","menuRectTransform"));if(!source||!parent)return;
-    void* left=Get<void*>(panel,F("InventoryPanelUI","leftButtonsContainer"));if(!left)return;
+    void* parent=Get<void*>(panel,F("InventoryPanelUI","menuRectTransform"));if(!source||!parent){inventoryStatus="inventory-template-unavailable";return;}
+    void* left=Get<void*>(panel,F("InventoryPanelUI","leftButtonsContainer"));if(!left){inventoryStatus="inventory-footer-unavailable";return;}
     Root footer(Invoke(M("Transform","get_parent",0,"UnityEngine","UnityEngine.CoreModule.dll"),left));
     Root currencyName(il2cpp::api().string_new("Currencies"));void* findArgs[]{currencyName.Get()};
     Root currency(Invoke(M("Transform","Find",1,"UnityEngine","UnityEngine.CoreModule.dll"),footer.Get(),findArgs));
-    if(!currency.Get())return; // Unsupported layout: no guessed screen coordinates.
+    if(!currency.Get()){inventoryStatus="inventory-currency-container-unavailable";return;} // No guessed screen coordinates.
+    Root items(Invoke(M("Transform","get_parent",0,"UnityEngine","UnityEngine.CoreModule.dll"),footer.Get()));
+    Root gridName(il2cpp::api().string_new("Inventory Grid "));void* ga[]{gridName.Get()};
+    Root grid(Invoke(M("Transform","Find",1,"UnityEngine","UnityEngine.CoreModule.dll"),items.Get(),ga));
     auto click=M("Button","OnPointerClick",1,"UnityEngine.UI","UnityEngine.UI.dll"),submit=M("Button","OnSubmit",1,"UnityEngine.UI","UnityEngine.UI.dll");
     std::string why;
     if(!hook::IsInstalled(click.code)&&!hook::Install(click.code,reinterpret_cast<void*>(&Click),reinterpret_cast<void**>(&originalClick),&why))throw std::runtime_error(why);
@@ -321,7 +398,10 @@ void InventoryButtons(){
         Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),pa);Invoke(M("Transform","set_localScale",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),sca);
         bool on=true;void* args[]{&on};Invoke(Method(object.Get(),"SetActive",1),object.Get(),args);
     }
-    inventoryPanel.Set(panel);menuTransform.Set(parent);footerTransform.Set(footer.Get());currencyTransform.Set(currency.Get());shortcutEnabled=false;PlaceShortcuts();
+    inventoryPanel.Set(panel);menuTransform.Set(parent);footerTransform.Set(footer.Get());currencyTransform.Set(currency.Get());gridTransform.Set(grid.Get());
+    currencyOriginalSize=Value<Vec2>(M("RectTransform","get_sizeDelta",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency.Get());
+    currencyOriginalPosition=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency.Get());
+    shortcutEnabled=false;inventoryStatus="created";PlaceShortcuts();
 }
 void RestoreGraphics(){
     disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());
@@ -457,8 +537,8 @@ void Interactions(void* actor){
     }
     maximumInteractionMicros=std::max(maximumInteractionMicros,Micros()-start);
 }
-void Frame(void* self,MethodInfo info){
-    originalFrame(self,info);
+void Frame(){
+    ++frameUpdates;
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
     if(measureFrames){const auto sample=Micros();if(previousFrame&&frameGaps.size()<10000)frameGaps.push_back(sample-previousFrame);previousFrame=sample;}
 #endif
@@ -483,23 +563,24 @@ void Frame(void* self,MethodInfo info){
         if(chests.value||shrines.value||portals.value)Interactions(actor);
     },&why)){++faults;retryWork=now+5000;Log("convenience: %s",why.c_str());}
 }
-std::string State(){std::ostringstream out;out<<"{\"ok\":true,\"settings\":{";bool comma=false;for(auto* s:settings){if(comma)out<<',';comma=true;out<<Json(s->key)<<":{\"value\":"<<s->value<<",\"available\":"<<Boolean(frame&&hook::IsInstalled(frame.code))<<'}';}
-    return out.str()+"},\"inventoryButtons\":"+std::to_string(shortcuts.size())+",\"graphicsOverrides\":"+std::to_string(saved.size())+",\"chestsOpened\":"+std::to_string(openedChests)+",\"shrinesUsed\":"+std::to_string(usedShrines)+",\"portalsUsed\":"+std::to_string(usedPortals)+",\"interactionCandidates\":"+std::to_string(candidates.size())+",\"interactionChecks\":"+std::to_string(interactionChecks)+",\"sceneSearches\":"+std::to_string(sceneSearches)+",\"maximumDiscoveryMicros\":"+std::to_string(maximumDiscoveryMicros)+",\"maximumInteractionMicros\":"+std::to_string(maximumInteractionMicros)+",\"faults\":"+std::to_string(faults)+"}";}
+std::string State(){std::ostringstream out;out<<"{\"ok\":true,\"settings\":{";bool comma=false;for(auto* s:settings){if(comma)out<<',';comma=true;out<<Json(s->key)<<":{\"value\":"<<s->value<<",\"available\":"<<Boolean(mainthread::HookInstalled())<<'}';}
+    unsigned visible=0;for(auto& b:shortcuts)if(Value<bool>(Method(b.object->Get(),"get_activeInHierarchy",0),b.object->Get()))++visible;
+    return out.str()+"},\"inventoryButtons\":"+std::to_string(shortcuts.size())+",\"inventoryButtonsVisible\":"+std::to_string(visible)+",\"frameUpdates\":"+std::to_string(frameUpdates)+",\"inventoryChecks\":"+std::to_string(inventoryChecks)+",\"inventoryStatus\":"+Json(inventoryStatus)+",\"graphicsOverrides\":"+std::to_string(saved.size())+",\"chestsOpened\":"+std::to_string(openedChests)+",\"shrinesUsed\":"+std::to_string(usedShrines)+",\"portalsUsed\":"+std::to_string(usedPortals)+",\"interactionCandidates\":"+std::to_string(candidates.size())+",\"interactionChecks\":"+std::to_string(interactionChecks)+",\"sceneSearches\":"+std::to_string(sceneSearches)+",\"maximumDiscoveryMicros\":"+std::to_string(maximumDiscoveryMicros)+",\"maximumInteractionMicros\":"+std::to_string(maximumInteractionMicros)+",\"faults\":"+std::to_string(faults)+"}";}
 }
-bool Init(){frame=game::FindMethod("LE.dll","","CameraManager","Update",0);
+bool Init(){
     findObjects=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Object","FindObjectsOfType",2);
     componentTransform=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Component","get_transform",0);
     transformPosition=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Transform","get_position",0);
-    if(!(frame&&findObjects&&componentTransform&&transformPosition))return false;
+    if(!(findObjects&&componentTransform&&transformPosition))return false;
     std::string why;
-    if(!mainthread::Post([]{std::string reason;if(!hook::Install(frame.code,reinterpret_cast<void*>(&Frame),reinterpret_cast<void**>(&originalFrame),&reason))Log("convenience frame hook refused: %s",reason.c_str());},&why)){Log("convenience bootstrap refused: %s",why.c_str());return false;}
+    if(!mainthread::RegisterFrameCallback(&Frame,&why)){Log("convenience bootstrap refused: %s",why.c_str());return false;}
     return true;
 }
 std::string Read(){return Run([]{return State();});}
 std::string Set(const std::string& key,double value){return Run([&]{
     auto it=std::find_if(settings.begin(),settings.end(),[&](Setting* s){return key==s->key;});
     if(it==settings.end()||!std::isfinite(value)||(value!=0&&value!=1))throw std::runtime_error("Unknown convenience setting or invalid switch.");
-    Current();if(!frame)throw std::runtime_error("Camera update entry point is unavailable.");
+    Current();if(!mainthread::HookInstalled())throw std::runtime_error("UI frame dispatcher is unavailable.");
     if((key=="chests"||key=="shrines"||key=="portals")&&value){
         auto shrine=M("ShrineVisualsCreator","setEraPreset",1);std::string shrineReason;
         if(!hook::IsInstalled(shrine.code)&&!hook::Install(shrine.code,reinterpret_cast<void*>(&ShrineEra),reinterpret_cast<void**>(&originalShrineEra),&shrineReason))throw std::runtime_error(shrineReason);
@@ -516,7 +597,6 @@ std::string Set(const std::string& key,double value){return Run([&]{
     }
     if((key=="fog"||key=="reflections")&&value){auto enabled=M("Behaviour","set_enabled",1,"UnityEngine","UnityEngine.CoreModule.dll");std::string reason;
         if(!hook::IsInstalled(enabled.code)&&!hook::Install(enabled.code,reinterpret_cast<void*>(&Enabled),reinterpret_cast<void**>(&originalEnabled),&reason))throw std::runtime_error(reason);}
-    std::string why;if(!hook::IsInstalled(frame.code)&&!hook::Install(frame.code,reinterpret_cast<void*>(&Frame),reinterpret_cast<void**>(&originalFrame),&why))throw std::runtime_error(why);
     const double previous=(*it)->value;
     (*it)->value=value;active=true;lastScan=0;retryWork=0;
     try {if(key!="chests"&&key!="shrines"&&key!="portals")Graphics();}
@@ -615,6 +695,21 @@ std::string Inventory(const std::string& id,const std::string& action){
 std::string Test(const std::string& id,const std::string& action){return Run([=]() -> std::string {
     const auto c=Current(id);if(c.name!="EpFeedbackTest")throw std::runtime_error("Convenience checks require the isolated EpFeedbackTest character.");
     void* ui=Ui();
+    if(action=="currency-max"||action=="currency-read"){
+        void* gold=Get<void*>(c.actor,F("Actor","goldTracker"));
+        void* bones=Get<void*>(c.actor,F("Actor","ancientBonesTracker"));
+        if(!gold||!bones)throw std::runtime_error("Currency trackers unavailable.");
+        if(action=="currency-max"){
+            // Stress the real Int32 currency trackers through their native
+            // absolute-load APIs, only in the disposable named test character.
+            int value=std::numeric_limits<int>::max();void* args[]{&value};
+            Invoke(Method(gold,"loadGold",1),gold,args);
+            Invoke(Method(bones,"loadAncientBones",1),bones,args);
+            if(Get<int>(gold,F("GoldTracker","value"))!=value||Get<int>(bones,F("AncientBonesTracker","value"))!=value)
+                throw std::runtime_error("Native currency maximum readback failed.");
+        }
+        return "{\"ok\":true,\"gold\":"+std::to_string(Get<int>(gold,F("GoldTracker","value")))+",\"ancientBones\":"+std::to_string(Get<int>(bones,F("AncientBonesTracker","value")))+"}";
+    }
     if(action=="frames-start"){frameGaps.clear();previousFrame=0;measureFrames=true;maximumInteractionMicros=maximumDiscoveryMicros=0;return State();}
     if(action=="frames-stop"){measureFrames=false;std::ostringstream out;out<<"{\"ok\":true,\"gapsMicros\":[";bool comma=false;for(auto value:frameGaps){if(comma)out<<',';comma=true;out<<value;}return out.str()+"]}";}
     if(action.rfind("scaler-",0)==0){InventoryButtons();void* menu=menuTransform.Get();if(!menu)throw std::runtime_error("Open the inventory first.");
@@ -810,5 +905,5 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
     throw std::runtime_error("Unknown convenience check.");
 });}
 #endif
-void ReleaseRoots(){monitorUntil=0;monitoredAllies.clear();damageOwner.Reset();disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();ClearInteractions();saved.clear();typeRoots.clear();owner.Reset();active=false;}
+void ReleaseRoots(){monitorUntil=0;monitoredAllies.clear();damageOwner.Reset();disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();gridTransform.Reset();ClearInteractions();saved.clear();typeRoots.clear();owner.Reset();active=false;}
 }

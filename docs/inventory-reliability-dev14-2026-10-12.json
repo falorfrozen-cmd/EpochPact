@@ -1,0 +1,188 @@
+{
+  "version": "0.1.2-dev.14",
+  "status": "candidate; final live-game validation pending",
+  "sourceBase": "2ba920e08bf4aff4162201e28506f7a6e45cc399",
+  "archive": {
+    "file": "EpochPact-0.1.2-dev.14-package.1.zip",
+    "bytes": 31220554,
+    "sha256": "a13e7942d3f5a1b070ba8cfc1aa09421b2fab6d81ddd7de4be7b9d11d7b95321",
+    "entries": 963,
+    "runtimeFiles": 886
+  },
+  "artifacts": [
+    {
+      "file": "EpochPact.exe",
+      "bytes": 372613,
+      "sha256": "c1a148734fedaf96eab5acdb2272777af964081e6468676f60ea2930664aedcf"
+    },
+    {
+      "file": "EpochPact.Core.dll",
+      "bytes": 1555968,
+      "sha256": "57117397c39407956debbb8f4e33dfd176c30ff871640969c5a85d3c1f6e7bec"
+    },
+    {
+      "file": "version.dll",
+      "bytes": 146432,
+      "sha256": "1e4f5c7a84afeef7070c75a8de44e468dd62c0c809168313b17e5a6e032f47e6"
+    }
+  ],
+  "offlineVerification": {
+    "pythonTestsPassed": 237,
+    "javaScriptTestsPassed": 126,
+    "nativePrograms": [
+      {
+        "program": "build_rules_test.exe",
+        "exitCode": 0,
+        "seconds": 0.054,
+        "sha256": "8a82c9a11dcbd68bb3f0f3547bb5fb0aba6dfd8efade7c4e7338c3a0f9bb300c"
+      },
+      {
+        "program": "cof_test.exe",
+        "exitCode": 0,
+        "seconds": 0.048,
+        "sha256": "4908404cf94d3a7379d41f30a81ac48ba418326610b28ed78592fb9e74f5b739"
+      },
+      {
+        "program": "convenience_rules_test.exe",
+        "exitCode": 0,
+        "seconds": 0.056,
+        "sha256": "be438ace42b62919245cf92feffa8da0b2fb63324a27cb9263b17d56326c8cc5"
+      },
+      {
+        "program": "density_test.exe",
+        "exitCode": 0,
+        "seconds": 0.045,
+        "sha256": "ef9cb7d8ac17bd11db3948e415882b96cc499267f2068088a639ebb92e17dca9"
+      },
+      {
+        "program": "game_read_test.exe",
+        "exitCode": 0,
+        "seconds": 0.057,
+        "sha256": "effc4002fbd90578b5a8b98da9023b73079ffefb00e6554a749f2a97d9112850"
+      },
+      {
+        "program": "hook_failure_test.exe",
+        "exitCode": 0,
+        "seconds": 1.647,
+        "sha256": "916ab1a8aa831eed45e058c5e2c1d9af589ed79cad146de9f71795051a5e929a"
+      },
+      {
+        "program": "hook_test.exe",
+        "exitCode": 0,
+        "seconds": 114.362,
+        "sha256": "f7159d8143061a18e872ffda20056138cd64d38ef42165545fe6c61b322fe4f2"
+      },
+      {
+        "program": "identity_test.exe",
+        "exitCode": 0,
+        "seconds": 0.039,
+        "sha256": "124c52baf34399f121ed6316b86b025cd529b073c4acd0b6dfb308219e6a2ef8"
+      },
+      {
+        "program": "ipc_protocol_test.exe",
+        "exitCode": 0,
+        "seconds": 0.035,
+        "sha256": "1eeec9991394ab49761dcc38c9be1f310ad8099f0d0a101e719ee4b34cd26133"
+      },
+      {
+        "program": "items_test.exe",
+        "exitCode": 0,
+        "seconds": 0.245,
+        "sha256": "dfdebff92b26cc49ab905c9f62ed474bb4b8bfab6c3c0c14109eaa93f22e0f54"
+      },
+      {
+        "program": "lifecycle_test.exe",
+        "exitCode": 0,
+        "seconds": 0.457,
+        "sha256": "12209400b1d8f42403f0c14a3a6aadde9e50e42826913ea81c39c0d7fd6ca747"
+      },
+      {
+        "program": "loot_crafting_test.exe",
+        "exitCode": 0,
+        "seconds": 0.039,
+        "sha256": "6da6110220437e4c55c0ae2d8ba3dc7e0b320e76d3f6804c547af8f3850424b4"
+      },
+      {
+        "program": "mainthread_test.exe",
+        "exitCode": 0,
+        "seconds": 2.425,
+        "sha256": "d8c210b0445a4cca553eab44d52d771c874aed7b2320d69df17e1333dd078703"
+      },
+      {
+        "program": "monolith_test.exe",
+        "exitCode": 0,
+        "seconds": 0.039,
+        "sha256": "d28a2ae289ad24925447b98d8aea6938201c5c325a2740635bc728149bbe1c38"
+      },
+      {
+        "program": "review_test.exe",
+        "exitCode": 0,
+        "seconds": 0.234,
+        "sha256": "aa7fda61348f0a99cd73aaa5922420a6d2ef7c08816158fef6c135b1834b231c"
+      },
+      {
+        "program": "stat_key_test.exe",
+        "exitCode": 0,
+        "seconds": 0.055,
+        "sha256": "eb7ae7922b69a5b9f3c41e38f4d14ca02c83592f8bd62b8d7127cefc7d1f4ca2"
+      },
+      {
+        "program": "xp_test.exe",
+        "exitCode": 0,
+        "seconds": 0.283,
+        "sha256": "91c0feebd8deae5d9c29cb710422037228229f6715df51c6cffa22c530d39f39"
+      }
+    ],
+    "geometryCombinations": 120,
+    "compiledInstallerChecks": [
+      "application-scoped CLR config is beside the EXE for Internet-marked managed DLLs",
+      "folder bundle inventory matches every file hash; no nested archives or build tools",
+      "bundled Python runtime",
+      "verified player DLL only",
+      "no historical character snapshots",
+      "current launcher source in EXE",
+      "compiled installer helper installs exact DLLs in custom Unicode folder without Python",
+      "compiled EXE fresh install from actual read-only bundled DLLs preserves source flags and exact bytes",
+      "compiled EXE updates actual read-only owned files with exact recovery backups and no leaked stages",
+      "compiled installer refuses another mod loader without changes",
+      "compiled installer refuses an unsupported game build before writing files",
+      "compiled helper returns code 20 for an unapproved receipt folder without installing or overwriting a file",
+      "first launch performs no selection, installation or gameplay mutation",
+      "compiled interface serves scripts, font and both theme assets",
+      "installation API rejects missing session token",
+      "compiled API rejects foreign Host and Origin even with a valid session token",
+      "compiled HTTP selection and explicit installation succeed through the serial job queue",
+      "fixture game is never executed; no game IPC or save backups created",
+      "fresh EXE process remembers selected path and issues a new session token",
+      "compiled EXE rejects a legacy shared port and serves Game setup from its own backend",
+      "compiled startup logs contain no exception"
+    ],
+    "extractedConnectionChecks": [
+      "extracted frozen EXE connects with stale read-only protocol announcement and no external Python on PATH",
+      "same compiled backend reconnects after process restart; separate slow reads finish beyond seven seconds",
+      "owned core mismatch blocks connection explicitly; matching bytes restore readiness",
+      "current crafting/UI resources are served exactly; no gameplay mutations, save backups or recipes generated"
+    ],
+    "connectionScope": "Final extracted frozen EXE and real Windows process/file IPC with production C++ parser; game data simulated. No live gameplay or desktop-close claim.",
+    "knownFailingCurrencyLayoutRejected": true
+  },
+  "pause": {
+    "originalSaveFilesRestored": 54,
+    "originalInstallationFilesRestored": 3,
+    "originalHashesVerified": true,
+    "userRequestedNoFurtherGameLaunch": true
+  },
+  "pendingLiveVerification": [
+    "final split footer rendering and native text/click targets",
+    "ordinary/maximum balance transitions and scales 75/100/125/150",
+    "non-empty Stash all transfer",
+    "new loader automatic startup",
+    "production app close and full game exit"
+  ],
+  "limitations": [
+    "prior live screenshots precede final two-row layout and do not certify it",
+    "intermittent UnityPlayer 0xC0000005 remains unresolved",
+    "no current antivirus/browser/Nexus clearance measurement",
+    "public dev.13 release not replaced by this candidate"
+  ]
+}

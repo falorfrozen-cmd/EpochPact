@@ -23,6 +23,9 @@ bool RunSteps(std::function<bool()> step, unsigned timeoutMs, std::string* why);
 // Queue owned bootstrap work without waiting for Unity to finish its startup.
 // Callbacks must not capture caller stack references; Stop cancels pending work.
 bool Post(std::function<void()> job, std::string* why = nullptr);
+// One owned callback after the original UI update, also on frames without jobs.
+// Registration is idempotent for the same callback; Stop disables it before cleanup.
+bool RegisterFrameCallback(void (*callback)(), std::string* why = nullptr);
 void KeepTicking();
 
 // Called by the command loop on each poll: retained for command-loop compatibility; does not remove the frame hook.

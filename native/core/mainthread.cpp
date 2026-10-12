@@ -31,14 +31,24 @@ std::atomic<unsigned> g_pending{0};
 std::atomic<unsigned> g_installs{0};
 std::atomic<bool> g_installed{false};
 std::atomic<bool> g_stopping{false};
+std::atomic<void (*)()> g_frameCallback{nullptr};
 game::MethodRef g_background;
 bool g_backgroundSet = false; // main thread only
 std::atomic<unsigned long long> g_steps{0}, g_maxMicros{0}, g_slowSteps{0};
 std::atomic<unsigned long long> g_gapMax{0}, g_gapTotal{0}, g_gapCount{0};
 LARGE_INTEGER g_frequency{};
 
+void FinishUpdate(void* self, const il2cpp::Method* method) {
+    g_orig(self, method);
+    if(g_stopping.load(std::memory_order_acquire))return;
+    if(auto callback=g_frameCallback.load(std::memory_order_acquire)) {
+        std::string why;
+        if(!game::Guarded(callback,&why))Log("main thread: frame callback failed: %s",why.c_str());
+    }
+}
+
 void Detour(void* self, const il2cpp::Method* method) {
-    if (!g_pending.load(std::memory_order_acquire)) { g_orig(self, method); return; }
+    if (!g_pending.load(std::memory_order_acquire)) { FinishUpdate(self, method); return; }
     // Work queued by a step runs on a later frame, never in the same drain loop.
     {
         Job job;
@@ -47,7 +57,7 @@ void Detour(void* self, const il2cpp::Method* method) {
             std::lock_guard<std::mutex> hold(g_queueLock);
             if (!g_jobs.empty()) { job = std::move(g_jobs.front()); g_jobs.pop_front(); --g_pending; found = true; }
         }
-        if (!found) { g_orig(self, method); return; }
+        if (!found) { FinishUpdate(self, method); return; }
         job.state->store(1);
         std::string why;
         bool done = true;
@@ -76,7 +86,7 @@ void Detour(void* self, const il2cpp::Method* method) {
         else { std::lock_guard<std::mutex> hold(g_queueLock); g_jobs.push_back(std::move(job)); ++g_pending; }
 
     }
-    g_orig(self, method);
+    FinishUpdate(self, method);
 }
 
 bool EnsureHook(std::string* why) {
@@ -131,6 +141,17 @@ bool Post(std::function<void()> job, std::string* why) {
     return false;
 }
 
+bool RegisterFrameCallback(void (*callback)(), std::string* why) {
+    if(!callback||!g_update){if(why)*why="frame callback or EventSystem.Update unavailable";return false;}
+    if(!EnsureHook(why))return false;
+    std::lock_guard<std::mutex> hold(g_queueLock);
+    if(g_stopping){if(why)*why="the game is shutting down";return false;}
+    const auto existing=g_frameCallback.load(std::memory_order_relaxed);
+    if(existing&&existing!=callback){if(why)*why="an owned frame callback is already registered";return false;}
+    g_frameCallback.store(callback,std::memory_order_release);
+    return true;
+}
+
 bool RunSteps(std::function<bool()> job, unsigned timeoutMs, std::string* why) {
     if (!g_update) {
         if (why) *why = "EventSystem.Update was not found";
@@ -177,6 +198,7 @@ void Housekeep() {
 void Stop() {
     std::lock_guard<std::mutex> hold(g_queueLock);
     g_stopping = true;
+    g_frameCallback.store(nullptr,std::memory_order_release);
     for (const auto& job : g_jobs) job.state->store(3);
     g_jobs.clear(); g_pending = 0;
 }
