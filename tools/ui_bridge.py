@@ -247,6 +247,8 @@ class UiBridge:
                 limit = spec.get("maximumLength", 100)
                 if not isinstance(value, str) or len(value) > limit or not re.fullmatch(r"[^\s\x00-\x1f]+", value):
                     raise ValueError("Enter the exact character name without spaces.")
+                if control["id"] == "font_family" and not re.fullmatch(r"[A-Za-z0-9%._'&()+-]{1,96}", value):
+                    raise ValueError("Choose a font from the list.")
                 if control["id"] == "tier_color" and not re.fullmatch(r"[0-9A-Fa-f]{6}", value):
                     raise ValueError("Enter a colour as six hexadecimal digits, for example E0315A.")
                 if control["id"] == "loot_affixes" and value != "none":
@@ -408,7 +410,7 @@ class UiBridge:
                 return progression.undo(Path(args["backup"]))
             save_id = None
             identity = None
-            if (control["group"] == "general" or (control["commandTemplate"] or "").startswith(("buildset ","qolset ","pickupradius ","pickupinterval ","mapset ","tierset "))) and control["widget"] in ("number", "toggle") and "expected_id" in supplied:
+            if (control["group"] == "general" or (control["commandTemplate"] or "").startswith(("buildset ","qolset ","pickupradius ","pickupinterval ","mapset ","tierset ","fontset "))) and control["widget"] in ("number", "toggle") and "expected_id" in supplied:
                 # Delayed auto-applies belong to the actor present at the edit,
                 # never to a character loaded while the request was queued.
                 expected_id = supplied["expected_id"]
@@ -584,7 +586,7 @@ class UiBridge:
 
     def _demo_execute(self, cid, a, supplied, operation):
         control = self.controls[cid]
-        if cid.startswith(("qol_","inventory_")) or cid in ("summons_read","pickup_radius","pickup_radius_read","pickup_interval","pickup_now","loot_log","loot_log_clear") or cid.startswith(("map_minimap","map_overlay","map_settings","tier_")):
+        if cid.startswith(("qol_","inventory_")) or cid in ("summons_read","pickup_radius","pickup_radius_read","pickup_interval","pickup_now","loot_log","loot_log_clear") or cid.startswith(("map_minimap","map_overlay","map_settings","tier_","font_","stash_rule")):
             raise RuntimeError("Load an offline character to use live convenience controls. Preview does not invent game data.")
         if cid == "build_read" or (control["commandTemplate"] or "").startswith("buildset "):
             state = self.demo.setdefault("buildread", {"ok": True, "settings": {}})

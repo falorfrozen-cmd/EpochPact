@@ -204,7 +204,7 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','summonread','inventoryread','inventoryaction ')):
+        if command.startswith(('qolread','qolset ','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','stashrule','summonread','inventoryread','inventoryaction ')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})
@@ -307,6 +307,8 @@ class BridgeTests(unittest.TestCase):
                         args[name] = 'keep'
                     elif name == 'color':
                         args[name] = 'E0315A'
+                    elif name == 'family':
+                        args[name] = 'Segoe%20UI'
                     elif kind == 'optional_single_token':
                         args[name] = 'none'
                     elif kind == 'enum' and p.get('choices'):

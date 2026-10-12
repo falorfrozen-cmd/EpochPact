@@ -1020,6 +1020,101 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
         void* args[]{c.actor,&amount,&at,&local};Invoke(M("GroundItemManager","dropGoldForPlayer",4),manager,args);
         return "{\"ok\":true,\"dropped\":"+std::to_string(amount)+",\"distance\":"+std::to_string(distance)+"}";
     }
+    if(action.rfind("filter-diag-",0)==0){
+        // Read-only probe of the game's filter loader for one file name.
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","Instance"));
+        if(!manager)throw std::runtime_error("Loot filter manager unavailable.");
+        std::string name=action.substr(12);
+        for(size_t at;(at=name.find("%20"))!=std::string::npos;)name.replace(at,3," ");
+        void* pathObject=game::StaticObject(game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","filtersPath"));
+        const std::string folder=pathObject?Text(pathObject):"";
+        auto describe=[&](void* filter){if(!filter)return std::string("null");
+            return "{\"name\":"+Json(Text(Get<void*>(filter,F("ItemFilter","name","ItemFiltering"))))+",\"rules\":"+std::to_string(Entries(Get<void*>(filter,F("ItemFilter","rules","ItemFiltering"))).size())+"}";};
+        std::ostringstream out;
+        out<<"{\"ok\":true,\"folder\":"<<Json(folder)<<",\"active\":"<<describe(Get<void*>(manager,F("ItemFilterManager","<Filter>k__BackingField","ItemFiltering")))
+           <<",\"manualDisable\":"<<Boolean(Get<bool>(manager,F("ItemFilterManager","<ManualFilterDisable>k__BackingField","ItemFiltering")))
+           <<",\"lastCharacter\":"<<Json(Text(Get<void*>(manager,F("ItemFilterManager","lastLoadedCharacterName","ItemFiltering"))));
+        Root nameString(il2cpp::api().string_new(name.c_str()));
+        {void* a[]{nameString.Get()};out<<",\"exists\":"<<Boolean(Value<bool>(M("ItemFilterManager","FilterFileExists",1,"ItemFiltering"),manager,a));}
+        const std::string full=folder+"/"+name+".xml";
+        int variant=0;
+        for(const auto& [first,second]:std::vector<std::pair<std::string,std::string>>{{folder,name},{full,name},{folder,name+".xml"},{full,""}}){
+            Root a1(il2cpp::api().string_new(first.c_str())),a2(il2cpp::api().string_new(second.c_str()));bool flag=false;void* a[]{a1.Get(),a2.Get(),&flag};
+            std::string result;
+            if(!game::Guarded([&]{result=describe(Invoke(M("ItemFilterManager","LoadFilterFromPath",3,"ItemFiltering"),nullptr,a));},&result))result=Json("error: "+result);
+            out<<",\"fromPath"<<variant++<<"\":"<<result;
+        }
+        {void* a[]{nameString.Get()};std::string why;bool loaded=false;
+            if(game::Guarded([&]{loaded=Value<bool>(M("ItemFilterManager","LoadFilter",1,"ItemFiltering"),manager,a);},&why))out<<",\"loadFilter\":"<<Boolean(loaded);else out<<",\"loadFilter\":"<<Json("error: "+why);}
+        out<<",\"activeAfter\":"<<describe(Get<void*>(manager,F("ItemFilterManager","<Filter>k__BackingField","ItemFiltering")));
+        return out.str()+"}";
+    }
+    if(action=="stash-info"){
+        // Read-only research: stash folders/tabs, tab cost/limit, method
+        // parameter names, the active filter's rules and the tab colour palette.
+        auto& api=il2cpp::api();
+        std::ostringstream out;out<<"{\"ok\":true";
+        auto params=[&](const char* ns,const char* cls,const char* name,int count){
+            auto m=game::FindMethod("LE.dll",ns,cls,name,count);std::string r="[";
+            for(int i=0;i<count;++i){if(i)r+=',';char* type=api.type_get_name(api.method_get_param(m.info,i));r+=Json(std::string(api.method_get_param_name(m.info,i))+":"+(type?type:""));if(type)api.free(type);}
+            return r+"]";};
+        out<<",\"params\":{\"PurchaseTabOnServer\":"<<params("","ServerStashCommands","PurchaseTabOnServer",7)
+           <<",\"ServerSetTabInfo\":"<<params("","ServerStashCommands","ServerSetTabInfo",9)
+           <<",\"ServerAddNewCategory\":"<<params("","ServerStashCommands","ServerAddNewCategory",3)
+           <<",\"ServerSetCategoryInfo\":"<<params("","ServerStashCommands","ServerSetCategoryInfo",7)
+           <<",\"ServerUpdateTabParent\":"<<params("","ServerStashCommands","ServerUpdateTabParent",4)
+           <<",\"AddNewStashTab\":"<<params("","ItemContainersManager","AddNewStashTab",8)
+           <<",\"RequestPurchaseNewTab\":"<<params("","StashManager","RequestPurchaseNewTab",5)<<'}';
+        void* local=game::StaticObject(game::FindStaticField("LE.dll","","LocalPlayer","instance"));
+        int tabCount=0;
+        if(local){
+            void* gold=Get<void*>(local,F("LocalPlayer","goldTracker"));
+            if(gold)out<<",\"gold\":"<<Get<int>(gold,F("GoldTracker","value"));
+            void* info=Get<void*>(local,F("LocalPlayer","stashInfo"));
+            if(info){
+                out<<",\"folders\":[";bool comma=false;
+                for(void* f:Entries(Get<void*>(info,F("ClientStashInfo","categories")))){if(!f)continue;if(comma)out<<',';comma=true;
+                    void* pr=Get<void*>(f,F("StashCategory","_folderPriority","LE.Data"));
+                    out<<"{\"id\":"<<Get<int>(f,F("StashCategory","_categoryId","LE.Data"))<<",\"name\":"<<Json(Text(Get<void*>(f,F("StashCategory","_displayName","LE.Data"))))
+                       <<",\"color\":"<<Get<int>(f,F("StashCategory","_colorId","LE.Data"))<<",\"icon\":"<<Get<int>(f,F("StashCategory","_iconId","LE.Data"))
+                       <<",\"order\":"<<Get<int>(f,F("StashCategory","_displayOrder","LE.Data"))<<",\"priority\":"<<Boolean(pr&&Value<bool>(Method(pr,"HasValue",0),pr))<<'}';}
+                out<<"],\"tabs\":[";comma=false;
+                for(void* t:Entries(Get<void*>(info,F("ClientStashInfo","tabs")))){if(!t)continue;if(comma)out<<',';comma=true;++tabCount;
+                    void* pr=Get<void*>(t,F("StashTab","_tabPriority","LE.Data"));
+                    out<<"{\"id\":"<<Get<int>(t,F("StashTab","_tabId","LE.Data"))<<",\"folder\":"<<Get<int>(t,F("StashTab","_categoryId","LE.Data"))
+                       <<",\"name\":"<<Json(Text(Get<void*>(t,F("StashTab","_displayName","LE.Data"))))<<",\"color\":"<<Get<int>(t,F("StashTab","_colorId","LE.Data"))
+                       <<",\"icon\":"<<Get<int>(t,F("StashTab","_iconId","LE.Data"))<<",\"order\":"<<Get<int>(t,F("StashTab","DisplayOrder","LE.Data"))
+                       <<",\"priority\":"<<Boolean(pr&&Value<bool>(Method(pr,"HasValue",0),pr))<<",\"ignoreFolder\":"<<Boolean(Get<bool>(t,F("StashTab","_ignoreFolderPriority","LE.Data")))<<'}';}
+                out<<']';
+            }
+        }
+        {int n=tabCount;void* a[]{&n};out<<",\"nextTabCost\":"<<Value<int>(M("StashHelpers","NextTabCost",1),nullptr,a);
+         int limit=-1;for(int k=0;k<=2000;++k){void* b[]{&k};if(Value<bool>(M("StashHelpers","currentTabsAtOrAboveMaximum",1),nullptr,b)){limit=k;break;}}
+         out<<",\"tabLimit\":"<<limit<<",\"costs\":[";for(int k:{0,10,25,50,75,100,150}){void* b[]{&k};if(k)out<<',';out<<Value<int>(M("StashHelpers","NextTabCost",1),nullptr,b);}out<<']';}
+        // The legacy stash UI holds the tab colour palette.
+        {auto controls=Find("LE.dll","","StashTabbedUIControls");
+         if(!controls.empty()){out<<",\"tabColors\":[";bool comma=false;
+            void* list=Get<void*>(controls.front(),F("StashTabbedUIControls","tabColors"));
+            void* items=list?Get<void*>(list,0x10):nullptr;const int size=list?Get<int>(list,0x18):0;
+            for(int i=0;items&&i<size&&i<64;++i){struct C{float r,g,b,a;};C c=Get<C>(items,0x20+16*static_cast<size_t>(i));if(comma)out<<',';comma=true;
+                char hex[8];std::snprintf(hex,sizeof hex,"%02X%02X%02X",int(c.r*255+.5f),int(c.g*255+.5f),int(c.b*255+.5f));out<<Json(hex);}
+            void* icons=Get<void*>(controls.front(),F("StashTabbedUIControls","tabIcons"));out<<"],\"tabIcons\":"<<(icons?Get<int>(icons,0x18):0);}}
+        // Active loot filter rules with their condition types.
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","Instance"));
+        void* filter=manager?Get<void*>(manager,F("ItemFilterManager","<Filter>k__BackingField","ItemFiltering")):nullptr;
+        out<<",\"filter\":"<<(filter?Json(Text(Get<void*>(filter,F("ItemFilter","name","ItemFiltering")))):"null")<<",\"rules\":[";
+        if(filter){bool comma=false;
+            for(void* rule:Entries(Get<void*>(filter,F("ItemFilter","rules","ItemFiltering")))){if(!rule)continue;if(comma)out<<',';comma=true;
+                out<<"{\"order\":"<<Value<int>(Method(rule,"get_Order",0),rule)<<",\"type\":"<<Get<int>(rule,F("Rule","type","ItemFiltering"))
+                   <<",\"enabled\":"<<Boolean(Get<bool>(rule,F("Rule","isEnabled","ItemFiltering")))<<",\"color\":"<<Get<int>(rule,F("Rule","color","ItemFiltering"))
+                   <<",\"recolor\":"<<Boolean(Get<bool>(rule,F("Rule","recolor","ItemFiltering")))<<",\"name\":"<<Json(Text(Get<void*>(rule,F("Rule","nameOverride","ItemFiltering"))))
+                   <<",\"conditions\":[";bool c2=false;
+                for(void* cond:Entries(Get<void*>(rule,F("Rule","conditions","ItemFiltering")))){if(!cond)continue;if(c2)out<<',';c2=true;
+                    out<<Json(api.class_get_name(api.object_get_class(cond)));}
+                out<<"]}";}
+        }
+        return out.str()+"]}";
+    }
     if(action=="filter-list"){
         // The game's own list of filter files (it watches the folder for changes).
         void* manager=game::StaticObject(game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","Instance"));
@@ -1044,6 +1139,26 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
                <<",\"enabled\":"<<Boolean(Get<bool>(rule,F("Rule","isEnabled","ItemFiltering")))<<",\"name\":"<<Json(Text(Get<void*>(rule,F("Rule","nameOverride","ItemFiltering"))))
                <<",\"description\":"<<Json(Text(Invoke(Method(rule,"GetRuleDescription",0),rule)).substr(0,160))<<'}';}
         return out.str()+"]}";
+    }
+    if(action.rfind("overlay-zoom-game-",0)==0){
+        // Probe: the game's own overlay zoom setter (the settings slider path).
+        void* global=game::StaticObject(game::FindStaticField("LE.dll","","DMMapGlobalConfigs","instance"));if(!global)throw std::runtime_error("Map unavailable.");
+        float value=std::stof(action.substr(18));void* a[]{&value};Invoke(Method(global,"UpdateOverlayMapZoom",1),global,a);
+        return "{\"ok\":true,\"value\":"+std::to_string(value)+"}";
+    }
+    if(action=="method-rva"){
+        // Where selected methods are in this GameAssembly build (for offline disassembly).
+        const auto base=reinterpret_cast<uintptr_t>(GetModuleHandleW(L"GameAssembly.dll"));
+        std::ostringstream out;out<<"{\"ok\":true";
+        for(const auto& [cls,name,args]:std::vector<std::tuple<const char*,const char*,int>>{{"DMMapGlobalConfigs","UpdateOverlayMapZoom",1},{"DMMapGlobalConfigs","UpdateOverlayMapOpacity",1},{"DMMapGlobalConfigs","Start",0},{"DMMapGlobalConfigs","SetOverlayZoom",1}}){
+            auto m=game::FindMethod("LE.dll","",cls,name,args);
+            char buffer[32];std::snprintf(buffer,sizeof buffer,"0x%llX",static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(m.code)-base));
+            out<<",\""<<cls<<"."<<name<<"\":"<<Json(buffer);}
+        for(const char* name:{"UpdateOverlayMapZoom","UpdateOverlayMapOpacity"}){
+            auto m=game::FindMethod("LE.dll","LE.UI.Minimap","Minimap",name,1);
+            char buffer[32];std::snprintf(buffer,sizeof buffer,"0x%llX",static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(m.code)-base));
+            out<<",\"Minimap."<<name<<"\":"<<Json(buffer);}
+        return out.str()+"}";
     }
     if(action=="overlay-open"){Invoke(Method(ui,"OpenOverlayMap",0),ui);return "{\"ok\":true}";}
     if(action=="overlay-close"){bool close=true;void* a[]{&close};Invoke(Method(ui,"CloseOverlayMapOrRecenter",1),ui,a);return "{\"ok\":true}";}

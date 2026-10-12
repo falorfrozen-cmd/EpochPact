@@ -13,7 +13,7 @@ JSON yüklemek hiçbir ayarı oyuna uygulamaz; kayıtlı mod profili oluşturmaz
 
 | Katalog | Adet |
 |---|---:|
-| Panel kontrolü / işlem | 136 |
+| Panel kontrolü / işlem | 144 |
 | SP stat türü | 134 |
 | Hazır stat adı | 72 |
 | Doğrulanmış C satırı | 206 |
@@ -416,9 +416,13 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `map_overlayzoom` — Overlay map zoom | `mapset overlayzoom {value}` | value: 0.25…4 | 1 | Oturum |
 | `tier_icons` — Affix tiers on item icons | `tierset icons {value}` | value: 0…1 | 0 | Oturum |
 | `tier_tooltips` — Tier tags in tooltips | `tierset tooltips {value}` | value: 0…1 | 0 | Oturum |
+| `tier_lines` — Colour affix lines by tier | `tierset lines {value}` | value: 0…1 | 0 | Oturum |
 | `tier_color` — Tier colour | `tiercolor {tier} {color}` | tier: 1…8; color: single_token | — | Oturum |
 | `tier_read` — Tier display status | `tierread` | — | — | Okuma |
 | `map_settings_read` — Map display settings | `mapsettings` | — | — | Okuma |
+| `font_family` — Interface font | `fontset family {family}` | family: single_token | game | Oturum |
+| `font_scale` — Interface text size | `fontset scale {value}` | value: 0.7…1.5 | 1 | Oturum |
+| `font_read` — Font status | `fontread` | — | — | Okuma |
 
 - **Camera distance:** Move the overhead camera farther away. This changes distance, not field of view; 1× restores the normal distance. Reset: `buildset zoom 1`.
 - **Camera angle:** Set the overhead camera pitch in degrees. Zero uses the game's normal angle. Your saved camera preferences are kept. Reset: `buildset cameraangle 0`.
@@ -435,9 +439,13 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Overlay map zoom:** Below 1 zooms the overlay map in, above 1 shows more. Extends the game's overlay zoom limits. Reset: `mapset overlayzoom 1`.
 - **Affix tiers on item icons:** Show each affix tier as coloured digits on inventory, stash and equipment icons (for example 7 6 5 4). Display only; items are unchanged. Reset: `tierset icons 0`.
 - **Tier tags in tooltips:** Add a coloured T1-T8 tag in front of each affix in item tooltips. The tags are removed when switched off. Reset: `tierset tooltips 0`.
+- **Colour affix lines by tier:** Colour each affix line in item tooltips with its tier colour. The original text returns when switched off. Reset: `tierset lines 0`.
 - **Tier colour:** Choose the colour for one affix tier (six hexadecimal digits, for example E0315A). Reset: `tiercolor reset`.
 - **Tier display status:** Read tier display settings, palette and counters.
 - **Map display settings:** Read minimap and overlay display settings.
+- **Interface font:** Use a Windows font for the game's interface text; game restores the original fonts. Characters the font lacks use the game's font. Reset: `fontset family game`.
+- **Interface text size:** Multiply the size of the game's interface text. 1 is the game's size. Reset: `fontset scale 1`.
+- **Font status:** Read the font choice, Windows font families and counters.
 
 ## World & Exploration
 
@@ -465,11 +473,19 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `inventory_stash` — Toggle stash | `inventoryaction {save_id} stash` | — | — | Görünüm |
 | `inventory_vendor` — Toggle vendor | `inventoryaction {save_id} vendor` | — | — | Görünüm |
 | `inventory_stashall` — Stash all inventory items | `inventoryaction {save_id} stashall` | — | — | Oyun kaydı |
+| `stash_rules_read` — Stash tabs from loot filter | `stashrules {save_id}` | — | — | Okuma |
+| `stash_rules_create` — Create tabs from loot filter | `stashrulescreate {save_id} {hidden} {disabled}` | hidden: 0…1; disabled: 0…1 | — | Oyun kaydı |
+| `stash_rule_assign` — Link a tab to a rule | `stashruleassign {save_id} {tab} {rule}` | tab: 0…1000000; rule: 0…10000 | — | Oyun kaydı |
+| `stash_rules_sort` — Sort inventory by filter rule | `stashrulesort {save_id}` | — | — | Oyun kaydı |
 
 - **Live inventory:** Read the loaded character and inventory item count without changing items.
 - **Toggle stash:** Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.
 - **Toggle vendor:** Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.
 - **Stash all inventory items:** Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.
+- **Stash tabs from loot filter:** Read the active loot filter's rules, your stash folders and tabs, and which tab belongs to which rule.
+- **Create tabs from loot filter:** Create one stash tab per loot filter rule, free of gold, in a folder named after the filter. Each tab takes the rule's rarity, type, class, level, potential, faction, unique and corruption conditions as its stash priority. Creates a recovery backup.
+- **Link a tab to a rule:** Give an existing stash tab the conditions of one loot filter rule as its stash priority, or 0 to clear it. Creates a recovery backup.
+- **Sort inventory by filter rule:** Move inventory items into the tab linked to the loot filter rule they match, using the game's exact filter match (affix conditions included). Creates a recovery backup.
 
 ## Seçenek listeleri ve kalıcılık
 

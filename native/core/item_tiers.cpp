@@ -26,9 +26,11 @@ struct Color { float r, g, b, a; };
 struct Vec2 { float x, y; };
 constexpr std::array<uint32_t, 8> kDefaultPalette{0xFFFFFF, 0x4DA6FF, 0xFFD84D, 0xE07A2E, 0xB36BFF, 0x4CD964, 0xE0315A, 0x7FE5F0};
 std::array<uint32_t, 8> palette = kDefaultPalette;
-std::atomic<bool> iconsOn{false}, tooltipsOn{false};
+std::atomic<bool> iconsOn{false}, tooltipsOn{false}, linesOn{false};
 std::map<void*, std::unique_ptr<Root>> labels;  // InventoryItemUI -> our TMP label
-struct SavedColor { std::unique_ptr<Root> text; Color color; };
+// A tooltip text we changed: its own colour, and for affix lines the game's
+// original text and the affix tier, so it can be re-drawn or restored exactly.
+struct SavedColor { std::unique_ptr<Root> text; Color color; std::string original; int tier = 0; };
 std::map<void*, SavedColor> tooltipColors;
 uint64_t iconUpdates = 0, tooltipUpdates = 0, faults = 0, scanned = 0, noItem = 0, noTiers = 0, noQuantity = 0, created = 0;
 int lastTooltipTier = -1;
@@ -203,22 +205,39 @@ void d_affixData(void* self, void* info, MethodInfo m) {
         }
     }, nullptr)) ++faults;
 }
-// Removes our "<color=#RRGGBB>T7</color> " prefix (exactly 26 characters).
-void StripTag(void* text) {
-    const std::string current = Text(Invoke(Method(text, "get_text", 0), text));
-    if (current.size() < 26 || current.rfind("<color=#", 0) != 0 || current.compare(14, 2, ">T") != 0 || current.compare(17, 9, "</color> ") != 0) return;
-    Root value(il2cpp::api().string_new(current.substr(26).c_str())); void* a[]{value.Get()};
+void SetText(void* text, const std::string& value) {
+    Root s(il2cpp::api().string_new(value.c_str())); void* a[]{s.Get()};
     Invoke(Method(text, "set_text", 1), text, a);
 }
-void RestoreColor(void* text, bool strip) {
+void RestoreColor(void* text, bool restoreText) {
     auto it = tooltipColors.find(text);
     if (it == tooltipColors.end()) return;
     if (game::IsAlive(text)) {
         Color c = it->second.color; void* a[]{&c};
         Invoke(M("Graphic", "set_color", 1, "UnityEngine.UI", "UnityEngine.UI.dll"), text, a);
-        if (strip) StripTag(text);
+        if (restoreText && it->second.tier) SetText(text, it->second.original);
     }
     tooltipColors.erase(it);
+}
+// Tag "<color=#RRGGBB>T7</color> " and/or the whole line in the tier colour.
+// Rich-text colour is used because the game re-sets the text's vertex colour.
+std::string Compose(const SavedColor& saved) {
+    const std::string hex = Hex(TierColor(saved.tier));
+    std::string out = tooltipsOn.load() ? "<color=#" + hex + ">T" + std::to_string(saved.tier) + "</color> " : "";
+    out += linesOn.load() ? "<color=#" + hex + ">" + saved.original + "</color>" : saved.original;
+    return out;
+}
+// After a setting or palette change: re-draw the lines of a tooltip that is open.
+void RedrawTooltips() {
+    if (!tooltipsOn.load() && !linesOn.load()) {
+        std::vector<void*> texts;
+        for (auto& [key, saved] : tooltipColors) texts.push_back(key);
+        for (void* text : texts) game::Guarded([&] { RestoreColor(text, true); }, nullptr);
+        tooltipColors.clear();
+        return;
+    }
+    for (auto& [text, saved] : tooltipColors)
+        if (saved.tier && game::IsAlive(text)) game::Guarded([&] { SetText(text, Compose(saved)); }, nullptr);
 }
 // A pooled line is re-used for another affix: return its own colour first.
 void d_affixInit(void* self, void* data, MethodInfo m) {
@@ -239,23 +258,20 @@ std::vector<void*> ActiveLines(void* list) {
 void MarkLine(void* line, int tier) {
     void* text = Get<void*>(line, F("UITooltipItemAffix", "_text"));
     if (!text || !game::IsAlive(text) || tier < 1 || tier > 8) return;
-    // The line keeps the game's own colour (readable on every rarity); only a
-    // coloured tier tag is added. The line is remembered so the tag is removed
-    // when the setting is switched off.
-    const uint32_t rgb = TierColor(tier);
-    if (!tooltipColors.contains(text)) {
+    // The game's text is remembered once per Init, so a re-draw never stacks
+    // tags and switching off restores the exact original line.
+    auto it = tooltipColors.find(text);
+    if (it == tooltipColors.end()) {
         if (tooltipColors.size() >= 1024) return;
-        tooltipColors.emplace(text, SavedColor{std::make_unique<Root>(text), Value<Color>(M("Graphic", "get_color", 0, "UnityEngine.UI", "UnityEngine.UI.dll"), text)});
+        it = tooltipColors.emplace(text, SavedColor{std::make_unique<Root>(text), Value<Color>(M("Graphic", "get_color", 0, "UnityEngine.UI", "UnityEngine.UI.dll"), text),
+            Text(Invoke(Method(text, "get_text", 0), text)), tier}).first;
     }
-    const std::string current = Text(Invoke(Method(text, "get_text", 0), text));
-    const std::string tag = "<color=#" + Hex(rgb) + ">T" + std::to_string(tier) + "</color> ";
-    if (current.rfind(tag, 0) == 0) return;
-    Root value(il2cpp::api().string_new((tag + current).c_str())); void* a[]{value.Get()};
-    Invoke(Method(text, "set_text", 1), text, a);
+    it->second.tier = tier;
+    SetText(text, Compose(it->second));
 }
 void d_affixesText(void* self, void* itemData, void* info, MethodInfo m) {
     o_affixesText(self, itemData, info, m);
-    if (!tooltipsOn.load() || lifecycle::Stopping() || !itemData) return;
+    if ((!tooltipsOn.load() && !linesOn.load()) || lifecycle::Stopping() || !itemData) return;
     ++tooltipUpdates;
     if (!game::Guarded([&] {
         // Regular prefixes and suffixes are listed in the item's own order,
@@ -284,12 +300,6 @@ void d_affixesText(void* self, void* itemData, void* info, MethodInfo m) {
         }
     }, nullptr)) ++faults;
 }
-void RestoreTooltips() {
-    std::vector<void*> texts;
-    for (auto& [key, saved] : tooltipColors) texts.push_back(key);
-    for (void* text : texts) game::Guarded([&] { RestoreColor(text, true); }, nullptr);
-    tooltipColors.clear();
-}
 std::vector<void*> FindObjects(const char* image, const char* ns, const char* cls) {
     std::vector<void*> out;
     auto* klass = game::FindClass(image, ns, cls);
@@ -311,7 +321,7 @@ void RefreshIcons(bool searchScene) {
 }
 std::string State() {
     std::ostringstream out;
-    out << "{\"ok\":true,\"icons\":" << Boolean(iconsOn.load()) << ",\"tooltips\":" << Boolean(tooltipsOn.load()) << ",\"palette\":[";
+    out << "{\"ok\":true,\"icons\":" << Boolean(iconsOn.load()) << ",\"tooltips\":" << Boolean(tooltipsOn.load()) << ",\"lines\":" << Boolean(linesOn.load()) << ",\"palette\":[";
     for (size_t i = 0; i < palette.size(); ++i) { if (i) out << ','; out << Json(Hex(palette[i])); }
     out << "],\"labels\":" << labels.size() << ",\"coloredTexts\":" << tooltipColors.size() << ",\"iconUpdates\":" << iconUpdates
         << ",\"tooltipUpdates\":" << tooltipUpdates << ",\"tooltipMismatches\":" << tooltipMismatches << ",\"scanned\":" << scanned << ",\"created\":" << created << ",\"noItem\":" << noItem << ",\"noTiers\":" << noTiers << ",\"noQuantityText\":" << noQuantity << ",\"lastTooltipTier\":" << lastTooltipTier << ",\"faults\":" << faults
@@ -347,8 +357,8 @@ bool Init() {
 }
 std::string Read() { return Run([] { return State(); }); }
 std::string Set(const std::string& key, int value) {
-    if ((key != "icons" && key != "tooltips") || (value != 0 && value != 1))
-        return "{\"ok\":false,\"error\":\"use tierset icons|tooltips 0|1\"}";
+    if ((key != "icons" && key != "tooltips" && key != "lines") || (value != 0 && value != 1))
+        return "{\"ok\":false,\"error\":\"use tierset icons|tooltips|lines 0|1\"}";
     return Run([&] {
         if (value) Require();
         if (key == "icons") {
@@ -366,22 +376,22 @@ std::string Set(const std::string& key, int value) {
                 EnsureHook(m_affixesText, reinterpret_cast<void*>(&d_affixesText), reinterpret_cast<void**>(&o_affixesText));
                 if (m_affixData) EnsureHook(m_affixData, reinterpret_cast<void*>(&d_affixData), reinterpret_cast<void**>(&o_affixData));
             }
-            tooltipsOn = value != 0;
-            if (!value) RestoreTooltips();
+            (key == "lines" ? linesOn : tooltipsOn) = value != 0;
+            RedrawTooltips();
         }
         return State();
     });
 }
 std::string SetColor(const std::string& tier, const std::string& hex) {
-    if (tier == "reset") return Run([] { palette = kDefaultPalette; RefreshIcons(false); return State(); });
+    if (tier == "reset") return Run([] { palette = kDefaultPalette; RefreshIcons(false); RedrawTooltips(); return State(); });
     int index = 0;
     if (tier.size() != 1 || tier[0] < '1' || tier[0] > '8') return "{\"ok\":false,\"error\":\"use tiercolor <1-8> <RRGGBB> or tiercolor reset\"}";
     index = tier[0] - '1';
     if (hex.size() != 6 || hex.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos)
         return "{\"ok\":false,\"error\":\"colour must be six hexadecimal digits, for example E0315A\"}";
     const uint32_t rgb = static_cast<uint32_t>(std::stoul(hex, nullptr, 16));
-    return Run([&] { palette[static_cast<size_t>(index)] = rgb; RefreshIcons(false); return State(); });
+    return Run([&] { palette[static_cast<size_t>(index)] = rgb; RefreshIcons(false); RedrawTooltips(); return State(); });
 }
-void ReleaseRoots() { labels.clear(); tooltipColors.clear(); iconsOn = false; tooltipsOn = false; }
+void ReleaseRoots() { labels.clear(); tooltipColors.clear(); iconsOn = false; tooltipsOn = false; linesOn = false; }
 
 }  // namespace ep::tiers

@@ -1,0 +1,10 @@
+{
+  "version": "0.1.2-dev.19",
+  "files": {
+    "EpochPact.exe": {"sha256": "cdb5a2823bc5eb7ca88663e7a5fe7836e19cea3cdca8d76c6cfa968510c76d79", "malicious": 0, "engines": 69},
+    "EpochPact.Core.dll": {"sha256": "59dfdd18e45c5eee7f6be0a610713a4d748753a4d4479f17ba9d8c58c818cc36", "malicious": 0, "engines": 69},
+    "version.dll": {"sha256": "93591e4d8cc760632c66c921d6dbbe5d51e8b19f52bebf4439419df99b6b72bd", "malicious": 1, "engines": 69, "detections": ["Cynet: Malicious (score: 100)"]}
+  },
+  "zip": {"sha256": "021a3b67c37074ba376eccb75dd7e76a2ae57cb670a4e6e7c99edf71cb4aacb0", "virusTotal": "not uploaded (over the browser upload limit)", "localDefender": "No threats found"},
+  "note": "Fresh browser uploads on 2026-10-12; counts read from the VirusTotal file pages. The Cynet verdict on the loader matches every earlier loader build; its cause is not established."
+}

@@ -564,6 +564,38 @@
     "map_settings_read": [
       "Map display settings",
       "Read minimap and overlay display settings."
+    ],
+    "tier_lines": [
+      "Colour affix lines by tier",
+      "Colour each affix line in item tooltips with its tier colour. The original text returns when switched off."
+    ],
+    "stash_rules_read": [
+      "Stash tabs from loot filter",
+      "Read the active loot filter's rules, your stash folders and tabs, and which tab belongs to which rule."
+    ],
+    "stash_rules_create": [
+      "Create tabs from loot filter",
+      "Create one stash tab per loot filter rule, free of gold, in a folder named after the filter. Each tab takes the rule's rarity, type, class, level, potential, faction, unique and corruption conditions as its stash priority. Creates a recovery backup."
+    ],
+    "stash_rule_assign": [
+      "Link a tab to a rule",
+      "Give an existing stash tab the conditions of one loot filter rule as its stash priority, or 0 to clear it. Creates a recovery backup."
+    ],
+    "stash_rules_sort": [
+      "Sort inventory by filter rule",
+      "Move inventory items into the tab linked to the loot filter rule they match, using the game's exact filter match (affix conditions included). Creates a recovery backup."
+    ],
+    "font_family": [
+      "Interface font",
+      "Use a Windows font for the game's interface text; game restores the original fonts. Characters the font lacks use the game's font."
+    ],
+    "font_scale": [
+      "Interface text size",
+      "Multiply the size of the game's interface text. 1 is the game's size."
+    ],
+    "font_read": [
+      "Font status",
+      "Read the font choice, Windows font families and counters."
     ]
   },
   "researchOnly": {

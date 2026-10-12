@@ -825,7 +825,7 @@ test('display page shows minimap, tier controls and the tier palette without sen
  const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
  h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};page='display';shippingRenderPage()`);
  const html=h.element('#page-content').innerHTML;
- for(const id of ['map_minimapsize','map_minimapzoom','map_minimapopacity','map_overlayopacity','map_overlayzoom','tier_icons','tier_tooltips','tier_color'])assert.ok(html.includes(`="${id}"`),id);
+ for(const id of ['map_minimapsize','map_minimapzoom','map_minimapopacity','map_overlayopacity','map_overlayzoom','tier_icons','tier_tooltips','tier_lines','tier_color'])assert.ok(html.includes(`="${id}"`),id);
  assert.equal([...html.matchAll(/data-tier-color="(\d)"/g)].map(x=>x[1]).join(''),'12345678');
  assert.ok(html.includes('value="#E0315A"'));
  for(const id of ['map_minimapsize','tier_icons','tier_tooltips'])assert.ok(h.run(`automaticSetting(controlById("${id}"))`),id);
@@ -852,4 +852,36 @@ test('loot filter files panel lists filters and routes export, duplicate and bac
  await h.run(`filterAction('filter_export',{file:'Sorcerer.xml'})`);await h.run(`filterAction('filter_duplicate',{file:'Sorcerer.xml'})`);await h.run(`filterAction('filter_backup')`);
  assert.deepEqual(h.calls.slice(1).map(c=>[c.type,c.action,c.args.file]),[['launcher','filter_export','Sorcerer.xml'],['launcher','filter_duplicate','Sorcerer.xml'],['launcher','filter_backup',undefined]]);
  assert.ok(h.calls.every(c=>c.type==='launcher'));
+});
+test('stash tabs from loot filter: panel lists rules and tabs, and every change is confirmed and sent with the loaded character',async()=>{
+ const h=automaticHarness();h.run(`page='inventory';connected.player.id='6';connected.player.name='Test';confirmAction=async()=>true;`);
+ assert.ok(h.run('stashRulesPanel()').includes('Read filter and tabs'));
+ const state={ok:true,player:{id:'6'},canAddTab:true,tabs:[{id:0,name:'Stash Tab 1',items:3},{id:4,name:'8 Hide <class>',items:0}],filter:'Spellblade',
+  rules:[{number:9,type:1,enabled:true,name:'Hide all Normal/Magic',mapped:['Rarity'],unmapped:[],tab:null},{number:5,type:0,enabled:false,name:'Flame Reave',mapped:[],unmapped:['Affix'],tab:4}]};
+ h.replies.push(state);await h.run(`stashRulesAction('read')`);
+ const html=h.run('stashRulesPanel()');
+ assert.ok(html.includes('Spellblade'));assert.ok(html.includes('8 Hide &lt;class&gt;'));assert.ok(html.includes('Sort only: Affix'));assert.ok(html.includes('value="4" selected'));
+ h.replies.push({...state,created:1,existing:1,atLimit:0},{...state,moved:2,full:0,unlinked:1},{...state},{...state});
+ await h.run(`stashRulesAction('create',{hidden:1,disabled:0})`);await h.run(`stashRulesAction('sort')`);
+ await h.run(`stashRulesAction('assign',{tab:4,rule:9})`);await h.run(`stashRulesAction('assign',{tab:4,rule:0})`);
+ assert.deepEqual(h.calls.map(c=>[c.id,c.operation]),[['stash_rules_read','read'],['stash_rules_create','set'],['stash_rules_sort','set'],['stash_rule_assign','set'],['stash_rule_assign','set']]);
+ assert.ok(h.calls.every(c=>c.args.expected_id==='6'&&c.args.expected_name==='Test'));
+ assert.deepEqual([h.calls[1].args.hidden,h.calls[1].args.disabled,h.calls[3].args.tab,h.calls[3].args.rule,h.calls[4].args.rule],[1,0,4,9,0]);
+});
+test('stash rule changes are not sent when the confirmation is declined',async()=>{
+ const h=automaticHarness();h.run(`page='inventory';connected.player.id='6';confirmAction=async()=>false;stashRules={ok:true,player:{id:'6'},tabs:[],rules:[],filter:'F'};`);
+ await h.run(`stashRulesAction('create',{hidden:0,disabled:0})`);await h.run(`stashRulesAction('sort')`);
+ assert.equal(h.calls.length,0);
+});
+test('interface font panel lists Windows fonts and encodes spaces for the font command',async()=>{
+ const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
+ h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};page='display';`);
+ assert.ok(h.run('fontPanel()').includes('Load Windows fonts'));
+ h.run(`cache.font_read={families:['Arial','Segoe UI']};values.font_family='Segoe UI'`);
+ const html=h.run('fontPanel()');assert.ok(html.includes('value="Segoe UI" selected'));assert.ok(html.includes('data-setting="font_scale"')||html.includes('font_scale'));
+ assert.ok(h.run('automaticSetting(controlById("font_scale"))'));
+ h.replies.push({ok:true});
+ await h.element('#page-content').listeners.change[0]({target:{dataset:{fontFamily:''},value:'Segoe UI'}});
+ await new Promise(setImmediate);
+ assert.deepEqual([h.calls[0].id,h.calls[0].args.family],['font_family','Segoe%20UI']);
 });

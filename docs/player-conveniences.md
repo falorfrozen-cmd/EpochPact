@@ -128,14 +128,30 @@ values are re-applied on the next frame after a new area's map loads.
   example `7 6 5 4`). The label is a copy of the icon's own quantity text, so it
   scales with the game's interface. Display only; items are unchanged.
 - **Tier tags in tooltips** adds a coloured `T1`–`T8` tag in front of each
-  prefix, suffix and sealed affix in item tooltips; the affix text keeps the
-  game's own colour. The tags are removed when switched off. If a tooltip shows a
-  different number of affix lines than the item has, that tooltip is left
-  unchanged instead of guessing (`tierread` counts it as `tooltipMismatches`).
+  prefix, suffix and sealed affix in item tooltips.
+- **Colour affix lines by tier** colours the whole affix line in its tier
+  colour (rich-text colour; the game resets the text's own colour property).
+  Both can be used together or separately. The game's original line text is
+  remembered and written back exactly when they are switched off. If a tooltip
+  shows a different number of affix lines than the item has, that tooltip is
+  left unchanged instead of guessing (`tierread` counts it as
+  `tooltipMismatches`).
 - **Tier colours**: default T1 white, T2 blue, T3 yellow, T4 orange, T5 purple,
   T6 green, T7 red, T8 light blue. Each tier can be changed; your colours are
-  remembered on this device and applied whenever a character is ready. A tooltip
-  that is already open shows a new colour the next time it opens.
+  remembered on this device and applied whenever a character is ready. An open
+  tooltip is redrawn when a colour or setting changes.
+
+### Text and font
+
+- **Interface font** replaces the font of the game's interface text with an
+  installed Windows font (the list comes from Windows). Characters the font does
+  not have, such as symbols, still use the game's font. Text keeps its letter
+  case: the game's font shows small capitals for lower-case letters, a Windows
+  font shows them as written.
+- **Interface text size** multiplies the size of interface text (0.7–1.5).
+- Text in panels opened later gets the same font and size. "Game font" and size
+  1 restore every text's own font, material and sizes exactly; closing
+  EpochPact does the same. Nothing is written to the game's settings.
 
 ## Inventory
 
@@ -150,7 +166,8 @@ EpochPact's buttons do not inherit the original
 button's respec action or run it alongside the shortcut.
 
 Stash all creates an operation backup, then uses the game's quick-move routine
-in batches of four. It targets the current stash tab. Equipment is left equipped;
+in batches of four. It uses the game's own stash placement: items go to a tab
+whose stash priority matches them, otherwise to the current stash tab. Equipment is left equipped;
 items that do not fit stay in inventory. The final result reports moved and
 remaining item counts and tells the player when the stash had no room. Actions are serialized with the normal IPC worker and
 reject a changed loaded-character identity.
@@ -159,6 +176,37 @@ Stash tab memory: EpochPact remembers the stash tab that was open when the
 stash closed and selects it again when the stash opens after a game restart (the
 game itself keeps it within one session). The tab is stored as a single number in
 `<game>/EpochPact/stash-tab.txt`. A deleted tab falls back to the game's default.
+
+### Stash tabs from the loot filter
+
+The Inventory page reads the active loot filter's rules and your stash folders
+and tabs (offline only).
+
+- **Create tabs for rules without a tab** adds one stash tab per rule, **free of
+  gold**, in a folder named after the filter (the game's limit of 200 tabs still
+  applies). Tab names are `<rule number> <rule name or description>`, shortened
+  to 24 characters; a rule's highlight colour becomes the nearest stash tab
+  colour. Show and Highlight rules are included; Hide rules and disabled rules
+  only when their option is ticked. Running it again only adds tabs for rules
+  that have none yet.
+- Each tab gets the rule's **rarity, item type and subtype, class, item level
+  (below/above), Legendary Potential, Weaver's Will, Weaver's Touch, Forging
+  Potential, faction, unique and corruption** conditions as its stash priority,
+  through the game's own priority objects. The game's Stash all and normal
+  stashing then put matching items into that tab.
+- Affix conditions and character-relative level conditions have no stash
+  priority equivalent. Those rules are marked "Sort only": **Sort inventory by
+  filter rule** moves inventory items into the tab linked to the rule they match
+  using the game's exact loot filter match (the same rule number the loot log
+  shows). Items without a matching linked rule stay in the inventory; items that
+  do not fit are reported.
+- The **Stash tab** column links any existing tab to a rule (its priority is
+  replaced by the rule's conditions) or removes the link and priority with "—".
+  Links are kept per filter in `<game>/EpochPact/stash-rule-tabs.txt`.
+
+Every change writes a recovery backup of the saves first (the same history as
+Stash all). An open stash panel is rebuilt so new folders and tabs appear at
+once.
 
 ## Live summons
 

@@ -26,6 +26,7 @@
 #include "build_controls.hpp"
 #include "convenience.hpp"
 #include "item_tiers.hpp"
+#include "fonts.hpp"
 #include <atomic>
 #ifdef EPOCHPACT_RESEARCH
 #include "dumper.hpp"
@@ -121,7 +122,8 @@ void WorkerBody() {
     builds::Init();
     convenience::Init();
     tiers::Init();
-    lifecycle::SetCleanup([]{convenience::ReleaseRoots();builds::ReleaseRoots();tiers::ReleaseRoots();});
+    fonts::Init();
+    lifecycle::SetCleanup([]{convenience::ReleaseRoots();builds::ReleaseRoots();tiers::ReleaseRoots();fonts::ReleaseRoots();});
     Log("ready: command channel at EpochPact\\ipc\\cmd.txt");
     // Detached until a command arrives: IL2CPP waits for attached threads when the game quits.
     if (void* self = a.thread_current()) a.thread_detach(self);

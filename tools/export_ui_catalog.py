@@ -129,6 +129,18 @@ def controls():
         add("inventory_"+action,"inventory",label,"button","inventoryaction {save_id} "+action,lifetime,
             "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.",
             params=[save_id],doc="docs/player-conveniences.md")
+    add("stash_rules_read","inventory","Stash tabs from loot filter","read","stashrules {save_id}","read_only",
+        "Read the active loot filter's rules, your stash folders and tabs, and which tab belongs to which rule.",
+        params=[save_id],doc="docs/player-conveniences.md")
+    add("stash_rules_create","inventory","Create tabs from loot filter","button","stashrulescreate {save_id} {hidden} {disabled}","game_save",
+        "Create one stash tab per loot filter rule, free of gold, in a folder named after the filter. Each tab takes the rule's rarity, type, class, level, potential, faction, unique and corruption conditions as its stash priority. Creates a recovery backup.",
+        params=[save_id,parameter("hidden","integer",0,1),parameter("disabled","integer",0,1)],doc="docs/player-conveniences.md")
+    add("stash_rule_assign","inventory","Link a tab to a rule","selector","stashruleassign {save_id} {tab} {rule}","game_save",
+        "Give an existing stash tab the conditions of one loot filter rule as its stash priority, or 0 to clear it. Creates a recovery backup.",
+        params=[save_id,parameter("tab","integer",0,1000000),parameter("rule","integer",0,10000)],doc="docs/player-conveniences.md")
+    add("stash_rules_sort","inventory","Sort inventory by filter rule","button","stashrulesort {save_id}","game_save",
+        "Move inventory items into the tab linked to the loot filter rule they match, using the game's exact filter match (affix conditions included). Creates a recovery backup.",
+        params=[save_id],doc="docs/player-conveniences.md")
     slot = parameter("slot", "integer", 0, 3, source="liveState.cofread.slots")
     reward = parameter("reward", "integer_or_none", 0, 65535, source="liveState.cofread.rewards[available=true].id")
     lens = parameter("lens", "integer_or_none", 0, 11, source="liveState.cofread.lenses[purchased=true].id")
@@ -259,11 +271,21 @@ def controls():
     add('tier_tooltips',"display",'Tier tags in tooltips',"toggle",'tierset tooltips {value}',"session",
         'Add a coloured T1-T8 tag in front of each affix in item tooltips. The tags are removed when switched off.',
         params=[parameter("value","integer",0,1)],default=0,reset='tierset tooltips 0',doc="docs/player-conveniences.md")
+    add('tier_lines',"display",'Colour affix lines by tier',"toggle",'tierset lines {value}',"session",
+        'Colour each affix line in item tooltips with its tier colour. The original text returns when switched off.',
+        params=[parameter("value","integer",0,1)],default=0,reset='tierset lines 0',doc="docs/player-conveniences.md")
     add("tier_color","display","Tier colour","selector","tiercolor {tier} {color}","session",
         "Choose the colour for one affix tier (six hexadecimal digits, for example E0315A).",
         params=[parameter("tier","integer",1,8),parameter("color","single_token")],reset="tiercolor reset",doc="docs/player-conveniences.md")
     add("tier_read","display","Tier display status","read","tierread","read_only","Read tier display settings, palette and counters.",doc="docs/player-conveniences.md")
     add("map_settings_read","display","Map display settings","read","mapsettings","read_only","Read minimap and overlay display settings.",doc="docs/player-conveniences.md")
+    add("font_family","display","Interface font","selector","fontset family {family}","session",
+        "Use a Windows font for the game's interface text; game restores the original fonts. Characters the font lacks use the game's font.",
+        params=[parameter("family","single_token")],default="game",reset="fontset family game",doc="docs/player-conveniences.md")
+    add("font_scale","display","Interface text size","number","fontset scale {value}","session",
+        "Multiply the size of the game's interface text. 1 is the game's size.",
+        params=[parameter("value","number",0.7,1.5)],default=1,reset="fontset scale 1",doc="docs/player-conveniences.md")
+    add("font_read","display","Font status","read","fontread","read_only","Read the font choice, Windows font families and counters.",doc="docs/player-conveniences.md")
     add("map_reveal","world","Reveal zone map","toggle","mapreveal {value}","session",
         "Display the whole minimap/overlay using a fog shader substitution. Does not change exploration saves or spawn enemies. Off restores the current native fog texture.",
         params=[value(0,1)], default=0,reset="mapreveal 0",api="tools.loot_crafting_backend.reveal_map(value)",current="liveState.mapread.enabled",requires=("loaded_actor",),doc="docs/ce-feature-additions.md")

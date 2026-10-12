@@ -1158,6 +1158,134 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "stash_rules_read",
+      "group": "inventory",
+      "label": "Stash tabs from loot filter",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "stashrules {save_id}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read the active loot filter's rules, your stash folders and tabs, and which tab belongs to which rule.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "stash_rules_create",
+      "group": "inventory",
+      "label": "Create tabs from loot filter",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "stashrulescreate {save_id} {hidden} {disabled}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        },
+        {
+          "name": "hidden",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        {
+          "name": "disabled",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "game_save",
+      "description": "Create one stash tab per loot filter rule, free of gold, in a folder named after the filter. Each tab takes the rule's rarity, type, class, level, potential, faction, unique and corruption conditions as its stash priority. Creates a recovery backup.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "stash_rule_assign",
+      "group": "inventory",
+      "label": "Link a tab to a rule",
+      "widget": "selector",
+      "availability": "implemented",
+      "commandTemplate": "stashruleassign {save_id} {tab} {rule}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        },
+        {
+          "name": "tab",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        {
+          "name": "rule",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "game_save",
+      "description": "Give an existing stash tab the conditions of one loot filter rule as its stash priority, or 0 to clear it. Creates a recovery backup.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "stash_rules_sort",
+      "group": "inventory",
+      "label": "Sort inventory by filter rule",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "stashrulesort {save_id}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "game_save",
+      "description": "Move inventory items into the tab linked to the loot filter rule they match, using the game's exact filter match (affix conditions included). Creates a recovery backup.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "atlas_read",
       "group": "atlas",
       "label": "Unique Atlas",
@@ -2346,6 +2474,33 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "tier_lines",
+      "group": "display",
+      "label": "Colour affix lines by tier",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "tierset lines {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "tierset lines 0",
+      "lifetime": "session",
+      "description": "Colour each affix line in item tooltips with its tier colour. The original text returns when switched off.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "tier_color",
       "group": "display",
       "label": "Tier colour",
@@ -2410,6 +2565,78 @@
       "resetCommand": null,
       "lifetime": "read_only",
       "description": "Read minimap and overlay display settings.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "font_family",
+      "group": "display",
+      "label": "Interface font",
+      "widget": "selector",
+      "availability": "implemented",
+      "commandTemplate": "fontset family {family}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "family",
+          "type": "single_token"
+        }
+      ],
+      "default": "game",
+      "resetCommand": "fontset family game",
+      "lifetime": "session",
+      "description": "Use a Windows font for the game's interface text; game restores the original fonts. Characters the font lacks use the game's font.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "font_scale",
+      "group": "display",
+      "label": "Interface text size",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "fontset scale {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0.7,
+          "maximum": 1.5
+        }
+      ],
+      "default": 1,
+      "resetCommand": "fontset scale 1",
+      "lifetime": "session",
+      "description": "Multiply the size of the game's interface text. 1 is the game's size.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "font_read",
+      "group": "display",
+      "label": "Font status",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "fontread",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read the font choice, Windows font families and counters.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -32582,7 +32809,7 @@
     ]
   },
   "counts": {
-    "controls": 136,
+    "controls": 144,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

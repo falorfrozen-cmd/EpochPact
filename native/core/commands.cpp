@@ -25,6 +25,8 @@
 #include "xp.hpp"
 #include "build_controls.hpp"
 #include "item_tiers.hpp"
+#include "stash_rules.hpp"
+#include "fonts.hpp"
 #include "convenience.hpp"
 #include "ipc_protocol.hpp"
 #include <mutex>
@@ -93,13 +95,25 @@ std::string Execute(const std::string& line) {
     if(cmd=="summonread")return args.empty()?convenience::Summons():"{\"ok\":false,\"error\":\"summonread expects no arguments\"}";
     if(cmd=="qolset"){double value=0;return args.size()==2&&statedit::Number(args[1],&value)?convenience::Set(args[0],value):"{\"ok\":false,\"error\":\"use qolset setting value\"}";}
     if(cmd=="tierread")return args.empty()?tiers::Read():"{\"ok\":false,\"error\":\"tierread expects no arguments\"}";
-    if(cmd=="tierset")return args.size()==2&&(args[1]=="0"||args[1]=="1")?tiers::Set(args[0],args[1]=="1"):"{\"ok\":false,\"error\":\"use tierset icons|tooltips 0|1\"}";
+    if(cmd=="tierset")return args.size()==2&&(args[1]=="0"||args[1]=="1")?tiers::Set(args[0],args[1]=="1"):"{\"ok\":false,\"error\":\"use tierset icons|tooltips|lines 0|1\"}";
     if(cmd=="tiercolor")return args.size()==1&&args[0]=="reset"?tiers::SetColor("reset",""):args.size()==2?tiers::SetColor(args[0],args[1]):"{\"ok\":false,\"error\":\"use tiercolor <1-8> <RRGGBB> or tiercolor reset\"}";
     if(cmd=="pickupinterval"){double value=0;return args.size()==1&&statedit::Number(args[0],&value)?items::SetInterval(value):"{\"ok\":false,\"error\":\"use pickupinterval 0.25..10\"}";}
     if(cmd=="lootlog"){unsigned long long since=0;if(args.size()>1||(args.size()==1&&std::from_chars(args[0].data(),args[0].data()+args[0].size(),since).ec!=std::errc{}))return "{\"ok\":false,\"error\":\"use lootlog [since]\"}";return items::LootLog(since);}
     if(cmd=="lootlogclear")return args.empty()?items::ClearLootLog():"{\"ok\":false,\"error\":\"lootlogclear expects no arguments\"}";
     if(cmd=="pickupnow")return args.empty()?items::PickupNow():"{\"ok\":false,\"error\":\"pickupnow expects no arguments\"}";
     if(cmd=="pickupradius"){double value=0;if(args.empty())return items::RadiusStatus();return args.size()==1&&statedit::Number(args[0],&value)?items::SetRadius(value):"{\"ok\":false,\"error\":\"use pickupradius 0..60\"}";}
+    if(cmd=="fontread")return args.empty()?fonts::Read():"{\"ok\":false,\"error\":\"fontread expects no arguments\"}";
+    if(cmd=="fontset")return args.size()==2?fonts::Set(args[0],args[1]):"{\"ok\":false,\"error\":\"use fontset family <name|game> | fontset scale 0.7-1.5\"}";
+    if(cmd=="stashrules")return args.size()==1?stashrules::Read(args[0]):"{\"ok\":false,\"error\":\"use stashrules save-id\"}";
+    if(cmd=="stashrulescreate")return args.size()==3&&(args[1]=="0"||args[1]=="1")&&(args[2]=="0"||args[2]=="1")?stashrules::Create(args[0],args[1]=="1",args[2]=="1"):"{\"ok\":false,\"error\":\"use stashrulescreate save-id hidden(0|1) disabled(0|1)\"}";
+    if(cmd=="stashruleassign"){
+        int64_t tab=0,rule=0;
+        return args.size()==3&&statedit::Integer(args[1],0,1000000,&tab)&&statedit::Integer(args[2],0,10000,&rule)?stashrules::Assign(args[0],static_cast<int>(tab),static_cast<int>(rule)):"{\"ok\":false,\"error\":\"use stashruleassign save-id tab-id rule-number(0 clears)\"}";
+    }
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+    if(cmd=="stashrulestest")return args.size()==2?stashrules::Test(args[0],args[1]):"{\"ok\":false,\"error\":\"use stashrulestest save-id action\"}";
+#endif
+    if(cmd=="stashrulesort")return args.size()==1?stashrules::Sort(args[0]):"{\"ok\":false,\"error\":\"use stashrulesort save-id\"}";
     if(cmd=="inventoryaction")return args.size()==2?convenience::Inventory(args[0],args[1]):"{\"ok\":false,\"error\":\"use inventoryaction save-id stash|vendor|stashall\"}";
     if(cmd=="craftmaterialsread")return args.empty()?crafting::MaterialsRead():"{\"ok\":false,\"error\":\"craftmaterialsread expects no arguments\"}";
     if(cmd=="craftmaterials") {
