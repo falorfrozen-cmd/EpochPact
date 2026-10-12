@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EpochPact Loot Feed</title><link rel="stylesheet" href="/ui/style.css"></head>
+<body class="feed-body">
+ <header class="feed-head">
+  <strong>Loot feed</strong>
+  <label title="Window opacity">Opacity <input type="range" id="feed-opacity" min="30" max="100" step="5" value="100"></label>
+ </header>
+ <div class="feed-options">
+  <label><input type="checkbox" id="feed-gold" checked> Gold</label>
+  <label><input type="checkbox" id="feed-materials" checked> Materials</label>
+  <span id="feed-status" class="muted">Connecting…</span>
+ </div>
+ <main id="feed-list"><p class="empty">Waiting for pickups…</p></main>
+ <script src="/ui/session.js"></script>
+ <script src="/ui/loot-log.js"></script>
+ <script src="/ui/feed.js"></script>
+</body>
+</html>

@@ -68,11 +68,15 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
 
     @app.get("/ui/<path:path>")
     def assets(path):
-        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js", "crafting-model.js", "affix-picker.js"):
+        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js", "crafting-model.js", "affix-picker.js", "loot-log.js", "feed.js"):
             return send_from_directory(ROOT / "ui", path)
         if path.startswith("assets/"):
             return send_from_directory(ROOT / "ui/assets", path.removeprefix("assets/"))
         return jsonify(ok=False), 404
+
+    @app.get("/feed")
+    def feed():
+        return send_from_directory(ROOT / "ui", "feed.html")
 
     @app.get("/api/bootstrap")
     def bootstrap():
@@ -125,7 +129,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict) or payload.get("type") not in ("connection", "control", "reconcile", "launcher"):
             return jsonify(ok=False, error="Invalid request."), 400
-        if payload['type'] == 'launcher' and (setup is None or payload.get('action') not in ('status', 'select', 'install', 'elevated_install', 'launch', 'uninstall') or
+        if payload['type'] == 'launcher' and (setup is None or payload.get('action') not in ('status', 'select', 'install', 'elevated_install', 'launch', 'uninstall', 'report') or
                                               not isinstance(payload.get('args', {}), dict)):
             return jsonify(ok=False, error="Invalid game setup action."), 400
         if payload["type"] == "control" and payload.get("id") not in bridge.controls:
@@ -251,6 +255,7 @@ def main():
         import webview
         try:
             dialogs = DesktopDialogs()
+            dialogs._url = url
             dialogs._window = webview.create_window("EpochPact", url, js_api=dialogs, width=1500, height=1000, min_size=(860, 650), maximized=True, background_color="#091310")
             def closing():
                 try:

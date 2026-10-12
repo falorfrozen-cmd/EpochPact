@@ -13,7 +13,7 @@ JSON yüklemek hiçbir ayarı oyuna uygulamaz; kayıtlı mod profili oluşturmaz
 
 | Katalog | Adet |
 |---|---:|
-| Panel kontrolü / işlem | 124 |
+| Panel kontrolü / işlem | 126 |
 | SP stat türü | 134 |
 | Hazır stat adı | 72 |
 | Doğrulanmış C satırı | 206 |
@@ -140,6 +140,8 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `pickup_radius` — Auto pickup radius | `pickupradius {value}` | value: 0…60 | 0 | Oturum |
 | `pickup_radius_read` — Pickup radius status | `pickupradius` | — | — | Okuma |
 | `pickup_interval` — Auto pickup interval | `pickupinterval {value}` | value: 0.25…10 | 0.25 | Oturum |
+| `loot_log` — Recent pickups | `lootlog` | — | — | Okuma |
+| `loot_log_clear` — Clear recent pickups | `lootlogclear` | — | — | Görünüm |
 | `pickup_now` — Pick up everything now | `pickupnow` | — | — | Görünüm |
 | `autopickup` — Otomatik pickup | `autopickup {value}` | value: 0…1 | 0 | Oturum |
 | `loot_read` — Akıllı toplama durumu / affix kataloğu | `lootread` | — | — | Okuma |
@@ -148,12 +150,14 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `loot_t7` — T7 eşya toplama | `loott7 {value}` | value: 0…1 | 1 | Oturum |
 | `loot_filter` — Quality modunda loot filtresine uy | `lootfilter {value}` | value: 0…1 | 1 | Oturum |
 | `loot_affixes` — Aranan T7 affix ID'leri | `lootaffixes {ids}` | ids: liveState.lootread.affixes.id | none | Oturum |
-| `loot_category` — Toplama kategorisi | `lootcategory {category} {value}` | category: materials/gold/potions/xp/favor/bones; value: 0…1 | 1 | Oturum |
+| `loot_category` — Toplama kategorisi | `lootcategory {category} {value}` | category: materials/gold/potions/xp/favor/bones/amber; value: 0…1 | 1 | Oturum |
 | `loot_reset` — Toplama seçimlerini sıfırla | `lootreset` | — | — | Oturum |
 
 - **Auto pickup radius:** Limit automatic collection to 1–60 game units. Zero collects all loaded drops, as in earlier versions. Item tooltips pause collection. Reset: `pickupradius 0`.
 - **Pickup radius status:** Read the current pickup radius.
 - **Auto pickup interval:** How often automatic collection scans for drops: 0.25 s (default) up to 10 s. Longer intervals do less work per second. When the game reports a full inventory, equipment waits until you open and close your inventory; gold, potions, tomes, bones and materials continue. Reset: `pickupinterval 0.25`.
+- **Recent pickups:** Recent item and gold pickups, by you or Auto Pickup: name, rarity and the loot filter rule that matched (the same number the game shows with Item rule numbering). Reading it does not change the game.
+- **Clear recent pickups:** Clear the recent pickups list. Items and gold are unchanged.
 - **Pick up everything now:** Collect every drop the game has loaded right now, ignoring the radius. Your pickup rules, categories, loot filter and inventory space still apply. Runs across several frames.
 - **Otomatik pickup:** Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0,25 saniye. Reset: `autopickup 0`.
 - **Akıllı toplama durumu / affix kataloğu:** Seçimler ve sayaçlar; runtime affix ID/ad listesi. acceptedRequests envantere giriş garantisi değildir. API: `tools.loot_crafting_backend.loot_read()`.

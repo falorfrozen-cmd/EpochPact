@@ -21,6 +21,9 @@ std::string RadiusStatus();
 std::string SetInterval(double seconds);
 // Explicit one-shot collection of every loaded drop (filter and capacity apply).
 std::string PickupNow();
+// Recent item and gold pickups (by EpochPact or the player), newest last.
+std::string LootLog(unsigned long long since);
+std::string ClearLootLog();
 // Includes pending V2 tooltips. The normal mouse pickup is never intercepted.
 bool IsInspectingItem();
 std::string Status();

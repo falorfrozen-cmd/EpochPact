@@ -9,7 +9,7 @@ struct Policy {
     Mode mode = Mode::All;
     int minimumLP = 2;
     bool t7 = true, respectFilter = true, materials = true;
-    bool categories[5]{true, true, true, true, true};
+    bool categories[6]{true, true, true, true, true, true};  // gold, potions, xp tomes, favor, bones, amber/embers/motes
     std::vector<int> affixes;
 };
 struct Item { bool material, unique, wantedT7, filterPass; int lp; };

@@ -16,7 +16,7 @@ import subprocess
 import sys
 
 from . import le_session as le, progression_backend as progression
-from . import melon_compat
+from . import melon_compat, support_report
 from .app_paths import (user_root, installer_result_root, validate_installer_result,
                         INSTALL_RESULT_INVALID, INSTALL_RESULT_WRITE_FAILED)
 from .ui_language import english_exception
@@ -58,6 +58,15 @@ def run_elevated(arguments):
         return code.value
     finally:
         le.kernel32.CloseHandle(info.hProcess)
+
+
+def app_version() -> str:
+    for candidate in (Path(sys.executable).parent / 'build-info.json', le.ROOT / 'docs/nexus/release.json'):
+        try:
+            return str(json.loads(candidate.read_text(encoding='utf-8'))['version'])
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    return 'unknown'
 
 
 def validate_executable(value: str) -> Path:
@@ -236,6 +245,29 @@ class PlayerSetup:
         return {'ok': True, 'launcher': state,
                 'message': 'EpochPact was removed from the game. Saves, logs and recovery backups were kept. Install mod adds it again.'}
 
+    def report(self, args):
+        """Write a local support ZIP and show its folder. Nothing is uploaded."""
+        description = args.get('description', '')
+        if not isinstance(description, str) or len(description) > support_report.DESCRIPTION_LIMIT:
+            raise ValueError('Keep the description under 4,000 characters.')
+
+        def window():
+            for pid in le.game_pids():
+                hwnd = le.game_window(pid)
+                if hwnd:
+                    return hwnd
+            return None
+        path = support_report.create(le.GAME if self.executable else None, self.status(), description,
+                                     bool(args.get('screenshot')), window, version=app_version())
+        reveal = getattr(self, 'reveal', None) or (lambda folder: os.startfile(folder))
+        try:
+            reveal(path.parent)
+        except OSError:
+            pass
+        return {'ok': True, 'launcher': self.status(), 'report': path.name,
+                'message': f'Support report saved as {path.name}. Its folder is open: attach the ZIP to your message in the EpochPact Discord. '
+                           'Your Windows user name is masked; logs can contain character names.'}
+
     def launch(self):
         self.require_ready()
         output = io.StringIO()
@@ -320,7 +352,31 @@ class PlayerSetup:
                 return self.launch()
             if action == 'uninstall':
                 return self.uninstall()
+            if action == 'report':
+                return self.report(args)
             raise ValueError('Unknown game setup action.')
+
+
+class FeedWindowApi:
+    """js_api of the loot feed window: only its own opacity."""
+    TITLE = 'EpochPact Loot Feed'
+
+    def set_feed_opacity(self, percent):
+        if not isinstance(percent, (int, float)) or not 30 <= percent <= 100:
+            return False
+        if sys.platform != 'win32':
+            return False
+        user32 = ctypes.WinDLL('user32', use_last_error=True)
+        user32.FindWindowW.argtypes = [wt.LPCWSTR, wt.LPCWSTR]; user32.FindWindowW.restype = wt.HWND
+        user32.GetWindowLongPtrW.argtypes = [wt.HWND, ctypes.c_int]; user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
+        user32.SetWindowLongPtrW.argtypes = [wt.HWND, ctypes.c_int, ctypes.c_ssize_t]; user32.SetWindowLongPtrW.restype = ctypes.c_ssize_t
+        user32.SetLayeredWindowAttributes.argtypes = [wt.HWND, wt.DWORD, ctypes.c_ubyte, wt.DWORD]; user32.SetLayeredWindowAttributes.restype = wt.BOOL
+        hwnd = user32.FindWindowW(None, self.TITLE)
+        if not hwnd:
+            return False
+        GWL_EXSTYLE, WS_EX_LAYERED, LWA_ALPHA = -20, 0x80000, 0x2
+        user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED)
+        return bool(user32.SetLayeredWindowAttributes(hwnd, 0, round(percent * 255 / 100), LWA_ALPHA))
 
 
 class DesktopDialogs:
@@ -328,6 +384,28 @@ class DesktopDialogs:
         # pywebview reflects public js_api attributes recursively. Never expose
         # its native window/.NET object graph to that bridge.
         self._window = None
+        self._feed = None
+        self._url = None
+
+    def open_loot_feed(self):
+        """A small always-on-top window over a windowed/borderless game."""
+        import webview
+        if self._feed is not None:
+            try:
+                self._feed.restore()
+                self._feed.show()
+                return True
+            except Exception:
+                self._feed = None
+        if not self._url:
+            return False
+        self._feed = webview.create_window(FeedWindowApi.TITLE, self._url + '/feed', js_api=FeedWindowApi(), width=380, height=520,
+                                           min_size=(260, 200), on_top=True, background_color='#091310')
+        self._feed.events.closed += self._feed_closed
+        return True
+
+    def _feed_closed(self):
+        self._feed = None
 
     def choose_game_executable(self):
         import webview

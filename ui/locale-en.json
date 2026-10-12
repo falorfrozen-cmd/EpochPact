@@ -47,7 +47,7 @@
     ],
     "loot_category": [
       "Pickup category",
-      "Choose crafting materials, gold, potions, XP tomes, Favor tomes or Ancient Bones independently."
+      "Choose crafting materials, gold, potions, XP tomes, Favor tomes, Ancient Bones or Memory Amber, Soul Embers and XP motes (\"amber\") independently."
     ],
     "loot_reset": [
       "Reset pickup selections",
@@ -516,6 +516,14 @@
     "pickup_now": [
       "Pick up everything now",
       "Collect every drop the game has loaded right now, ignoring the radius. Your pickup rules, categories, loot filter and inventory space still apply. Runs across several frames."
+    ],
+    "loot_log": [
+      "Recent pickups",
+      "Recent item and gold pickups, by you or Auto Pickup: name, rarity and the loot filter rule that matched (the same number the game shows with Item rule numbering). Reading it does not change the game."
+    ],
+    "loot_log_clear": [
+      "Clear recent pickups",
+      "Clear the recent pickups list. Items and gold are unchanged."
     ]
   },
   "researchOnly": {

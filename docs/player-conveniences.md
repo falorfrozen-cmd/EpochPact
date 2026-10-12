@@ -29,6 +29,24 @@ radius, up to 32 pickups per frame over a few frames. Loot rules, categories, th
 loot filter and inventory space still apply; it clears an earlier full pause and
 retries once.
 
+**Memory Amber, Soul Embers and XP motes** are a separate pickup category
+("amber"). The game normally collects them only when you walk close; with the
+category enabled, Auto Pickup and Pick up everything now collect them like gold.
+
+### Recent pickups and the loot window
+
+The Loot page lists recent item, gold and amber pickups (up to 300, newest first)
+with rarity, who picked it up (you or Auto Pickup) and the loot filter rule that
+matched. "Rule N" is the same number the game shows with its **Item rule
+numbering** setting (the rule's Order + 1; 0 means no enabled rule matched and
+the item was shown by default). The rule's custom name is shown, otherwise the
+game's own rule description. Items, gold and the filter are never changed by
+reading the list.
+
+**Open loot window** (desktop app) opens a small, resizable window that stays on
+top of a windowed or borderless game, with an opacity slider and Gold/Materials
+filters. It only reads the list. Exclusive fullscreen draws over every window.
+
 ## World & Exploration
 
 Chest and shrine switches use the normal condition handler within three game

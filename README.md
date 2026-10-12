@@ -18,7 +18,9 @@ controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest changes: [0.1.2-dev.16 pickup, stash, summons and startup profile](docs/patch-notes-0.1.2-dev.16.md),
+Latest changes: [0.1.2-dev.17 loot log, loot window, amber pickup and support report](docs/patch-notes-0.1.2-dev.17.md),
+[dev.17 validation](docs/feedback-group2-validation-2026-10-12.md),
+[0.1.2-dev.16 pickup, stash, summons and startup profile](docs/patch-notes-0.1.2-dev.16.md),
 [dev.16 validation](docs/feedback-group1-validation-2026-10-12.md),
 [0.1.2-dev.15 stutter, uninstall and audit fixes](docs/patch-notes-0.1.2-dev.15.md),
 [dev.15 validation](docs/audit-fixes-validation-2026-10-12.md),

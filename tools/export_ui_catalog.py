@@ -115,6 +115,10 @@ def controls():
     add("pickup_interval","loot","Auto pickup interval","number","pickupinterval {value}","session",
         'How often automatic collection scans for drops: 0.25 s (default) up to 10 s. Longer intervals do less work per second. When the game reports a full inventory, equipment waits until you open and close your inventory; gold, potions, tomes, bones and materials continue.',
         params=[parameter("value","number",0.25,10)],default=0.25,reset="pickupinterval 0.25",doc="docs/player-conveniences.md")
+    add("loot_log","loot","Recent pickups","read","lootlog","read_only",
+        'Recent item and gold pickups, by you or Auto Pickup: name, rarity and the loot filter rule that matched (the same number the game shows with Item rule numbering). Reading it does not change the game.',doc="docs/player-conveniences.md")
+    add("loot_log_clear","loot","Clear recent pickups","button","lootlogclear","view",
+        'Clear the recent pickups list. Items and gold are unchanged.',doc="docs/player-conveniences.md")
     add("pickup_now","loot","Pick up everything now","button","pickupnow","view",
         'Collect every drop the game has loaded right now, ignoring the radius. Your pickup rules, categories, loot filter and inventory space still apply. Runs across several frames.',doc="docs/player-conveniences.md")
     add("summons_read","summons","Live summoned allies","read","summonread","read_only",
@@ -188,7 +192,7 @@ def controls():
     items[-1]["parameters"][0]["maximumLength"] = 383
     add("loot_category", "loot", "Toplama kategorisi", "selector", "lootcategory {category} {value}", "session",
         "Crafting materyali, altın, potion, XP/Favor tome ve bone ayrı seçilir; kategori ayarı auto pickup'ı açmaz.",
-        params=[parameter("category", "enum", choices=["materials", "gold", "potions", "xp", "favor", "bones"]), value(0, 1)], default=1,
+        params=[parameter("category", "enum", choices=["materials", "gold", "potions", "xp", "favor", "bones", "amber"]), value(0, 1)], default=1,
         reset="lootcategory {category} 1", api="tools.loot_crafting_backend.category(category, value)", doc="docs/loot-crafting.md")
     add("loot_reset", "loot", "Toplama seçimlerini sıfırla", "button", "lootreset", "session",
         "Seçimler all/default olur; autopickup açık/kapalı durumu ayrıca kontrol edilir.", api="tools.loot_crafting_backend.reset_loot()", doc="docs/loot-crafting.md")

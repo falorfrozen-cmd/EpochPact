@@ -84,6 +84,8 @@ Merchant's Guild and unfinished Weaver faction management remain informational. 
 
 Discord: https://discord.gg/q6aexZZSAf
 
+**Settings → Support report** creates a ZIP with your description, versions, setup state and recent EpochPact logs, plus an optional screenshot of the game window. Nothing is uploaded: the folder opens so you can attach the ZIP to your Discord message. Your Windows user name is masked; logs can contain character names.
+
 Source, releases and validation: https://github.com/falorfrozen-cmd/EpochPact
 
 Report EpochPact **{{VERSION}}**, game/Steam build, Windows version, installation method, the exact action and error, and whether the issue occurred during gameplay, app close or game exit. Remove private names/paths before sharing log excerpts. Do not post saves publicly.

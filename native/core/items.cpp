@@ -10,11 +10,15 @@
 #include "mainthread.hpp"
 #include <algorithm>
 #include <cmath>
+#include <deque>
 #include <memory>
+#include <mutex>
+#include <sstream>
 
 #include <atomic>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 
 namespace ep::items {
 
@@ -77,6 +81,22 @@ std::atomic<unsigned> g_intervalMs{250};
 std::atomic<bool> g_inventoryFull{false};
 bool g_inventoryWasOpen = false;
 std::atomic<uint64_t> g_fullEvents{0}, g_fullSkipped{0};
+
+// ---- loot log: every item and gold pickup, by EpochPact or by the player.
+// The game's own pickup methods are observed; their results are unchanged.
+struct LootEntry {
+    uint64_t seq = 0, time = 0;
+    std::string kind, name, rarity, rule;
+    int ruleNumber = 0, gold = 0;
+    bool automatic = false;
+};
+std::mutex g_logLock;
+std::deque<LootEntry> g_log;
+uint64_t g_logSeq = 0;
+std::atomic<uint64_t> g_logFaults{0};
+std::atomic<int> g_ruleOrderMin{0}, g_ruleOrderMax{0};
+thread_local bool t_autoPickup = false;  // set around EpochPact's own pickup calls
+constexpr size_t kLogCapacity = 300;
 
 // ItemTooltipOrganizer keeps every live pickable label in a static DList; ground item
 // labels add themselves to it. DList<T> wraps a List<T> in its first instance field at
@@ -181,7 +201,9 @@ struct GroundOffsets {size_t list=0,location=0,id=0;};
 GroundOffsets g_ground[6];
 size_t g_offlineItems=0,g_labelVisuals=0,g_visualId=0,g_pickupId=0;
 bool g_vacuumReady=false;
+struct AutoScope { bool previous = t_autoPickup; AutoScope() { t_autoPickup = true; } ~AutoScope() { t_autoPickup = previous; } };
 void Pickup(void* object,game::MethodRef method,int kind){
+    AutoScope automatic;
     if(!g_vacuumReady){managed::Invoke(method,object);return;}
     void* manager=game::StaticObject(g_managerField),*actor=managed::Invoke(m_getActor);
     if(!manager||!actor||!game::IsAlive(actor))return;
@@ -198,6 +220,107 @@ void Pickup(void* object,game::MethodRef method,int kind){
         managed::Invoke(method,object);return;
     }
 }
+size_t g_groundItemData = 0, g_goldValue = 0, g_itemTypeOffset = 0, g_subTypeOffset = 0, g_uniqueIdOffset = 0;
+game::MethodRef m_itemListGet, m_uniqueName, m_unpack, m_pickupItem, m_pickupGold;
+void* FindRecord(void* groundList, int kind, uint32_t id) {
+    void* list = managed::Get<void*>(groundList, g_ground[kind].list);
+    if (!list) return nullptr;
+    void* array = managed::Get<void*>(list, kListItems);
+    const int n = managed::Get<int>(list, kListSize);
+    if (!array || n < 0 || n > 8192 || static_cast<uintptr_t>(n) > managed::Get<uintptr_t>(array, kArrayLength)) return nullptr;
+    for (int i = 0; i < n; ++i) {
+        void* record = managed::Get<void*>(array, kArrayFirst + 8 * i);
+        if (record && managed::Get<uint32_t>(record, g_ground[kind].id) == id) return record;
+    }
+    return nullptr;
+}
+bool DescribeItem(void* item, LootEntry* e) {
+    using namespace managed;
+    Root pin(item);
+    int type = Get<uint8_t>(item, g_itemTypeOffset), sub = Get<uint16_t>(item, g_subTypeOffset);
+    Root itemList(Invoke(m_itemListGet));
+    void* nameArgs[]{&type, &sub};
+    e->name = Text(Invoke(managed::Method(itemList.Get(), "GetItemDisplayName", 2), itemList.Get(), nameArgs));
+    const bool unique = Value<bool>(managed::Method(item, "isUniqueSetOrLegendary", 0), item);
+    if (unique) {
+        uint16_t uid = Get<uint16_t>(item, g_uniqueIdOffset); bool display = true; void* a[]{&uid, &display};
+        const auto uniqueName = Text(Invoke(m_uniqueName, nullptr, a));
+        if (!uniqueName.empty()) e->name = uniqueName;
+    }
+    e->kind = type >= 100 ? "material" : "item";
+    e->rarity = type >= 100 ? "Material" : Value<bool>(managed::Method(item, "isLegendary", 0), item) ? "Legendary" :
+        Value<bool>(managed::Method(item, "isSet", 0), item) ? "Set" : unique ? "Unique" :
+        Value<bool>(managed::Method(item, "isExaltedItem", 0), item) ? "Exalted" : Value<bool>(managed::Method(item, "isMagic", 0), item) ? "Magic" :
+        managed::Entries(Get<void*>(item, game::FieldOffset("LE.dll", "", "ItemData", "affixes"))).empty() ? "Normal" : "Rare";
+    Root unpacked(Invoke(m_unpack, item));
+    smartloot::RuleMatch rule;
+    if (unpacked.Get() && smartloot::RuleFor(unpacked.Get(), &rule)) {
+        e->ruleNumber = rule.number; e->rule = rule.name;
+        g_ruleOrderMin = rule.orderMin; g_ruleOrderMax = rule.orderMax;
+    }
+    return true;
+}
+void PushLoot(LootEntry e) {
+    e.time = GetTickCount64();
+    std::lock_guard<std::mutex> hold(g_logLock);
+    e.seq = ++g_logSeq;
+    g_log.push_back(std::move(e));
+    while (g_log.size() > kLogCapacity) g_log.pop_front();
+}
+// pickupItem and pickupGold each have two overloads with the same parameter
+// count; select the one whose first parameter is the GroundItemList by type,
+// never by arity alone. A wrong overload would receive mismatched arguments.
+game::MethodRef ListOverload(const char* cls, const char* name, uint32_t count) {
+    game::MethodRef ref;
+    const auto& a = il2cpp::api();
+    if (!a.class_get_methods || !a.method_get_name || !a.method_get_param_count || !a.method_get_param || !a.type_get_name) return ref;
+    const auto* k = game::FindClass("LE.dll", "", cls);
+    if (!k) return ref;
+    void* iterator = nullptr;
+    while (const auto* m = a.class_get_methods(k, &iterator)) {
+        if (std::string(a.method_get_name(m)) != name || a.method_get_param_count(m) != count) continue;
+        char* type = a.type_get_name(a.method_get_param(m, 0));
+        const bool list = type && std::strstr(type, "GroundItemList") != nullptr;
+        if (type && a.free) a.free(type);
+        if (!list) continue;
+        if (ref.info) return {};  // ambiguous: refuse rather than guess
+        ref.info = m; ref.code = *reinterpret_cast<void* const*>(m);
+    }
+    return ref;
+}
+using PickupItemFn = void (*)(void* self, void* list, void* actor, uint32_t id, int flags, const Method* m);
+PickupItemFn o_pickupItem = nullptr;
+void d_pickupItem(void* self, void* list, void* actor, uint32_t id, int flags, const Method* m) {
+    LootEntry entry; bool described = false;
+    const bool automatic = t_autoPickup;
+    if (!game::Guarded([&] {
+        void* record = FindRecord(list, 0, id);
+        void* item = record ? managed::Get<void*>(record, g_groundItemData) : nullptr;
+        if (item) described = DescribeItem(item, &entry);
+    }, nullptr)) g_logFaults.fetch_add(1, std::memory_order_relaxed);
+    o_pickupItem(self, list, actor, id, flags, m);
+    if (!described) return;
+    // A refused pickup (for example a full inventory) leaves the record behind.
+    bool picked = false;
+    if (game::Guarded([&] { picked = FindRecord(list, 0, id) == nullptr; }, nullptr) && picked) {
+        entry.automatic = automatic;
+        PushLoot(std::move(entry));
+    }
+}
+using PickupGoldFn = bool (*)(void* self, void* list, void* actor, uint32_t id, const Method* m);
+PickupGoldFn o_pickupGold = nullptr;
+bool d_pickupGold(void* self, void* list, void* actor, uint32_t id, const Method* m) {
+    int amount = 0;
+    const bool automatic = t_autoPickup;
+    game::Guarded([&] { if (void* r = FindRecord(list, 1, id)) amount = managed::Get<int>(r, g_goldValue); }, nullptr);
+    const bool picked = o_pickupGold(self, list, actor, id, m);
+    if (picked && amount > 0) {
+        LootEntry e; e.kind = "gold"; e.name = "Gold"; e.rarity = "Gold"; e.gold = amount; e.automatic = automatic;
+        PushLoot(std::move(e));
+    }
+    return picked;
+}
+
 bool InRadius(void* object, const Position& player, bool label) {
     if(g_radius.load()==0) return true; // Explicit "all loaded drops" option.
     using namespace managed;
@@ -241,6 +364,48 @@ int SnapshotList(void* listObj, void** out, int cap, F&& keep) {
     return n;
 }
 
+// LE.Factions pickupables: Memory Amber, Soul Embers and XP motes. The game
+// collects them when the player walks close; PickupObject is its own call.
+const Field* g_pickupablesManager = nullptr;
+size_t g_pickupableSetOffset = 0, g_pickupablePosition = 0, g_pickupableValue = 0;
+game::MethodRef m_pickupablesOfType, m_pickupObject;
+int PickPickupables(int budget, bool everywhere, const Position& player) {
+    if (!g_pickupablesManager || !m_pickupablesOfType || !m_pickupObject || budget <= 0 || !smartloot::Category(5)) return 0;
+    int calls = 0;
+    game::Guarded([&] {
+        using namespace managed;
+        void* manager = game::StaticObject(g_pickupablesManager);
+        if (!manager || !game::IsAlive(manager)) return;
+        void* set = Get<void*>(manager, g_pickupableSetOffset);
+        if (!set) return;
+        Root setPin(set);
+        for (uint8_t type = 1; type <= 3 && calls < budget; ++type) {
+            void* typeArgs[]{&type};
+            Root list(Invoke(m_pickupablesOfType, set, typeArgs));
+            if (!list.Get()) continue;
+            const auto objects = Entries(list.Get());
+            // Removal shifts later entries; collect from the end.
+            for (int index = static_cast<int>(objects.size()) - 1; index >= 0 && calls < budget; --index) {
+                void* object = objects[index];
+                if (!object) continue;
+                if (!everywhere && g_radius.load() != 0) {
+                    const auto at = Get<Position>(object, g_pickupablePosition);
+                    const double x = at.x - player.x, y = at.y - player.y, z = at.z - player.z, r = g_radius.load();
+                    if (x * x + y * y + z * z > r * r) continue;
+                }
+                Root pin(object);
+                const uint32_t value = g_pickupableValue ? Get<uint32_t>(object, g_pickupableValue) : 0;
+                void* args[]{set, object, &index};
+                Invoke(m_pickupObject, manager, args);
+                ++calls;
+                LootEntry e; e.kind = "amber"; e.rarity = "Amber"; e.automatic = true; e.gold = static_cast<int>(value);
+                e.name = type == 1 ? "Memory Amber" : type == 2 ? "Soul Ember" : "XP mote";
+                PushLoot(std::move(e));
+            }
+        }
+    }, nullptr);
+    return calls;
+}
 struct PickResult { int calls = 0, candidates = 0, skippedFull = 0; };
 PickResult PickAll(int maxCalls = 8, bool everywhere = false) {
     PickResult result;
@@ -325,6 +490,17 @@ PickResult PickAll(int maxCalls = 8, bool everywhere = false) {
         }
     }
 
+    if (calls < maxCalls && !InspectingItem()) {
+        Position player{};
+        bool located = everywhere || g_radius.load() == 0;
+        if (!located) game::Guarded([&] {
+            void* actor = managed::Invoke(m_getActor);
+            if (!actor || !game::IsAlive(actor)) return;
+            managed::Root transform(managed::Invoke(m_componentTransform, actor));
+            player = managed::Value<Position>(m_transformPosition, transform.Get()); located = true;
+        }, nullptr);
+        if (located) calls += PickPickupables(maxCalls - calls, everywhere, player);
+    }
     if (result.skippedFull) g_fullSkipped.fetch_add(static_cast<uint64_t>(result.skippedFull));
     result.calls = calls;
     if (calls) g_calls.fetch_add(static_cast<uint64_t>(calls));
@@ -422,6 +598,13 @@ bool Init() {
     g_activeLists[3] = list("activeFavorTomes", "LE.dll", "PickupFavorTomeInteraction", "PickUp");
     g_activeLists[4] = list("activeAncientBones", "LE.dll", "PickupAncientBonesInteraction", "PickUp");
 
+    g_pickupablesManager = game::FindStaticField("LE.dll", "LE.Factions", "PickupableObjectsManager", "Instance");
+    g_pickupableSetOffset = game::FieldOffset("LE.dll", "LE.Factions", "PickupableObjectsManager", "singleplayerPickupableObjects");
+    g_pickupablePosition = game::FieldOffset("LE.dll", "LE.Factions", "PickupableObject", "Position");
+    g_pickupableValue = game::FieldOffset("LE.dll", "LE.Factions", "PickupableObject", "Value");
+    m_pickupablesOfType = game::FindMethod("LE.dll", "LE.Factions", "PickupableObjectSet", "GetPickupablesOfType", 1);
+    m_pickupObject = game::FindMethod("LE.dll", "LE.Factions", "PickupableObjectsManager", "PickupObject", 3);
+    Log("items: amber/ember/mote pickup %s", g_pickupablesManager && g_pickupableSetOffset && g_pickupablePosition && m_pickupablesOfType && m_pickupObject ? "ready" : "unavailable");
     m_isInventoryOpen = game::FindMethod("LE.dll", "", "UIBase", "IsInventoryOpen", 0);
     m_inventoryFull = game::FindMethod("LE.dll", "", "GroundItemManager", "showInventoryFullNofication", 1);
     std::string fullWhy = "method not found";
@@ -429,6 +612,23 @@ bool Init() {
         (hook::IsInstalled(m_inventoryFull.code) || hook::Install(m_inventoryFull.code, reinterpret_cast<void*>(&d_inventoryFull),
                                                                    reinterpret_cast<void**>(&o_inventoryFull), &fullWhy));
     Log("items: inventory-full pause %s%s", fullHook ? "ready" : "unavailable: ", fullHook ? "" : fullWhy.c_str());
+
+    g_groundItemData = game::FieldOffset("LE.dll", "", "GroundItemManager.GroundItem", "itemData");
+    g_goldValue = game::FieldOffset("LE.dll", "", "GroundItemManager.GroundGold", "goldValue");
+    g_itemTypeOffset = game::FieldOffset("LE.dll", "", "ItemData", "itemType");
+    g_subTypeOffset = game::FieldOffset("LE.dll", "", "ItemData", "subType");
+    g_uniqueIdOffset = game::FieldOffset("LE.dll", "", "ItemData", "uniqueID");
+    m_itemListGet = game::FindMethod("LE.dll", "", "ItemList", "get", 0);
+    m_uniqueName = game::FindMethod("LE.dll", "", "UniqueList", "getUniqueName", 2);
+    m_unpack = game::FindMethod("LE.dll", "", "ItemData", "getAsUnpacked", 0);
+    m_pickupItem = ListOverload("GroundItemManager", "pickupItem", 4);
+    m_pickupGold = ListOverload("GroundItemManager", "pickupGold", 3);
+    std::string logWhy = "metadata unavailable";
+    const bool logReady = g_vacuumReady && g_groundItemData && g_goldValue && g_itemTypeOffset && g_subTypeOffset && g_uniqueIdOffset &&
+        m_itemListGet && m_uniqueName && m_unpack && m_pickupItem && m_pickupGold &&
+        (hook::IsInstalled(m_pickupItem.code) || hook::Install(m_pickupItem.code, reinterpret_cast<void*>(&d_pickupItem), reinterpret_cast<void**>(&o_pickupItem), &logWhy)) &&
+        (hook::IsInstalled(m_pickupGold.code) || hook::Install(m_pickupGold.code, reinterpret_cast<void*>(&d_pickupGold), reinterpret_cast<void**>(&o_pickupGold), &logWhy));
+    Log("items: loot log %s%s", logReady ? "ready" : "unavailable: ", logReady ? "" : logWhy.c_str());
 
     Log("items: RollRarity %s; autopickup: tick %s, label list %s, manager %s, GroundItemLabel %s, requestPickup %s, hover guard %s; active lists "
         "gold %d potion %d xp %d favor %d bone %d",
@@ -481,6 +681,24 @@ std::string RadiusStatus(){
         ",\"intervalSeconds\":"+interval+",\"inventoryFull\":"+(g_inventoryFull.load()?"true":"false")+
         ",\"inventoryFullEvents\":"+std::to_string(g_fullEvents.load())+",\"skippedWhileFull\":"+std::to_string(g_fullSkipped.load())+
         ",\"inventoryFullPause\":"+(o_inventoryFull?"true":"false")+"}";}
+std::string LootLog(uint64_t since){
+    std::ostringstream out;
+    std::lock_guard<std::mutex> hold(g_logLock);
+    const auto now=GetTickCount64();
+    out<<"{\"ok\":true,\"ready\":"<<(o_pickupItem&&o_pickupGold?"true":"false")<<",\"seq\":"<<g_logSeq<<",\"faults\":"<<g_logFaults.load()
+       <<",\"ruleOrderMin\":"<<g_ruleOrderMin.load()<<",\"ruleOrderMax\":"<<g_ruleOrderMax.load()<<",\"entries\":[";
+    bool comma=false;
+    for(const auto& e:g_log){
+        if(e.seq<=since)continue;
+        if(comma)out<<',';comma=true;
+        out<<"{\"seq\":"<<e.seq<<",\"ageSeconds\":"<<(now-e.time)/1000<<",\"kind\":"<<managed::Json(e.kind)<<",\"name\":"<<managed::Json(e.name)
+           <<",\"rarity\":"<<managed::Json(e.rarity)<<",\"gold\":"<<e.gold<<",\"ruleNumber\":"<<e.ruleNumber<<",\"rule\":"<<managed::Json(e.rule)
+           <<",\"automatic\":"<<(e.automatic?"true":"false")<<'}';
+    }
+    out<<"]}";
+    return out.str();
+}
+std::string ClearLootLog(){std::lock_guard<std::mutex> hold(g_logLock);g_log.clear();return "{\"ok\":true}";}
 std::string SetInterval(double seconds){
     if(!std::isfinite(seconds)||seconds<0.25||seconds>10)return "{\"ok\":false,\"error\":\"Pickup interval must be between 0.25 and 10 seconds.\"}";
     g_intervalMs=static_cast<unsigned>(std::lround(seconds*1000));g_lastScan=0;return RadiusStatus();
@@ -491,14 +709,16 @@ std::string PickupNow(){
     // filter, categories, inventory capacity and tooltip pause still apply.
     if(!smartloot::CanCollect())return "{\"ok\":false,\"error\":\"Load an offline character first.\"}";
     g_inventoryFull=false;g_inventoryWasOpen=false;
-    int picked=0,steps=0,skipped=0,idle=0;std::string why;
+    int picked=0,steps=0,skipped=0,idle=0,stalled=0,lastCandidates=-1;std::string why;
     const bool ran=mainthread::RunSteps([&]{
         if(InspectingItem())return false;
         const auto r=PickAll(32,true);picked+=r.calls;skipped+=r.skippedFull;++steps;
         // Picked objects leave the lists over the next frames; stop after two
-        // sweeps without a new pickup or after a bounded number of frames.
+        // sweeps without a new pickup, after three sweeps in which nothing left
+        // the ground (a refused object), or after a bounded number of frames.
         idle=r.calls?0:idle+1;
-        return idle>=2||steps>=240;
+        stalled=lastCandidates>=0&&r.candidates>=lastCandidates?stalled+1:0;lastCandidates=r.candidates;
+        return idle>=2||stalled>=3||steps>=240;
     },5000,&why);
     if(!ran)return std::string("{\"ok\":false,\"error\":\"")+(why.find("pick the job up")!=std::string::npos?"The game is not updating. Return to the game window and try again.":"Close the item card in the game, then try again.")+"\",\"picked\":"+std::to_string(picked)+"}";
     return "{\"ok\":true,\"picked\":"+std::to_string(picked)+",\"steps\":"+std::to_string(steps)+",\"inventoryFull\":"+(g_inventoryFull.load()?"true":"false")+",\"skippedWhileFull\":"+std::to_string(skipped)+"}";

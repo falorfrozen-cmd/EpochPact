@@ -204,7 +204,7 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','pickupradius','pickupinterval ','pickupnow','summonread','inventoryread','inventoryaction ')):
+        if command.startswith(('qolread','qolset ','pickupradius','pickupinterval ','pickupnow','lootlog','summonread','inventoryread','inventoryaction ')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})
@@ -344,7 +344,7 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(self.commands, [])
 
     def test_pickup_category_reset_formats_each_actual_category(self):
-        for category in ('materials', 'gold', 'potions', 'xp', 'favor', 'bones'):
+        for category in ('materials', 'gold', 'potions', 'xp', 'favor', 'bones', 'amber'):
             self.bridge.execute('loot_category', {'category': category}, 'reset')
             self.assertEqual(self.commands[-1], f'lootcategory {category} 1')
 

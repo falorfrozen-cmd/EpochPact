@@ -582,7 +582,7 @@ class UiBridge:
 
     def _demo_execute(self, cid, a, supplied, operation):
         control = self.controls[cid]
-        if cid.startswith(("qol_","inventory_")) or cid in ("summons_read","pickup_radius","pickup_radius_read","pickup_interval","pickup_now"):
+        if cid.startswith(("qol_","inventory_")) or cid in ("summons_read","pickup_radius","pickup_radius_read","pickup_interval","pickup_now","loot_log","loot_log_clear"):
             raise RuntimeError("Load an offline character to use live convenience controls. Preview does not invent game data.")
         if cid == "build_read" or (control["commandTemplate"] or "").startswith("buildset "):
             state = self.demo.setdefault("buildread", {"ok": True, "settings": {}})

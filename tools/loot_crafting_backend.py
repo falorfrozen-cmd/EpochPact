@@ -55,7 +55,7 @@ def respect_filter(value: bool) -> dict:
 
 
 def category(category: str, value: bool) -> dict:
-    if category not in ("materials", "gold", "potions", "xp", "favor", "bones"):
+    if category not in ("materials", "gold", "potions", "xp", "favor", "bones", "amber"):
         raise ValueError("Geçersiz toplama kategorisi.")
     return ipc.request(f"lootcategory {category} {_toggle(value)}")
 

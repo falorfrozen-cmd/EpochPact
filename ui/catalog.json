@@ -980,6 +980,46 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "loot_log",
+      "group": "loot",
+      "label": "Recent pickups",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "lootlog",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Recent item and gold pickups, by you or Auto Pickup: name, rarity and the loot filter rule that matched (the same number the game shows with Item rule numbering). Reading it does not change the game.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "loot_log_clear",
+      "group": "loot",
+      "label": "Clear recent pickups",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "lootlogclear",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "view",
+      "description": "Clear the recent pickups list. Items and gold are unchanged.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "pickup_now",
       "group": "loot",
       "label": "Pick up everything now",
@@ -1680,7 +1720,8 @@
             "potions",
             "xp",
             "favor",
-            "bones"
+            "bones",
+            "amber"
           ]
         },
         {
@@ -32281,7 +32322,7 @@
     ]
   },
   "counts": {
-    "controls": 124,
+    "controls": 126,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

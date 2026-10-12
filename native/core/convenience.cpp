@@ -983,6 +983,73 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
         void* args[]{c.actor,&amount,&at,&local};Invoke(M("GroundItemManager","dropGoldForPlayer",4),manager,args);
         return "{\"ok\":true,\"dropped\":"+std::to_string(amount)+",\"distance\":"+std::to_string(distance)+"}";
     }
+    if(action.rfind("load-filter-",0)==0||action=="filter-rules"){
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","Instance"));
+        if(!manager)throw std::runtime_error("Loot filter manager unavailable.");
+        if(action!="filter-rules"){Root name(il2cpp::api().string_new(action.substr(12).c_str()));void* a[]{name.Get()};
+            if(!Value<bool>(M("ItemFilterManager","LoadFilter",1,"ItemFiltering"),manager,a))throw std::runtime_error("The game could not load that filter.");}
+        void* filter=Invoke(M("ItemFilterManager","get_Filter",0,"ItemFiltering"),manager);
+        if(!filter)return "{\"ok\":true,\"filter\":null}";
+        std::ostringstream out;out<<"{\"ok\":true,\"filter\":"<<Json(Text(Get<void*>(filter,F("ItemFilter","name","ItemFiltering"))))<<",\"rules\":[";bool comma=false;int index=0;
+        for(void* rule:Entries(Get<void*>(filter,F("ItemFilter","rules","ItemFiltering")))){if(!rule)continue;if(comma)out<<',';comma=true;
+            out<<"{\"index\":"<<index++<<",\"order\":"<<Value<int>(Method(rule,"get_Order",0),rule)<<",\"type\":"<<Get<int>(rule,F("Rule","type","ItemFiltering"))
+               <<",\"enabled\":"<<Boolean(Get<bool>(rule,F("Rule","isEnabled","ItemFiltering")))<<",\"name\":"<<Json(Text(Get<void*>(rule,F("Rule","nameOverride","ItemFiltering"))))
+               <<",\"description\":"<<Json(Text(Invoke(Method(rule,"GetRuleDescription",0),rule)).substr(0,160))<<'}';}
+        return out.str()+"]}";
+    }
+    if(action.rfind("filter-probe-",0)==0){
+        // For one generated item (not dropped): the filter's overall verdict and
+        // every rule's own Match result, to relate rule numbers to rule objects.
+        int rarity=std::stoi(action.substr(13));if(rarity<0||rarity>7)throw std::runtime_error("Unsupported rarity.");
+        void* generator=Get<void*>(c.actor,F("Actor","generateItems"));
+        bool no=false;int level=20,location=0,type=rarity==7?-1:0,subtype=rarity==7?-1:0,sockets=0,unique=rarity==7?1:-1,lp=0,rank=0,legendaryType=0,corrupt=0;
+        alignas(8) unsigned char faction[8]{},replacement[8]{},corruption[8]{},effectiveness[8]{},special[8]{},minSpecial[8]{},overrideLP[8]{};
+        void* gen[]{&no,&level,&no,&location,&type,&subtype,&rarity,&sockets,&unique,&no,&lp,faction,&rank,&no,&legendaryType,&no,
+            replacement,corruption,&corrupt,effectiveness,nullptr,nullptr,special,&no,minSpecial,overrideLP};
+        Root item(Invoke(M("GenerateItems","initialiseRandomItemData",26),generator,gen));
+        Root unpacked(Invoke(Method(item.Get(),"getAsUnpacked",0),item.Get()));
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","Instance"));
+        void* filter=manager?Invoke(M("ItemFilterManager","get_Filter",0,"ItemFiltering"),manager):nullptr;
+        if(!filter)return "{\"ok\":true,\"filter\":null}";
+        alignas(8) unsigned char color[8]{},emphasize[8]{};int number=-1,sound=0,icon=0,beamSize=0;bool beam=false;float beamColor[4]{};
+        void* ma[]{unpacked.Get(),color,emphasize,&number,&sound,&icon,&beam,&beamSize,beamColor};
+        const int outcome=Value<int>(Method(filter,"Match",9),filter,ma);
+        std::ostringstream out;out<<"{\"ok\":true,\"rarityByte\":"<<static_cast<int>(Get<uint8_t>(item.Get(),F("ItemData","rarity")))<<",\"outcome\":"<<outcome<<",\"number\":"<<number<<",\"rules\":[";
+        int index=0;bool comma=false;int characterLevel=20;
+        for(void* rule:Entries(Get<void*>(filter,F("ItemFilter","rules","ItemFiltering")))){if(!rule)continue;if(comma)out<<',';comma=true;
+            void* ra[]{unpacked.Get(),&characterLevel};
+            out<<"{\"index\":"<<index++<<",\"order\":"<<Value<int>(Method(rule,"get_Order",0),rule)<<",\"type\":"<<Get<int>(rule,F("Rule","type","ItemFiltering"))
+               <<",\"match\":"<<Boolean(Value<bool>(Method(rule,"Match",2),rule,ra))<<'}';}
+        return out.str()+"]}";
+    }
+    if(action.rfind("drop-item-",0)==0){
+        // Disposable test character only: one generated item on the ground,
+        // via the game's own generator and drop call. Format drop-item-<distance>-<rarity>.
+        const auto dash=action.find('-',10);if(dash==std::string::npos)throw std::runtime_error("use drop-item-<distance>-<rarity>");
+        const int distance=std::stoi(action.substr(10,dash-10));int rarity=std::stoi(action.substr(dash+1));
+        if(distance<1||distance>80||rarity<0||rarity>7)throw std::runtime_error("Unsupported item fixture.");
+        void* generator=Get<void*>(c.actor,F("Actor","generateItems"));if(!generator)throw std::runtime_error("Item generator unavailable.");
+        bool no=false;int level=20,location=0,type=rarity==7?-1:0,subtype=rarity==7?-1:0,sockets=0,unique=rarity==7?1:-1,lp=0,rank=0,legendaryType=0,corrupt=0;
+        alignas(8) unsigned char faction[8]{},replacement[8]{},corruption[8]{},effectiveness[8]{},special[8]{},minSpecial[8]{},overrideLP[8]{};
+        void* gen[]{&no,&level,&no,&location,&type,&subtype,&rarity,&sockets,&unique,&no,&lp,faction,&rank,&no,&legendaryType,&no,
+            replacement,corruption,&corrupt,effectiveness,nullptr,nullptr,special,&no,minSpecial,overrideLP};
+        Root item(Invoke(M("GenerateItems","initialiseRandomItemData",26),generator,gen));
+        if(!item.Get())throw std::runtime_error("The game did not generate an item.");
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","","GroundItemManager","instance"));
+        if(!manager)throw std::runtime_error("Ground item manager unavailable.");
+        Vec3 at=Position(c.actor);at.x+=static_cast<float>(distance);bool sound=false;
+        void* args[]{c.actor,item.Get(),&at,&sound};Invoke(M("GroundItemManager","dropItemForPlayer",4),manager,args);
+        return "{\"ok\":true,\"distance\":"+std::to_string(distance)+",\"rarity\":"+std::to_string(rarity)+"}";
+    }
+    if(action.rfind("drop-amber-",0)==0){
+        // Disposable test character only: one native Memory Amber pile at a distance.
+        const int distance=std::stoi(action.substr(11));if(distance<1||distance>80)throw std::runtime_error("Unsupported amber distance.");
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","LE.Factions","PickupableObjectsManager","Instance"));
+        if(!manager)throw std::runtime_error("Pickupable object manager unavailable.");
+        Vec3 at=Position(c.actor);at.x+=static_cast<float>(distance);uint8_t type=1;uint32_t value=10;
+        void* args[]{&type,c.actor,&at,&value};Invoke(M("PickupableObjectsManager","CreatePickupableObjectForPlayer",4,"LE.Factions"),manager,args);
+        return "{\"ok\":true,\"amber\":10,\"distance\":"+std::to_string(distance)+"}";
+    }
     if(action=="inventory-full"){
         // Calls the game's own notification (through EpochPact's detour).
         void* manager=game::StaticObject(game::FindStaticField("LE.dll","","GroundItemManager","instance"));

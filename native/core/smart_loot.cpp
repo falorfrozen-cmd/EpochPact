@@ -65,8 +65,8 @@ std::string State() {
     out << "{\"ok\":true,\"ready\":" << Boolean(ready) << ",\"mode\":" << Json(names[static_cast<int>(policy.mode)])
         << ",\"minimumLP\":" << policy.minimumLP << ",\"t7\":" << Boolean(policy.t7)
         << ",\"respectFilter\":" << Boolean(policy.respectFilter) << ",\"materials\":" << Boolean(policy.materials) << ",\"categories\":{";
-    const char* categories[]{"gold", "potions", "xp", "favor", "bones"};
-    for (int i=0;i<5;++i) { if(i) out << ','; out << Json(categories[i]) << ':' << Boolean(policy.categories[i]); }
+    const char* categories[]{"gold", "potions", "xp", "favor", "bones", "amber"};
+    for (int i=0;i<6;++i) { if(i) out << ','; out << Json(categories[i]) << ':' << Boolean(policy.categories[i]); }
     out << "},\"affixIds\":[";
     for (size_t i=0;i<policy.affixes.size();++i) { if(i) out << ','; out << policy.affixes[i]; }
     out << "],\"telemetry\":{\"acceptedRequests\":" << accepted << ",\"rejected\":" << rejected << ",\"faults\":" << faults << "}}";
@@ -116,6 +116,35 @@ bool Accept(void* label) {
     if (result) ++accepted; else ++rejected;
     return result;
 }
+bool RuleFor(void* unpackedItem, RuleMatch* result) {
+    return ready && game::Guarded([&] {
+        void* manager = game::StaticObject(filterInstance);
+        void* filter = manager ? Get<void*>(manager, filterOffset) : nullptr;
+        if (!filter) return;
+        Root pin(filter);
+        alignas(8) unsigned char color[8]{}, emphasize[8]{};
+        int rule = -1, sound = 0, icon = 0, beamSize = 0;
+        bool beam = false; float beamColor[4]{};
+        void* args[]{unpackedItem, color, emphasize, &rule, &sound, &icon, &beam, &beamSize, beamColor};
+        result->outcome = Value<int>(match, filter, args);
+        result->number = rule > 0 ? rule : 0;
+        void* rules = Get<void*>(filter, Offset("ItemFilter", "rules", "ItemFiltering"));
+        if (!rules) return;
+        bool first = true;
+        for (void* r : Entries(rules)) {
+            if (!r) continue;
+            const int order = Value<int>(Method(r, "get_Order", 0), r);
+            if (first || order < result->orderMin) result->orderMin = order;
+            if (first || order > result->orderMax) result->orderMax = order;
+            first = false;
+            // The reported number is the rule's Order + 1 (measured against the
+            // game's own per-rule results); 0 means no enabled rule matched.
+            if (rule <= 0 || order + 1 != rule) continue;
+            result->name = Text(Get<void*>(r, Offset("Rule", "nameOverride", "ItemFiltering")));
+            if (result->name.empty()) result->name = Text(Invoke(Method(r, "GetRuleDescription", 0), r));
+        }
+    }, nullptr);
+}
 bool IsMaterial(void* label) {
     bool material = false;
     game::Guarded([&] {
@@ -127,7 +156,7 @@ bool IsMaterial(void* label) {
     }, nullptr);
     return material;
 }
-bool Category(int index) { return index>=0 && index<5 && policy.categories[index]; }
+bool Category(int index) { return index>=0 && index<6 && policy.categories[index]; }
 std::string Read() {
     return Run([] {
         std::string state=State(); state.pop_back(); state+=" ,\"affixes\":[";
@@ -159,8 +188,8 @@ std::string Set(const std::string& key, const std::string& value) {
         } else {
             const int v=Integer(value); if(v!=0&&v!=1) throw std::runtime_error("expected 0 or 1");
             if(key=="t7") next.t7=v!=0; else if(key=="filter") next.respectFilter=v!=0; else if(key=="materials") next.materials=v!=0;
-            else { const char* names[]{"gold","potions","xp","favor","bones"}; int index=-1;
-                for(int i=0;i<5;++i) if(key==names[i]) index=i;
+            else { const char* names[]{"gold","potions","xp","favor","bones","amber"}; int index=-1;
+                for(int i=0;i<6;++i) if(key==names[i]) index=i;
                 if(index<0) throw std::runtime_error("unknown pickup category"); next.categories[index]=v!=0; }
         }
         policy=std::move(next); return State();
