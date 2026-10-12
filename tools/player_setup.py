@@ -16,7 +16,7 @@ import subprocess
 import sys
 
 from . import le_session as le, progression_backend as progression
-from . import melon_compat, support_report
+from . import filter_manager, melon_compat, support_report
 from .app_paths import (user_root, installer_result_root, validate_installer_result,
                         INSTALL_RESULT_INVALID, INSTALL_RESULT_WRITE_FAILED)
 from .ui_language import english_exception
@@ -268,6 +268,28 @@ class PlayerSetup:
                 'message': f'Support report saved as {path.name}. Its folder is open: attach the ZIP to your message in the EpochPact Discord. '
                            'Your Windows user name is masked; logs can contain character names.'}
 
+    def filters(self, action, args):
+        """Loot filter files. Existing filters are never edited or deleted."""
+        reveal = getattr(self, 'reveal', None) or (lambda folder: os.startfile(folder))
+        if action == 'filters':
+            return filter_manager.list_filters()
+        if action == 'filter_import':
+            return filter_manager.import_filter(args.get('path'))
+        if action == 'filter_duplicate':
+            return filter_manager.duplicate_filter(args.get('file'))
+        if action == 'filter_folder':
+            folder = filter_manager.filters_root()
+            if not folder.is_dir():
+                raise ValueError('Last Epoch has not created its loot filter folder yet. Create a filter in the game first.')
+            reveal(folder)
+            return {'ok': True, 'message': 'The Last Epoch loot filter folder is open.'}
+        result = filter_manager.export_filter(args.get('file')) if action == 'filter_export' else filter_manager.backup_filters()
+        try:
+            reveal(Path(result['folder']))
+        except OSError:
+            pass
+        return result
+
     def launch(self):
         self.require_ready()
         output = io.StringIO()
@@ -354,7 +376,12 @@ class PlayerSetup:
                 return self.uninstall()
             if action == 'report':
                 return self.report(args)
+            if action in FILTER_ACTIONS:
+                return self.filters(action, args)
             raise ValueError('Unknown game setup action.')
+
+
+FILTER_ACTIONS = ('filters', 'filter_import', 'filter_export', 'filter_duplicate', 'filter_backup', 'filter_folder')
 
 
 class FeedWindowApi:
@@ -406,6 +433,13 @@ class DesktopDialogs:
 
     def _feed_closed(self):
         self._feed = None
+
+    def choose_filter_file(self):
+        import webview
+        start = filter_manager.filters_root().parent
+        chosen = self._window.create_file_dialog(webview.FileDialog.OPEN, directory=str(start if start.is_dir() else Path.home()),
+                                                allow_multiple=False, file_types=('Loot filters and backups (*.xml;*.zip)',))
+        return chosen[0] if chosen else None
 
     def choose_game_executable(self):
         import webview

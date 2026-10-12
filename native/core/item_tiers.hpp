@@ -1,0 +1,14 @@
+// Affix tiers on item icons and tier colours in item tooltips (display only).
+//   tierread                       state, palette and counters
+//   tierset icons|tooltips 0|1     tier digits on inventory/stash icons; coloured affix lines
+//   tiercolor <1-8> <RRGGBB>       palette entry; tiercolor reset restores the defaults
+#pragma once
+#include <string>
+
+namespace ep::tiers {
+bool Init();
+std::string Read();
+std::string Set(const std::string& key, int value);
+std::string SetColor(const std::string& tier, const std::string& hex);
+void ReleaseRoots();  // before IL2CPP shutdown while GC handles are valid
+}

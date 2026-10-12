@@ -2157,6 +2157,266 @@
       "documentation": "docs/build-controls.md"
     },
     {
+      "id": "map_minimapsize",
+      "group": "display",
+      "label": "Minimap size",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "mapset minimapsize {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 2.5
+        }
+      ],
+      "default": 1,
+      "resetCommand": "mapset minimapsize 1",
+      "lifetime": "session",
+      "description": "Scale the corner minimap, including its frame. 1 is the game's size.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "map_minimapzoom",
+      "group": "display",
+      "label": "Minimap zoom",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "mapset minimapzoom {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 4
+        }
+      ],
+      "default": 1,
+      "resetCommand": "mapset minimapzoom 1",
+      "lifetime": "session",
+      "description": "Below 1 zooms the corner minimap in, above 1 shows more of the area. 1 is the game's zoom.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "map_minimapopacity",
+      "group": "display",
+      "label": "Minimap opacity",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "mapset minimapopacity {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "mapset minimapopacity 0",
+      "lifetime": "session",
+      "description": "Opacity of the corner minimap, its frame and icons. 0 keeps the game's own value.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "map_overlayopacity",
+      "group": "display",
+      "label": "Overlay map opacity",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "mapset overlayopacity {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "mapset overlayopacity 0",
+      "lifetime": "session",
+      "description": "Opacity of the full-screen overlay map, beyond the game's slider range. 0 keeps your game setting.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "map_overlayzoom",
+      "group": "display",
+      "label": "Overlay map zoom",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "mapset overlayzoom {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 4
+        }
+      ],
+      "default": 1,
+      "resetCommand": "mapset overlayzoom 1",
+      "lifetime": "session",
+      "description": "Below 1 zooms the overlay map in, above 1 shows more. Extends the game's overlay zoom limits.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "tier_icons",
+      "group": "display",
+      "label": "Affix tiers on item icons",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "tierset icons {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "tierset icons 0",
+      "lifetime": "session",
+      "description": "Show each affix tier as coloured digits on inventory, stash and equipment icons (for example 7 6 5 4). Display only; items are unchanged.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "tier_tooltips",
+      "group": "display",
+      "label": "Tier tags in tooltips",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "tierset tooltips {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "tierset tooltips 0",
+      "lifetime": "session",
+      "description": "Add a coloured T1-T8 tag in front of each affix in item tooltips. The tags are removed when switched off.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "tier_color",
+      "group": "display",
+      "label": "Tier colour",
+      "widget": "selector",
+      "availability": "implemented",
+      "commandTemplate": "tiercolor {tier} {color}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "tier",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        {
+          "name": "color",
+          "type": "single_token"
+        }
+      ],
+      "default": null,
+      "resetCommand": "tiercolor reset",
+      "lifetime": "session",
+      "description": "Choose the colour for one affix tier (six hexadecimal digits, for example E0315A).",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "tier_read",
+      "group": "display",
+      "label": "Tier display status",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "tierread",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read tier display settings, palette and counters.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "map_settings_read",
+      "group": "display",
+      "label": "Map display settings",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "mapsettings",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read minimap and overlay display settings.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "map_reveal",
       "group": "world",
       "label": "Reveal zone map",
@@ -32322,7 +32582,7 @@
     ]
   },
   "counts": {
-    "controls": 126,
+    "controls": 136,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

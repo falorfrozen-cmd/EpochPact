@@ -973,6 +973,43 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
     if(action=="passives-close"){Invoke(Method(ui,"closePassiveTree",0),ui);return State();}
     if(action=="skills-close"){bool tooltip=true;void* a[]{&tooltip};Invoke(Method(ui,"closeSkills",1),ui,a);return State();}
     if(action=="blessings-open"){bool sound=false,respec=false;void* a[]{&sound,&respec};Invoke(Method(inventoryPanel.Get(),"OpenBlessingPanel",2),inventoryPanel.Get(),a);return State();}
+    if(action=="tooltip-first"||action=="tooltip-close"){
+        // Opens the game's own item tooltip for the first visible inventory item
+        // with affixes, exactly as hovering it would, so tooltip display hooks
+        // can be checked without input automation.
+        auto managers=Find("LE.dll","","TooltipItemManager");
+        if(managers.empty())throw std::runtime_error("Tooltip manager unavailable.");
+        void* manager=managers.front();
+        if(action=="tooltip-close"){Invoke(Method(manager,"CloseTooltip",0),manager);return "{\"ok\":true}";}
+        for(void* icon:Find("LE.dll","","InventoryItemUI")){
+            Root go(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),icon));
+            if(!Value<bool>(Method(go.Get(),"get_activeInHierarchy",0),go.Get()))continue;
+            void* entry=Get<void*>(icon,F("InventoryItemUI","<EntryRef>k__BackingField"));
+            void* data=entry?Get<void*>(entry,F("ItemContainerEntry","data")):nullptr;
+            void* affixes=data?Get<void*>(data,F("ItemData","affixes")):nullptr;
+            if(!affixes||Entries(affixes).empty())continue;
+            Root unpacked(Invoke(Method(data,"getAsUnpacked",0),data));
+            Root t(Invoke(componentTransform,icon));
+            Vec3 at=Value<Vec3>(transformPosition,t.Get());
+            Vec2 size=Value<Vec2>(M("RectTransform","get_sizeDelta",0,"UnityEngine","UnityEngine.CoreModule.dll"),t.Get());
+            int slot=0;Vec2 offset{0,0};  // TooltipItemManager.SlotType.INVENTORY
+            void* a[]{unpacked.Get(),&slot,&offset,&at,go.Get(),&size};
+            Invoke(Method(manager,"OpenItemTooltip",6),manager,a);
+            std::ostringstream out;out<<"{\"ok\":true,\"affixes\":[";bool comma=false;
+            for(void* affix:Entries(affixes)){if(!affix)continue;if(comma)out<<',';comma=true;
+                out<<"{\"type\":"<<Get<int>(affix,F("ItemAffix","affixType"))<<",\"tier\":"<<Value<int>(M("ItemAffix","get_DisplayTier",0),affix)<<",\"sealed\":"<<Boolean(Value<bool>(M("ItemAffix","get_IsSealed",0),affix))<<'}';}
+            out<<"],\"lines\":[";comma=false;
+            if(void* tooltip=game::StaticObject(game::FindStaticField("LE.dll","","UITooltipItem","instance")))
+                for(const char* list:{"prefixesText","suffixesText"})
+                    for(void* line:Entries(Get<void*>(tooltip,F("UITooltipItem",list)))){
+                        if(!line||!game::IsAlive(line))continue;Root lg(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),line));
+                        if(!Value<bool>(Method(lg.Get(),"get_activeSelf",0),lg.Get()))continue;
+                        void* text=Get<void*>(line,F("UITooltipItemAffix","_text"));if(!text)continue;
+                        if(comma)out<<',';comma=true;out<<Json(std::string(list)+": "+Text(Invoke(Method(text,"get_text",0),text)).substr(0,120));}
+            return out.str()+"]}";
+        }
+        throw std::runtime_error("No visible inventory item with affixes.");
+    }
     if(action=="panels-close"){bool sound=false;void* a[]{&sound};Invoke(Method(ui,"closeShop",0),ui);Invoke(Method(ui,"closeStash",1),ui,a);Invoke(Method(ui,"closeInventory",0),ui);return State();}
     if(action.rfind("drop-gold-",0)==0){
         // Disposable test character only: one native gold pile at a distance.
@@ -982,6 +1019,17 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
         Vec3 at=Position(c.actor);at.x+=static_cast<float>(distance);int amount=25;bool local=true;
         void* args[]{c.actor,&amount,&at,&local};Invoke(M("GroundItemManager","dropGoldForPlayer",4),manager,args);
         return "{\"ok\":true,\"dropped\":"+std::to_string(amount)+",\"distance\":"+std::to_string(distance)+"}";
+    }
+    if(action=="filter-list"){
+        // The game's own list of filter files (it watches the folder for changes).
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","Instance"));
+        if(!manager)throw std::runtime_error("Loot filter manager unavailable.");
+        Root list(Invoke(M("ItemFilterManager","GetFilterFileList",0,"ItemFiltering"),manager));
+        std::ostringstream out;out<<"{\"ok\":true,\"files\":[";bool comma=false;
+        // List<ValueTuple<string,int,int>>: _items at 0x10, _size at 0x18; 16-byte elements from 0x20.
+        void* items=Get<void*>(list.Get(),0x10);const int size=Get<int>(list.Get(),0x18);
+        for(int i=0;items&&i<size&&i<512;++i){if(comma)out<<',';comma=true;out<<Json(Text(Get<void*>(items,0x20+16*static_cast<size_t>(i))));}
+        return out.str()+"]}";
     }
     if(action.rfind("load-filter-",0)==0||action=="filter-rules"){
         void* manager=game::StaticObject(game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","Instance"));
@@ -995,6 +1043,60 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
             out<<"{\"index\":"<<index++<<",\"order\":"<<Value<int>(Method(rule,"get_Order",0),rule)<<",\"type\":"<<Get<int>(rule,F("Rule","type","ItemFiltering"))
                <<",\"enabled\":"<<Boolean(Get<bool>(rule,F("Rule","isEnabled","ItemFiltering")))<<",\"name\":"<<Json(Text(Get<void*>(rule,F("Rule","nameOverride","ItemFiltering"))))
                <<",\"description\":"<<Json(Text(Invoke(Method(rule,"GetRuleDescription",0),rule)).substr(0,160))<<'}';}
+        return out.str()+"]}";
+    }
+    if(action=="overlay-open"){Invoke(Method(ui,"OpenOverlayMap",0),ui);return "{\"ok\":true}";}
+    if(action=="overlay-close"){bool close=true;void* a[]{&close};Invoke(Method(ui,"CloseOverlayMapOrRecenter",1),ui,a);return "{\"ok\":true}";}
+    if(action.rfind("map-mode-",0)==0){
+        void* dmm=game::StaticObject(game::FindStaticField("LE.dll","DMM","DMMap","Instance"));if(!dmm)throw std::runtime_error("Map unavailable.");
+        int index=std::stoi(action.substr(9));if(index<0||index>1)throw std::runtime_error("Unsupported map mode.");
+        void* a[]{&index};Invoke(Method(dmm,"LoadConfig",1),dmm,a);return "{\"ok\":true,\"mode\":"+std::to_string(index)+"}";
+    }
+    if(action=="map-info"){
+        // Read-only: the minimap/overlay configuration objects and their values.
+        std::ostringstream out;out<<"{\"ok\":true";
+        void* global=game::StaticObject(game::FindStaticField("LE.dll","","DMMapGlobalConfigs","instance"));
+        if(global){
+            out<<",\"global\":{\"opacity\":"<<Get<float>(global,F("DMMapGlobalConfigs","OpacityValue"))<<",\"zoom\":"<<Get<float>(global,F("DMMapGlobalConfigs","ZoomValue"))
+               <<",\"minZoom\":"<<Get<float>(global,F("DMMapGlobalConfigs","minOverlayZoom"))<<",\"maxZoom\":"<<Get<float>(global,F("DMMapGlobalConfigs","maxOverlayZoom"))
+               <<",\"scrollSpeed\":"<<Get<float>(global,F("DMMapGlobalConfigs","minimapScrollSpeed"))<<",\"iconScale\":"<<Get<float>(global,F("DMMapGlobalConfigs","globalIconScale"))<<",\"configs\":[";
+            bool comma=false;
+            for(void* cfg:Entries(Get<void*>(global,F("DMMapGlobalConfigs","configs")))){if(!cfg)continue;if(comma)out<<',';comma=true;
+                out<<"{\"name\":"<<Json(Text(Get<void*>(cfg,F("DMMapGlobalConfigs.config","name"))))<<",\"opacity\":"<<Get<float>(cfg,F("DMMapGlobalConfigs.config","opacity"))
+                   <<",\"zoom\":"<<Get<float>(cfg,F("DMMapGlobalConfigs.config","zoom"))<<'}';}
+            out<<"]}";
+        }
+        void* dmm=game::StaticObject(game::FindStaticField("LE.dll","DMM","DMMap","Instance"));
+        if(dmm){
+            out<<",\"dmm\":{\"loaded\":"<<Get<int>(dmm,F("DMMap","loadedConfig","DMM"))<<",\"configs\":[";bool comma=false;
+            for(void* cfg:Entries(Get<void*>(dmm,F("DMMap","configs","DMM")))){if(!cfg)continue;if(comma)out<<',';comma=true;
+                void* rect=Get<void*>(cfg,F("DMMapConfig","uiPosition","DMM"));
+                out<<"{\"name\":"<<Json(Text(Get<void*>(cfg,F("DMMapConfig","name","DMM"))));
+                if(rect&&game::IsAlive(rect)){const auto size=Value<Vec2>(M("RectTransform","get_sizeDelta",0,"UnityEngine","UnityEngine.CoreModule.dll"),rect);
+                    const auto scale=Value<Vec3>(M("Transform","get_localScale",0,"UnityEngine","UnityEngine.CoreModule.dll"),rect);
+                    out<<",\"size\":["<<size.x<<','<<size.y<<"],\"scale\":["<<scale.x<<','<<scale.y<<']';
+                    out<<",\"parents\":[";void* t=rect;bool pc=false;
+                    for(int depth=0;depth<7&&t;++depth){
+                        Root go(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),t));
+                        const auto sz=Value<Vec2>(M("RectTransform","get_sizeDelta",0,"UnityEngine","UnityEngine.CoreModule.dll"),t);
+                        const auto pivot=Value<Vec2>(M("RectTransform","get_pivot",0,"UnityEngine","UnityEngine.CoreModule.dll"),t);
+                        const auto amin=Value<Vec2>(M("RectTransform","get_anchorMin",0,"UnityEngine","UnityEngine.CoreModule.dll"),t);
+                        const auto amax=Value<Vec2>(M("RectTransform","get_anchorMax",0,"UnityEngine","UnityEngine.CoreModule.dll"),t);
+                        if(pc)out<<',';pc=true;
+                        out<<"{\"name\":"<<Json(Text(Invoke(M("Object","get_name",0,"UnityEngine","UnityEngine.CoreModule.dll"),go.Get())))<<",\"size\":["<<sz.x<<','<<sz.y<<"],\"pivot\":["<<pivot.x<<','<<pivot.y<<"],\"anchors\":["<<amin.x<<','<<amin.y<<','<<amax.x<<','<<amax.y<<"]}";
+                        void* parent=Invoke(M("Transform","get_parent",0,"UnityEngine","UnityEngine.CoreModule.dll"),t);
+                        t=parent&&il2cpp::api().object_get_class(parent)==il2cpp::api().object_get_class(rect)?parent:nullptr;
+                    }
+                    out<<']';}
+                out<<'}';}
+            out<<"]}";
+        }
+        out<<",\"minimaps\":[";bool comma=false;
+        for(void* m:Find("LE.dll","LE.UI.Minimap","Minimap")){if(comma)out<<',';comma=true;
+            void* canvas=Get<void*>(m,F("Minimap","Canvas","LE.UI.Minimap"));
+            out<<"{\"opacity\":"<<Get<float>(m,F("Minimap","opacity","LE.UI.Minimap"))<<",\"unitsPerPixel\":"<<Get<float>(m,F("Minimap","UnitsPerPixel","LE.UI.Minimap"))<<",\"maxDistance\":"<<Get<int>(m,F("Minimap","maxDistance","LE.UI.Minimap"));
+            if(canvas&&game::IsAlive(canvas)){const auto size=Value<Vec2>(M("RectTransform","get_sizeDelta",0,"UnityEngine","UnityEngine.CoreModule.dll"),canvas);out<<",\"canvas\":["<<size.x<<','<<size.y<<']';}
+            out<<'}';}
         return out.str()+"]}";
     }
     if(action.rfind("filter-probe-",0)==0){

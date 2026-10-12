@@ -4,7 +4,7 @@ Last Epoch modding project (current verified runtime: **1.5.2**, 2026-10-08): a 
 from outside, every line our own (no mod loader, no third-party hook library). Offline
 characters only all features refuse in online play.
 
-Current player build: **0.1.2-dev.17** (see docs/feedback-group2-validation-2026-10-12.md, docs/feedback-group1-validation-2026-10-12.md and docs/audit-fixes-validation-2026-10-12.md; the hook engine enumerates only this process's threads, graphics searches run on scene change only). Overloads with equal parameter counts must be selected by parameter type (see items.cpp ListOverload); never hook by arity alone when overloads exist. Wanted T7 affixes use the searchable dual-list
+Current player build: **0.1.2-dev.18** (see docs/feedback-group3-validation-2026-10-12.md, docs/feedback-group2-validation-2026-10-12.md, docs/feedback-group1-validation-2026-10-12.md and docs/audit-fixes-validation-2026-10-12.md; the hook engine enumerates only this process's threads, graphics searches run on scene change only). The item tooltip in use is UITooltipItem (UpdateAffixesText/UITooltipItemAffix.Init), not LE.UI.Tooltips.ItemTooltipAffix; minimap opacity is a CanvasGroup alpha on the "Minimap" panel. Overloads with equal parameter counts must be selected by parameter type (see items.cpp ListOverload); never hook by arity alone when overloads exist. Wanted T7 affixes use the searchable dual-list
 picker (`ui/affix-picker.js`, shipped by both build_player.py and EpochPact.spec,
 served by epochpact_ui.py). Normal forging can opt into T6/T7 shard upgrades;
 plain shards and Basic Hope only for those extended tiers. See

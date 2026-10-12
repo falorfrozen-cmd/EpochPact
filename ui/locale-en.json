@@ -524,6 +524,46 @@
     "loot_log_clear": [
       "Clear recent pickups",
       "Clear the recent pickups list. Items and gold are unchanged."
+    ],
+    "map_minimapsize": [
+      "Minimap size",
+      "Scale the corner minimap, including its frame. 1 is the game's size."
+    ],
+    "map_minimapzoom": [
+      "Minimap zoom",
+      "Below 1 zooms the corner minimap in, above 1 shows more of the area. 1 is the game's zoom."
+    ],
+    "map_minimapopacity": [
+      "Minimap opacity",
+      "Opacity of the corner minimap, its frame and icons. 0 keeps the game's own value."
+    ],
+    "map_overlayopacity": [
+      "Overlay map opacity",
+      "Opacity of the full-screen overlay map, beyond the game's slider range. 0 keeps your game setting."
+    ],
+    "map_overlayzoom": [
+      "Overlay map zoom",
+      "Below 1 zooms the overlay map in, above 1 shows more. Extends the game's overlay zoom limits."
+    ],
+    "tier_icons": [
+      "Affix tiers on item icons",
+      "Show each affix tier as coloured digits on inventory, stash and equipment icons (for example 7 6 5 4). Display only; items are unchanged."
+    ],
+    "tier_tooltips": [
+      "Tier tags in tooltips",
+      "Add a coloured T1-T8 tag in front of each affix in item tooltips. The tags are removed when switched off."
+    ],
+    "tier_color": [
+      "Tier colour",
+      "Choose the colour for one affix tier (six hexadecimal digits, for example E0315A)."
+    ],
+    "tier_read": [
+      "Tier display status",
+      "Read tier display settings, palette and counters."
+    ],
+    "map_settings_read": [
+      "Map display settings",
+      "Read minimap and overlay display settings."
     ]
   },
   "researchOnly": {

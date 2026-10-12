@@ -20,7 +20,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from tools.ui_bridge import ROOT, UiBridge
 from tools.ui_language import english_exception, english_result
 from tools.app_paths import runtime_root, user_root
-from tools.player_setup import PlayerSetup, DesktopDialogs
+from tools.player_setup import FILTER_ACTIONS, PlayerSetup, DesktopDialogs
 
 
 def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
@@ -129,7 +129,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict) or payload.get("type") not in ("connection", "control", "reconcile", "launcher"):
             return jsonify(ok=False, error="Invalid request."), 400
-        if payload['type'] == 'launcher' and (setup is None or payload.get('action') not in ('status', 'select', 'install', 'elevated_install', 'launch', 'uninstall', 'report') or
+        if payload['type'] == 'launcher' and (setup is None or payload.get('action') not in ('status', 'select', 'install', 'elevated_install', 'launch', 'uninstall', 'report', *FILTER_ACTIONS) or
                                               not isinstance(payload.get('args', {}), dict)):
             return jsonify(ok=False, error="Invalid game setup action."), 400
         if payload["type"] == "control" and payload.get("id") not in bridge.controls:

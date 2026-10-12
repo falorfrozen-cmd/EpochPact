@@ -46,7 +46,7 @@ if "%~1"=="loader" goto :done
 echo [2/3] core (EpochPact.Core.dll)
 rem EPOCHPACT_RESEARCH: the metadata dump, capture hooks and research commands (not for players).
 ml64 /nologo /c /Fo"%OUT%\stat_thunk.obj" "%HERE%core\stat_thunk.asm" || exit /b 1
-set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread lifecycle xp loot density items smart_loot crafting workshop map_view collection player stat_editor progression monolith factions cof cof_tuning build_controls convenience commands research"
+set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread lifecycle xp loot density items smart_loot crafting workshop map_view collection player stat_editor progression monolith factions cof cof_tuning build_controls convenience item_tiers commands research"
 set "CORE_CPP="
 set "CORE_OBJ="
 for %%f in (%CORE_SRC%) do call set "CORE_CPP=%%CORE_CPP%% "%CORE%\%%f.cpp""

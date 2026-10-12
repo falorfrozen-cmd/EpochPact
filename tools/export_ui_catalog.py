@@ -238,6 +238,32 @@ def controls():
         api="tools.build_backend.custom(save_id, template_id, affixes, perfect, modifiers='none')", requires=("loaded_actor",), doc="docs/build-controls.md")
     items[-1]["parameters"][2]["maximumLength"] = 63
     items[-1]["parameters"][4]["maximumLength"] = 2048
+    add('map_minimapsize',"display",'Minimap size',"number","mapset minimapsize {value}","session",
+        "Scale the corner minimap, including its frame. 1 is the game's size.",
+        params=[parameter("value","number",0.5,2.5)],default=1,reset="mapset minimapsize 1",doc="docs/player-conveniences.md")
+    add('map_minimapzoom',"display",'Minimap zoom',"number","mapset minimapzoom {value}","session",
+        "Below 1 zooms the corner minimap in, above 1 shows more of the area. 1 is the game's zoom.",
+        params=[parameter("value","number",0.25,4)],default=1,reset="mapset minimapzoom 1",doc="docs/player-conveniences.md")
+    add('map_minimapopacity',"display",'Minimap opacity',"number","mapset minimapopacity {value}","session",
+        "Opacity of the corner minimap, its frame and icons. 0 keeps the game's own value.",
+        params=[parameter("value","number",0,1)],default=0,reset="mapset minimapopacity 0",doc="docs/player-conveniences.md")
+    add('map_overlayopacity',"display",'Overlay map opacity',"number","mapset overlayopacity {value}","session",
+        "Opacity of the full-screen overlay map, beyond the game's slider range. 0 keeps your game setting.",
+        params=[parameter("value","number",0,1)],default=0,reset="mapset overlayopacity 0",doc="docs/player-conveniences.md")
+    add('map_overlayzoom',"display",'Overlay map zoom',"number","mapset overlayzoom {value}","session",
+        "Below 1 zooms the overlay map in, above 1 shows more. Extends the game's overlay zoom limits.",
+        params=[parameter("value","number",0.25,4)],default=1,reset="mapset overlayzoom 1",doc="docs/player-conveniences.md")
+    add('tier_icons',"display",'Affix tiers on item icons',"toggle",'tierset icons {value}',"session",
+        'Show each affix tier as coloured digits on inventory, stash and equipment icons (for example 7 6 5 4). Display only; items are unchanged.',
+        params=[parameter("value","integer",0,1)],default=0,reset='tierset icons 0',doc="docs/player-conveniences.md")
+    add('tier_tooltips',"display",'Tier tags in tooltips',"toggle",'tierset tooltips {value}',"session",
+        'Add a coloured T1-T8 tag in front of each affix in item tooltips. The tags are removed when switched off.',
+        params=[parameter("value","integer",0,1)],default=0,reset='tierset tooltips 0',doc="docs/player-conveniences.md")
+    add("tier_color","display","Tier colour","selector","tiercolor {tier} {color}","session",
+        "Choose the colour for one affix tier (six hexadecimal digits, for example E0315A).",
+        params=[parameter("tier","integer",1,8),parameter("color","single_token")],reset="tiercolor reset",doc="docs/player-conveniences.md")
+    add("tier_read","display","Tier display status","read","tierread","read_only","Read tier display settings, palette and counters.",doc="docs/player-conveniences.md")
+    add("map_settings_read","display","Map display settings","read","mapsettings","read_only","Read minimap and overlay display settings.",doc="docs/player-conveniences.md")
     add("map_reveal","world","Reveal zone map","toggle","mapreveal {value}","session",
         "Display the whole minimap/overlay using a fog shader substitution. Does not change exploration saves or spawn enemies. Off restores the current native fog texture.",
         params=[value(0,1)], default=0,reset="mapreveal 0",api="tools.loot_crafting_backend.reveal_map(value)",current="liveState.mapread.enabled",requires=("loaded_actor",),doc="docs/ce-feature-additions.md")

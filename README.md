@@ -13,12 +13,14 @@ layout, build/test/live workflow, the current state and the traps) and
 `research/HANDOFF.md` (the full handoff report).
 
 Building the owner's UI? Start with [the complete UI catalog](docs/ui-catalog.md)
-and its machine-readable [ui/catalog.json](ui/catalog.json): all 122 implemented
+and its machine-readable [ui/catalog.json](ui/catalog.json): all 136 implemented
 controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest changes: [0.1.2-dev.17 loot log, loot window, amber pickup and support report](docs/patch-notes-0.1.2-dev.17.md),
+Latest changes: [0.1.2-dev.18 minimap, affix tiers and loot filter files](docs/patch-notes-0.1.2-dev.18.md),
+[dev.18 validation](docs/feedback-group3-validation-2026-10-12.md),
+[0.1.2-dev.17 loot log, loot window, amber pickup and support report](docs/patch-notes-0.1.2-dev.17.md),
 [dev.17 validation](docs/feedback-group2-validation-2026-10-12.md),
 [0.1.2-dev.16 pickup, stash, summons and startup profile](docs/patch-notes-0.1.2-dev.16.md),
 [dev.16 validation](docs/feedback-group1-validation-2026-10-12.md),

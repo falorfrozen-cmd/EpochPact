@@ -13,7 +13,7 @@ JSON yüklemek hiçbir ayarı oyuna uygulamaz; kayıtlı mod profili oluşturmaz
 
 | Katalog | Adet |
 |---|---:|
-| Panel kontrolü / işlem | 126 |
+| Panel kontrolü / işlem | 136 |
 | SP stat türü | 134 |
 | Hazır stat adı | 72 |
 | Doğrulanmış C satırı | 206 |
@@ -409,6 +409,16 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `qol_motionblur` — Disable motion blur | `qolset motionblur {value}` | value: 0…1 | 0 | Oturum |
 | `qol_occlusion` — Disable ambient occlusion | `qolset occlusion {value}` | value: 0…1 | 0 | Oturum |
 | `qol_fog` — Disable volumetric fog | `qolset fog {value}` | value: 0…1 | 0 | Oturum |
+| `map_minimapsize` — Minimap size | `mapset minimapsize {value}` | value: 0.5…2.5 | 1 | Oturum |
+| `map_minimapzoom` — Minimap zoom | `mapset minimapzoom {value}` | value: 0.25…4 | 1 | Oturum |
+| `map_minimapopacity` — Minimap opacity | `mapset minimapopacity {value}` | value: 0…1 | 0 | Oturum |
+| `map_overlayopacity` — Overlay map opacity | `mapset overlayopacity {value}` | value: 0…1 | 0 | Oturum |
+| `map_overlayzoom` — Overlay map zoom | `mapset overlayzoom {value}` | value: 0.25…4 | 1 | Oturum |
+| `tier_icons` — Affix tiers on item icons | `tierset icons {value}` | value: 0…1 | 0 | Oturum |
+| `tier_tooltips` — Tier tags in tooltips | `tierset tooltips {value}` | value: 0…1 | 0 | Oturum |
+| `tier_color` — Tier colour | `tiercolor {tier} {color}` | tier: 1…8; color: single_token | — | Oturum |
+| `tier_read` — Tier display status | `tierread` | — | — | Okuma |
+| `map_settings_read` — Map display settings | `mapsettings` | — | — | Okuma |
 
 - **Camera distance:** Move the overhead camera farther away. This changes distance, not field of view; 1× restores the normal distance. Reset: `buildset zoom 1`.
 - **Camera angle:** Set the overhead camera pitch in degrees. Zero uses the game's normal angle. Your saved camera preferences are kept. Reset: `buildset cameraangle 0`.
@@ -418,6 +428,16 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Disable motion blur:** Disable motion blur in scene post-processing profiles. Reset: `qolset motionblur 0`.
 - **Disable ambient occlusion:** Disable ambient occlusion in scene post-processing profiles. Reset: `qolset occlusion 0`.
 - **Disable volumetric fog:** Disable the game's Hx volumetric camera effect for this session. Normal gameplay visibility and saved settings are kept. Reset: `qolset fog 0`.
+- **Minimap size:** Scale the corner minimap, including its frame. 1 is the game's size. Reset: `mapset minimapsize 1`.
+- **Minimap zoom:** Below 1 zooms the corner minimap in, above 1 shows more of the area. 1 is the game's zoom. Reset: `mapset minimapzoom 1`.
+- **Minimap opacity:** Opacity of the corner minimap, its frame and icons. 0 keeps the game's own value. Reset: `mapset minimapopacity 0`.
+- **Overlay map opacity:** Opacity of the full-screen overlay map, beyond the game's slider range. 0 keeps your game setting. Reset: `mapset overlayopacity 0`.
+- **Overlay map zoom:** Below 1 zooms the overlay map in, above 1 shows more. Extends the game's overlay zoom limits. Reset: `mapset overlayzoom 1`.
+- **Affix tiers on item icons:** Show each affix tier as coloured digits on inventory, stash and equipment icons (for example 7 6 5 4). Display only; items are unchanged. Reset: `tierset icons 0`.
+- **Tier tags in tooltips:** Add a coloured T1-T8 tag in front of each affix in item tooltips. The tags are removed when switched off. Reset: `tierset tooltips 0`.
+- **Tier colour:** Choose the colour for one affix tier (six hexadecimal digits, for example E0315A). Reset: `tiercolor reset`.
+- **Tier display status:** Read tier display settings, palette and counters.
+- **Map display settings:** Read minimap and overlay display settings.
 
 ## World & Exploration
 

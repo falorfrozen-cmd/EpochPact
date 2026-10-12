@@ -821,3 +821,35 @@ test('T7 toggle is a Forge draft; reads preserve it and explicit Apply updates o
  assert.equal(h.run('values.craft_t7'),1);assert.equal(h.calls.length,0);h.replies.push({ok:true,allowT7:true},{ok:true,allowT7:true});await h.run('applyDraft()');
  assert.deepEqual(h.calls.map(x=>x.id),['craft_t7','craft_read']);assert.equal(h.run('dirty.size'),0);assert.equal(h.run('values.craft_t7'),1);
 });
+test('display page shows minimap, tier controls and the tier palette without sending commands',()=>{
+ const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
+ h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};page='display';shippingRenderPage()`);
+ const html=h.element('#page-content').innerHTML;
+ for(const id of ['map_minimapsize','map_minimapzoom','map_minimapopacity','map_overlayopacity','map_overlayzoom','tier_icons','tier_tooltips','tier_color'])assert.ok(html.includes(`="${id}"`),id);
+ assert.equal([...html.matchAll(/data-tier-color="(\d)"/g)].map(x=>x[1]).join(''),'12345678');
+ assert.ok(html.includes('value="#E0315A"'));
+ for(const id of ['map_minimapsize','tier_icons','tier_tooltips'])assert.ok(h.run(`automaticSetting(controlById("${id}"))`),id);
+ assert.equal(h.calls.length,0);
+});
+test('a customised tier palette is pushed once per character and the default palette sends nothing',async()=>{
+ const h=automaticHarness();const store={};
+ h.context.localStorage={getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=String(v);},removeItem:k=>{delete store[k];}};
+ h.run(`connected.sessionKey='k';automaticOwner=()=>'owner-1'`);
+ await h.run('applyTierPalette()');assert.equal(h.calls.length,0);
+ h.run(`tierPaletteApplied.clear()`);store['epochpact.tier-palette.v1']=JSON.stringify(['FFFFFF','4DA6FF','FFD84D','E07A2E','B36BFF','4CD964','123ABC','7FE5F0']);
+ h.replies.push({ok:true});await h.run('applyTierPalette()');
+ assert.deepEqual(h.calls.map(c=>[c.id,c.args.tier,c.args.color]),[['tier_color',7,'123ABC']]);
+ await h.run('applyTierPalette()');assert.equal(h.calls.length,1);
+ store['epochpact.tier-palette.v1']='["bad"]';assert.equal(h.run('storedTierPalette()[6]'),'E0315A');
+});
+test('loot filter files panel lists filters and routes export, duplicate and backup to the launcher',async()=>{
+ const h=automaticHarness();h.run(`page='loot'`);
+ h.replies.push({ok:true,filters:[{file:'Sorcerer.xml',name:'Sorcerer <b>',rules:4,enabled:3,modified:1760000000,valid:true},{file:'Broken.xml',name:'Broken',valid:false,error:'damaged',rules:0,enabled:0,modified:1760000000}]});
+ await h.run('loadFilterFiles()');
+ const html=h.run('filterFilesPanel()');
+ assert.ok(html.includes('Sorcerer &lt;b&gt;'));assert.ok(html.includes('3 / 4'));assert.ok(html.includes('data-filter-export="Sorcerer.xml"'));assert.ok(!html.includes('data-filter-export="Broken.xml"'));
+ h.replies.push({ok:true,message:'ok'},{ok:true,message:'ok',filters:[]},{ok:true,message:'ok'});
+ await h.run(`filterAction('filter_export',{file:'Sorcerer.xml'})`);await h.run(`filterAction('filter_duplicate',{file:'Sorcerer.xml'})`);await h.run(`filterAction('filter_backup')`);
+ assert.deepEqual(h.calls.slice(1).map(c=>[c.type,c.action,c.args.file]),[['launcher','filter_export','Sorcerer.xml'],['launcher','filter_duplicate','Sorcerer.xml'],['launcher','filter_backup',undefined]]);
+ assert.ok(h.calls.every(c=>c.type==='launcher'));
+});

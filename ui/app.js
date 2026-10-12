@@ -37,7 +37,7 @@ const pages = {
 const lifetime = {session:"Session",actor:"Character",game_save:"Game save",read_only:"Read only",view:"View",recovery:"Recovery"};
 const description = c => c.description;
 let catalog, token, preview = false, developer = false, page = "overview", busy = false;
-const developerControls=new Set(["density_read","map_read","pickup_radius_read","sheet_catalog","sheet_open","resistance_labels","session_read","status","player_read","characters","play_offline","load_character"]);
+const developerControls=new Set(["density_read","map_read","pickup_radius_read","tier_read","map_settings_read","sheet_catalog","sheet_open","resistance_labels","session_read","status","player_read","characters","play_offline","load_character"]);
 function playerControl(c){return developer||!developerControls.has(c.id);}
 let connected = {connected:false,offline:false}, values = {}, appliedValues = {}, dirty = new Set(), cache = {}, history = [], actorValues = {};
 const craftingModel=window.EpochCrafting;
@@ -88,7 +88,7 @@ function applyStartupProfile(){
  notify(`Applying ${profile.name} (${changes} setting${changes===1?"":"s"}).`);
  setTimeout(()=>void applyDraft(),0);
 }
-function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|pickupradius|pickupinterval|autopickup|mapreveal) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
+function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|pickupradius|pickupinterval|autopickup|mapreveal|mapset|tierset) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
 function automaticOwner(){
  if(preview)return "preview";
  const p=connected.player;
@@ -356,7 +356,7 @@ async function refreshConnection(silent=true,refreshCurrent=true,{preservePage=f
  const masteryMayHaveChanged=page==="campaign"&&cache.progress_read?.mastery?.panelOpen===true;
  const recovered=background&&(!previous.offline||restarted)&&result.offline;
  if((refreshCurrent||recovered)&&readId&&(!cache[readId]||["general","loot","crafting"].includes(page)||masteryMayHaveChanged)&&eligible(controlById(readId)))await refreshSection(readId,{refreshConnectionFirst:false});
- if(result.offline)applyStartupProfile();
+ if(result.offline){applyStartupProfile();setTimeout(()=>void applyTierPalette(),0);}
  }finally{connectionChecking=false;connectionNextCheck=Date.now()+(connected.offline?10000:["stopped","setup","update_required","waiting_frame","read_error"].includes(connected.phase)?5000:2000);}
 }
 async function pollConnection(){
@@ -369,7 +369,7 @@ setInterval(()=>void pollConnection(),1000);
 function syncSpeed(){
  const modes=actorValues["9:0:0:0"]?.modes;if(modes){appliedValues.speed=1+(modes.increased||0);if(!dirty.has("speed"))values.speed=appliedValues.speed;}
 }
-function unitFor(c){return c.id==="pickup_radius"?" units":c.id==="pickup_interval"?" s":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["craft_fp","build_weaverflat","build_projectileflat","build_blessingoptions"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
+function unitFor(c){return c.id==="pickup_radius"?" units":c.id==="pickup_interval"?" s":c.id.startsWith("map_")&&c.id.endsWith("opacity")?"":c.id.startsWith("map_")?"×":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["craft_fp","build_weaverflat","build_projectileflat","build_blessingoptions"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
 function settingDisplayValue(id,value){return id==="speed"&&Number.isFinite(value)?Number(value.toFixed(6)):value;}
 function settingCard(c) {
  const p=c.parameters.find(x=>x.name==="value"),v=settingDisplayValue(c.id,values[c.id]??c.default),unit=unitFor(c);
@@ -537,13 +537,13 @@ function renderPage(){
  }else if(page==="general"){
   content.innerHTML=settingPanel("General game settings",catalog.controls.filter(c=>c.group==="general"&&["number","toggle"].includes(c.widget)&&!c.id.startsWith("loot_")&&!c.id.startsWith("craft_")&&!c.id.startsWith("map_")));
  }else if(page==="display"){
-  content.innerHTML=settingPanel("Camera",["build_zoom","build_cameraangle"].map(controlById))+settingPanel("Graphics effects",catalog.controls.filter(c=>c.group==="display"&&c.id.startsWith("qol_")))+`<p class="note">Graphics overrides last for this character session. Turning them off restores the previous renderer values. Your saved graphics preferences are kept.</p>`;
+  content.innerHTML=settingPanel("Camera",["build_zoom","build_cameraangle"].map(controlById))+settingPanel("Minimap and overlay",["map_minimapsize","map_minimapzoom","map_minimapopacity","map_overlayopacity","map_overlayzoom"].map(controlById))+settingPanel("Item tiers",["tier_icons","tier_tooltips"].map(controlById))+tierPalette()+settingPanel("Graphics effects",catalog.controls.filter(c=>c.group==="display"&&c.id.startsWith("qol_")))+`<p class="note">Graphics overrides last for this character session. Turning them off restores the previous renderer values. Your saved graphics preferences are kept.</p>`;
  }else if(page==="world"){
   content.innerHTML=settingPanel("Map visibility",[controlById("map_reveal")])+settingPanel("Nearby interactions",["qol_chests","qol_shrines","qol_portals"].map(controlById));
  }else if(page==="inventory"){
   content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory shortcuts</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the currently selected stash tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_stash","inventory_vendor","inventory_stashall"].map(id=>actionCard(controlById(id))).join("")}</div></section>`;
  }else if(page==="loot"){
-  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius"),controlById("pickup_interval")])+lootPanel()+`<section class="panel"><h2>Collect now</h2>${cache.pickup_radius_read?.inventoryFull?`<p class="note">Your inventory is full. Equipment pickup is paused until you open and close your inventory; gold, potions, tomes, bones and materials are still collected.</p>`:""}<div class="control-grid">${actionCard(controlById("pickup_now"))}</div></section>`+settingPanel("Quality rules",["loot_lp","loot_t7","loot_filter"].map(controlById))+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
+  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius"),controlById("pickup_interval")])+lootPanel()+`<section class="panel"><h2>Collect now</h2>${cache.pickup_radius_read?.inventoryFull?`<p class="note">Your inventory is full. Equipment pickup is paused until you open and close your inventory; gold, potions, tomes, bones and materials are still collected.</p>`:""}<div class="control-grid">${actionCard(controlById("pickup_now"))}</div></section>`+settingPanel("Quality rules",["loot_lp","loot_t7","loot_filter"].map(controlById))+filterFilesPanel()+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
  }else if(page==="crafting"){
   content.innerHTML=renderCrafting();
  }else if(page==="skills"){
@@ -812,6 +812,40 @@ function summonTable(){
  const cell=(s,n)=>n==="Measured DPS"?fmt(s.measuredDps):n==="Last damage"?fmt(s.lastDamage):n==="DPS change"?(c=>c==null?"—":`${c>=0?"+":""}${fmt(c)}`)(summonChange(s)):n==="Health"?`${fmt(s.health)} / ${fmt(s.maxHealth)}`:n==="Armour"?fmt(s.armour):n==="Damage increase"?fmt(s.damageIncreased)+"%":fmt(s.resistances?.[n])+"%";
  return `${data.damageSampleClipped?'<p class="note">Damage event capacity was reached. These numbers are a lower bound until a fresh five-second window is collected.</p>':""}<div class="table-scroll"><table class="summon-table"><thead><tr><th>${individual?"Ally":"Ally type"}</th>${columns.map(n=>`<th>${n}</th>`).join("")}</tr></thead><tbody>${rows.map(s=>`<tr><td>${esc(s.label)}${s.count>1?` <span class="muted">×${s.count}</span>`:""}</td>${columns.map(n=>`<td>${cell(s,n)}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="muted">Measured DPS uses damage actually applied in a rolling five-second window (${fmt(data.damageWindowSeconds)} seconds collected), including mitigation and critical hits. Attack a target to measure damage; changing gear alone cannot reveal exact combat DPS. Compare on the same target and encounter. Damage increase remains a separate bonus. ${individual?"":"Grouped rows add damage and health across the group and average armour, damage increase and resistances. "}Updates every two seconds while visible.</p>`;
 }
+const defaultTierPalette=["FFFFFF","4DA6FF","FFD84D","E07A2E","B36BFF","4CD964","E0315A","7FE5F0"];
+function storedTierPalette(){try{const p=JSON.parse(localStorage.getItem("epochpact.tier-palette.v1")||"null");if(Array.isArray(p)&&p.length===8&&p.every(x=>/^[0-9A-F]{6}$/i.test(x)))return p.map(x=>x.toUpperCase());}catch{}return defaultTierPalette.slice();}
+function tierPalette(){
+ const palette=storedTierPalette(),c=controlById("tier_color");
+ return `<section class="panel"><div class="section-head"><h2>Tier colours</h2><button data-tier-reset data-control-id="tier_color">Reset colours</button></div><p class="muted">Used for tier digits on icons and coloured tooltip lines. Your colours are remembered on this device and applied when a character is ready.</p><div class="tier-palette">${palette.map((hex,i)=>`<label>T${i+1}<input type="color" data-tier-color="${i+1}" value="#${hex}" ${c&&!eligible(c)?"disabled":""}></label>`).join("")}</div><div data-id="tier_color" hidden></div></section>`;
+}
+const tierPaletteApplied=new Set();
+async function applyTierPalette(force=false){
+ const owner=automaticOwner();if(preview||!owner||(!force&&tierPaletteApplied.has(owner)))return;
+ const palette=storedTierPalette();tierPaletteApplied.add(owner);
+ for(let i=0;i<8;i++)if(force||palette[i]!==defaultTierPalette[i]){
+  if(owner!==automaticOwner())return;
+  try{await job({type:"control",id:"tier_color",operation:"set",args:{expected_session:connected.sessionKey,tier:i+1,color:palette[i]}});}catch{}
+ }
+}
+let filterFiles=null,filterFilesLoading=false;
+function filterFilesPanel(){
+ if(filterFiles===null&&!filterFilesLoading&&!preview)setTimeout(()=>void loadFilterFiles(),0);
+ const list=filterFiles?.filters||[],pick=window.pywebview?.api?.choose_filter_file?'<button id="filter-import">Import filter…</button>':"";
+ const rows=list.map(f=>`<tr><td>${esc(f.name)}${f.valid?"":` <span class="badge">${esc(f.error||"Unreadable")}</span>`}</td><td>${f.valid?`${f.enabled} / ${f.rules}`:"—"}</td><td>${new Date(f.modified*1000).toLocaleDateString("en-GB")}</td><td class="actions">${f.valid?`<button data-filter-export="${esc(f.file)}">Export</button><button data-filter-duplicate="${esc(f.file)}">Duplicate</button>`:""}</td></tr>`).join("");
+ return `<section class="panel" id="filter-files"><div class="section-head"><h2>Loot filter files</h2><div class="actions">${pick}<button id="filter-backup" ${list.length?"":"disabled"}>Back up all</button><button id="filter-folder">Open folder</button><button id="filter-refresh">Refresh</button></div></div><p class="muted">Your Last Epoch loot filters are shared by every character and season. Export a filter to share it, import a filter someone sent you, or restore an EpochPact backup ZIP. Imports and duplicates are added as new filters; existing filters are never changed or deleted.</p>${preview?'<p class="empty">Loot filter files are listed in the desktop app.</p>':filterFiles===null?'<p class="empty">Reading loot filters…</p>':filterFiles.error?`<p class="note">${esc(filterFiles.error)}</p>`:list.length?`<div class="table-wrap"><table class="filter-table"><thead><tr><th>Filter</th><th>Enabled rules</th><th>Modified</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<p class="empty">No loot filters yet. Create one in the game\'s loot filter window first.</p>'}</section>`;
+}
+async function loadFilterFiles(){
+ filterFilesLoading=true;
+ try{const r=await job({type:"launcher",action:"filters",args:{}});filterFiles=r.ok?r:{filters:[],error:r.error||"Loot filters could not be read."};}
+ catch(e){filterFiles={filters:[],error:e.message||"Loot filters could not be read."};}
+ finally{filterFilesLoading=false;}
+ const node=$("#filter-files");if(node)node.outerHTML=filterFilesPanel();
+}
+async function filterAction(action,args={}){
+ const r=await runTask({type:"launcher",action,args},{silent:true});
+ if(r?.ok){notify(r.message);if(r.filters){filterFiles={...(filterFiles||{}),filters:r.filters};const node=$("#filter-files");if(node)node.outerHTML=filterFilesPanel();}}
+ return r;
+}
 let lootEntries=[],lootOwner=null;
 function lootTable(){return window.EpochLootLog?window.EpochLootLog.table(lootEntries):'<p class="empty">No pickups yet.</p>';}
 function lootPanel(){
@@ -950,10 +984,17 @@ content.addEventListener("click",async e=>{
   const data=cache.summons_read;if(!window.EpochSession.current(data,connected)||!data.summons?.length){notify("Refresh live summons before saving a damage baseline.",true);return;}
   summonBaselineOwner=automaticOwner();summonBaseline=Object.fromEntries(data.summons.map(s=>[s.instance,s.measuredDps]));$("#summon-live").innerHTML=summonTable();notify("Damage baseline saved for these active allies. Compare against the same target.");
  }
+ else if(b.dataset.tierReset!==undefined){try{localStorage.removeItem("epochpact.tier-palette.v1");}catch{}const r=await runTask({type:"control",id:"tier_color",operation:"reset"},{silent:true});if(r?.ok){notify("Tier colours reset.");renderPage();}}
  else if(b.id==="report-create"){
   const r=await runTask({type:"launcher",action:"report",args:{description:$("#report-description").value,screenshot:$("#report-screenshot").checked}},{silent:true});
   if(r?.ok){notify(r.message);$("#report-description").value="";}
  }
+ else if(b.id==="filter-refresh"){filterFiles=null;await loadFilterFiles();}
+ else if(b.id==="filter-backup")await filterAction("filter_backup");
+ else if(b.id==="filter-folder")await filterAction("filter_folder");
+ else if(b.id==="filter-import"){let path=null;try{path=await window.pywebview.api.choose_filter_file();}catch{notify("Could not open the file picker.",true);}if(path)await filterAction("filter_import",{path});}
+ else if(b.dataset.filterExport)await filterAction("filter_export",{file:b.dataset.filterExport});
+ else if(b.dataset.filterDuplicate)await filterAction("filter_duplicate",{file:b.dataset.filterDuplicate});
  else if(b.id==="loot-feed-open"){try{await window.pywebview.api.open_loot_feed();}catch{notify("Could not open the loot window.",true);}}
  else if(b.id==="loot-log-refresh"){convenienceNextRead.loot_log=0;await pollConveniences();}
  else if(b.id==="summon-baseline-clear"){summonBaseline={};summonBaselineOwner="";$("#summon-live").innerHTML=summonTable();}
@@ -1038,6 +1079,11 @@ content.addEventListener("input",e=>{
  }
 });
 content.addEventListener("change",e=>{
+ if(e.target.dataset.tierColor){
+  const i=Number(e.target.dataset.tierColor)-1,hex=e.target.value.replace("#","").toUpperCase(),palette=storedTierPalette();palette[i]=hex;
+  try{localStorage.setItem("epochpact.tier-palette.v1",JSON.stringify(palette));}catch{}
+  void runTask({type:"control",id:"tier_color",args:{tier:i+1,color:hex}},{silent:true});return;
+ }
  if(e.target.id==="startup-profile"){
   const value=e.target.value;writeStored("startup-profile",value);
   if(value==="__last__")rememberLastSettings();

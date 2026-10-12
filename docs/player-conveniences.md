@@ -47,6 +47,34 @@ reading the list.
 top of a windowed or borderless game, with an opacity slider and Gold/Materials
 filters. It only reads the list. Exclusive fullscreen draws over every window.
 
+### Loot filter files
+
+The game keeps every loot filter as an XML file in
+`%USERPROFILE%\AppData\LocalLow\Eleventh Hour Games\Last Epoch\Filters`.
+That folder is shared by all characters and seasons, so a filter made for one
+season is already available in the next. The Loot page's **Loot filter files**
+panel lists them with their enabled/total rule counts and offers:
+
+- **Export**: copies the filter to `%LOCALAPPDATA%\EpochPact\filter-exports`
+  and opens that folder, ready to share.
+- **Import filter…**: adds a filter `.xml` someone shared, or every filter in an
+  EpochPact backup `.zip`, as **new** filters. A name that already exists gets a
+  suffix such as "(2)"; the filter's own name inside the file is changed to match
+  so the game lists both.
+- **Duplicate**: a copy named "… copy", to experiment without touching the
+  original.
+- **Back up all**: one ZIP in `%LOCALAPPDATA%\EpochPact\filter-backups`; the
+  newest 20 are kept.
+
+Existing filter files are never edited, replaced or deleted. Imports are checked
+first: only real Last Epoch filters (an `ItemFilter` with a name and rules) up to
+2 MB are accepted, and files with a document type declaration are refused. A ZIP
+is checked completely before anything is written. The game watches its filter
+folder: an imported or duplicated filter appears in the game's own filter list
+within seconds, also while you play (measured). The game itself can also copy the
+active filter to the clipboard and create one from the clipboard; the file panel
+adds backups and file sharing on top of that.
+
 ## World & Exploration
 
 Chest and shrine switches use the normal condition handler within three game
@@ -74,6 +102,40 @@ loaded scene settles (about 0.5, 3 and 10 seconds after it loads), not every
 second; each search can take tens of milliseconds. Components that the game
 tries to re-enable later are clamped by the existing `Behaviour.set_enabled`
 detour. `qolread` reports `graphicsScans` and `maximumGraphicsMicros`.
+
+### Minimap and overlay map
+
+Session settings, applied to the game's own map configuration and reloaded with
+the game's map reload; nothing is written to the game's settings. Closing
+EpochPact or **Reset** returns the game's values.
+
+- **Minimap size** 0.5–2.5× scales the corner minimap with its frame.
+- **Minimap zoom** 0.25–4×: below 1 zooms in, above 1 shows more of the area.
+- **Minimap opacity** 0–1 fades the whole corner minimap: map, frame and icons.
+  0 keeps the game's own look.
+- **Overlay map opacity** 0–1, beyond the game's slider range; 0 keeps your game
+  setting.
+- **Overlay map zoom** 0.25–4× and widens the game's overlay zoom limits to fit.
+
+A larger minimap would cover the quest tracker below it, so the tracker moves
+down with the minimap's bottom edge and returns when the size is reset. The
+values are re-applied on the next frame after a new area's map loads.
+
+### Item tiers
+
+- **Affix tiers on item icons** writes each affix tier as coloured digits in the
+  top-left corner of inventory, stash and equipment icons, highest first (for
+  example `7 6 5 4`). The label is a copy of the icon's own quantity text, so it
+  scales with the game's interface. Display only; items are unchanged.
+- **Tier tags in tooltips** adds a coloured `T1`–`T8` tag in front of each
+  prefix, suffix and sealed affix in item tooltips; the affix text keeps the
+  game's own colour. The tags are removed when switched off. If a tooltip shows a
+  different number of affix lines than the item has, that tooltip is left
+  unchanged instead of guessing (`tierread` counts it as `tooltipMismatches`).
+- **Tier colours**: default T1 white, T2 blue, T3 yellow, T4 orange, T5 purple,
+  T6 green, T7 red, T8 light blue. Each tier can be changed; your colours are
+  remembered on this device and applied whenever a character is ready. A tooltip
+  that is already open shows a new colour the next time it opens.
 
 ## Inventory
 
