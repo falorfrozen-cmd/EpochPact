@@ -184,7 +184,7 @@ function playerResult(payload,result){
   campaign_complete:result.mastery?.needsSelection?"Campaign completed with normal rewards. Use Choose Mastery to finish your character.":"Campaign completed with normal rewards.",waypoints_unlock:"All waypoints unlocked.",
   mastery_choose:"Mastery selection opened in the game. Choose and confirm your mastery there.",
   inventory_stash:result.opened===false?"Stash closed in the game.":"Stash opened in the game.",inventory_vendor:result.opened===false?"Vendor closed in the game.":"Vendor opened in the game.",
-  inventory_stashall:`Moved ${result.moved??0} items to your stash. ${result.remaining??0} items remain in your inventory.`,
+  inventory_stashall:(result.remaining??0)>0?`Moved ${result.moved??0} items to your stash. ${result.remaining} items stayed in your inventory: the stash had no room for them. Free stash space or add a stash tab, then try again.`:`Moved ${result.moved??0} items to your stash. Your inventory is empty; equipped items were not moved.`,
   monolith_unlock:"Normal and Empowered timelines unlocked.",monolith_select:`Timeline selected.${where}`,
   cof_rank:`Circle of Fortune rank set to ${a.value}.`,cof_favor:`Favor set to ${a.value}.`,
   cof_reputation_grant:`Added ${a.value} Reputation.`,cof_join:"Joined Circle of Fortune.",cof_lenses_unlock:"Available lenses unlocked.",
@@ -1015,7 +1015,7 @@ async function init(){
  try{
   const r=await fetch("/api/bootstrap");if(!r.ok)throw new Error("Could not load the catalog.");const boot=await r.json();
   catalog=boot.catalog;token=boot.token;preview=boot.preview;developer=boot.developer===true;transport.setSession(boot);
-  window.EpochLauncher?.init(boot.launcher,{run:runTask,isBusy:()=>busy,changed:async(reset=true)=>{if(reset){invalidateLive();dirty.clear();monoDrafts={};}await refreshConnection();}});
+  window.EpochLauncher?.init(boot.launcher,{run:runTask,isBusy:()=>busy,confirm:confirmAction,changed:async(reset=true)=>{if(reset){invalidateLive();dirty.clear();monoDrafts={};}await refreshConnection();}});
   try{const saved=JSON.parse(localStorage.getItem("epochpact.stat-favorites.v1")||"[]");if(Array.isArray(saved))statFavorites=new Set(saved.filter(x=>typeof x==="string"));}catch{}
   profileKey="epochpact.profiles."+(preview?"preview":"live");
   for(const c of catalog.controls)if(["session","actor"].includes(c.lifetime)&&(["number","toggle"].includes(c.widget)||['craft_hope','craft_despair'].includes(c.id)))values[c.id]=appliedValues[c.id]=c.default;

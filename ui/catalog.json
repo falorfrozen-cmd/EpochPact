@@ -1428,7 +1428,7 @@
       "default": 0,
       "resetCommand": "autopickup 0",
       "lifetime": "session",
-      "description": "Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0.75 saniye.",
+      "description": "Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0,25 saniye.",
       "currentSource": "currentValues.autopickup",
       "requirements": [
         "offline"

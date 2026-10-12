@@ -157,7 +157,7 @@ def controls():
         if id == "speed":
             items[-1]["statBinding"] = dict(sp=9, tags=0, special=0, extra=0, mode="increased", valueTransform="x - 1", readCommand="statraw 9 0 0 0")
     add("autopickup", "loot", "Otomatik pickup", "toggle", "autopickup {value}", "session",
-        "Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0.75 saniye.",
+        "Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0,25 saniye.",
         params=[value(0, 1)], default=0, reset="autopickup 0", response="text", current="currentValues.autopickup", doc="GEMINI.md")
     add("density_read", "general", "Density ölçümü", "read", "densityread", "read_only",
         "Paket/generator/planlanan-gözlenen spawn ve dışlama sayaçları.", response="text", doc="docs/monster-density.md")

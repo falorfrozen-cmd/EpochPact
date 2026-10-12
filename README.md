@@ -5,6 +5,9 @@ with commands sent from a desktop interface. Standalone installation does not re
 MelonLoader; an optional bridge supports existing MelonLoader 0.7.3 installations.
 Offline characters only: every feature refuses in online play.
 
+**Download:** [latest release](https://github.com/falorfrozen-cmd/EpochPact/releases/latest) ·
+**Support:** [Discord](https://discord.gg/q6aexZZSAf)
+
 Working on this repository with an AI agent? Start with `GEMINI.md` (the agent handoff:
 layout, build/test/live workflow, the current state and the traps) and
 `research/HANDOFF.md` (the full handoff report).
@@ -15,7 +18,11 @@ controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest changes: [0.1.2-dev.13 T7 picker and forging](docs/patch-notes-0.1.2-dev.13.md),
+Latest changes: [0.1.2-dev.15 stutter, uninstall and audit fixes](docs/patch-notes-0.1.2-dev.15.md),
+[dev.15 validation](docs/audit-fixes-validation-2026-10-12.md),
+[dev.14 audit](docs/audit-dev14-claude-2026-10-12.md),
+[dev.14 inventory lower row](docs/inventory-lower-row-validation-2026-10-12.md),
+[0.1.2-dev.13 T7 picker and forging](docs/patch-notes-0.1.2-dev.13.md),
 [T7 affix and final package validation](docs/t7-affixes-validation-2026-10-12.md),
 [0.1.2-dev.12 inventory footer fix](docs/patch-notes-0.1.2-dev.12.md),
 [inventory footer and final package validation](docs/inventory-footer-validation-2026-10-12.md),
@@ -39,7 +46,7 @@ scoped evidence for these changed paths.
 
 ## Player installation
 
-Download [the current Windows development package](https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.13),
+Download [the current Windows development package](https://github.com/falorfrozen-cmd/EpochPact/releases/latest),
 extract the complete ZIP and open `EpochPact/EpochPact.exe`. Keep
 `EpochPact.exe.config` and `_internal` beside it; no Python installation is
 needed. Choose `Last Epoch.exe` with **Browse** (the picker starts in Steam's folder,
@@ -49,7 +56,11 @@ the sidebar's **Game setup** entry (also available in Settings). Installation an
 launch are explicit actions. An occupied interface port uses another local port
 with this executable's own backend; an older server is never reused.
 
-For this connection update, extract the **complete new ZIP**, close Last Epoch,
+To remove the mod, close Last Epoch and press **Game setup → Uninstall mod**. Only
+EpochPact's own loader (or MelonLoader bridge) and core are removed; saves, logs and
+recovery backups stay.
+
+When updating, extract the **complete new ZIP**, close Last Epoch,
 and use **Game setup → Reinstall / update mod**. The EXE and installed native
 core must belong to the same package; replacing only the EXE is insufficient.
 Connection checks use protocol 3 and the actual Windows process session rather
@@ -77,7 +88,7 @@ with EpochPact completely removed. This release remains an alpha.
 | `rarity <1-10>` | Each numeric rarity roll below grade 4 has a (mult-1)/mult chance to increase by one. Exalted/T7 tuning has separate controls; rarity enum IDs are cataloged by type. |
 | `speed <1-5>` | Movement speed: writes the game's own Movespeed stat (like an item or a buff), so the character sheet, the animation and the movement all scale together. |
 | `cooldown <1-10>` | Charges and cooldowns count down that many times faster. |
-| `autopickup <0/1>` | Every 0.75 s, asks the game to pick up selected items and enabled gold, potion, tome and bone categories. |
+| `autopickup <0/1>` | Every 0.25 s (paused while an item card is pending or open), asks the game to pick up selected items and enabled gold, potion, tome and bone categories. |
 | `lootmode all\|filter\|quality\|materials` | Smart pickup using the native loot filter, Unique LP threshold or wanted T7 affixes; normal inventory capacity remains. |
 | `lootlp` / `loott7` / `lootaffixes` / `lootfilter` / `lootcategory` | Separate quality, affix and category selections; `lootread` lists actual affix IDs/names. |
 | `craftfp <0–1>` / `crafthope` / `craftdespair` `<0–100\|reset>` | Normal forge FP cost, Basic Hope preservation chance and eligible Despair sealing chance. |

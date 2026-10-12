@@ -213,6 +213,29 @@ class PlayerSetup:
             raise RuntimeError('Installation verification failed. The game has not been started.')
         return {'ok': True, 'launcher': state, 'message': 'Player mod installed. You can launch offline now.'}
 
+    def uninstall(self):
+        """Remove only EpochPact's own loader/bridge and core; logs, backups and saves stay."""
+        state = self.status()
+        if state.get('runningUnknown'):
+            raise RuntimeError(state['problem'])
+        if not state['selected']:
+            raise RuntimeError('Select Last Epoch.exe before removing the mod.')
+        if state['running']:
+            raise RuntimeError('Close Last Epoch before removing the mod.')
+        output = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(output):
+                code = le.cmd_uninstall(argparse.Namespace())
+        except PermissionError as exc:
+            raise RuntimeError('Windows denied access while removing the mod files. Close Last Epoch and any program using its folder, then try again. ' + english_exception(exc)) from exc
+        if code:
+            raise RuntimeError(output.getvalue().strip().removeprefix('refused: '))
+        state = self.status()
+        if state['installed']:
+            raise RuntimeError('The mod files are still present after removal. Check operations.log.')
+        return {'ok': True, 'launcher': state,
+                'message': 'EpochPact was removed from the game. Saves, logs and recovery backups were kept. Install mod adds it again.'}
+
     def launch(self):
         self.require_ready()
         output = io.StringIO()
@@ -295,6 +318,8 @@ class PlayerSetup:
                 return self.elevated_install()
             if action == 'launch':
                 return self.launch()
+            if action == 'uninstall':
+                return self.uninstall()
             raise ValueError('Unknown game setup action.')
 
 

@@ -324,6 +324,31 @@ def _cleanup_install_stage(stage: Path):
     stage.rmdir()
 
 
+INSTALL_BACKUPS_KEPT = 10
+_INSTALL_BACKUP_FILES = {'EpochPact.Core.dll', 'installed-build.json', 'version.dll', 'README.txt',
+                         melon_compat.BRIDGE_NAME}
+
+
+def prune_install_backups(root: Path, *, keep: int = INSTALL_BACKUPS_KEPT) -> None:
+    """Keep the newest owned update backups; leave anything unrecognized alone."""
+    if keep < 1 or not root.is_dir() or _linked(root):
+        return
+    owned = []
+    for entry in root.iterdir():
+        if (not re.fullmatch(r'[0-9a-f]{32}', entry.name) or _linked(entry) or not entry.is_dir()):
+            continue
+        files = list(entry.iterdir())
+        if not files or any(_linked(f) or not f.is_file() or f.name not in _INSTALL_BACKUP_FILES for f in files):
+            continue
+        owned.append((entry.stat().st_mtime_ns, entry, files))
+    owned.sort(key=lambda item: item[0], reverse=True)
+    for _, entry, files in owned[keep:]:
+        for file in files:
+            _make_install_writable(file)
+            file.unlink()
+        entry.rmdir()
+
+
 def cmd_install(args: argparse.Namespace) -> int:
     if refuse_if_running():
         return 2
@@ -456,6 +481,11 @@ def cmd_install(args: argparse.Namespace) -> int:
                 # Cleanup cannot turn a committed, verified installation into
                 # failure or overwrite the error which caused the rollback.
                 logging.getLogger(__name__).warning('Install stage cleanup failed; files retained at %s: %s', stage, cleanup)
+    try:
+        prune_install_backups(mod_dir / 'install-backups')
+    except (OSError, ValueError) as exc:
+        # Retention never turns a verified installation into a failure.
+        logging.getLogger(__name__).warning('Install backup retention skipped: %s', exc)
     print(f"installed: {flavor}, SHA256 {digest}: {target} and {GAME / 'EpochPact' / 'EpochPact.Core.dll'}")
     return 0
 

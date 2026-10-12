@@ -51,6 +51,7 @@ bool RunSteps(std::function<bool()>,unsigned,std::string*){throw std::runtime_er
 namespace ep::hook {
 bool Install(void*,void*,void**,std::string*){throw std::runtime_error("fixture forbids hooks");}
 bool Remove(void*,std::string*){throw std::runtime_error("fixture forbids hooks");}
+bool IsInstalled(void*){return false;}
 }
 int main() {
     using namespace fixture; using namespace ep::progression;

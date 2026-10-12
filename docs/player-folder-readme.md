@@ -52,13 +52,13 @@ Close the game and app before updating. Extract the new complete app folder, the
 
 For manual updates, retain the previous two native DLLs and complete app folder outside the game, then replace them with the matching new versions.
 
-To remove a standalone manual installation, close both programs and remove only the EpochPact-owned **<game>/version.dll** and **<game>/EpochPact/EpochPact.Core.dll**. Compare manifest hashes if ownership is unclear. Never delete a foreign loader, shared mod folder or player saves. Removing the extracted app folder removes the UI. Recovery backups and local preferences may be retained.
+To remove the mod, close Last Epoch and press **Game setup → Uninstall mod**. It removes only EpochPact's loader (or its MelonLoader bridge) and core; another loader, its mods, your saves, logs and recovery backups stay. To remove a manual installation by hand, close both programs and remove only the EpochPact-owned **<game>/version.dll** and **<game>/EpochPact/EpochPact.Core.dll**. Compare manifest hashes if ownership is unclear. Never delete a foreign loader, shared mod folder or player saves. Removing the extracted app folder removes the UI. Recovery backups and local preferences may be retained.
 
 ## Using the controls
 
 Session settings apply automatically after an edit. Campaign rewards, mastery selection, progression changes, material grants and free tree respec require their explicit action buttons. Opening the interface does not grant rewards or apply saved actions.
 
-Inventory shortcuts show **Stash**, **Stash all** and **Vendor** in a horizontal row after Sort, inside the inventory footer. Stash and Vendor toggle their windows. The row follows the actual Transfer/Sort and currency bounds; exceptionally narrow footers hide the shortcuts rather than covering another control. The Inventory page remains available.
+Inventory shortcuts show **Stash**, **Stash all** and **Vendor** in their own centered row below the item grid, above the game's Transfer/Sort and currency footer. The grid is scaled slightly to make room; item cells stay square and every currency digit stays visible. Stash and Vendor toggle their windows. If the inventory bounds are unsupported, the shortcuts are hidden rather than covering another control. The Inventory page remains available.
 
 Settings includes navigation favorites and hidden sections. Character stats and the summon table support hiding unwanted entries/columns. Stash Assistant includes copyable search examples.
 

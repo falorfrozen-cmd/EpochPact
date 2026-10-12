@@ -136,7 +136,7 @@ py -3 tools/le_session.py restore-saves <backup folder>
 | `density <1-5>` | future regular enemy pack sizes × n; explicit exclusions and bounded pre-rarity roll | temporary Spawner.numberToSpawn; generator queue + SpawnOneImmediately/FinishSpawning telemetry |
 | `densityread` | on-demand scene spawners, exclusions, queues and spawned lists | main thread; no per-frame scene scan |
 | `rarity <1-10>` | each rarity roll upgrades one tier with chance (n-1)/n | static `GenerateItems.RollRarity` (0..4) |
-| `autopickup <0/1>` | every 0.75 s picks selected labels and enabled gold/potion/tome/bone categories | `DistantItemPickupHandler.OnUpdateTick` + the game's own pickup calls; GC-rooted snapshots |
+| `autopickup <0/1>` | every 0.25 s (paused while an item card is pending/open) picks selected labels and enabled gold/potion/tome/bone categories | `DistantItemPickupHandler.OnUpdateTick` + the game's own pickup calls; GC-rooted snapshots |
 | `lootread` / `lootmode all\|filter\|quality\|materials` | smart pickup state/runtime affix catalog and selection | native ItemFilter.Match; selection does not enable auto pickup |
 | `lootlp` / `loott7` / `lootaffixes` / `lootfilter` | quality = Unique LP threshold OR wanted T7; optional native filter | LP 0–4; stored tier 6 = T7; up to 64 runtime affix IDs |
 | `lootcategory materials\|gold\|potions\|xp\|favor\|bones 0\|1` / `lootreset` | independent pickup categories / neutral selection defaults | inventory capacity remains authoritative; no item deletion |

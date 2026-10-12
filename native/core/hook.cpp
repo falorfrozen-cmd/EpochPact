@@ -259,9 +259,41 @@ bool BuildTrampoline(uint8_t* target, uint8_t* tramp, size_t* stolenOut, std::st
 // Suspends every other thread of the process. Returns false (with all threads running
 // again) when one of them stands inside [lo, hi). Nothing here allocates once the first
 // thread is suspended: it might hold the heap lock.
+// Enumerates only this process's threads. A Toolhelp snapshot covers every
+// thread on the machine: about 105 ms with ~10,800 system threads here, taken
+// twice per freeze, while the game's threads were held. NtGetNextThread visits
+// this process only (~0.3 ms for 150 threads). Toolhelp remains the fallback.
+using NextThreadFn = LONG(NTAPI*)(HANDLE, HANDLE, ACCESS_MASK, ULONG, ULONG, PHANDLE);
+constexpr LONG kNoMoreEntries = static_cast<LONG>(0x8000001A);
+
+bool ProcessThreadIds(std::vector<DWORD>& ids, DWORD* error) {
+    static const auto next = reinterpret_cast<NextThreadFn>(
+        GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtGetNextThread"));
+    if (!next) return false;
+    const DWORD self = GetCurrentThreadId();
+    HANDLE current = nullptr, following = nullptr;
+    LONG status = 0;
+    while ((status = next(GetCurrentProcess(), current, THREAD_QUERY_LIMITED_INFORMATION, 0, 0, &following)) == 0) {
+        if (current) CloseHandle(current);
+        current = following;
+        const DWORD id = GetThreadId(current);
+        if (!id) { *error = GetLastError(); CloseHandle(current); return false; }
+        if (id != self) ids.push_back(id);
+    }
+    if (current) CloseHandle(current);
+    if (status != kNoMoreEntries) { *error = ERROR_RETRY; return false; }
+    return true;
+}
+
 bool ThreadIds(std::vector<DWORD>& ids, DWORD* error) {
     ids.clear();
     ids.reserve(256);
+    if (ProcessThreadIds(ids, error)) {
+        std::sort(ids.begin(), ids.end());
+        *error = ERROR_SUCCESS;
+        return true;
+    }
+    ids.clear();
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
     if (snap == INVALID_HANDLE_VALUE) { *error = GetLastError(); return false; }
     THREADENTRY32 te{sizeof te};

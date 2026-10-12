@@ -69,12 +69,18 @@ Echo spawns. Those claims are not made by this release.
 
 ## Not connected as working features
 
-Item duplication; set/offhand/Primordial restrictions; skill/passive tree bypass;
-automatic targeting; universal zero mana; infinite buff duration; extra projectile
-rules; perfectly rolled item generation; guaranteed T7; forced Echo generation;
-objective markers; universal waypoints; unlimited Eternity Cache or Woven uses;
-Merchant's Guild and Weaver management. These require their own implementation
-and live verification, and are not enabled merely because their names were listed.
+Item duplication; Primordial limits; general item-requirement bypass (only the
+scoped forge level bypass exists); automatic targeting; universal zero mana;
+infinite buff duration; perfectly rolled item generation; guaranteed T7; forced
+Echo generation; objective markers; random-encounter or FOV controls; unlimited
+Eternity Cache or Woven uses; vendor costs; Merchant's Guild and Weaver
+management. These require their own implementation and live verification, and
+are not enabled merely because their names were listed.
+
+Since this document was written (2026-10-09), set and offhand restrictions,
+skill/passive/Weaver tree connections, point multipliers and extra projectiles
+were implemented as Build controls. See [build-controls.md](build-controls.md)
+and [twelve-feature-audit-2026-10-11.md](twelve-feature-audit-2026-10-11.md).
 
 ## Verification evidence
 

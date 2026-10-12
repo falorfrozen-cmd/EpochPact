@@ -151,7 +151,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 
 - **Auto pickup radius:** Limit automatic collection to 1–60 game units. Zero collects all loaded drops, as in earlier versions. Item tooltips pause collection. Reset: `pickupradius 0`.
 - **Pickup radius status:** Read the current pickup radius.
-- **Otomatik pickup:** Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0.75 saniye. Reset: `autopickup 0`.
+- **Otomatik pickup:** Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0,25 saniye. Reset: `autopickup 0`.
 - **Akıllı toplama durumu / affix kataloğu:** Seçimler ve sayaçlar; runtime affix ID/ad listesi. acceptedRequests envantere giriş garantisi değildir. API: `tools.loot_crafting_backend.loot_read()`.
 - **Toplama modu:** all: tüm eşyalar; filter: mevcut loot filtresi; quality: Unique LP veya seçilen T7; materials: shard/rune/glyph. autopickup ayrıca açılır. API: `tools.loot_crafting_backend.loot_mode(mode)`. Reset: `lootmode all`.
 - **Unique minimum LP:** Yalnız quality modu; LP eşiği ile T7 koşulu OR olarak birleştirilir. Weaver's Will ayrı bir LP koşulu değildir. API: `tools.loot_crafting_backend.minimum_lp(value)`. Reset: `lootlp 2`.

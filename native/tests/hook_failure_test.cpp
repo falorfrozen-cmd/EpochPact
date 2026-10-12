@@ -5,6 +5,8 @@
 #include <atomic>
 #include <cstdio>
 #include <thread>
+#include <vector>
+#include <algorithm>
 
 static int restoreFailures = 0, cacheFailures = 0;
 static bool denyOpen = false, denySuspend = false, denyContext = false, denyEnumeration = false;
@@ -30,6 +32,12 @@ static BOOL WINAPI TestContext(HANDLE thread, LPCONTEXT context) {
     if (denyContext) { SetLastError(ERROR_ACCESS_DENIED); return FALSE; }
     return GetThreadContext(thread, context);
 }
+// The per-process NtGetNextThread path reports each thread's id through
+// GetThreadId; denying it forces the Toolhelp fallback, denied below as well.
+static DWORD WINAPI TestThreadId(HANDLE thread) {
+    if (denyEnumeration) { SetLastError(ERROR_ACCESS_DENIED); return 0; }
+    return GetThreadId(thread);
+}
 static BOOL WINAPI TestFirst(HANDLE snap, LPTHREADENTRY32 entry) {
     if (denyEnumeration) { SetLastError(ERROR_ACCESS_DENIED); return FALSE; }
     return Thread32First(snap, entry);
@@ -40,6 +48,7 @@ static BOOL WINAPI TestFirst(HANDLE snap, LPTHREADENTRY32 entry) {
 #define SuspendThread TestSuspend
 #define GetThreadContext TestContext
 #define Thread32First TestFirst
+#define GetThreadId TestThreadId
 #include "../core/hook.cpp"
 #undef VirtualProtect
 #undef FlushInstructionCache
@@ -47,6 +56,7 @@ static BOOL WINAPI TestFirst(HANDLE snap, LPTHREADENTRY32 entry) {
 #undef SuspendThread
 #undef GetThreadContext
 #undef Thread32First
+#undef GetThreadId
 
 extern "C" int t_plain(int);
 extern "C" int t_tiny(int);
@@ -86,6 +96,18 @@ int main() {
     check(!install() && t_plain(1) == 2, "unsuspendable thread prevents patching"); denySuspend = false;
     denyContext = true;
     check(!install() && t_plain(1) == 2, "unreadable context prevents patching"); denyContext = false;
+    {
+        // The fast per-process enumeration must see exactly the threads the
+        // system-wide Toolhelp snapshot sees for this process.
+        std::vector<DWORD> fast, slow; DWORD error = 0;
+        const bool fastOk = ep::hook::ProcessThreadIds(fast, &error);
+        std::sort(fast.begin(), fast.end());
+        HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0); THREADENTRY32 te{sizeof te};
+        for (BOOL ok = Thread32First(snap, &te); ok; ok = Thread32Next(snap, &te))
+            if (te.th32OwnerProcessID == GetCurrentProcessId() && te.th32ThreadID != GetCurrentThreadId()) slow.push_back(te.th32ThreadID);
+        CloseHandle(snap); std::sort(slow.begin(), slow.end());
+        check(fastOk && !fast.empty() && fast == slow, "per-process thread enumeration matches the Toolhelp snapshot");
+    }
     denyEnumeration = true;
     check(!install() && t_plain(1) == 2, "thread enumeration failure prevents patching"); denyEnumeration = false;
     stop = true; peer.join(); // Would hang if failed inspection left the peer suspended.

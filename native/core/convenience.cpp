@@ -58,6 +58,13 @@ bool discover=true;
 int interactionScene=0;
 uint64_t nextInteraction=0,interactionChecks=0,sceneSearches=0,maximumInteractionMicros=0;
 uint64_t lastWork=0,retryWork=0,maximumDiscoveryMicros=0;
+// Scene searches for graphics effects run after a scene change or a switch,
+// not every second: one search costs tens of milliseconds in play.
+// part: -1 no scene search, 0 post-processing volumes, 1 volumetric fog
+// cameras, 2 reflection probes, kAllGraphicsParts all three (explicit switch).
+constexpr int kAllGraphicsParts=3;
+int graphicsScene=0,graphicsPasses=3,graphicsPart=0;
+uint64_t nextGraphicsScan=0,graphicsScans=0,maximumGraphicsMicros=0;
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
 bool measureFrames=false;
 uint64_t previousFrame=0;
@@ -486,7 +493,7 @@ void RestoreGraphics(){
     saved.clear();
     if(shadowCaptured){void* a[]{&originalShadows};Invoke(M("QualitySettings","set_shadows",1,"UnityEngine","UnityEngine.CoreModule.dll"),nullptr,a);shadowCaptured=false;}
 }
-void Graphics(){
+void Graphics(int part=kAllGraphicsParts){
     // Runtime renderer parameters only. Never write the graphics INI/settings
     // repository. Keep the original value of each instantiated scene profile.
     for(auto it=saved.begin();it!=saved.end();){
@@ -499,7 +506,7 @@ void Graphics(){
     PublishDisabled();
     if(shadows.value && !shadowCaptured){originalShadows=Value<int>(M("QualitySettings","get_shadows",0,"UnityEngine","UnityEngine.CoreModule.dll"));shadowCaptured=true;}
     if(shadowCaptured){int value=shadows.value?0:originalShadows;void* a[]{&value};Invoke(M("QualitySettings","set_shadows",1,"UnityEngine","UnityEngine.CoreModule.dll"),nullptr,a);if(!shadows.value)shadowCaptured=false;}
-    if(!(reflections.value||bloom.value||motionBlur.value||occlusion.value||fog.value))return;
+    if(part<0||!(reflections.value||bloom.value||motionBlur.value||occlusion.value||fog.value))return;
     auto remember=[&](void* value,void* volume,const il2cpp::Field* field,Setting* setting){
         auto exists=std::find_if(saved.begin(),saved.end(),[&](const Saved& s){return s.value->Get()==value&&s.field==field;});
         if(exists==saved.end()){
@@ -509,6 +516,7 @@ void Graphics(){
         }
         bool disabled=false;il2cpp::api().field_set_value(value,field,&disabled);
     };
+    if((part==0||part==kAllGraphicsParts)&&(reflections.value||bloom.value||motionBlur.value||occlusion.value)){++graphicsScans;
     for(void* volume:Find("Unity.Postprocessing.Runtime.dll","UnityEngine.Rendering.PostProcessing","PostProcessVolume")){
         Root profile(Invoke(Method(volume,"get_profile",0),volume));
         auto* field=Field(profile.Get(),"settings");void* list=nullptr;il2cpp::api().field_get_value(profile.Get(),field,&list);
@@ -519,14 +527,19 @@ void Graphics(){
             void* enabled=nullptr;il2cpp::api().field_get_value(effect,Field(effect,"enabled"),&enabled);
             if(enabled)remember(enabled,volume,Field(enabled,"value"),setting);
         }
-    }
-    for(auto spec:std::array<std::tuple<Setting*,const char*,const char*,const char*>,2>{{{&fog,"LE.dll","","HxVolumetricCamera"},{&reflections,"UnityEngine.CoreModule.dll","UnityEngine","ReflectionProbe"}}})if(std::get<0>(spec)->value)for(void* camera:Find(std::get<1>(spec),std::get<2>(spec),std::get<3>(spec))){
+    }}
+    int specPart=0;
+    for(auto spec:std::array<std::tuple<Setting*,const char*,const char*,const char*>,2>{{{&fog,"LE.dll","","HxVolumetricCamera"},{&reflections,"UnityEngine.CoreModule.dll","UnityEngine","ReflectionProbe"}}}){
+    if(++specPart!=part&&part!=kAllGraphicsParts)continue;
+    if(!std::get<0>(spec)->value)continue;
+    ++graphicsScans;
+    for(void* camera:Find(std::get<1>(spec),std::get<2>(spec),std::get<3>(spec))){
         auto exists=std::find_if(saved.begin(),saved.end(),[&](const Saved& s){return !s.field&&s.value->Get()==camera;});
         if(exists==saved.end()){bool before=Value<bool>(M("Behaviour","get_enabled",0,"UnityEngine","UnityEngine.CoreModule.dll"),camera);
             saved.push_back({std::make_unique<Root>(camera),std::make_unique<Root>(camera),nullptr,before,std::get<0>(spec)});}
         PublishDisabled();
         bool enabled=false;void* a[]{&enabled};Invoke(M("Behaviour","set_enabled",1,"UnityEngine","UnityEngine.CoreModule.dll"),camera,a);
-    }
+    }}
 }
 void ClearInteractions(){candidates.clear();pendingHandlers.clear();candidateCursor=0;bootstrapType=0;discover=true;interactionScene=0;}
 void AddCandidate(void* object,void* handler,int kind){
@@ -562,12 +575,14 @@ void ClassifyHandler(void* handler){
         if(component){void* own=Get<void*>(component,F(cls,"conditionHandler"));AddCandidate(component,own,cls[0]=='C'?0:1);return;}
     }
 }
+// A Scene is one handle-sized integer in this supported Unity build. The
+// player object can outlive a zone, so zone changes use the active scene.
+int ActiveScene(){return Value<int>(M("SceneManager","GetActiveScene",0,"UnityEngine.SceneManagement","UnityEngine.CoreModule.dll"));}
 void Interactions(void* actor){
     if(items::IsInspectingItem()||PanelOpen())return;
     const auto start=Micros();
     Root go(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),actor));
-    // A Scene is one handle-sized integer in this supported Unity build.
-    const int scene=Value<int>(M("GameObject","get_scene",0,"UnityEngine","UnityEngine.CoreModule.dll"),go.Get());
+    const int scene=ActiveScene();
     if(scene!=interactionScene){ClearInteractions();interactionScene=scene;portalGrace=GetTickCount64()+10000;}
     if(discover){
         // Bootstrap existing objects once, one type per frame. Awake/initialize
@@ -636,13 +651,30 @@ void Frame(){
         if(!actor)return; // Loading/alt-tab is a pause, not a setting reset.
         if(owner.Get()&&owner.Get()!=actor){RestoreGraphics();ClearInteractions();for(auto* setting:settings)setting->value=0;owner.Reset();active=false;return;}
         if(!owner.Get()){owner.Set(actor);portalGrace=now+10000;}
-        if(now>=lastScan+1000){lastScan=now;Graphics();}
+        const bool effects=reflections.value||bloom.value||motionBlur.value||occlusion.value||fog.value;
+        if(now>=lastScan+1000){lastScan=now;
+            // A new scene brings new post-processing volumes, probes and cameras.
+            // Search for them three times while it settles, then only when a
+            // switch changes. The once-a-second pass restores and clamps
+            // without searching; set_enabled is clamped by its detour.
+            if(effects){
+                const int scene=ActiveScene();
+                if(scene!=graphicsScene){graphicsScene=scene;graphicsPasses=0;graphicsPart=0;nextGraphicsScan=now+500;}
+            }
+            Graphics(-1);
+        }else if(effects&&graphicsPasses<3&&now>=nextGraphicsScan){
+            // One scene search per work tick (about 30 ms each in play), never
+            // all three types in the same frame.
+            const auto started=Micros();Graphics(graphicsPart);
+            maximumGraphicsMicros=std::max(maximumGraphicsMicros,Micros()-started);
+            if(++graphicsPart==kAllGraphicsParts){graphicsPart=0;++graphicsPasses;nextGraphicsScan=now+(graphicsPasses==1?2500:7000);}
+        }
         if(chests.value||shrines.value||portals.value)Interactions(actor);
     },&why)){++faults;retryWork=now+5000;Log("convenience: %s",why.c_str());}
 }
 std::string State(){std::ostringstream out;out<<"{\"ok\":true,\"settings\":{";bool comma=false;for(auto* s:settings){if(comma)out<<',';comma=true;out<<Json(s->key)<<":{\"value\":"<<s->value<<",\"available\":"<<Boolean(mainthread::HookInstalled())<<'}';}
     unsigned visible=0;for(auto& b:shortcuts)if(Value<bool>(Method(b.object->Get(),"get_activeInHierarchy",0),b.object->Get()))++visible;
-    return out.str()+"},\"inventoryButtons\":"+std::to_string(shortcuts.size())+",\"inventoryButtonsVisible\":"+std::to_string(visible)+",\"frameUpdates\":"+std::to_string(frameUpdates)+",\"inventoryChecks\":"+std::to_string(inventoryChecks)+",\"inventorySearches\":"+std::to_string(inventorySearches)+",\"inventoryMicros\":"+std::to_string(inventoryMicros)+",\"maximumInventoryMicros\":"+std::to_string(maximumInventoryMicros)+",\"inventoryStatus\":"+Json(inventoryStatus)+",\"graphicsOverrides\":"+std::to_string(saved.size())+",\"chestsOpened\":"+std::to_string(openedChests)+",\"shrinesUsed\":"+std::to_string(usedShrines)+",\"portalsUsed\":"+std::to_string(usedPortals)+",\"interactionCandidates\":"+std::to_string(candidates.size())+",\"interactionChecks\":"+std::to_string(interactionChecks)+",\"sceneSearches\":"+std::to_string(sceneSearches)+",\"maximumDiscoveryMicros\":"+std::to_string(maximumDiscoveryMicros)+",\"maximumInteractionMicros\":"+std::to_string(maximumInteractionMicros)+",\"faults\":"+std::to_string(faults)+"}";}
+    return out.str()+"},\"inventoryButtons\":"+std::to_string(shortcuts.size())+",\"inventoryButtonsVisible\":"+std::to_string(visible)+",\"frameUpdates\":"+std::to_string(frameUpdates)+",\"inventoryChecks\":"+std::to_string(inventoryChecks)+",\"inventorySearches\":"+std::to_string(inventorySearches)+",\"inventoryMicros\":"+std::to_string(inventoryMicros)+",\"maximumInventoryMicros\":"+std::to_string(maximumInventoryMicros)+",\"inventoryStatus\":"+Json(inventoryStatus)+",\"graphicsOverrides\":"+std::to_string(saved.size())+",\"chestsOpened\":"+std::to_string(openedChests)+",\"shrinesUsed\":"+std::to_string(usedShrines)+",\"portalsUsed\":"+std::to_string(usedPortals)+",\"interactionCandidates\":"+std::to_string(candidates.size())+",\"interactionChecks\":"+std::to_string(interactionChecks)+",\"sceneSearches\":"+std::to_string(sceneSearches)+",\"maximumDiscoveryMicros\":"+std::to_string(maximumDiscoveryMicros)+",\"maximumInteractionMicros\":"+std::to_string(maximumInteractionMicros)+",\"graphicsScans\":"+std::to_string(graphicsScans)+",\"activeScene\":"+std::to_string(ActiveScene())+",\"graphicsScene\":"+std::to_string(graphicsScene)+",\"interactionScene\":"+std::to_string(interactionScene)+",\"maximumGraphicsMicros\":"+std::to_string(maximumGraphicsMicros)+",\"faults\":"+std::to_string(faults)+"}";}
 }
 bool Init(){
     findObjects=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Object","FindObjectsOfType",2);

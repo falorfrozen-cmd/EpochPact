@@ -125,7 +125,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict) or payload.get("type") not in ("connection", "control", "reconcile", "launcher"):
             return jsonify(ok=False, error="Invalid request."), 400
-        if payload['type'] == 'launcher' and (setup is None or payload.get('action') not in ('status', 'select', 'install', 'elevated_install', 'launch') or
+        if payload['type'] == 'launcher' and (setup is None or payload.get('action') not in ('status', 'select', 'install', 'elevated_install', 'launch', 'uninstall') or
                                               not isinstance(payload.get('args', {}), dict)):
             return jsonify(ok=False, error="Invalid game setup action."), 400
         if payload["type"] == "control" and payload.get("id") not in bridge.controls:

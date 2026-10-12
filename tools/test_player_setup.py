@@ -130,6 +130,37 @@ class SetupTests(unittest.TestCase):
         self.assertFalse((self.exe.parent / 'EpochPact/ipc').exists())
         self.assertFalse((self.exe.parent / 'EpochPact/dump').exists())
 
+    def test_uninstall_action_removes_only_owned_files_and_refuses_while_running(self):
+        self.setup.select(str(self.exe)); self.setup.install()
+        saves = self.exe.parent / 'EpochPact/logs'; saves.mkdir(parents=True); (saves / 'core.log').write_text('kept')
+        with patch.object(le, 'game_pids', return_value=[123]):
+            with self.assertRaisesRegex(RuntimeError, 'Close Last Epoch'): self.setup.execute('uninstall', {})
+        self.assertTrue((self.exe.parent / 'version.dll').exists())
+        result = self.setup.execute('uninstall', {})
+        self.assertTrue(result['ok']); self.assertFalse(result['launcher']['installed'])
+        self.assertFalse((self.exe.parent / 'version.dll').exists())
+        self.assertFalse((self.exe.parent / 'EpochPact/EpochPact.Core.dll').exists())
+        self.assertEqual((saves / 'core.log').read_text(), 'kept')
+        self.assertTrue(self.setup.install()['launcher']['installed'])
+
+    def test_update_backups_are_bounded_and_unrecognized_folders_kept(self):
+        self.setup.select(str(self.exe)); self.setup.install()
+        root = self.exe.parent / 'EpochPact/install-backups'
+        foreign = root / 'keep-me'; foreign.mkdir(parents=True); (foreign / 'notes.txt').write_text('mine')
+        for _ in range(le.INSTALL_BACKUPS_KEPT + 3):
+            self.assertTrue(self.setup.install()['launcher']['installed'])
+        owned = [d for d in root.iterdir() if d.name != 'keep-me']
+        self.assertEqual(len(owned), le.INSTALL_BACKUPS_KEPT)
+        self.assertEqual((foreign / 'notes.txt').read_text(), 'mine')
+        for backup in owned:
+            self.assertTrue((backup / 'EpochPact.Core.dll').is_file())
+
+    def test_uninstall_leaves_a_foreign_loader_untouched(self):
+        self.setup.select(str(self.exe))
+        dll = self.exe.parent / 'version.dll'; dll.write_bytes(b'other loader')
+        with self.assertRaisesRegex(RuntimeError, 'not EpochPact'): self.setup.execute('uninstall', {})
+        self.assertEqual(dll.read_bytes(), b'other loader')
+
     def test_failed_staging_keeps_every_installed_file_unchanged(self):
         self.setup.select(str(self.exe)); self.setup.install()
         paths = [self.exe.parent / 'version.dll', self.exe.parent / 'EpochPact/EpochPact.Core.dll',

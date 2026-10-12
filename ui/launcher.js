@@ -1,12 +1,12 @@
 /* Player setup is explicit. Opening this interface never installs or launches. */
 (function(root){
  'use strict';
- let state=null,run,changed,isBusy,elevation=false,pickerBusy=false,pathDraft=null;
+ let state=null,run,changed,isBusy,confirm,elevation=false,pickerBusy=false,pathDraft=null;
  const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function section(){
   if(!state)return '';
   const status=state.updateRequired?'Mod update required':state.melonLoader?(state.installed?'MelonLoader bridge installed':'MelonLoader detected'):state.foreignLoader?'Another mod loader is installed':state.disabled?'Mod disabled':state.installed?'Player mod installed':state.selected?'Ready to install':'Choose your game';
-  return `<section class="panel game-setup"><div class="section-head"><h2>Game setup</h2><span class="badge">${status}</span></div><p class="muted">${state.updateRequired?'The installed mod belongs to another EpochPact package. Close Last Epoch and reinstall using this complete download.':'Select your Last Epoch executable once. Install the mod with the game closed, then launch offline.'}</p><label>Game executable<div class="game-path-row"><input data-game-path aria-label="Last Epoch executable path" value="${escape(state.executable)}" placeholder="Select Last Epoch.exe"><button data-game-choose>Browse…</button><button data-game-save>Save path</button></div></label><p data-game-problem class="muted">${escape(state.problem||'The file picker opens in your Steam folder. You can browse to any other installation.')}</p><div class="actions"><button data-game-install> ${state.installed||state.updateRequired?'Reinstall / update mod':'Install mod'}</button>${elevation?'<button data-game-elevate>Install as administrator</button>':''}<button class="primary" data-game-launch>${state.running?'Game running':'Launch offline'}</button></div><p class="muted">${state.running?'Close the game before installing or changing its location.':'Offline characters only. No gameplay settings are applied on startup.'}</p><p data-setup-feedback class="setup-feedback" role="status"></p></section>`;
+  return `<section class="panel game-setup"><div class="section-head"><h2>Game setup</h2><span class="badge">${status}</span></div><p class="muted">${state.updateRequired?'The installed mod belongs to another EpochPact package. Close Last Epoch and reinstall using this complete download.':'Select your Last Epoch executable once. Install the mod with the game closed, then launch offline.'}</p><label>Game executable<div class="game-path-row"><input data-game-path aria-label="Last Epoch executable path" value="${escape(state.executable)}" placeholder="Select Last Epoch.exe"><button data-game-choose>Browse…</button><button data-game-save>Save path</button></div></label><p data-game-problem class="muted">${escape(state.problem||'The file picker opens in your Steam folder. You can browse to any other installation.')}</p><div class="actions"><button data-game-install> ${state.installed||state.updateRequired?'Reinstall / update mod':'Install mod'}</button>${elevation?'<button data-game-elevate>Install as administrator</button>':''}${state.installed||state.updateRequired?'<button data-game-uninstall>Uninstall mod</button>':''}<button class="primary" data-game-launch>${state.running?'Game running':'Launch offline'}</button></div><p class="muted">${state.running?'Close the game before installing or changing its location.':'Offline characters only. No gameplay settings are applied on startup.'}</p><p data-setup-feedback class="setup-feedback" role="status"></p><p class="muted">Need help? <a href="https://discord.gg/q6aexZZSAf" target="_blank" rel="noopener">EpochPact Discord</a></p></section>`;
  }
  function render(){
   for(const node of document.querySelectorAll('[data-launcher-panel]')){
@@ -19,7 +19,7 @@
  }
  function disable(){
   for(const b of document.querySelectorAll('.game-setup button')){
-   b.disabled=(isBusy?.()||false)||((b.hasAttribute('data-game-install')||b.hasAttribute('data-game-elevate'))&&(!state?.selected||state.running||state.runningUnknown||state.foreignLoader&&!state.melonLoader))||
+   b.disabled=(isBusy?.()||false)||((b.hasAttribute('data-game-install')||b.hasAttribute('data-game-elevate')||b.hasAttribute('data-game-uninstall'))&&(!state?.selected||state.running||state.runningUnknown||state.foreignLoader&&!state.melonLoader))||
     (b.hasAttribute('data-game-launch')&&(!state?.installed||state.running||state.disabled));
   }
  }
@@ -35,7 +35,7 @@
   if(name==='select'){pathDraft=null;for(const input of document.querySelectorAll('[data-game-path]'))input.value=input.defaultValue=state.executable;}
   elevation=false;render();feedback(result.message||'Game setup refreshed.');
   if(name==='select')await changed();
-  else if(name==='install'||name==='launch'||name==='elevated_install')await changed(false);
+  else if(name==='install'||name==='launch'||name==='elevated_install'||name==='uninstall')await changed(false);
  }
  async function browse(){
   if(isBusy())return;
@@ -54,11 +54,15 @@
   else if(b.hasAttribute('data-game-install'))await action('install');
   else if(b.hasAttribute('data-game-elevate'))await action('elevated_install');
   else if(b.hasAttribute('data-game-launch'))await action('launch');
+  else if(b.hasAttribute('data-game-uninstall')){
+   const confirmed=await (confirm?.('Uninstall EpochPact?','This removes EpochPact’s loader and core from the game folder. Another loader and its mods, your saves, logs and recovery backups are kept.')??Promise.resolve(false));
+   if(confirmed)await action('uninstall');
+  }
   else if(b.hasAttribute('data-setup-done'))document.querySelector('#setup-dialog').close();
  });
  document.addEventListener('input',event=>{if(event.target.matches?.('[data-game-path]'))pathDraft=event.target.value;});
  root.EpochLauncher={
-  init(initial,options){state=initial;({run,changed,isBusy}=options);render();
+  init(initial,options){state=initial;({run,changed,isBusy,confirm}=options);render();
    if(state&&!state.selected)document.querySelector('#setup-dialog').showModal();
   },
   update(next){if(next&&JSON.stringify(next)!==JSON.stringify(state)){state=next;render();}},

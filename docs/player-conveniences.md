@@ -37,14 +37,20 @@ blur, ambient occlusion and volumetric fog have session switches. EpochPact keep
 each original renderer/profile value and restores it when its switch is disabled.
 Missing scene effects are skipped; disabling an effect cannot improve performance
 if that effect was already absent or disabled. Saved graphics preferences are kept.
+Scene effects are searched when a switch changes and three times while a newly
+loaded scene settles (about 0.5, 3 and 10 seconds after it loads), not every
+second; each search can take tens of milliseconds. Components that the game
+tries to re-enable later are clamped by the existing `Behaviour.set_enabled`
+detour. `qolread` reports `graphicsScans` and `maximumGraphicsMicros`.
 
 ## Inventory
 
 The game inventory gains **Stash**, **Stash all** and **Vendor** buttons. The same
 actions are available on EpochPact's Inventory page. Stash and Vendor open the
 normal game panels outside town, and pressing them again closes the respective
-window. Shortcuts sit in a separate vertical strip beside the inventory, avoid
-the resource footer and hide if there is no safe space. Both legacy UI.Text and
+window. Shortcuts sit in their own centered row below the item grid, above the
+native Transfer/Sort and currency footer; the grid is scaled uniformly to make
+room and the shortcuts hide if the bounds are unsupported. Both legacy UI.Text and
 TMP labels are set; localization is disabled only inside these cloned buttons.
 EpochPact's buttons do not inherit the original
 button's respec action or run it alongside the shortcut.
@@ -52,12 +58,12 @@ button's respec action or run it alongside the shortcut.
 Stash all creates an operation backup, then uses the game's quick-move routine
 in batches of four. It targets the current stash tab. Equipment is left equipped;
 items that do not fit stay in inventory. The final result reports moved and
-remaining item counts. Actions are serialized with the normal IPC worker and
+remaining item counts and tells the player when the stash had no room. Actions are serialized with the normal IPC worker and
 reject a changed loaded-character identity.
 
 ## Live summons
 
-The Summons page refreshes once per second while visible and connected. It reads
+The Summons page refreshes every two seconds while visible and connected. It reads
 living allies owned by the player and their descendants, including companions,
 totems and temporary minions. Columns show current/max health, armour, seven
 uncapped resistances and global increased damage. **Increased damage is not DPS**

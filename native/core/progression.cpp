@@ -510,6 +510,23 @@ bool Init() {
         (void)chapters.at("Minilith");
     }, &why);
     Log("progression: %s%s", ready ? "read metadata ready" : "unavailable: ", ready ? "" : why.c_str());
+    // Installing a hook briefly holds every game thread (about 250 ms each in
+    // play). Install both batching detours while the game is still starting;
+    // they pass every call through unless our own bulk action set the
+    // thread-local scope. A failure here keeps the per-action installation.
+    if (ready) {
+        std::string hooks;
+        if (!m_refreshDisplay || !m_recordAnalytics) hooks = " batching methods unavailable";
+        else {
+            if (!hook::IsInstalled(m_refreshDisplay.code) && !hook::Install(m_refreshDisplay.code,
+                    reinterpret_cast<void*>(&DisplayDetour), reinterpret_cast<void**>(&originalDisplay), &why))
+                hooks += " StatefulQuestList.refreshDisplay: " + why;
+            if (!hook::IsInstalled(m_recordAnalytics.code) && !hook::Install(m_recordAnalytics.code,
+                    reinterpret_cast<void*>(&AnalyticsDetour), reinterpret_cast<void**>(&originalAnalytics), &why))
+                hooks += " ClientSessionAnalytics.RecordEvent: " + why;
+        }
+        Log("progression: batching hooks %s%s", hooks.empty() ? "installed at startup" : "deferred:", hooks.c_str());
+    }
     return ready;
 }
 std::string Read() {
@@ -612,15 +629,16 @@ std::string Perform(const std::string& expectedId, bool campaign) {
         try { backup = WriteSnapshot(snapshot); }
         catch (const std::exception& e) { return "{\"ok\":false,\"error\":" + Json(e.what()) + "}"; }
     }
-    if (pending && (!m_refreshDisplay || !hook::Install(m_refreshDisplay.code,
-            reinterpret_cast<void*>(&DisplayDetour), reinterpret_cast<void**>(&originalDisplay), &why)))
+    // Normally installed at startup; install here only if that failed. Both
+    // detours stay installed afterwards: removing them would hold every game
+    // thread again, and outside our scope they pass every call through.
+    if (pending && (!m_refreshDisplay || (!hook::IsInstalled(m_refreshDisplay.code) && !hook::Install(m_refreshDisplay.code,
+            reinterpret_cast<void*>(&DisplayDetour), reinterpret_cast<void**>(&originalDisplay), &why))))
         return "{\"ok\":false,\"error\":" + Json("quest display batching unavailable: " + why) + "}";
     const bool batch = pending || (campaign && before.level < 55);
-    if (batch && (!m_recordAnalytics || !hook::Install(m_recordAnalytics.code,
-            reinterpret_cast<void*>(&AnalyticsDetour), reinterpret_cast<void**>(&originalAnalytics), &why))) {
-        if (pending) hook::Remove(m_refreshDisplay.code, nullptr);
+    if (batch && (!m_recordAnalytics || (!hook::IsInstalled(m_recordAnalytics.code) && !hook::Install(m_recordAnalytics.code,
+            reinterpret_cast<void*>(&AnalyticsDetour), reinterpret_cast<void**>(&originalAnalytics), &why))))
         return "{\"ok\":false,\"error\":" + Json("offline progression analytics scope unavailable: " + why) + "}";
-    }
     unsigned displayCalls = 0, analyticsCalls = 0;
     size_t questIndex = 0, pointIndex = 0;
     int completed = 0, added = 0, phase = 0, remaining = pending;
@@ -711,10 +729,6 @@ std::string Perform(const std::string& expectedId, bool campaign) {
                 } catch (const std::exception& e) { error += "; finalization: "; error += e.what(); }
             }
         }, 5000, &cleanupWhy);
-        if (pending && !hook::Remove(m_refreshDisplay.code, &cleanupWhy)) {
-            if (error.empty()) error = "quest display hook removal failed: " + cleanupWhy;
-        }
-        if (!hook::Remove(m_recordAnalytics.code, &cleanupWhy) && error.empty()) error = "analytics scope removal failed: " + cleanupWhy;
     }
     Log("progression: %s completed=%d added=%d steps=%u elapsed=%llu ms error=%s",
         campaign ? "questscomplete" : "waypointsunlock", completed, added, steps, GetTickCount64() - started, error.c_str());

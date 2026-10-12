@@ -81,14 +81,15 @@ class Probe {
                                        '/out:' + str(host), str(source_file)],
                                       capture_output=True, text=True, timeout=20)
             self.assertEqual(compiled.returncode, 0, compiled.stdout + compiled.stderr)
-            blocked = subprocess.run([str(host), str(dll)],
-                                     capture_output=True, text=True, timeout=20)
+            # .NET writes localized exception text in the console code page
+            # (Turkish Windows included); never let decoding hide the result.
+            probe = dict(capture_output=True, encoding='oem', errors='replace', timeout=20)
+            blocked = subprocess.run([str(host), str(dll)], **probe)
             self.assertNotEqual(blocked.returncode, 0)
             self.assertIn('HRESULT 0x80131515', blocked.stderr)
             config = Path(str(host) + '.config')
             config.write_bytes(validate(ROOT / NAME))
-            loaded = subprocess.run([str(host), str(dll)],
-                                    capture_output=True, text=True, timeout=20)
+            loaded = subprocess.run([str(host), str(dll)], **probe)
             self.assertEqual(loaded.returncode, 0, loaded.stderr)
             self.assertIn('RESOLVED', loaded.stdout)
             self.assertEqual(hashlib.sha256(dll.read_bytes()).digest(), hashlib.sha256(data).digest())

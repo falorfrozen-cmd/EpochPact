@@ -99,3 +99,6 @@ dialog.stat-editor{max-width:740px;padding:0;scrollbar-color:var(--gold) var(--p
 /* Keep chosen affixes visible while filtering the available list. */
 .affix-card,.affix-picker{grid-column:1/-1;min-width:0}.affix-tools,.affix-lists{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}.affix-tools{grid-template-columns:minmax(0,1fr) 190px;margin-bottom:16px}.affix-lists>div{min-width:0}.affix-lists select{width:100%;height:260px;margin:8px 0 12px}.affix-lists option{padding:5px 8px}.affix-lists label>span{float:right;color:var(--accent)}.affix-picker .note{margin-top:16px}
 @media(max-width:650px){.affix-tools,.affix-lists{grid-template-columns:1fr}.affix-lists select{height:220px}}
+
+.sidebar-caption .support-link{display:block;margin-top:.45rem;color:var(--gold, #d8b45a);font-size:.78rem;letter-spacing:.04em;text-decoration:none}
+.sidebar-caption .support-link:hover,.sidebar-caption .support-link:focus-visible{text-decoration:underline}
