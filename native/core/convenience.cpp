@@ -47,9 +47,9 @@ const char* inventoryStatus="waiting-for-frame";
 game::Handle menuTransform;
 game::Handle footerTransform,currencyTransform,gridTransform;
 Vec2 currencyOriginalSize{},currencyOriginalPosition{};
-bool currencyResized=false;
-Vec2 footerOriginalPosition{};
-bool footerSplit=false;
+Vec3 currencyOriginalScale{},gridOriginalScale{};
+Vec2 gridOriginalPosition{};
+bool currencyResized=false,currencyScaled=false,gridAdjusted=false;
 struct Candidate{std::unique_ptr<Root> object;std::unique_ptr<Root> handler;int kind;uint64_t retryAfter=0;};
 std::vector<Candidate> candidates;
 std::vector<std::unique_ptr<Root>> pendingHandlers;
@@ -64,6 +64,8 @@ uint64_t previousFrame=0;
 std::vector<uint64_t> frameGaps;
 Vec3 testOriginalMenuScale{};
 bool testMenuScaleSaved=false;
+bool testCurrencySaved=false;
+int testOriginalGold=0,testOriginalBones=0;
 #endif
 void(*originalHandlerAwake)(void*,MethodInfo)=nullptr;
 void(*originalPortalInitialize)(void*,MethodInfo)=nullptr;
@@ -195,15 +197,18 @@ const il2cpp::Method* Signature(const char* cls,const char* name,std::initialize
     }throw std::runtime_error(std::string("Missing overload: ")+cls+"."+name);
 }
 void ClearShortcuts(){
-    if(footerSplit&&footerTransform.Get()&&game::IsAlive(footerTransform.Get())){
-        void* args[]{&footerOriginalPosition};Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),footerTransform.Get(),args);
+    if(gridAdjusted&&gridTransform.Get()&&game::IsAlive(gridTransform.Get())){
+        void* pos[]{&gridOriginalPosition},*scale[]{&gridOriginalScale};
+        Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),gridTransform.Get(),pos);
+        Invoke(M("Transform","set_localScale",1,"UnityEngine","UnityEngine.CoreModule.dll"),gridTransform.Get(),scale);
     }
-    if(currencyResized&&currencyTransform.Get()&&game::IsAlive(currencyTransform.Get())){
-        void* size[]{&currencyOriginalSize},*position[]{&currencyOriginalPosition};
+    if((currencyResized||currencyScaled)&&currencyTransform.Get()&&game::IsAlive(currencyTransform.Get())){
+        void* size[]{&currencyOriginalSize},*position[]{&currencyOriginalPosition},*scale[]{&currencyOriginalScale};
         Invoke(M("RectTransform","set_sizeDelta",1,"UnityEngine","UnityEngine.CoreModule.dll"),currencyTransform.Get(),size);
         Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),currencyTransform.Get(),position);
+        Invoke(M("Transform","set_localScale",1,"UnityEngine","UnityEngine.CoreModule.dll"),currencyTransform.Get(),scale);
     }
-    currencyResized=false;footerSplit=false;
+    currencyResized=false;currencyScaled=false;gridAdjusted=false;
     for(auto& b:shortcuts)if(game::IsAlive(b.object->Get())){void* a[]{b.object->Get()};Invoke(M("Object","Destroy",1,"UnityEngine","UnityEngine.CoreModule.dll"),nullptr,a);}
     shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();gridTransform.Reset();
 }
@@ -277,7 +282,8 @@ void FitCurrencies(){
     if(std::abs(size.x-desired)<.1f)return;
     const auto pivot=Value<Vec2>(M("RectTransform","get_pivot",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency);
     Vec2 nextSize{desired,size.y},position=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency);
-    position.x-=(desired-size.x)*(1-pivot.x);
+    const auto scale=Value<Vec3>(M("Transform","get_localScale",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency);
+    position.x-=(desired-size.x)*(1-pivot.x)*scale.x;
     void* sa[]{&nextSize},*pa[]{&position};currencyResized=true;
     Invoke(M("RectTransform","set_sizeDelta",1,"UnityEngine","UnityEngine.CoreModule.dll"),currency,sa);
     Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),currency,pa);
@@ -292,20 +298,24 @@ void CenterY(void* transform,void* menu,float center){
     auto pos=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),transform);pos.y+=change/scale;
     void* args[]{&pos};Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform,args);
 }
-void ReflowFooter(void* menu,rules::Rect screen){
-    void* footer=footerTransform.Get(),*currency=currencyTransform.Get(),*grid=gridTransform.Get();if(!grid)return;
-    const auto f=RectIn(footer,menu),c=CurrencyBounds(menu),left=RectIn(Get<void*>(inventoryPanel.Get(),F("InventoryPanelUI","leftButtonsContainer")),menu);
-    if(c.x-(left.x+left.w)-12>=236){
-        if(footerSplit){
-            void* args[]{&footerOriginalPosition};Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),footer,args);
-            auto pos=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency);pos.y=currencyOriginalPosition.y;
-            void* ca[]{&pos};Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),currency,ca);footerSplit=false;
-        }return;
-    }
-    const auto rows=rules::SplitFooter(RectIn(menu,menu),screen,RectIn(grid,menu),f,left,c);
-    if(!rows.visible)return;
-    if(!footerSplit){footerOriginalPosition=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),footer);footerSplit=true;currencyResized=true;}
-    CenterY(footer,menu,rows.controlsCenter);CenterY(currency,menu,rows.currencyCenter);
+void FitCurrencyRow(void* menu){
+    void* currency=currencyTransform.Get();
+    const auto scale=Value<Vec3>(M("Transform","get_localScale",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency);
+    if(!std::isfinite(scale.x)||scale.x<=0||!std::isfinite(scale.y)||scale.y<=0)throw std::runtime_error("Invalid currency scale.");
+    const auto before=RectIn(currency,menu),footer=RectIn(footerTransform.Get(),menu);
+    const auto left=RectIn(Get<void*>(inventoryPanel.Get(),F("InventoryPanelUI","leftButtonsContainer")),menu);
+    const float factor=rules::CurrencyScale(footer,left,before.w*currencyOriginalScale.x/scale.x);
+    Vec3 next{currencyOriginalScale.x*factor,currencyOriginalScale.y*factor,currencyOriginalScale.z};
+    if(std::abs(scale.x-next.x)<.001f&&std::abs(scale.y-next.y)<.001f)return;
+    void* a[]{&next};Invoke(M("Transform","set_localScale",1,"UnityEngine","UnityEngine.CoreModule.dll"),currency,a);currencyScaled=true;
+    const auto after=RectIn(currency,menu);
+    Root parent(Invoke(M("Transform","get_parent",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency));
+    const auto local=Value<rules::Rect>(M("RectTransform","get_rect",0,"UnityEngine","UnityEngine.CoreModule.dll"),parent.Get());
+    const float parentScale=RectIn(parent.Get(),menu).w/local.w;
+    auto pos=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency);
+    pos.x+=(before.x+before.w-after.x-after.w)/parentScale;
+    void* pa[]{&pos};Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),currency,pa);
+    CenterY(currency,menu,footer.y+footer.h/2);
 }
 void PlaceShortcuts(){
     void* menu=menuTransform.Get();if(!menu||shortcuts.empty())return;
@@ -320,8 +330,22 @@ void PlaceShortcuts(){
         if(Value<bool>(Method(footerObject.Get(),"get_activeInHierarchy",0),footerObject.Get())){
             // Currency containers deliberately leave empty space. Measure each
             // visible native currency, including counters enabled by factions.
-            FitCurrencies();ReflowFooter(menu,screen);const auto occupied=CurrencyBounds(menu);
-            if(rules::Valid(occupied))placement=rules::PlaceToolbar(bounds,screen,RectIn(footer,menu),RectIn(Get<void*>(inventoryPanel.Get(),F("InventoryPanelUI","leftButtonsContainer")),menu),occupied);
+            FitCurrencies();FitCurrencyRow(menu);const auto occupied=CurrencyBounds(menu);
+            void* grid=gridTransform.Get();
+            if(grid&&rules::Valid(occupied)){
+                auto base=RectIn(grid,menu);
+                const auto scale=Value<Vec3>(M("Transform","get_localScale",0,"UnityEngine","UnityEngine.CoreModule.dll"),grid);
+                const float originalWidth=base.w*gridOriginalScale.x/scale.x,originalHeight=base.h*gridOriginalScale.y/scale.y;
+                base={base.x+(base.w-originalWidth)/2,base.y+base.h-originalHeight,originalWidth,originalHeight};
+                placement=rules::PlaceToolbar(bounds,screen,base,RectIn(footer,menu),RectIn(Get<void*>(inventoryPanel.Get(),F("InventoryPanelUI","leftButtonsContainer")),menu),occupied);
+                if(placement.visible){
+                    const float factor=placement.grid.w/base.w;Vec3 next{gridOriginalScale.x*factor,gridOriginalScale.y*factor,gridOriginalScale.z};
+                    if(std::abs(scale.x-next.x)>.001f||std::abs(scale.y-next.y)>.001f){
+                        void* a[]{&next};Invoke(M("Transform","set_localScale",1,"UnityEngine","UnityEngine.CoreModule.dll"),grid,a);gridAdjusted=true;
+                    }
+                    CenterY(grid,menu,placement.grid.y+placement.grid.h/2);
+                }
+            }
         }
     }
     for(size_t i=0;i<shortcuts.size();++i){auto& b=shortcuts[i];bool show=placement.visible;void* a[]{&show};
@@ -429,15 +453,15 @@ void InventoryButtons(){
             void* targs[]{type.Get(),&inactive};Root texts(Invoke(Signature("GameObject","GetComponentsInChildren",{"System.Type","System.Boolean"}),object.Get(),targs));
             for(uintptr_t i=0;i<Get<uintptr_t>(texts.Get(),0x18);++i){void* label=Get<void*>(texts.Get(),0x20+8*i);shortcuts.back().labels.push_back(std::make_unique<Root>(label));
                 bool autosize=false;void* autoArgs[]{&autosize};Invoke(Method(label,tmp?"set_enableAutoSizing":"set_resizeTextForBestFit",1),label,autoArgs);
-                if(tmp){float fontSize=14;void* a[]{&fontSize};Invoke(Method(label,"set_fontSize",1),label,a);}else{int fontSize=14;void* a[]{&fontSize};Invoke(Method(label,"set_fontSize",1),label,a);}
+                if(tmp){float fontSize=15;void* a[]{&fontSize};Invoke(Method(label,"set_fontSize",1),label,a);}else{int fontSize=15;void* a[]{&fontSize};Invoke(Method(label,"set_fontSize",1),label,a);}
                 void* args[]{text.Get()};Invoke(Method(label,"set_text",1),label,args);}
         }
         if(shortcuts.back().labels.empty())throw std::runtime_error("Inventory shortcut has no supported text label.");
         phase("labels");
         Root transform(Invoke(M("GameObject","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),object.Get()));
         // Parent to the inventory so closing/tabs inherit its visibility. The
-        // measured footer gap determines the final horizontal row.
-        Vec2 size{80,26.4f},pos{0,0},zero{0,0};Vec3 scale{1,1,1};
+        // dedicated row below the item grid determines its position.
+        Vec2 size{100,32},pos{0,0},zero{0,0};Vec3 scale{1,1,1};
         void* za[]{&zero};for(const char* name:{"set_anchorMin","set_anchorMax","set_pivot"})Invoke(M("RectTransform",name,1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),za);
         void* sa[]{&size},*pa[]{&pos},*sca[]{&scale};Invoke(M("RectTransform","set_sizeDelta",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),sa);
         Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),pa);Invoke(M("Transform","set_localScale",1,"UnityEngine","UnityEngine.CoreModule.dll"),transform.Get(),sca);
@@ -447,6 +471,11 @@ void InventoryButtons(){
     inventoryPanel.Set(panel);menuTransform.Set(parent);footerTransform.Set(footer.Get());currencyTransform.Set(currency.Get());gridTransform.Set(grid.Get());
     currencyOriginalSize=Value<Vec2>(M("RectTransform","get_sizeDelta",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency.Get());
     currencyOriginalPosition=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency.Get());
+    currencyOriginalScale=Value<Vec3>(M("Transform","get_localScale",0,"UnityEngine","UnityEngine.CoreModule.dll"),currency.Get());
+    if(grid.Get()){
+        gridOriginalScale=Value<Vec3>(M("Transform","get_localScale",0,"UnityEngine","UnityEngine.CoreModule.dll"),grid.Get());
+        gridOriginalPosition=Value<Vec2>(M("RectTransform","get_anchoredPosition",0,"UnityEngine","UnityEngine.CoreModule.dll"),grid.Get());
+    }
     shortcutEnabled=false;inventoryStatus="created";PlaceShortcuts();
     phase("place");Log("inventory shortcuts created:%s",profile.c_str());
 }
@@ -756,11 +785,12 @@ std::string Inventory(const std::string& id,const std::string& action){
 std::string Test(const std::string& id,const std::string& action){return Run([=]() -> std::string {
     const auto c=Current(id);if(c.name!="EpFeedbackTest")throw std::runtime_error("Convenience checks require the isolated EpFeedbackTest character.");
     void* ui=Ui();
-    if(action=="currency-max"||action=="currency-read"){
+    if(action=="currency-max"||action=="currency-normal"||action=="currency-read"){
         void* gold=Get<void*>(c.actor,F("Actor","goldTracker"));
         void* bones=Get<void*>(c.actor,F("Actor","ancientBonesTracker"));
         if(!gold||!bones)throw std::runtime_error("Currency trackers unavailable.");
         if(action=="currency-max"){
+            if(!testCurrencySaved){testOriginalGold=Get<int>(gold,F("GoldTracker","value"));testOriginalBones=Get<int>(bones,F("AncientBonesTracker","value"));testCurrencySaved=true;}
             // Stress the real Int32 currency trackers through their native
             // absolute-load APIs, only in the disposable named test character.
             int value=std::numeric_limits<int>::max();void* args[]{&value};
@@ -768,6 +798,11 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
             Invoke(Method(bones,"loadAncientBones",1),bones,args);
             if(Get<int>(gold,F("GoldTracker","value"))!=value||Get<int>(bones,F("AncientBonesTracker","value"))!=value)
                 throw std::runtime_error("Native currency maximum readback failed.");
+        }
+        if(action=="currency-normal"){
+            if(!testCurrencySaved)throw std::runtime_error("No test balance snapshot.");
+            void* ga[]{&testOriginalGold},*ba[]{&testOriginalBones};
+            Invoke(Method(gold,"loadGold",1),gold,ga);Invoke(Method(bones,"loadAncientBones",1),bones,ba);
         }
         return "{\"ok\":true,\"gold\":"+std::to_string(Get<int>(gold,F("GoldTracker","value")))+",\"ancientBones\":"+std::to_string(Get<int>(bones,F("AncientBonesTracker","value")))+"}";
     }
@@ -825,6 +860,10 @@ std::string Test(const std::string& id,const std::string& action){return Run([=]
         auto capture=game::FindMethod("UnityEngine.ScreenCaptureModule.dll","UnityEngine","ScreenCapture","CaptureScreenshot",2);
         if(!capture)throw std::runtime_error("Native screenshot method unavailable.");
         auto text=PluginDir()+L"feedback-inventory.png";
+        // A background render may never run. Do not let an old image masquerade
+        // as the result of a new capture request in the live test harness.
+        if(GetFileAttributesW(text.c_str())!=INVALID_FILE_ATTRIBUTES&&!DeleteFileW(text.c_str()))
+            throw std::runtime_error("Could not remove the previous test screenshot.");
         int bytes=WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,text.c_str(),static_cast<int>(text.size()),nullptr,0,nullptr,nullptr);
         std::string encoded(bytes,'\0');WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,text.c_str(),static_cast<int>(text.size()),encoded.data(),bytes,nullptr,nullptr);
         Root path(il2cpp::api().string_new(encoded.c_str()));

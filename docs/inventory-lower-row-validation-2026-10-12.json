@@ -1,0 +1,120 @@
+{
+  "version": "0.1.2-dev.14",
+  "packageRevision": 2,
+  "layout": "Dedicated centered row below item grid, above native footer; owner approved",
+  "mergedPerformanceCommit": "6150c16",
+  "performanceBranchTip": "2c8aa9d",
+  "automated": {
+    "python": {
+      "passed": 237
+    },
+    "javascript": {
+      "passed": 126
+    },
+    "nativePrograms": {
+      "passed": 17,
+      "names": [
+        "build_rules_test.exe",
+        "cof_test.exe",
+        "convenience_rules_test.exe",
+        "density_test.exe",
+        "game_read_test.exe",
+        "hook_failure_test.exe",
+        "identity_test.exe",
+        "ipc_protocol_test.exe",
+        "items_test.exe",
+        "lifecycle_test.exe",
+        "loot_crafting_test.exe",
+        "mainthread_test.exe",
+        "monolith_test.exe",
+        "review_test.exe",
+        "stat_key_test.exe",
+        "xp_test.exe",
+        "hook_test.exe"
+      ]
+    },
+    "placementCases": 120,
+    "compiledPackageChecks": 21,
+    "simulatedConnectionChecks": 4
+  },
+  "actualGame": {
+    "build": "Steam 1.5.2.1",
+    "offline": true,
+    "isolatedCharacter": "EpFeedbackTest",
+    "balances": {
+      "gold": 2147483647,
+      "ancientBones": 2147483647,
+      "favor": 999999
+    },
+    "nativeScalePercent": [
+      75,
+      100,
+      125,
+      150
+    ],
+    "allButtonsVisible": true,
+    "currencyControlGridOverlap": false,
+    "faults": 0,
+    "nativeStashVendorToggleCallbacks": "passed",
+    "stashAll": "empty inventory only",
+    "hideReopenAndSkillsBesideInventory": "passed",
+    "closedInventory": {
+      "seconds": 5,
+      "sceneSearchesBefore": 0,
+      "sceneSearchesAfter": 0,
+      "framesBefore": 10171,
+      "framesAfter": 10702
+    },
+    "testCoreGameExitCode": 0,
+    "playerCoreGameExitCode": 0
+  },
+  "compiledDesktop": {
+    "connected": true,
+    "phase": "ready",
+    "installedCoreMatched": true,
+    "externalPythonOnPath": false,
+    "stashVendorToggleAPI": "passed",
+    "xpApplied": 2,
+    "xpAfterClose": 1,
+    "appExitCode": 0,
+    "gameRemainedRunning": true
+  },
+  "saveRestoration": {
+    "restoredFiles": 54,
+    "archivedTestFiles": 3,
+    "originalBytesVerified": true
+  },
+  "installedFinalRuntime": {
+    "core": "807c096b43dc6c2aee3d5244efb9a61a88f20ff006891a35530e45f84ebe2bda",
+    "loader": "d7ca8d9cf96c3a0d17ecb7c4b297aa5d5579870be35ff3950e5b0928274352cf"
+  },
+  "screenshots": {
+    "max-currencies-100.png": "8d54f4c322bb5763294ee8f923550a80cbd66408c0aca5683e0336abe18a6ccf",
+    "max-currencies-150.png": "0a0c60af49fd6f4f34c3b6966b9b0d72c58bf091547a55794b9a6acdc7cdfd48"
+  },
+  "artifacts": {
+    "zip": {
+      "name": "EpochPact-0.1.2-dev.14-package.2.zip",
+      "bytes": 31227522,
+      "sha256": "ad2b6316180c6808c4781c00dc765c6105277b181da099d5580ce8360c348ec0",
+      "entries": 963,
+      "runtimeFiles": 886
+    },
+    "exeSHA256": "08f8246ef11983bd9c3f4b42c9094f995c8e2b98382ba1299404a741b12693a9",
+    "coreSHA256": "807c096b43dc6c2aee3d5244efb9a61a88f20ff006891a35530e45f84ebe2bda",
+    "loaderSHA256": "d7ca8d9cf96c3a0d17ecb7c4b297aa5d5579870be35ff3950e5b0928274352cf",
+    "manualAppDLLsMatch": true,
+    "adjacentCLRConfig": true
+  },
+  "limits": [
+    "Non-empty Stash all not re-tested in this placement pass",
+    "UI scales tested with initialized native methods, not manual settings clicks",
+    "Earlier intermittent full-game-exit 0xC0000005 remains known; no universal shutdown fix claimed",
+    "No new antivirus, browser or Nexus clearance claimed"
+  ],
+  "harnessCorrections": [
+    "Aggregate hook timeout at 120 seconds; separate completed run passed",
+    "First package verification blocked by running game; repeat after close passed",
+    "Initial JS glob ran zero tests; only corrected 126-test run counted"
+  ]
+}

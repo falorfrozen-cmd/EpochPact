@@ -4,19 +4,25 @@ Last Epoch modding project (current verified runtime: **1.5.2**, 2026-10-08): a 
 from outside, every line our own (no mod loader, no third-party hook library). Offline
 characters only all features refuse in online play.
 
-Current release: **0.1.2-dev.13**. Wanted T7 affixes use the searchable dual-list
+Current player build: **0.1.2-dev.14**. Wanted T7 affixes use the searchable dual-list
 picker (`ui/affix-picker.js`, shipped by both build_player.py and EpochPact.spec,
 served by epochpact_ui.py). Normal forging can opt into T6/T7 shard upgrades;
 plain shards and Basic Hope only for those extended tiers. See
 `docs/t7-affixes-validation-2026-10-12.md` for real-game and package evidence.
-Current ZIP packaging revision is **package.1**: the optional native-copy folder
+Current ZIP packaging revision is **package.2**: the optional native-copy folder
 is **Manual Installation**, not CopyToGame. The recommended app installer already
-has the same DLLs. README explains choosing one method. Runtime bytes are identical
-to the originally tested dev.13 build; see `docs/package-layout-2026-10-12.md`.
-Inventory placement from dev.12 is retained. Inventory shortcuts now occupy the measured
-footer gap after Sort; never place them outside the inventory or over currencies.
-See `docs/inventory-footer-validation-2026-10-12.md` for scale, simultaneous
-panel, matched-package and shutdown evidence. The connection protocol is retained
+has the same DLLs. README explains choosing one method. See
+`docs/package-layout-2026-10-12.md` for the manual installation folder convention.
+Inventory shortcuts occupy a separate centered row below the item grid and above
+the native Transfer/Sort/currency footer. The user approved this exact layout;
+do not put the shortcuts beside Sort or outside the inventory again. Square item
+cells are fitted uniformly; all currency digits remain visible at maximum values.
+`perf/stutter-fix` is merged, including startup button hooks and the closed-panel
+fast path. Keep the loader startup fix `2ba920e` and loader.log.
+See `docs/inventory-lower-row-validation-2026-10-12.md` for the current measured
+scale, maximum-balance, matched-package and shutdown evidence. Both current test
+and player sessions closed with code 0; the earlier intermittent full-game-exit
+crash remains historical evidence, not a proven universal fix. The connection protocol is retained
 from **0.1.2-dev.11**. See
 `docs/connection-validation-2026-10-12.md` for the scoped final tests, real-game
 restart checks and the unresolved full-game-exit crash. Crafting dev.10 and
