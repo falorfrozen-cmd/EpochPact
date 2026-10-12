@@ -17,11 +17,27 @@ test('rows are newest first and can hide gold or materials',()=>{
  assert.deepEqual(L.rows(list,{materials:false}).map(e=>e.seq),[3,1]);
 });
 
-test('rule labels use the game number and a shortened name',()=>{
+test('rule labels show the game number, what the rule does and its full name',()=>{
  assert.equal(L.ruleLabel({kind:'item',ruleNumber:0}),'No matching rule');
+ assert.equal(L.ruleLabel({kind:'item',ruleNumber:0,outcome:-1}),'');
  assert.equal(L.ruleLabel({kind:'item',ruleNumber:4,rule:'  Uniques   and  Sets '}),'Rule 4 · Uniques and Sets');
- assert.ok(L.ruleLabel({kind:'item',ruleNumber:1,rule:'x'.repeat(80)}).endsWith('…'));
+ assert.equal(L.ruleLabel({kind:'item',ruleNumber:4,outcome:2,rule:'Two T6 and a T7'}),'Rule 4 · Highlight · Two T6 and a T7');
+ assert.equal(L.ruleLabel({kind:'item',ruleNumber:1,rule:'x'.repeat(80)}).length,'Rule 1 · '.length+80);
  assert.equal(L.ruleLabel({kind:'gold',ruleNumber:3}),'');
+ assert.equal(L.tierLabel({tiers:'7 6 6'}),'T7 T6 T6');
+});
+test('identical resources picked up one after another become one line',()=>{
+ const e=(seq,kind,name,gold=0,extra={})=>({seq,kind,name,gold,at:seq,...extra});
+ const log=[e(1,'gold','',149),e(2,'gold','',558),e(3,'item','Noble Gloves',0,{rarity:'Magic',ruleNumber:59,outcome:1,rule:'Hide magic',tiers:'3 2'}),
+  e(4,'gold','',72),e(5,'gold','',19),e(6,'material','Shard of Health'),e(7,'material','Shard of Health'),e(8,'material','Shard of Armour'),e(9,'material','Shard of Armour'),e(10,'material','Shard of Health')];
+ const rows=L.rows(log);
+ assert.deepEqual(rows.map(r=>L.itemLabel(r)),['Shard of Health','Shard of Armour ×2','Shard of Health ×2','+91 Gold','Noble Gloves','+707 Gold']);
+ assert.deepEqual(rows.map(r=>r.count),[1,2,2,2,1,2]);
+ const html=L.compact(log);
+ assert.ok(html.includes('+707 Gold <small class="muted">(2 pickups)</small>'));
+ assert.ok(html.includes('Rule 59 · Hide · Hide magic'));assert.ok(html.includes('T3 T2'));
+ assert.equal(L.rows(log,{group:false}).length,10);
+ assert.equal(L.totalGold(log),798);
 });
 
 test('item names and rule text are escaped in both views',()=>{

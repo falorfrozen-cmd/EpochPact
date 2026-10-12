@@ -86,8 +86,8 @@ std::atomic<uint64_t> g_fullEvents{0}, g_fullSkipped{0};
 // The game's own pickup methods are observed; their results are unchanged.
 struct LootEntry {
     uint64_t seq = 0, time = 0;
-    std::string kind, name, rarity, rule;
-    int ruleNumber = 0, gold = 0;
+    std::string kind, name, rarity, rule, tiers;
+    int ruleNumber = 0, gold = 0, outcome = -1;
     bool automatic = false;
 };
 std::mutex g_logLock;
@@ -252,10 +252,16 @@ bool DescribeItem(void* item, LootEntry* e) {
         Value<bool>(managed::Method(item, "isSet", 0), item) ? "Set" : unique ? "Unique" :
         Value<bool>(managed::Method(item, "isExaltedItem", 0), item) ? "Exalted" : Value<bool>(managed::Method(item, "isMagic", 0), item) ? "Magic" :
         managed::Entries(Get<void*>(item, game::FieldOffset("LE.dll", "", "ItemData", "affixes"))).empty() ? "Normal" : "Rare";
+    // Affix tiers, highest first ("7 6 6"), so the log shows why a rule matched.
+    std::vector<int> tiers;
+    for (void* affix : managed::Entries(Get<void*>(item, game::FieldOffset("LE.dll", "", "ItemData", "affixes"))))
+        if (affix) { const int t = Value<int>(managed::Method(affix, "get_DisplayTier", 0), affix); if (t >= 1 && t <= 8) tiers.push_back(t); }
+    std::sort(tiers.rbegin(), tiers.rend());
+    for (int t : tiers) { if (!e->tiers.empty()) e->tiers += ' '; e->tiers += std::to_string(t); }
     Root unpacked(Invoke(m_unpack, item));
     smartloot::RuleMatch rule;
     if (unpacked.Get() && smartloot::RuleFor(unpacked.Get(), &rule)) {
-        e->ruleNumber = rule.number; e->rule = rule.name;
+        e->ruleNumber = rule.number; e->rule = rule.name; e->outcome = rule.outcome;
         g_ruleOrderMin = rule.orderMin; g_ruleOrderMax = rule.orderMax;
     }
     return true;
@@ -693,6 +699,7 @@ std::string LootLog(uint64_t since){
         if(comma)out<<',';comma=true;
         out<<"{\"seq\":"<<e.seq<<",\"ageSeconds\":"<<(now-e.time)/1000<<",\"kind\":"<<managed::Json(e.kind)<<",\"name\":"<<managed::Json(e.name)
            <<",\"rarity\":"<<managed::Json(e.rarity)<<",\"gold\":"<<e.gold<<",\"ruleNumber\":"<<e.ruleNumber<<",\"rule\":"<<managed::Json(e.rule)
+           <<",\"outcome\":"<<e.outcome<<",\"tiers\":"<<managed::Json(e.tiers)
            <<",\"automatic\":"<<(e.automatic?"true":"false")<<'}';
     }
     out<<"]}";

@@ -1,0 +1,10 @@
+{
+  "version": "0.1.2-dev.20",
+  "files": {
+    "EpochPact.exe": {"sha256": "81e8a327200bd3cfef1d39af255148df462650aa350574478a788ce9036dab3e", "virusTotal": "not run (browser connection unavailable at release)", "localDefender": "No threats found"},
+    "EpochPact.Core.dll": {"sha256": "9cab73ad62a866f9bbeafdcda8f03a3f66ec133cc5c4c398349d3f0fb8d75c45", "virusTotal": "not run (browser connection unavailable at release)", "localDefender": "No threats found"},
+    "version.dll": {"sha256": "a20f33a7f90422c9a6f2249076baae5d63968f2364c565946e87009ec2839061", "virusTotal": "not run (browser connection unavailable at release)", "localDefender": "No threats found"}
+  },
+  "zip": {"sha256": "45ff93816b129988eeda732daaddb6ea299b8cd6b71a7a800c8d158b8ab20fff", "localDefender": "No threats found"},
+  "note": "Scanned with Windows Defender only; VirusTotal pending."
+}

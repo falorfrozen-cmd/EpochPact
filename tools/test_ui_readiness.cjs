@@ -825,7 +825,7 @@ test('display page shows minimap, tier controls and the tier palette without sen
  const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
  h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};page='display';shippingRenderPage()`);
  const html=h.element('#page-content').innerHTML;
- for(const id of ['map_minimapsize','map_minimapzoom','map_minimapopacity','map_overlayopacity','map_overlayzoom','tier_icons','tier_tooltips','tier_lines','tier_color'])assert.ok(html.includes(`="${id}"`),id);
+ for(const id of ['map_minimapsize','map_minimapzoom','map_minimapopacity','map_overlayopacity','map_overlayzoom','tier_icons','tier_tooltips','tier_lines','tier_rules','tier_color'])assert.ok(html.includes(`="${id}"`),id);
  assert.equal([...html.matchAll(/data-tier-color="(\d)"/g)].map(x=>x[1]).join(''),'12345678');
  assert.ok(html.includes('value="#FF0044"'));
  for(const id of ['map_minimapsize','tier_icons','tier_tooltips'])assert.ok(h.run(`automaticSetting(controlById("${id}"))`),id);

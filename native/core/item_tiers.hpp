@@ -1,6 +1,6 @@
 // Affix tiers on item icons and tier colours in item tooltips (display only).
 //   tierread                       state, palette and counters
-//   tierset icons|tooltips|lines 0|1  tier digits on icons; T1-T8 tags / coloured affix lines in tooltips
+//   tierset icons|tooltips|lines|rules 0|1  tier digits on icons; T1-T8 tags / coloured affix lines / loot filter rule line in tooltips
 //   tiercolor <1-8> <RRGGBB>       palette entry; tiercolor reset restores the defaults
 #pragma once
 #include <string>

@@ -279,6 +279,9 @@ def controls():
     add('tier_lines',"display",'Colour affix lines by tier',"toggle",'tierset lines {value}',"session",
         'Colour each affix line in item tooltips with its tier colour. The original text returns when switched off.',
         params=[parameter("value","integer",0,1)],default=0,reset='tierset lines 0',doc="docs/player-conveniences.md")
+    add('tier_rules',"display",'Loot filter rule in tooltips',"toggle",'tierset rules {value}',"session",
+        'Show which loot filter rule matches an item in its tooltip: rule number, Show/Hide/Highlight and the rule name.',
+        params=[parameter("value","integer",0,1)],default=0,reset='tierset rules 0',doc="docs/player-conveniences.md")
     add("tier_color","display","Tier colour","selector","tiercolor {tier} {color}","session",
         "Choose the colour for one affix tier (six hexadecimal digits, for example E0315A).",
         params=[parameter("tier","integer",1,8),parameter("color","single_token")],reset="tiercolor reset",doc="docs/player-conveniences.md")

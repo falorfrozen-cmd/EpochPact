@@ -7,6 +7,7 @@
 #include "lifecycle.hpp"
 #include "mainthread.hpp"
 #include "managed.hpp"
+#include "smart_loot.hpp"
 #include <algorithm>
 #include <array>
 #include <functional>
@@ -27,7 +28,10 @@ struct Color { float r, g, b, a; };
 struct Vec2 { float x, y; };
 constexpr std::array<uint32_t, 8> kDefaultPalette{0xFFFFFF, 0x2E8BFF, 0xFFD700, 0xFF5500, 0xAA55FF, 0x00FF00, 0xFF0044, 0x00FFFF};
 std::array<uint32_t, 8> palette = kDefaultPalette;
-std::atomic<bool> iconsOn{false}, tooltipsOn{false}, linesOn{false};
+std::atomic<bool> iconsOn{false}, tooltipsOn{false}, linesOn{false}, rulesOn{false};
+std::unique_ptr<Root> ruleLabel;  // our TMP line under the tooltip's item type
+uint64_t ruleUpdates = 0;
+std::string lastRuleText;
 std::map<void*, std::unique_ptr<Root>> labels;  // InventoryItemUI -> our TMP label
 // A tooltip text we changed: its own colour, and for affix lines the game's
 // original text and the affix tier, so it can be re-drawn or restored exactly.
@@ -275,9 +279,75 @@ void MarkLine(void* line, int tier) {
     it->second.tier = tier;
     SetText(text, Compose(it->second));
 }
+// "Loot filter: Rule 3 · Show · <name>" under the item type, from the game's own
+// filter match. Hidden when no filter is active or the setting is off.
+void SetRuleLine(void* tooltip, void* itemData) {
+    void* typeText = Get<void*>(tooltip, F("UITooltipItem", "typeText"));
+    if (!typeText || !game::IsAlive(typeText)) return;
+    void* label = ruleLabel ? ruleLabel->Get() : nullptr;
+    Root typeTransform(Invoke(M("Component", "get_transform", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), typeText));
+    Root parent(Invoke(M("Transform", "get_parent", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), typeTransform.Get()));
+    if (label && game::IsAlive(label)) {
+        Root labelTransform(Invoke(M("Component", "get_transform", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), label));
+        Root labelParent(Invoke(M("Transform", "get_parent", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), labelTransform.Get()));
+        if (labelParent.Get() != parent.Get()) label = nullptr;  // another tooltip instance
+    } else label = nullptr;
+    std::string text;
+    if (rulesOn.load() && itemData) {
+        Root unpacked(Invoke(Method(itemData, "getAsUnpacked", 0), itemData));
+        smartloot::RuleMatch match;
+        if (unpacked.Get() && smartloot::RuleFor(unpacked.Get(), &match) && match.outcome >= 0) {
+            static const char* kinds[]{"Show", "Hide", "Highlight"};
+            std::string name;
+            for (size_t i = 0; i < match.name.size(); ++i) {  // the game's descriptions carry rich-text tags
+                if (match.name[i] == '<') { const auto end = match.name.find('>', i); if (end != std::string::npos) { i = end; continue; } }
+                name += match.name[i];
+            }
+            text = match.number > 0 ? "<color=#9FB4C7>Loot filter:</color> Rule " + std::to_string(match.number) + " · " + kinds[std::clamp(match.outcome, 0, 2)] + (name.empty() ? "" : " · " + name)
+                                    : "<color=#9FB4C7>Loot filter:</color> no rule matched (shown by default)";
+        }
+    }
+    if (text.empty()) { if (label) SetActive(label, false); return; }
+    if (!label) {
+        // The header is laid out by the game's SimpleLayoutGroup from its own
+        // element list: the new line is added to that list right after "Type".
+        Root parentObject(Invoke(M("Component", "get_gameObject", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), parent.Get()));
+        Root groupType(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll", "", "SimpleLayoutGroup"))));
+        void* ga[]{groupType.Get()};
+        void* group = Invoke(Signature("GameObject", "GetComponent", {"System.Type"}), parentObject.Get(), ga);
+        if (!group) return;  // unknown layout: no line rather than a misplaced one
+        Root groupRoot(group);
+        Root source(Invoke(M("Component", "get_gameObject", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), typeText));
+        bool world = false; void* a[]{source.Get(), parent.Get(), &world};
+        Root clone(Invoke(Signature("Object", "Instantiate", {"UnityEngine.Object", "UnityEngine.Transform", "System.Boolean"}), nullptr, a));
+        Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("Unity.TextMeshPro.dll", "TMPro", "TMP_Text"))));
+        void* ta[]{type.Get()};
+        label = Invoke(Signature("GameObject", "GetComponent", {"System.Type"}), clone.Get(), ta);
+        if (!label) return;
+        ruleLabel = std::make_unique<Root>(label);
+        bool on = true; void* ra[]{&on}; Invoke(Method(label, "set_richText", 1), label, ra);
+        Root name(il2cpp::api().string_new("EpochPact loot filter rule"));
+        void* na[]{name.Get()}; Invoke(M("Object", "set_name", 1, "UnityEngine", "UnityEngine.CoreModule.dll"), clone.Get(), na);
+        // Directly below the item type line, in the layout group's own order.
+        void* aa[]{clone.Get()};
+        Invoke(Method(group, "AddElement", 1), group, aa);
+        int typeIndex = -1, i = 0;
+        for (void* element : Entries(Invoke(Method(group, "get_Elements", 0), group))) {
+            if (element && Get<void*>(element, F("SimpleLayoutGroup.SimpleLayoutElement", "_rectTransformReference")) == typeTransform.Get()) typeIndex = i;
+            ++i;
+        }
+        if (typeIndex >= 0) { int at = typeIndex + 1; void* oa[]{clone.Get(), &at}; Invoke(Method(group, "SetItemOrder", 2), group, oa); }
+    }
+    Root value(il2cpp::api().string_new(text.c_str())); void* va[]{value.Get()};
+    Invoke(Method(label, "set_text", 1), label, va);
+    SetActive(label, true);
+    ++ruleUpdates; lastRuleText = text;
+}
 void d_affixesText(void* self, void* itemData, void* info, MethodInfo m) {
     o_affixesText(self, itemData, info, m);
-    if ((!tooltipsOn.load() && !linesOn.load()) || lifecycle::Stopping() || !itemData) return;
+    if (lifecycle::Stopping()) return;
+    if (rulesOn.load() || ruleLabel) { if (!game::Guarded([&] { SetRuleLine(self, itemData); }, nullptr)) ++faults; }
+    if ((!tooltipsOn.load() && !linesOn.load()) || !itemData) return;
     ++tooltipUpdates;
     if (!game::Guarded([&] {
         // Regular prefixes and suffixes are listed in the item's own order,
@@ -331,7 +401,7 @@ void RefreshIcons(bool searchScene) {
 }
 std::string State() {
     std::ostringstream out;
-    out << "{\"ok\":true,\"icons\":" << Boolean(iconsOn.load()) << ",\"tooltips\":" << Boolean(tooltipsOn.load()) << ",\"lines\":" << Boolean(linesOn.load()) << ",\"palette\":[";
+    out << "{\"ok\":true,\"icons\":" << Boolean(iconsOn.load()) << ",\"tooltips\":" << Boolean(tooltipsOn.load()) << ",\"lines\":" << Boolean(linesOn.load()) << ",\"rules\":" << Boolean(rulesOn.load()) << ",\"ruleUpdates\":" << ruleUpdates << ",\"lastRuleText\":" << Json(lastRuleText) << ",\"palette\":[";
     for (size_t i = 0; i < palette.size(); ++i) { if (i) out << ','; out << Json(Hex(palette[i])); }
     out << "],\"labels\":" << labels.size() << ",\"coloredTexts\":" << tooltipColors.size() << ",\"iconUpdates\":" << iconUpdates
         << ",\"tooltipUpdates\":" << tooltipUpdates << ",\"tooltipMismatches\":" << tooltipMismatches << ",\"scanned\":" << scanned << ",\"created\":" << created << ",\"noItem\":" << noItem << ",\"noTiers\":" << noTiers << ",\"noQuantityText\":" << noQuantity << ",\"lastTooltipTier\":" << lastTooltipTier << ",\"faults\":" << faults
@@ -367,8 +437,8 @@ bool Init() {
 }
 std::string Read() { return Run([] { return State(); }); }
 std::string Set(const std::string& key, int value) {
-    if ((key != "icons" && key != "tooltips" && key != "lines") || (value != 0 && value != 1))
-        return "{\"ok\":false,\"error\":\"use tierset icons|tooltips|lines 0|1\"}";
+    if ((key != "icons" && key != "tooltips" && key != "lines" && key != "rules") || (value != 0 && value != 1))
+        return "{\"ok\":false,\"error\":\"use tierset icons|tooltips|lines|rules 0|1\"}";
     return Run([&] {
         if (value) Require();
         if (key == "icons") {
@@ -386,7 +456,7 @@ std::string Set(const std::string& key, int value) {
                 EnsureHook(m_affixesText, reinterpret_cast<void*>(&d_affixesText), reinterpret_cast<void**>(&o_affixesText));
                 if (m_affixData) EnsureHook(m_affixData, reinterpret_cast<void*>(&d_affixData), reinterpret_cast<void**>(&o_affixData));
             }
-            (key == "lines" ? linesOn : tooltipsOn) = value != 0;
+            (key == "lines" ? linesOn : key == "rules" ? rulesOn : tooltipsOn) = value != 0;
             RedrawTooltips();
             RebuildGameTooltip();
         }
@@ -403,6 +473,6 @@ std::string SetColor(const std::string& tier, const std::string& hex) {
     const uint32_t rgb = static_cast<uint32_t>(std::stoul(hex, nullptr, 16));
     return Run([&] { palette[static_cast<size_t>(index)] = rgb; RefreshIcons(false); RedrawTooltips(); RebuildGameTooltip(); return State(); });
 }
-void ReleaseRoots() { labels.clear(); tooltipColors.clear(); iconsOn = false; tooltipsOn = false; linesOn = false; }
+void ReleaseRoots() { labels.clear(); tooltipColors.clear(); ruleLabel.reset(); iconsOn = false; tooltipsOn = false; linesOn = false; rulesOn = false; }
 
 }  // namespace ep::tiers

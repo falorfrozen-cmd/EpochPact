@@ -16,7 +16,7 @@ import subprocess
 import sys
 
 from . import le_session as le, progression_backend as progression
-from . import filter_manager, melon_compat, support_report
+from . import filter_manager, melon_compat, overlay_follow, support_report
 from .app_paths import (user_root, installer_result_root, validate_installer_result,
                         INSTALL_RESULT_INVALID, INSTALL_RESULT_WRITE_FAILED)
 from .ui_language import english_exception
@@ -418,6 +418,19 @@ class DesktopDialogs:
         self._feed = None
         self._damage = None
         self._url = None
+        self._follower = None
+
+    def _follow_game(self):
+        """The small windows stay above the game only (not above EpochPact or other programs)."""
+        if self._follower is None:
+            def find_game():
+                for pid in le.game_pids():
+                    hwnd = le.game_window(pid)
+                    if hwnd:
+                        return hwnd
+                return None
+            self._follower = overlay_follow.OverlayFollower((FeedWindowApi.TITLE, DamageWindowApi.TITLE), find_game)
+        self._follower.start()
 
     def open_loot_feed(self):
         """A small always-on-top window over a windowed/borderless game."""
@@ -432,8 +445,9 @@ class DesktopDialogs:
         if not self._url:
             return False
         self._feed = webview.create_window(FeedWindowApi.TITLE, self._url + '/feed', js_api=FeedWindowApi(), width=380, height=520,
-                                           min_size=(260, 200), on_top=True, background_color='#091310')
+                                           min_size=(260, 200), on_top=False, background_color='#091310')
         self._feed.events.closed += self._feed_closed
+        self._follow_game()
         return True
 
     def _feed_closed(self):
@@ -452,8 +466,9 @@ class DesktopDialogs:
         if not self._url:
             return False
         self._damage = webview.create_window(DamageWindowApi.TITLE, self._url + '/damage', js_api=DamageWindowApi(), width=520, height=360,
-                                             min_size=(320, 200), on_top=True, background_color='#091310')
+                                             min_size=(320, 200), on_top=False, background_color='#091310')
         self._damage.events.closed += self._damage_closed
+        self._follow_game()
         return True
 
     def _damage_closed(self):

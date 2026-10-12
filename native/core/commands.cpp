@@ -97,7 +97,7 @@ std::string Execute(const std::string& line) {
     if(cmd=="summonread")return args.empty()?convenience::Summons():"{\"ok\":false,\"error\":\"summonread expects no arguments\"}";
     if(cmd=="qolset"){double value=0;return args.size()==2&&statedit::Number(args[1],&value)?convenience::Set(args[0],value):"{\"ok\":false,\"error\":\"use qolset setting value\"}";}
     if(cmd=="tierread")return args.empty()?tiers::Read():"{\"ok\":false,\"error\":\"tierread expects no arguments\"}";
-    if(cmd=="tierset")return args.size()==2&&(args[1]=="0"||args[1]=="1")?tiers::Set(args[0],args[1]=="1"):"{\"ok\":false,\"error\":\"use tierset icons|tooltips|lines 0|1\"}";
+    if(cmd=="tierset")return args.size()==2&&(args[1]=="0"||args[1]=="1")?tiers::Set(args[0],args[1]=="1"):"{\"ok\":false,\"error\":\"use tierset icons|tooltips|lines|rules 0|1\"}";
     if(cmd=="tiercolor")return args.size()==1&&args[0]=="reset"?tiers::SetColor("reset",""):args.size()==2?tiers::SetColor(args[0],args[1]):"{\"ok\":false,\"error\":\"use tiercolor <1-8> <RRGGBB> or tiercolor reset\"}";
     if(cmd=="pickupinterval"){double value=0;return args.size()==1&&statedit::Number(args[0],&value)?items::SetInterval(value):"{\"ok\":false,\"error\":\"use pickupinterval 0.25..10\"}";}
     if(cmd=="lootlog"){unsigned long long since=0;if(args.size()>1||(args.size()==1&&std::from_chars(args[0].data(),args[0].data()+args[0].size(),since).ec!=std::errc{}))return "{\"ok\":false,\"error\":\"use lootlog [since]\"}";return items::LootLog(since);}

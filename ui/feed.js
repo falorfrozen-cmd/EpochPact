@@ -15,7 +15,10 @@
   if(window.pywebview?.api?.set_feed_opacity)window.pywebview.api.set_feed_opacity(value).catch(()=>{});
   else document.body.style.opacity=String(value/100);
  }
- function render(){$('#feed-list').innerHTML=window.EpochLootLog.compact(entries,{gold:options.gold,materials:options.materials});}
+ function render(){
+  $('#feed-list').innerHTML=window.EpochLootLog.compact(entries,{gold:options.gold,materials:options.materials});
+  const gold=window.EpochLootLog.totalGold(entries);$('#feed-gold-total').textContent=gold?`Gold: ${gold.toLocaleString('en-US')}`:'';
+ }
  async function poll(){
   if(busy||document.hidden)return;busy=true;
   try{

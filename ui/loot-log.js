@@ -12,39 +12,60 @@
   return [...bySeq.values()].sort((a,b)=>a.seq-b.seq).slice(-capacity);
  }
  function newestSeq(entries){return (entries||[]).reduce((m,e)=>Math.max(m,e.seq||0),0);}
+ const outcomes=['Show','Hide','Highlight'];
+ // The full rule: number, what it does and its name (or the game's description).
  function ruleLabel(e){
-  if(e.kind==='gold'||e.kind==='amber')return '';
-  if(!e.ruleNumber)return 'No matching rule';
+  if(e.kind==='gold'||e.kind==='amber'||e.kind==='material')return '';
+  if(!e.ruleNumber)return e.outcome===undefined||e.outcome>=0?'No matching rule':'';
   // Rule descriptions carry Unity rich-text tags (<color>, <u>); show plain text.
   const name=String(e.rule||'').replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();
-  return `Rule ${e.ruleNumber}${name?' · '+(name.length>60?name.slice(0,57)+'…':name):''}`;
+  const outcome=outcomes[e.outcome]??'';
+  return `Rule ${e.ruleNumber}${outcome?' · '+outcome:''}${name?' · '+name:''}`;
  }
+ function tierLabel(e){return e.tiers?String(e.tiers).split(' ').filter(Boolean).map(t=>'T'+t).join(' '):'';}
  function itemLabel(e){
   if(e.kind==='gold')return `+${Number(e.gold||0).toLocaleString('en-US')} Gold`;
   if(e.kind==='amber')return `${String(e.name||'Amber')}${e.gold?` ×${Number(e.gold).toLocaleString('en-US')}`:''}`;
+  if(e.kind==='material'&&e.count>1)return `${String(e.name||'Material')} ×${e.count}`;
   return String(e.name||'Item');
  }
  function filter(entries,{gold=true,materials=true}={}){
   return (entries||[]).filter(e=>(gold||e.kind!=='gold')&&(materials||e.kind!=='material'));
  }
+ // Identical resources picked up one after another become one line: gold and
+ // amber are summed, the same material is counted. Equipment stays one line each.
+ function groupKey(e){return e.kind==='gold'?'gold':e.kind==='amber'||e.kind==='material'?e.kind+':'+String(e.name||''):null;}
+ function grouped(list){
+  const out=[];
+  for(const e of list){
+   const key=groupKey(e),last=out[out.length-1];
+   if(key&&last&&last.groupKey===key){last.gold=(Number(last.gold)||0)+(Number(e.gold)||0);last.count+=1;continue;}
+   out.push({...e,groupKey:key,count:1});
+  }
+  return out;
+ }
  function rows(entries,options={}){
   const limit=options.limit??100;
-  return filter(entries,options).slice(-limit).reverse();
+  const list=filter(entries,options).slice().reverse();
+  return (options.group===false?list.map(e=>({...e,count:1})):grouped(list)).slice(0,limit);
  }
  function age(at,now=Date.now()){
   const s=Math.max(0,Math.round((now-(Number(at)||now))/1000));
   return s<60?`${s}s`:s<3600?`${Math.floor(s/60)}m`:`${Math.floor(s/3600)}h`;
  }
+ function piles(e){return e.count>1&&(e.kind==='gold'||e.kind==='amber')?` <small class="muted">(${e.count} pickups)</small>`:'';}
  function table(entries,options={}){
   const list=rows(entries,options),now=options.now??Date.now();
   if(!list.length)return '<p class="empty">No pickups yet. Items and gold you or Auto Pickup collect appear here.</p>';
-  return `<div class="table-scroll"><table class="loot-table"><thead><tr><th>When</th><th>Pickup</th><th>Rarity</th><th>Loot filter</th><th>By</th></tr></thead><tbody>${list.map(e=>
-   `<tr><td>${escape(age(e.at,now))}</td><td class="${rarityClass(e.rarity)}">${escape(itemLabel(e))}</td><td>${escape(e.rarity)}</td><td>${escape(ruleLabel(e))}</td><td>${e.automatic?'Auto Pickup':'You'}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-scroll"><table class="loot-table"><thead><tr><th>When</th><th>Pickup</th><th>Tiers</th><th>Rarity</th><th>Loot filter</th><th>By</th></tr></thead><tbody>${list.map(e=>
+   `<tr><td>${escape(age(e.at,now))}</td><td class="${rarityClass(e.rarity)}">${escape(itemLabel(e))}${piles(e)}</td><td>${escape(tierLabel(e))}</td><td>${escape(e.rarity)}</td><td>${escape(ruleLabel(e))}</td><td>${e.automatic?'Auto Pickup':'You'}</td></tr>`).join('')}</tbody></table></div>`;
  }
  function compact(entries,options={}){
   const list=rows(entries,{limit:options.limit??40,...options});
   if(!list.length)return '<p class="empty">Waiting for pickups…</p>';
-  return `<ul class="loot-feed">${list.map(e=>`<li class="${rarityClass(e.rarity)}"><span>${escape(itemLabel(e))}</span>${ruleLabel(e)?`<small>${escape(ruleLabel(e))}</small>`:''}</li>`).join('')}</ul>`;
+  return `<ul class="loot-feed">${list.map(e=>{const rule=ruleLabel(e),tiers=tierLabel(e);
+   return `<li class="${rarityClass(e.rarity)}" title="${escape([itemLabel(e),tiers,rule].filter(Boolean).join('\n'))}"><span>${escape(itemLabel(e))}${piles(e)}${tiers?` <em class="loot-tiers">${escape(tiers)}</em>`:''}</span>${rule?`<small>${escape(rule)}</small>`:''}</li>`;}).join('')}</ul>`;
  }
- return {merge,newestSeq,ruleLabel,itemLabel,rows,table,compact,capacity};
+ function totalGold(entries){return (entries||[]).reduce((t,e)=>t+(e.kind==='gold'?Number(e.gold)||0:0),0);}
+ return {merge,newestSeq,ruleLabel,tierLabel,itemLabel,rows,table,compact,totalGold,capacity};
 });

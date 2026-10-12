@@ -12,6 +12,7 @@
 #include <fstream>
 #include <atomic>
 #include <cmath>
+#include <functional>
 #include <map>
 #include <unordered_map>
 #include <memory>
@@ -1078,6 +1079,29 @@ std::string Test(const std::string& id,const std::string& action){
     if(action=="passives-close"){Invoke(Method(ui,"closePassiveTree",0),ui);return State();}
     if(action=="skills-close"){bool tooltip=true;void* a[]{&tooltip};Invoke(Method(ui,"closeSkills",1),ui,a);return State();}
     if(action=="blessings-open"){bool sound=false,respec=false;void* a[]{&sound,&respec};Invoke(Method(inventoryPanel.Get(),"OpenBlessingPanel",2),inventoryPanel.Get(),a);return State();}
+    if(action=="tooltip-tree"){
+        // Read-only: the item tooltip's object tree (names, sibling order, active, components).
+        void* tooltip=game::StaticObject(game::FindStaticField("LE.dll","","UITooltipItem","instance"));
+        if(!tooltip)throw std::runtime_error("No item tooltip yet.");
+        std::ostringstream out;out<<"{\"ok\":true,\"tree\":[";bool comma=false;
+        std::function<void(void*,int)> walk=[&](void* t,int depth){
+            if(depth>7)return;
+            Root go(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),t));
+            const bool active=Value<bool>(Method(go.Get(),"get_activeSelf",0),go.Get());
+            std::string layout;
+            for(const char* cls:{"SimpleLayoutGroup","VerticalLayoutGroup","LayoutElement","ContentSizeFitter","TextMeshProUGUI"}){
+                auto* k=game::FindClass("LE.dll","",cls);if(!k)k=game::FindClass("UnityEngine.UI.dll","UnityEngine.UI",cls);if(!k)k=game::FindClass("Unity.TextMeshPro.dll","TMPro",cls);if(!k)continue;
+                Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(k)));void* a[]{type.Get()};
+                if(Invoke(Signature("GameObject","GetComponent",{"System.Type"}),go.Get(),a)){if(!layout.empty())layout+='+';layout+=cls;}
+            }
+            if(comma)out<<',';comma=true;
+            out<<"{\"d\":"<<depth<<",\"name\":"<<Json(Text(Invoke(M("Object","get_name",0,"UnityEngine","UnityEngine.CoreModule.dll"),go.Get())))<<",\"active\":"<<Boolean(active)<<",\"c\":"<<Json(layout)<<'}';
+            const int n=Value<int>(M("Transform","get_childCount",0,"UnityEngine","UnityEngine.CoreModule.dll"),t);
+            for(int i=0;i<n&&i<60;++i){void* a[]{&i};Root child(Invoke(M("Transform","GetChild",1,"UnityEngine","UnityEngine.CoreModule.dll"),t,a));walk(child.Get(),depth+1);}
+        };
+        Root t(Invoke(M("Component","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),tooltip));walk(t.Get(),0);
+        return out.str()+"]}";
+    }
     if(action=="seal-regular"||action=="seal-primordial"){
         // Disposable character only: the game's own sealing on the first inventory item with affixes.
         void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));

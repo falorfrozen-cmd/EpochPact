@@ -616,6 +616,10 @@
     "damage_session": [
       "Damage session control",
       "Start, stop or reset the damage session. Damage is only recorded while it runs; stopped values stay until reset."
+    ],
+    "tier_rules": [
+      "Loot filter rule in tooltips",
+      "Show which loot filter rule matches an item in its tooltip: rule number, Show/Hide/Highlight and the rule name."
     ]
   },
   "researchOnly": {

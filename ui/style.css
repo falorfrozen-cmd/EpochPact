@@ -104,6 +104,7 @@ dialog.stat-editor{max-width:740px;padding:0;scrollbar-color:var(--gold) var(--p
 
 .tier-palette{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:10px}.tier-palette label{display:flex;align-items:center;gap:8px;font-size:12px}.tier-palette input[type=color]{width:44px;height:30px;padding:2px}
 .loot-table td:first-child{min-width:56px}
+.loot-tiers{font-style:normal;font-size:11px;opacity:.8;margin-left:6px}.loot-feed small{white-space:normal}
 .stash-rules-table select{min-width:150px}.damage-table td,.damage-table th{white-space:nowrap}.damage-table tr.damage-total td{font-weight:700;border-top:1px solid #92734080}.stash-rules-table tr.muted td{opacity:.65}
 .filter-table td.actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}.loot-unique,.loot-legendary{color:#e8a35a}.loot-set{color:#7ee08a}.loot-exalted{color:#c79bff}.loot-rare{color:#f2dc6b}.loot-magic{color:#7fb0ff}.loot-material{color:#9fd6d0}.loot-gold{color:#e8c690}.loot-amber{color:#f0a64a}
 .feed-body{padding:10px;background:var(--bg);overflow:auto;height:auto}.feed-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}.feed-head input{width:110px}.feed-options{display:flex;gap:12px;align-items:center;font-size:12px;margin-bottom:8px;flex-wrap:wrap}.feed-options input{width:auto}

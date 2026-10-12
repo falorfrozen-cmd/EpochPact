@@ -43,9 +43,16 @@ the item was shown by default). The rule's custom name is shown, otherwise the
 game's own rule description. Items, gold and the filter are never changed by
 reading the list.
 
-**Open loot window** (desktop app) opens a small, resizable window that stays on
-top of a windowed or borderless game, with an opacity slider and Gold/Materials
-filters. It only reads the list. Exclusive fullscreen draws over every window.
+**Open loot window** (desktop app) opens a small, resizable window with an
+opacity slider and Gold/Materials filters. It stays above the game only: when
+EpochPact or another program is in front it goes behind it, and while the game
+is minimised it is hidden (the damage window behaves the same). It only reads
+the list. Exclusive fullscreen draws over every window.
+
+Identical resources picked up one after another share one line: gold and
+amber are added up, the same material is counted; equipment always has its own
+line. The window shows the total gold, and each item shows its affix tiers and
+the full rule (number, Show/Hide/Highlight, name).
 
 ### Loot filter files
 
@@ -138,6 +145,10 @@ values are re-applied on the next frame after a new area's map loads.
   shows a different number of affix lines than the item has, that tooltip is
   left unchanged instead of guessing (`tierread` counts it as
   `tooltipMismatches`).
+- **Loot filter rule in tooltips** adds a line under the item type in every
+  item tooltip: the matching rule of the active loot filter (number,
+  Show/Hide/Highlight, name or the game's description), or "no rule matched".
+  The line is added to the tooltip header's own layout group.
 - **Tier colours**: default T1 white `FFFFFF`, T2 blue `2E8BFF`, T3 gold
   `FFD700`, T4 burnt orange `FF5500`, T5 purple `AA55FF`, T6 green `00FF00`, T7
   red-pink `FF0044`, T8 cyan `00FFFF` (a player's palette; T2 and T5 slightly
