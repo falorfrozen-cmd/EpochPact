@@ -23,9 +23,10 @@ from tools.ui_language import english_exception, english_result
 from tools.app_paths import runtime_root, user_root
 from tools import app_update
 from tools.player_setup import FILTER_ACTIONS, PlayerSetup, DesktopDialogs, app_version
+from tools.preferences_store import PreferencesStore
 
 
-def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
+def create_app(bridge=None, *, developer=False, operation_log=None, setup=None, preferences=None):
     bridge = bridge or UiBridge()
     app = Flask(__name__, static_folder=None)
     close_state = {"closing": False, "closed": False, "future": None}
@@ -34,7 +35,8 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
     worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="epochpact-ipc")
     jobs = OrderedDict()
     jobs_lock = threading.Lock()
-    app.extensions.update(epoch_bridge=bridge, epoch_worker=worker, epoch_jobs=jobs, epoch_token=token)
+    preferences = preferences if preferences is not None else PreferencesStore()
+    app.extensions.update(epoch_bridge=bridge, epoch_worker=worker, epoch_jobs=jobs, epoch_token=token, epoch_preferences=preferences)
     journal = None
     if operation_log is not None:
         operation_log.parent.mkdir(parents=True, exist_ok=True)
@@ -70,7 +72,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
 
     @app.get("/ui/<path:path>")
     def assets(path):
-        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js", "crafting-model.js", "affix-picker.js", "loot-log.js", "feed.js", "damage-meter.js", "damage.js", "release-notes.js"):
+        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js", "crafting-model.js", "affix-picker.js", "loot-log.js", "feed.js", "damage-meter.js", "damage.js", "release-notes.js", "storage-sync.js", "i18n.js", "i18n-tr.json", "i18n-ru.json"):
             return send_from_directory(ROOT / "ui", path)
         if path.startswith("assets/"):
             return send_from_directory(ROOT / "ui/assets", path.removeprefix("assets/"))
@@ -83,6 +85,24 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
     @app.get("/damage")
     def damage():
         return send_from_directory(ROOT / "ui", "damage.html")
+
+    # The pages' own choices, kept in a file so a port change, an update or a
+    # new WebView profile keeps them (see tools/preferences_store.py).
+    @app.get("/api/preferences")
+    def preferences_read():
+        return jsonify(ok=True, token=token, values=preferences.values())
+
+    @app.post("/api/preferences")
+    def preferences_write():
+        payload = request.get_json(silent=True)
+        try:
+            preferences.update(payload.get("changes") if isinstance(payload, dict) else None)
+        except ValueError as exc:
+            return jsonify(ok=False, error=str(exc)), 400
+        except OSError:
+            app.logger.exception("Preferences could not be saved")
+            return jsonify(ok=False, error="Preferences could not be saved."), 500
+        return jsonify(ok=True)
 
     @app.get("/api/bootstrap")
     def bootstrap():
@@ -337,14 +357,17 @@ def main():
         try:
             dialogs = DesktopDialogs()
             dialogs._url = url
+            dialogs._preferences = app.extensions["epoch_preferences"]
             dialogs._window = webview.create_window("EpochPact", url, js_api=dialogs, width=1500, height=1000, min_size=(860, 650), maximized=True, background_color="#091310")
             def closing():
+                dialogs._prepare_close(True)
                 try:
                     if setup and (bridge.temporary_resets or bridge.actor):
                         setup.return_to_game()
                     app.extensions["epoch_close_session"]()
                     return True
                 except Exception:
+                    dialogs._prepare_close(False)
                     app.logger.exception("Temporary settings could not be restored on close")
                     import ctypes
                     ctypes.windll.user32.MessageBoxW(None,
@@ -353,7 +376,13 @@ def main():
                     return False
             dialogs._window.events.closing += closing
             app.extensions["epoch_request_exit"] = dialogs._window.destroy
-            dialogs._window.events.loaded += lambda: logging.getLogger(__name__).info('Desktop window loaded using Edge WebView2.')
+            def loaded():
+                logging.getLogger(__name__).info('Desktop window loaded using Edge WebView2.')
+                try:
+                    dialogs._restore_windows()
+                except Exception:
+                    logging.getLogger(__name__).exception('Loot feed/damage windows could not be reopened')
+            dialogs._window.events.loaded += loaded
             webview.start(gui='edgechromium', private_mode=False, storage_path=str(user_root() / 'webview'))
         finally:
             server.shutdown()

@@ -62,18 +62,44 @@ let connectionChecking=false,connectionNextCheck=0,lastGameSession=null;
 // offline character is ready. Only session/actor settings are stored; quests,
 // rewards and other save actions never are.
 const startupApplied=new Set();
+const tr=text=>window.EpochI18n?.t?.(text)??text;
 function storageKey(name){return `epochpact.${name}.${preview?"preview":"live"}`;}
 function readStored(name,fallback){try{const v=JSON.parse(localStorage.getItem(storageKey(name))??"null");return v??fallback;}catch{return fallback;}}
 function writeStored(name,value){try{localStorage.setItem(storageKey(name),JSON.stringify(value));return true;}catch{return false;}}
 function profileSetting(c){return Boolean(c&&["session","actor"].includes(c.lifetime)&&["number","toggle"].includes(c.widget));}
+// "My last used settings" is the default: set things up once and they come
+// back after EpochPact, the game or an update restarts. "__off__" is the
+// explicit Off; an empty value from older versions (the old default) counts as
+// the new default.
+function startupChoice(){const v=readStored("startup-profile","__last__");return v===""?"__last__":v;}
+// Choice settings whose exact arguments are replayed with the last used
+// settings (loot mode, wanted affixes, collection categories, font).
+const replaySettings=new Set(["loot_mode","loot_affixes","loot_category","font_family"]);
+function rememberReplay(payload){
+ if(preview||payload.type!=="control"||payload.operation==="read")return;
+ const replay=readStored("last-settings-replay",{});
+ if(payload.id==="loot_reset"){for(const key of Object.keys(replay))if(key.startsWith("loot_"))delete replay[key];}
+ else if(replaySettings.has(payload.id)){
+  const args=Object.fromEntries(Object.entries(payload.args||{}).filter(([k])=>!k.startsWith("expected_")));
+  const key=payload.id+(args.category?":"+args.category:"");
+  if(payload.operation==="reset"||args.value==="reset")delete replay[key];else replay[key]={id:payload.id,args};
+ }else return;
+ writeStored("last-settings-replay",replay);
+}
+async function replayLastSettings(){
+ for(const entry of Object.values(readStored("last-settings-replay",{}))){
+  const c=controlById(entry?.id);if(!c||!eligible(c)||!entry.args)continue;
+  await runTask({type:"control",id:entry.id,args:entry.args},{silent:true});
+ }
+}
 function rememberLastSettings(){
- if(preview||readStored("startup-profile","")!=="__last__")return;
+ if(preview||startupChoice()!=="__last__")return;
  const last={};for(const c of catalog.controls)if(profileSetting(c)&&appliedValues[c.id]!=null&&!Object.is(appliedValues[c.id],c.default))last[c.id]=appliedValues[c.id];
  writeStored("last-settings",last);
 }
 function startupProfile(){
- const name=readStored("startup-profile","");if(!name)return null;
- if(name==="__last__")return {name:"your last used settings",values:readStored("last-settings",{})};
+ const name=startupChoice();if(name==="__off__")return null;
+ if(name==="__last__")return {name:"your last used settings",values:readStored("last-settings",{}),replay:true};
  let profiles={};try{profiles=JSON.parse(localStorage.getItem(profileKey)||"{}");}catch{}
  return Object.hasOwn(profiles,name)?{name:`profile “${name}”`,values:profiles[name]}:null;
 }
@@ -84,9 +110,10 @@ function applyStartupProfile(){
  let changes=0;
  for(const [id,v] of Object.entries(profile.values||{})){const c=controlById(id);
   if(profileSetting(c)&&eligible(c)&&!Object.is(appliedValues[id],v)){values[id]=v;dirty.add(id);changes++;}}
- if(!changes)return;
- notify(`Applying ${profile.name} (${changes} setting${changes===1?"":"s"}).`);
- setTimeout(()=>void applyDraft(),0);
+ const replays=profile.replay?Object.keys(readStored("last-settings-replay",{})).length:0;
+ if(!changes&&!replays)return;
+ notify(changes+replays===1?`Applying ${tr(profile.name)} (1 setting).`:`Applying ${tr(profile.name)} (${changes+replays} settings).`);
+ setTimeout(async()=>{if(changes)await applyDraft();if(replays)await replayLastSettings();},0);
 }
 function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|pickupradius|pickupinterval|autopickup|mapreveal|mapset|tierset|fontset|effectsset) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
 function automaticOwner(){
@@ -105,6 +132,13 @@ function armAutomatic(){
  if(busy||autoRunning||liveReading||!autoPending.size)return;
  const next=Math.min(...[...autoPending.values()].map(x=>x.readyAt));
  autoTimer=setTimeout(()=>void flushAutomatic(),Math.max(0,next-Date.now()));
+}
+// Words shown for text choices; the values sent to the game stay the same.
+const choiceWords={all:"All",filter:"Filter",quality:"Quality",materials:"Materials",gold:"Gold",potions:"Potions",xp:"XP",favor:"Favor",bones:"Bones",amber:"Amber",normal:"Normal",empowered:"Empowered",start:"Start",stop:"Stop",reset:"Reset",added:"Added",increased:"Increased",more:"More"};
+// Whole texts (not nested templates), so the interface language can translate them.
+function defaultText(c,p,unit,isToggle){
+ if(isToggle)return c.default?"Default: on":"Default: off";
+ return `${p.minimum}–${p.maximum}${unit} · Default: ${c.default??"rank bonus"}`;
 }
 function settingFeedback(id){
  if(autoErrors.has(id)){const e=autoErrors.get(id);return `<span class="setting-error">${esc(e.message)}</span>${e.retry?` <button class="quiet" data-auto-retry="${esc(id)}">Retry</button>`:""}`;}
@@ -209,7 +243,7 @@ function playerResult(payload,result){
  if(payload?.type==="connection")return result.preview?"Preview connection refreshed. The game was unchanged.":"Game connection refreshed.";
  const id=payload?.id,a=payload?.args||{},label=controlById(id)?.label||"Action";
  const target=cache.monolith_read?.timelines?.find(t=>t.id===Number(a.timeline));
- const where=target?` ${clean(target.name||target.label)} (${a.difficulty==="empowered"?"Empowered":"Normal"}).`:"";
+ const where=target?` ${clean(target.name||target.label)} (${tr(a.difficulty==="empowered"?"Empowered":"Normal")}).`:"";
  const messages={
   stability:`Stability set to ${a.value}.${where}`,corruption:`Corruption set to ${a.value}.${where}`,
   campaign_complete:result.mastery?.needsSelection?"Campaign completed with normal rewards. Use Choose Mastery to finish your character.":"Campaign completed with normal rewards.",waypoints_unlock:"All waypoints unlocked.",
@@ -313,6 +347,7 @@ async function runTask(payload,{show=false,title="Operation result",silent=false
  try{
   const result=await job(payload);
   if(payload.type==="control"&&result.ok&&profileSetting(controlById(payload.id)))setTimeout(rememberLastSettings,0);
+  if(payload.type==="control"&&result.ok)rememberReplay(payload);
   if(payload.type==="control"&&payload.id==="loot_log_clear"&&result.ok){lootEntries=[];const node=$("#loot-log-live");if(node)node.innerHTML=lootTable();}
   if(result.launcher)window.EpochLauncher?.update(result.launcher);
   if(result.requiresElevation)window.EpochLauncher?.failure(result);
@@ -370,13 +405,13 @@ setInterval(()=>void pollConnection(),1000);
 function syncSpeed(){
  const modes=actorValues["9:0:0:0"]?.modes;if(modes){appliedValues.speed=1+(modes.increased||0);if(!dirty.has("speed"))values.speed=appliedValues.speed;}
 }
-function unitFor(c){return c.id==="pickup_radius"?" units":c.id==="pickup_interval"?" s":c.id.startsWith("map_")&&c.id.endsWith("opacity")?"":c.id.startsWith("map_")?"×":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["craft_fp","build_weaverflat","build_projectileflat","build_blessingoptions"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
+function unitFor(c){return c.id==="pickup_radius"?" game units":c.id==="pickup_interval"?" s":c.id.startsWith("map_")&&c.id.endsWith("opacity")?"":c.id.startsWith("map_")?"×":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["craft_fp","build_weaverflat","build_projectileflat","build_blessingoptions"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
 function settingDisplayValue(id,value){return id==="speed"&&Number.isFinite(value)?Number(value.toFixed(6)):value;}
 function settingCard(c) {
  const p=c.parameters.find(x=>x.name==="value"),v=settingDisplayValue(c.id,values[c.id]??c.default),unit=unitFor(c);
  const isToggle=c.widget==="toggle";
- if(p.choices)return `<article class="control-card" data-setting="${esc(c.id)}"><div class="control-top"><h3>${esc(c.label)}</h3><span class="badge">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><div class="control-tools"><select data-setting-choice="${c.id}" aria-label="${esc(c.label)}">${p.choices.map((x,i)=>`<option value="${x}" ${x===v?"selected":""}>${esc(p.choiceLabels?.[i]??(x===0?"Normal game choices":x+" choices"))}</option>`).join("")}</select><button class="quiet" data-setting-reset="${c.id}">Default</button></div><div class="limits"><span data-setting-feedback="${c.id}" role="status">${settingFeedback(c.id)}</span></div></article>`;
- return `<article class="control-card" data-setting="${esc(c.id)}"><div class="control-top"><span class="icon ${esc(c.id)}" aria-hidden="true"></span><div><div class="control-title">${esc(c.label)}</div></div><span class="badge">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><div class="control-tools">${isToggle?`<label class="toggle">${v?"On":"Off"}<input aria-label="${esc(c.label)}" type="checkbox" data-setting-toggle="${c.id}" ${v?"checked":""}></label>`:`<input type="range" aria-label="${esc(c.label)} slider" data-setting-range="${c.id}" min="${p.minimum}" max="${p.maximum}" step="${p.type==="integer"?1:0.1}" value="${v??p.minimum}"><div class="stepper"><button data-step="-1" data-setting-id="${c.id}" aria-label="${esc(c.label)} decrease">−</button><input aria-label="${esc(c.label)} value" data-setting-number="${c.id}" type="number" min="${p.minimum}" max="${p.maximum}" step="${p.type==="integer"?1:"any"}" value="${v??""}" placeholder="Rank" ${c.default===null?'':'required'}><button data-step="1" data-setting-id="${c.id}" aria-label="${esc(c.label)} increase">+</button></div><span class="unit">${unit}</span>`}<button class="quiet" data-setting-reset="${c.id}">Default</button></div><div class="limits">${isToggle?`Default: ${c.default?"on":"off"}`:`${p.minimum}–${p.maximum}${unit} · Default: ${c.default??"rank bonus"}`} <span class="setting-feedback" data-setting-feedback="${c.id}" role="status">${settingFeedback(c.id)}</span></div></article>`;
+ if(p.choices)return `<article class="control-card" data-setting="${esc(c.id)}"><div class="control-top"><h3>${esc(c.label)}</h3><span class="badge">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><div class="control-tools"><select data-setting-choice="${c.id}" aria-label="${esc(c.label)}">${p.choices.map((x,i)=>`<option value="${x}" ${x===v?"selected":""}>${esc(p.choiceLabels?.[i]??(x===0?"Normal game choices":`${x} choices`))}</option>`).join("")}</select><button class="quiet" data-setting-reset="${c.id}">Default</button></div><div class="limits"><span data-setting-feedback="${c.id}" role="status">${settingFeedback(c.id)}</span></div></article>`;
+ return `<article class="control-card" data-setting="${esc(c.id)}"><div class="control-top"><span class="icon ${esc(c.id)}" aria-hidden="true"></span><div><div class="control-title">${esc(c.label)}</div></div><span class="badge">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><div class="control-tools">${isToggle?`<label class="toggle">${v?"On":"Off"}<input aria-label="${esc(c.label)}" type="checkbox" data-setting-toggle="${c.id}" ${v?"checked":""}></label>`:`<input type="range" aria-label="${esc(`${c.label}: slider`)}" data-setting-range="${c.id}" min="${p.minimum}" max="${p.maximum}" step="${p.type==="integer"?1:0.1}" value="${v??p.minimum}"><div class="stepper"><button data-step="-1" data-setting-id="${c.id}" aria-label="${esc(`${c.label}: decrease`)}">−</button><input aria-label="${esc(`${c.label}: exact value`)}" data-setting-number="${c.id}" type="number" min="${p.minimum}" max="${p.maximum}" step="${p.type==="integer"?1:"any"}" value="${v??""}" placeholder="Rank" ${c.default===null?'':'required'}><button data-step="1" data-setting-id="${c.id}" aria-label="${esc(`${c.label}: increase`)}">+</button></div><span class="unit">${unit}</span>`}<button class="quiet" data-setting-reset="${c.id}">Default</button></div><div class="limits">${defaultText(c,p,unit,isToggle)} <span class="setting-feedback" data-setting-feedback="${c.id}" role="status">${settingFeedback(c.id)}</span></div></article>`;
 }
 function settingPanel(title,controls){return `<section class="panel"><div class="section-head"><h2>${title}</h2><span class="badge">${controls.every(automaticSetting)?"Changes apply automatically":"Use Apply changes below"}</span></div><div class="control-grid">${controls.map(settingCard).join("")}</div></section>`;}
 function actionCard(c, fields="", extra=""){
@@ -426,7 +461,7 @@ function workshopModifierOptions(){
 function craftingControl(id,label,text){return {...controlById(id),label,description:text};}
 function glyphChanceCard(id,title,text){
  const value=values[id]===undefined?(cache.craft_read?.[id==='craft_hope'?'hopePercent':'despairPercent']??null):values[id];
- return `<article class="control-card" data-setting="${id}"><div class="control-top"><h3>${title}</h3><span class="badge">Session</span></div><p class="control-description">${text}</p><label class="craft-mode-label">Chance<select data-craft-glyph-mode="${id}"><option value="default" ${value==null?'selected':''}>Game default</option><option value="custom" ${value!=null?'selected':''}>Custom percentage</option></select></label>${value==null?'<p class="craft-default">Uses the game’s normal chance.</p>':`<div class="control-tools"><input type="range" min="0" max="100" step="1" value="${esc(value)}" data-setting-range="${id}" aria-label="${title} slider"><div class="stepper"><input type="number" min="0" max="100" step="any" value="${esc(value)}" required data-setting-number="${id}" aria-label="${title} percentage"></div><span class="unit">%</span></div>`}<div class="limits"><span data-setting-feedback="${id}" role="status">${settingFeedback(id)}</span></div></article>`;
+ return `<article class="control-card" data-setting="${id}"><div class="control-top"><h3>${title}</h3><span class="badge">Session</span></div><p class="control-description">${text}</p><label class="craft-mode-label">Chance<select data-craft-glyph-mode="${id}"><option value="default" ${value==null?'selected':''}>Game default</option><option value="custom" ${value!=null?'selected':''}>Custom percentage</option></select></label>${value==null?'<p class="craft-default">Uses the game’s normal chance.</p>':`<div class="control-tools"><input type="range" min="0" max="100" step="1" value="${esc(value)}" data-setting-range="${id}" aria-label="${esc(`${title}: slider`)}"><div class="stepper"><input type="number" min="0" max="100" step="any" value="${esc(value)}" required data-setting-number="${id}" aria-label="${title} percentage"></div><span class="unit">%</span></div>`}<div class="limits"><span data-setting-feedback="${id}" role="status">${settingFeedback(id)}</span></div></article>`;
 }
 function workshopPicker(kind){
  const entries=kind==='affixes'?(cache.craft_custom_catalog?.affixes||[]).map(x=>({...x,name:clean(x.name)})):workshopModifierEntries();
@@ -496,7 +531,7 @@ function parameterFields(c){
   else if(c.id==="craft_custom"&&name==="perfect")html=`<select name="perfect"><option value="1" ${workshopDraft.perfect==="1"?"selected":""}>Maximum rolls</option><option value="0" ${workshopDraft.perfect==="0"?"selected":""}>Midpoint rolls</option></select>`;
   else if(c.id==="craft_custom"&&name==="modifiers")html=`<input type="search" data-workshop-filter placeholder="Search item names or modifier effects..." value="${esc(workshopModifierFilter)}"><select name="modifiers" multiple size="10">${workshopModifierOptions()}</select><span class="note">Mix up to 64 individual Unique and Set modifier lines. Uses one affix slot: select at most six regular affixes. Mixed items require EpochPact and its workshop-recipes.txt file after restarting or moving to another PC.</span>`;
   else if(c.id==="craft_materials"&&name==="value")html=`<input name="value" type="number" min="${p.minimum}" max="${p.maximum}" step="1" value="${esc(materialTarget)}" required><span class="note">Higher existing quantities are kept. Range: 1–1,000,000 per material.</span>`;
-  else if(p.choices){const selected=c.id==="loot_mode"?cache.loot_read?.mode??c.default:null;html=`<select name="${name}">${p.choices.map(x=>`<option value="${x}" ${x===selected?"selected":""}>${x}</option>`).join("")}</select>`;}
+  else if(p.choices){const selected=c.id==="loot_mode"?cache.loot_read?.mode??c.default:null;html=`<select name="${name}">${p.choices.map(x=>`<option value="${x}" ${x===selected?"selected":""}>${esc(choiceWords[x]??String(x))}</option>`).join("")}</select>`;}
   else if(c.id==="loot_affixes")html=`<select name="ids" multiple size="8" aria-label="Wanted T7 affixes">${options(cache.loot_read?.affixes||[],cache.loot_read?.affixIds||[])}</select><span class="note">Refresh pickup rules to load affix names. Hold Ctrl to select several; no selection accepts any T7.</span>`;
  else {const liveDefault=name==="value"?({craft_hope:cache.craft_read?.hopePercent,craft_despair:cache.craft_read?.despairPercent,cof_rank:cache.cof_read?.cof?.rank,cof_favor:cache.cof_read?.cof?.favor,cof_charges:cache.cof_read?.slots?.find(s=>!s.locked)?.charges}[c.id]??c.default):c.default;html=`<input name="${name}" ${p.type==="single_token"?'type="text"':'type="number"'} ${p.minimum!=null?`min="${p.minimum}"`:""} ${p.maximum!=null?`max="${p.maximum}"`:""} step="${p.type.includes("integer")?"1":"any"}" ${liveDefault!=null?`value="${liveDefault}"`:""} ${p.type==="number_or_reset"?'placeholder="Normal chance (blank resets)"':""} ${["optional_integer","number_or_reset"].includes(p.type)?"":"required"}>`;}
   return field(name,c.id==="craft_materials"&&name==="value"?"Minimum quantity per material":{value:"Value",name:"Character name",level:"Level (optional)",slot:"Prophecy slot",reward:"Reward",lens:"Lens",backup:"Operation backup",mode:"Selection",ids:"Affixes",category:"Pickup category",template_id:"Whole Unique / Set template",affixes:"T7 affixes",perfect:"Roll quality",modifiers:"Additional modifier lines"}[name]||name,html);
@@ -539,7 +574,7 @@ async function openPage(){
  if(rememberScroll()&&scrollPage===page&&pageScroll[page]&&$("#main-scroll").scrollTop<pageScroll[page])$("#main-scroll").scrollTop=pageScroll[page];
 }
 function renderPage(){
- navigation();const p=pages[page];$("#breadcrumb").textContent="EpochPact / "+p[0];$("#page-title").textContent=p[2];$("#page-subtitle").textContent=p[3];
+ navigation();const p=pages[page];$("#breadcrumb").textContent="EpochPact / "+tr(p[0]);$("#page-title").textContent=p[2];$("#page-subtitle").textContent=p[3];
  if(page==="overview"){
   content.innerHTML=`<div class="summary-grid"><div class="summary"><strong>${catalog.controls.filter(playerControl).length}</strong><span>Available tools</span></div><div class="summary"><strong>${catalog.counts.sheetRows}</strong><span>Character bonuses</span></div><div class="summary"><strong>${catalog.counts.timelines}</strong><span>Monolith timelines</span></div><div class="summary"><strong>${catalog.counts.statAliases}</strong><span>Common stats</span></div></div>`+settingPanel("Quick controls",["xp","speed","drops","gold"].map(controlById))+`<section class="panel"><h2>Explore your workshop</h2><div class="control-grid">${["stats","loot","crafting","campaign","monolith","cof"].map(id=>`<button data-go="${id}" class="settings-card"><h3>${pages[id][1]} ${pages[id][0]}</h3><p class="muted">${pages[id][3]}</p></button>`).join("")}</div></section>`;
  }else if(page==="game_setup"){
@@ -618,11 +653,11 @@ function renderStatResults(){
   return match&&(statsCategory==="All"||ST.category(row,statsTab)===statsCategory)&&(!statsFavoritesOnly||statFavorites.has(ST.favoriteId(row,statsTab)))&&(showHiddenStats||!displayPreferences.hiddenStats.includes(ST.favoriteId(row,statsTab)));
  });
  const totalPages=Math.max(1,Math.ceil(rows.length/24));statsPage=Math.min(statsPage,totalPages-1);
- $("#stat-count").textContent=rows.length+(rows.length===1?" stat":" stats");
- $("#stat-results").innerHTML=`<div class="actions"><button id="stat-hidden-filter" aria-pressed="${showHiddenStats}">${showHiddenStats?"Hide hidden stats":"Show hidden stats"} (${displayPreferences.hiddenStats.length})</button></div><div class="stat-list">${rows.slice(statsPage*24,statsPage*24+24).map(({row:r,index:i})=>{
+ $("#stat-count").textContent=(rows.length===1?"1 stat":`${rows.length} stats`);
+ $("#stat-results").innerHTML=`<div class="actions"><button id="stat-hidden-filter" aria-pressed="${showHiddenStats}">${showHiddenStats?`Hide hidden stats (${displayPreferences.hiddenStats.length})`:`Show hidden stats (${displayPreferences.hiddenStats.length})`}</button></div><div class="stat-list">${rows.slice(statsPage*24,statsPage*24+24).map(({row:r,index:i})=>{
   const name=ST.name(r,statsTab),favorite=statFavorites.has(ST.favoriteId(r,statsTab));
   const hidden=displayPreferences.hiddenStats.includes(ST.favoriteId(r,statsTab));
-  return `<div class="stat-entry"><button class="stat-open" data-stat-index="${i}"><strong>${esc(name)}</strong><small>${ST.category(r,statsTab)}${r.derived?" · Calculated by the game":""}</small></button>${r.modifierKey?`<button class="secondary" data-stat-index="${i}" data-secondary="true" title="Edit the secondary modifier">Extra</button>`:""}<button class="stat-star ${favorite?"selected":""}" data-stat-favorite="${i}" aria-pressed="${favorite}" aria-label="${favorite?"Remove":"Add"} ${esc(name)} ${favorite?"from":"to"} favorites">${favorite?"★":"☆"}</button><button class="quiet" data-stat-hide="${i}" aria-label="${hidden?"Show":"Hide"} ${esc(name)}">${hidden?"Show":"Hide"}</button></div>`;
+  return `<div class="stat-entry"><button class="stat-open" data-stat-index="${i}"><strong>${esc(name)}</strong><small>${ST.category(r,statsTab)}${r.derived?" · Calculated by the game":""}</small></button>${r.modifierKey?`<button class="secondary" data-stat-index="${i}" data-secondary="true" title="Edit the secondary modifier">Extra</button>`:""}<button class="stat-star ${favorite?"selected":""}" data-stat-favorite="${i}" aria-pressed="${favorite}" aria-label="${esc(favorite?`Remove ${name} from favorites`:`Add ${name} to favorites`)}">${favorite?"★":"☆"}</button><button class="quiet" data-stat-hide="${i}" aria-label="${esc(hidden?`Show ${name} in the list`:`Hide ${name} from the list`)}">${hidden?"Show":"Hide"}</button></div>`;
  }).join("")||`<div class="empty"><strong>${statsFavoritesOnly?"No matching favorites":"No matching stats"}</strong><p>${statsFavoritesOnly?"Use the star beside a stat to save it here.":"Try another name or choose All categories."}</p><button id="stat-clear-filters">Show all stats</button></div>`}</div><div class="pagination"><button data-stat-page="-1" ${statsPage===0?"disabled":""} aria-label="Previous stat page">←</button><span>${statsPage+1} / ${totalPages}</span><button data-stat-page="1" ${statsPage===totalPages-1?"disabled":""} aria-label="Next stat page">→</button></div>`;
 }
 function toggleStatFavorite(index){
@@ -651,7 +686,7 @@ function renderStatControls(){
  $("#stat-advanced-note").textContent="More applies a separate multiplier. Reset bonus removes all EpochPact bonuses affecting this same stat. The game still handles derived values and caps.";
  const current=a.current;
  $("#stat-current-value").textContent=current?ST.bonusSummary(catalog.characterStats,a.key,current)+(current.attached?"":" · Not active"):a.needsRead?"Refresh to read this key":a.readError?"Not available":"Reading…";
- if(a.gameValue!==undefined&&a.gameValue!==null)$("#stat-current-value").textContent+=` · In game: ${a.gameValue}`;
+ if(a.gameValue!==undefined&&a.gameValue!==null)$("#stat-current-value").textContent+=" · "+`In game: ${a.gameValue}`;
  updateStatPreview();updateDisabled();
 }
 function updateStatPreview(){
@@ -737,7 +772,7 @@ async function statAction(operation,context=activeStat){
 function renderSettings(){
  let profiles={};try{profiles=JSON.parse(localStorage.getItem(profileKey)||"{}");}catch{}
  const theme=document.documentElement.dataset.theme;
- content.innerHTML=`<section class="panel"><h2>Appearance · Theme</h2><p class="muted">Both themes use the same settings. Switching themes sends no game commands, and your choice is remembered.</p><div class="control-grid theme-grid">${[["chronoforge","Chronoforge","Jade time crystal · aged gold · ancient temple"],["void-atlas","Void Atlas","Violet time rift · horizontal navigation · Void observatory"]].map(([id,title,note])=>`<button data-theme-pick="${id}" class="settings-card ${theme===id?"selected":""}" aria-pressed="${theme===id}"><img src="/ui/assets/${id}-reference.png" alt="${title} design reference"><h3>${title}</h3><p class="muted">${note}</p></button>`).join("")}</div></section><section class="panel"><h2>Draft profiles</h2><div class="note">Profiles store session settings only. Quests, rewards, balances and save actions are never stored or automatically applied.</div><div class="form-grid"><label>Profile name<input id="profile-name" placeholder="Example: Balanced"></label><label>Saved draft<select id="profile-select">${Object.keys(profiles).map(name=>`<option>${esc(name)}</option>`).join("")}</select></label></div><div class="actions"><button id="profile-save">Save draft</button><button id="profile-load">Load draft</button><button id="profile-delete">Delete profile</button></div><label class="startup-profile">Apply at startup<select id="startup-profile">${(()=>{const chosen=readStored("startup-profile","");return [["","Off — start with the game's normal values"],["__last__","My last used settings"],...Object.keys(profiles).map(n=>[n,`Profile: ${n}`])].map(([v,l])=>`<option value="${esc(v)}" ${chosen===v?"selected":""}>${esc(l)}</option>`).join("");})()}</select></label><p class="muted">Applied once each time an offline character is ready, after you start EpochPact or the game. Closing EpochPact still returns the game to its normal values.</p></section>${developer?`<section class="panel"><h2>Game connection</h2><div class="control-grid">${["session_read","status","player_read","characters","play_offline","load_character"].map(id=>actionCard(controlById(id))).join("")}</div></section>`:""}<section class="panel"><h2>Version</h2><p class="muted">EpochPact ${esc(appVersion?"v"+appVersion:"")}. At startup EpochPact can read the latest release on GitHub (no player data is sent) and show a notice when a newer version exists. Install update downloads it from that release, checks its SHA-256 and every file, and restarts EpochPact; your settings stay.</p><label class="inline-check"><input type="checkbox" id="update-check" ${readStored("update-check",true)!==false?"checked":""}> Check for EpochPact updates at startup</label><div class="actions"><button data-update-check-now>Check now</button></div></section><section class="panel" id="ingame-report"><h2>In-game report</h2>${ingameReportPanel()}</section><section class="panel"><h2>Support report</h2><p class="muted">Create a ZIP for the EpochPact Discord: your description, versions, setup state and recent EpochPact logs, with an optional screenshot of the game window. Nothing is uploaded; the folder opens so you can attach the file. Your Windows user name is masked; logs can contain character names.</p><label class="wide">What happened?<textarea id="report-description" rows="4" maxlength="4000" placeholder="What did you do, what did you expect, and what happened instead?"></textarea></label><label class="inline-check"><input type="checkbox" id="report-screenshot"> Include a screenshot of the game window</label><div class="actions"><button id="report-create">Create support report</button></div></section><section class="panel"><h2>Recovery backups</h2><p class="muted">Changes to your game save create a backup. Restore a selected backup to undo that change; the game closes normally first.</p>${history.length?`<div class="table-wrap"><table><thead><tr><th>Action</th><th>Time</th><th>Result</th></tr></thead><tbody>${history.map(x=>`<tr><td>${esc(controlById(x.control)?.label)}</td><td>${new Date(x.time*1000).toLocaleTimeString("en-GB")}</td><td>${x.ok?"Complete":"Error / backup available"}</td></tr>`).join("")}</tbody></table></div>`:'<p class="empty">No save actions have been performed in this session.</p>'}${actionCard(controlById("undo"))}</section>`;
+ content.innerHTML=`<section class="panel"><h2>Language</h2><p class="muted">The language of the EpochPact windows. Names that come from the game — items, affixes, stats, zones — stay as the game data writes them.</p><label class="startup-profile">Language<select id="language-select" data-no-translate>${Object.entries(window.EpochI18n?.languages||{en:"English"}).map(([v,l])=>`<option value="${v}" ${v===(window.EpochI18n?.language||"en")?"selected":""}>${l}</option>`).join("")}</select></label></section><section class="panel"><h2>Appearance · Theme</h2><p class="muted">Both themes use the same settings. Switching themes sends no game commands, and your choice is remembered.</p><div class="control-grid theme-grid">${[["chronoforge","Chronoforge","Jade time crystal · aged gold · ancient temple"],["void-atlas","Void Atlas","Violet time rift · horizontal navigation · Void observatory"]].map(([id,title,note])=>`<button data-theme-pick="${id}" class="settings-card ${theme===id?"selected":""}" aria-pressed="${theme===id}"><img src="/ui/assets/${id}-reference.png" alt="${title} design reference"><h3>${title}</h3><p class="muted">${note}</p></button>`).join("")}</div></section><section class="panel"><h2>Draft profiles</h2><div class="note">Profiles store session settings only. Quests, rewards, balances and save actions are never stored or automatically applied.</div><div class="form-grid"><label>Profile name<input id="profile-name" placeholder="Example: Balanced"></label><label>Saved draft<select id="profile-select">${Object.keys(profiles).map(name=>`<option>${esc(name)}</option>`).join("")}</select></label></div><div class="actions"><button id="profile-save">Save draft</button><button id="profile-load">Load draft</button><button id="profile-delete">Delete profile</button></div><label class="startup-profile">Apply at startup<select id="startup-profile">${(()=>{const chosen=startupChoice();return [["__off__","Off — start with the game's normal values"],["__last__","My last used settings (recommended)"],...Object.keys(profiles).map(n=>[n,`Profile: ${n}`])].map(([v,l])=>`<option value="${esc(v)}" ${chosen===v?"selected":""}>${esc(l)}</option>`).join("");})()}</select></label><p class="muted">Applied once each time an offline character is ready, after you start EpochPact or the game, and after an update. Closing EpochPact still returns the game to its normal values until it starts again. Your last used settings include loot modes, collection categories, wanted affixes and the font. Profiles, theme and window places are kept in EpochPact's preferences file, so they survive updates.</p></section>${developer?`<section class="panel"><h2>Game connection</h2><div class="control-grid">${["session_read","status","player_read","characters","play_offline","load_character"].map(id=>actionCard(controlById(id))).join("")}</div></section>`:""}<section class="panel"><h2>Version</h2><p class="muted">EpochPact ${esc(appVersion?"v"+appVersion:"")}. At startup EpochPact can read the latest release on GitHub (no player data is sent) and show a notice when a newer version exists. Install update downloads it from that release, checks its SHA-256 and every file, and restarts EpochPact; your settings stay.</p><label class="inline-check"><input type="checkbox" id="update-check" ${readStored("update-check",true)!==false?"checked":""}> Check for EpochPact updates at startup</label><div class="actions"><button data-update-check-now>Check now</button></div></section><section class="panel" id="ingame-report"><h2>In-game report</h2>${ingameReportPanel()}</section><section class="panel"><h2>Support report</h2><p class="muted">Create a ZIP for the EpochPact Discord: your description, versions, setup state and recent EpochPact logs, with an optional screenshot of the game window. Nothing is uploaded; the folder opens so you can attach the file. Your Windows user name is masked; logs can contain character names.</p><label class="wide">What happened?<textarea id="report-description" rows="4" maxlength="4000" placeholder="What did you do, what did you expect, and what happened instead?"></textarea></label><label class="inline-check"><input type="checkbox" id="report-screenshot"> Include a screenshot of the game window</label><div class="actions"><button id="report-create">Create support report</button></div></section><section class="panel"><h2>Recovery backups</h2><p class="muted">Changes to your game save create a backup. Restore a selected backup to undo that change; the game closes normally first.</p>${history.length?`<div class="table-wrap"><table><thead><tr><th>Action</th><th>Time</th><th>Result</th></tr></thead><tbody>${history.map(x=>`<tr><td>${esc(controlById(x.control)?.label)}</td><td>${new Date(x.time*1000).toLocaleTimeString("en-GB")}</td><td>${x.ok?"Complete":"Error / backup available"}</td></tr>`).join("")}</tbody></table></div>`:'<p class="empty">No save actions have been performed in this session.</p>'}${actionCard(controlById("undo"))}</section>`;
  content.insertAdjacentHTML("beforeend",navigationPicker());
 }
 async function refreshSection(id,{refreshConnectionFirst=true}={}){
@@ -881,16 +916,16 @@ function renderStashRules(){const node=$("#stash-rules");if(node)node.outerHTML=
 async function stashRulesAction(kind,extra={}){
  const id={read:"stash_rules_read",create:"stash_rules_create",sort:"stash_rules_sort",assign:"stash_rule_assign"}[kind];
  if(kind!=="read"){
-  const name=connected.player?.name||"the loaded character";
+  const name=connected.player?.name;
   const text={create:`Create one free stash tab for each ${extra.hidden?"":"Show/Highlight "}rule of “${stashRules?.filter}” that has no tab yet, in a folder named after the filter. A recovery backup is created first.`,
-   sort:`Move ${name}'s inventory items into the tabs linked to the loot filter rule they match. Items without a linked rule stay in the inventory. A recovery backup is created first.`,
+   sort:name?`Move ${name}'s inventory items into the tabs linked to the loot filter rule they match. Items without a linked rule stay in the inventory. A recovery backup is created first.`:`Move the loaded character's inventory items into the tabs linked to the loot filter rule they match. Items without a linked rule stay in the inventory. A recovery backup is created first.`,
    assign:extra.rule?`Give this stash tab the conditions of rule ${extra.rule} as its stash priority. A recovery backup is created first.`:`Remove the rule link and stash priority from this tab. A recovery backup is created first.`}[kind];
   if(!await confirmAction(controlById(id).label,text)){renderStashRules();return;}
  }
  const r=await runTask({type:"control",id,operation:kind==="read"?"read":"set",args:stashRulesArgs(extra)},{silent:kind==="read"});
  if(r?.ok&&r.rules){stashRules=r;
-  if(kind==="create")notify(`${r.created} tab${r.created===1?"":"s"} created${r.existing?`, ${r.existing} already linked`:""}${r.atLimit?`, ${r.atLimit} over the game's tab limit`:""}.`);
-  if(kind==="sort")notify(`${r.moved} item${r.moved===1?"":"s"} moved${r.full?`, ${r.full} did not fit`:""}${r.unlinked?`, ${r.unlinked} match a rule without a tab`:""}.`);
+  if(kind==="create")notify([r.created===1?tr("1 tab created"):tr(`${r.created} tabs created`),r.existing?tr(`${r.existing} already linked`):"",r.atLimit?tr(`${r.atLimit} over the game's tab limit`):""].filter(Boolean).join(", ")+".");
+  if(kind==="sort")notify([r.moved===1?tr("1 item moved"):tr(`${r.moved} items moved`),r.full?tr(`${r.full} did not fit`):"",r.unlinked?tr(`${r.unlinked} match a rule without a tab`):""].filter(Boolean).join(", ")+".");
   if(kind==="assign")notify(extra.rule?`Tab linked to rule ${extra.rule}.`:"Tab link removed.");
  }
  renderStashRules();
@@ -1084,7 +1119,9 @@ async function formAction(form,override){
  const args=formArgs(form,c),draftKey=monoDraftKey(c.id),submittedDraft=monoDrafts[draftKey],submittedName=connected.player?.name;
  if(c.lifetime==="game_save"||c.lifetime==="recovery"){
   const summary=c.id==='craft_custom'?craftingModel.summary(workshopDraft,cache.craft_custom_catalog):null;
-  const message=summary?`Character: ${submittedName||'Loaded offline character'}\n${clean(summary.template)}\n${summary.affixes} · ${summary.effects} · ${summary.rolls}\n\nReplaces the item currently selected in the game’s forge. No materials are consumed. A recovery backup is created.${args.modifiers!=='none'?'\nExtra effects require EpochPact and workshop-recipes.txt when reloading or moving this item.':''}`:c.id==='craft_materials'?`Character: ${submittedName||'Loaded offline character'}\nMinimum stock: ${Number(args.value).toLocaleString()} of each shard, rune and glyph.\n\nHigher quantities are kept. Adds materials once to the shared crafting stash and creates a recovery backup. This does not enable infinite materials.`:c.description+(c.lifetime==="recovery"?" The game will close normally and the selected operation backup will be restored.":" This action changes the game save. The backend creates a backup before applying it.");
+  // One interface text per line, so the interface language can translate each line.
+  const character=`Character: ${submittedName||'Loaded offline character'}`;
+  const message=summary?[character,clean(summary.template),`${summary.affixes} · ${summary.effects} · ${summary.rolls}`,'','Replaces the item currently selected in the game’s forge. No materials are consumed. A recovery backup is created.',...(args.modifiers!=='none'?['Extra effects require EpochPact and workshop-recipes.txt when reloading or moving this item.']:[])].join('\n'):c.id==='craft_materials'?[character,`Minimum stock: ${Number(args.value).toLocaleString()} of each shard, rune and glyph.`,'','Higher quantities are kept. Adds materials once to the shared crafting stash and creates a recovery backup. This does not enable infinite materials.'].join('\n'):c.description+(c.lifetime==="recovery"?" The game will close normally and the selected operation backup will be restored.":" This action changes the game save. The backend creates a backup before applying it.");
   const accepted=await confirmAction(summary?'Create this custom item?':c.id==='craft_materials'?'Stock all materials?':c.label,message);if(!accepted)return;
  }
  if((c.lifetime==="game_save"||c.id==="mastery_choose")&&!preview){
@@ -1133,7 +1170,7 @@ async function applyDraft(){
  // A changed level/cost control changes normal forge eligibility. Read it once
  // after this batch; never invoke Forge while applying session settings.
  if(refreshForge)await refreshSection("craft_read",{refreshConnectionFirst:false});
- notify(`${applied} settings ${preview?"simulated in preview":"applied in order"}.`);renderPage();
+ notify(preview?`${applied} settings simulated in preview.`:`${applied} settings applied in order.`);renderPage();
 }
 function setTheme(theme){
  if(!["chronoforge","void-atlas"].includes(theme))theme="chronoforge";
@@ -1269,11 +1306,16 @@ content.addEventListener("change",e=>{
   try{localStorage.setItem("epochpact.tier-palette.v1",JSON.stringify(palette));}catch{}
   void runTask({type:"control",id:"tier_color",args:{tier:i+1,color:hex}},{silent:true});return;
  }
+ if(e.target.id==="language-select"){
+  try{localStorage.setItem("epochpact.language",JSON.stringify(e.target.value));}catch{}
+  window.EpochStorageSync?.flush?.();setTimeout(()=>location.reload(),150);return;
+ }
  if(e.target.id==="startup-profile"){
   const value=e.target.value;writeStored("startup-profile",value);
   if(value==="__last__")rememberLastSettings();
-  notify(value?"Startup profile saved. It applies when an offline character is ready.":"Startup profile turned off. EpochPact starts with the game's normal values.");
-  if(value)applyStartupProfile();return;
+  const on=value!=="__off__";
+  notify(on?"Startup profile saved. It applies when an offline character is ready.":"Startup profile turned off. EpochPact starts with the game's normal values.");
+  if(on)applyStartupProfile();return;
  }
  if(e.target.dataset.navVisible){saveDisplayPreference("hidden",e.target.dataset.navVisible,!e.target.checked);navigation();return;}
  if(e.target.dataset.navFavorite){saveDisplayPreference("favorites",e.target.dataset.navFavorite,e.target.checked);navigation();return;}

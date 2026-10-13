@@ -47,7 +47,10 @@ reading the list.
 opacity slider and Gold/Materials filters. It stays above the game only: when
 EpochPact or another program is in front it goes behind it, and while the game
 is minimised it is hidden (the damage window behaves the same). It only reads
-the list. Exclusive fullscreen draws over every window.
+the list. Exclusive fullscreen draws over every window. Both windows remember
+their place and size; a window left open when EpochPact closes opens again when
+it starts, and a damage session left running starts again once the game is
+ready (closing a window yourself forgets it).
 
 Identical resources picked up one after another share one line: gold and
 amber are added up, the same material is counted; equipment always has its own

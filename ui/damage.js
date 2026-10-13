@@ -1,10 +1,12 @@
 /* Always-on-top damage window: reads the damage session once a second and can
-   start, stop or reset it. Nothing else is sent to the game. */
+   start, stop or reset it. A session left running when the window closed
+   starts again once the game is ready the next time the window opens.
+   Nothing else is sent to the game. */
 (function(){
  'use strict';
  const $=s=>document.querySelector(s);
  const key='epochpact.damage-window.v1';
- let options={compact:true,opacity:100};
+ let options={compact:true,opacity:100,running:false};
  try{options={...options,...JSON.parse(localStorage.getItem(key)||'{}')};}catch{}
  const save=()=>{try{localStorage.setItem(key,JSON.stringify(options));}catch{}};
  let state=null,busy=false;
@@ -34,11 +36,15 @@
   $('#damage-compact').checked=options.compact;
   $('#damage-compact').addEventListener('change',e=>{options.compact=e.target.checked;save();render();});
   $('#damage-opacity').addEventListener('input',e=>{options.opacity=Number(e.target.value);save();applyOpacity();});
-  $('#damage-toggle').addEventListener('click',()=>void call(state?.active?'stop':'start'));
+  $('#damage-toggle').addEventListener('click',()=>{const action=state?.active?'stop':'start';options.running=action==='start';save();void call(action);});
   $('#damage-reset').addEventListener('click',()=>void call('reset'));
   window.addEventListener('pywebviewready',applyOpacity);
   applyOpacity();await call();
   setInterval(()=>{if(!document.hidden&&state?.active)void call();},1000);
+  // Resume once per window opening; a later Stop elsewhere is respected.
+  let resumed=false;
+  const resume=async()=>{if(resumed||!options.running||busy)return;if(!state)await call();if(!state)return;resumed=true;if(!state.active)await call('start');};
+  void resume();setInterval(()=>void resume(),3000);
  }
  void start();
 })();

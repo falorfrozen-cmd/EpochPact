@@ -2,8 +2,8 @@
 // Keep in step with docs/nexus/release.json when a release is published.
 #pragma once
 
-#define EP_VERSION_NUM 0,1,2,25
-#define EP_VERSION_STR "0.1.2-dev.25"
+#define EP_VERSION_NUM 0,1,2,26
+#define EP_VERSION_STR "0.1.2-dev.26"
 #define EP_COMPANY "Falor"
 #define EP_PRODUCT "EpochPact"
 #define EP_COPYRIGHT "Copyright (C) 2026 Falor"

@@ -58,9 +58,11 @@ To remove the mod, close Last Epoch and press **Game setup → Uninstall mod**. 
 
 Session settings apply automatically after an edit. Campaign rewards, mastery selection, progression changes, material grants and free tree respec require their explicit action buttons. Opening the interface does not grant rewards or apply saved actions.
 
-Closing EpochPact returns the game to its normal values. To get your settings back automatically, open **Settings → Draft profiles → Apply at startup** and choose **My last used settings** or a saved profile. It is applied once each time an offline character is ready. It is off by default.
+Closing EpochPact returns the game to its normal values until it starts again: by default your **last used settings** come back by themselves once each time an offline character is ready — after you start EpochPact, restart the game or install an update. They include multipliers, collection, camera, minimap, graphics and HUD switches, loot modes, collection categories, wanted affixes and the font. To start with the game's normal values instead, choose **Off** in **Settings → Draft profiles → Apply at startup**, or choose a saved profile there. The loot and damage windows reopen where you left them, at the same size, and a damage session that was running starts again. Profiles, theme, window places and options are kept in `%LOCALAPPDATA%\EpochPact\preferences.json`, so updates and interface port changes keep them.
 
 Inventory shortcuts show **Stash**, **Stash all** and **Vendor** in their own centered row below the item grid, above the game's Transfer/Sort and currency footer. The grid is scaled slightly to make room; item cells stay square and every currency digit stays visible. Stash and Vendor toggle their windows. If the inventory bounds are unsupported, the shortcuts are hidden rather than covering another control. The Inventory page remains available.
+
+**Settings → Language** switches the EpochPact windows (main window, loot feed and damage window) between English, Türkçe and Русский; the choice is kept with your other preferences. Names that come from the game — items, affixes, stats, quests, zones and your loot filter rule names — stay as the game data writes them, and the in-game overlays keep the game's language.
 
 Settings includes navigation favorites and hidden sections. Character stats and the summon table support hiding unwanted entries/columns. Stash Assistant includes copyable search examples.
 

@@ -18,7 +18,9 @@ controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest changes: [0.1.2-dev.25 five blessing choices, smoother chests, shrines and graphics switches](docs/patch-notes-0.1.2-dev.25.md),
+Latest changes: [0.1.2-dev.26 settings that stay and Turkish / Russian interface](docs/patch-notes-0.1.2-dev.26.md),
+[dev.26 persistence and language](docs/persistence-language-validation-2026-10-14.md),
+[0.1.2-dev.25 five blessing choices, smoother chests, shrines and graphics switches](docs/patch-notes-0.1.2-dev.25.md),
 [dev.25 performance](docs/performance-validation-2026-10-13.md), [dev.25 blessings and trees](docs/blessings-trees-validation-2026-10-13.md),
 [0.1.2-dev.24 passive tree connections fix](docs/patch-notes-0.1.2-dev.24.md),
 [dev.24 validation](docs/passive-tree-validation-2026-10-13.md),
@@ -130,6 +132,13 @@ management also have native commands and Python APIs for the owner's UI:
 [Unique Atlas, Stash Assistant and Monolith Navigator](docs/collection-navigator.md).
 Current faction research: [CoF / MG](research/factions-1.5.md) and
 [The Woven / Weaver](research/weaver-1.5.md).
+
+The desktop windows are available in English, Turkish and Russian
+(**Settings → Language**). English is the source text: `tools/extract_ui_text.py`
+lists every interface text in `ui/i18n-source.json`, `ui/i18n-<language>.json`
+holds the translations and `tools/i18n_check.py` reports anything missing.
+Settings, profiles, window places and the language are kept in the user's
+`preferences.json`, so they survive restarts and updates.
 
 ## Layout
 

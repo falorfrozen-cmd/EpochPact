@@ -410,7 +410,33 @@ class DamageWindowApi(FeedWindowApi):
     TITLE = 'EpochPact Damage'
 
 
+def _point_on_monitor(x: int, y: int) -> bool:
+    """Whether a desktop point lies on a connected monitor (always true off Windows)."""
+    if sys.platform != 'win32':
+        return True
+    user32 = ctypes.WinDLL('user32', use_last_error=True)
+    user32.MonitorFromPoint.argtypes = [wt.POINT, wt.DWORD]; user32.MonitorFromPoint.restype = wt.HANDLE
+    return bool(user32.MonitorFromPoint(wt.POINT(int(x), int(y)), 0))  # MONITOR_DEFAULTTONULL
+
+
+def window_placement(entry, width: int, height: int, minimum: tuple[int, int], on_monitor=_point_on_monitor) -> dict:
+    """create_window size/position from a remembered entry; unusable parts fall back
+    to the default size and a centred window (for example a monitor that is gone)."""
+    entry = entry if isinstance(entry, dict) else {}
+    w, h = entry.get('width'), entry.get('height')
+    sized = all(isinstance(v, int) and not isinstance(v, bool) and low <= v <= 8000 for v, low in ((w, minimum[0]), (h, minimum[1])))
+    out = {'width': w if sized else width, 'height': h if sized else height}
+    x, y = entry.get('x'), entry.get('y')
+    if all(isinstance(v, int) and not isinstance(v, bool) and -20000 < v < 20000 for v in (x, y)) and on_monitor(x + 40, y + 20):
+        out.update(x=x, y=y)
+    return out
+
+
 class DesktopDialogs:
+    # Loot feed and damage windows: open or closed, place and size, kept in the
+    # preferences file and restored when EpochPact starts again.
+    _WINDOWS_KEY = 'epochpact.windows.v1'
+
     def __init__(self):
         # pywebview reflects public js_api attributes recursively. Never expose
         # its native window/.NET object graph to that bridge.
@@ -419,6 +445,81 @@ class DesktopDialogs:
         self._damage = None
         self._url = None
         self._follower = None
+        self._preferences = None
+        self._shutting_down = False
+        self._restored = False
+        self._moves = {}
+        self._known = {}
+        self._move_timer = None
+        import threading
+        self._state_lock = threading.Lock()
+
+    def _windows(self) -> dict:
+        state = self._preferences.get_json(self._WINDOWS_KEY, {}) if self._preferences is not None else {}
+        return state if isinstance(state, dict) else {}
+
+    def _remember(self, name, **fields):
+        if self._preferences is None:
+            return
+        with self._state_lock:
+            state = self._windows()
+            entry = state.get(name) if isinstance(state.get(name), dict) else {}
+            entry.update(fields)
+            state[name] = entry
+            try:
+                self._preferences.set_json(self._WINDOWS_KEY, state)
+            except (OSError, ValueError):
+                logging.getLogger(__name__).exception('Window place could not be saved')
+
+    def _placed(self, name, fields):
+        # Moving and resizing fire many events: write once the window settles.
+        import threading
+        if any(isinstance(v, int) and v <= -10000 for v in fields.values()):
+            return  # minimised windows report -32000
+        with self._state_lock:
+            # pywebview reports logical pixels rounded down: on a scaled desktop
+            # a reopened window reads a pixel smaller. Ignore that, or the size
+            # would shrink by a pixel at every start.
+            known = self._known.setdefault(name, {})
+            if all(isinstance(known.get(k), int) and abs(v - known[k]) <= 2 for k, v in fields.items()):
+                return
+            known.update(fields)
+            self._moves.setdefault(name, {}).update(fields)
+            if self._move_timer is not None:
+                self._move_timer.cancel()
+            self._move_timer = threading.Timer(0.6, self._flush_moves)
+            self._move_timer.daemon = True
+            self._move_timer.start()
+
+    def _flush_moves(self):
+        with self._state_lock:
+            moves, self._moves = self._moves, {}
+        for name, fields in moves.items():
+            self._remember(name, **fields)
+
+    def _track(self, name, window, placement=None):
+        with self._state_lock:
+            self._known[name] = dict(placement or {})
+        window.events.moved += lambda x, y: self._placed(name, {'x': x, 'y': y})
+        window.events.resized += lambda width, height: self._placed(name, {'width': width, 'height': height})
+        self._remember(name, open=True)
+
+    def _prepare_close(self, closing: bool):
+        """The main window is closing: windows that close with it stay remembered as open."""
+        self._shutting_down = closing
+        if closing:
+            self._flush_moves()
+
+    def _restore_windows(self):
+        """Reopen the loot feed / damage windows that were open when EpochPact closed."""
+        if self._restored:
+            return
+        self._restored = True
+        state = self._windows()
+        if (state.get('feed') or {}).get('open'):
+            self.open_loot_feed()
+        if (state.get('damage') or {}).get('open'):
+            self.open_damage_window()
 
     def _follow_game(self):
         """The small windows stay above the game only (not above EpochPact or other programs)."""
@@ -444,14 +545,18 @@ class DesktopDialogs:
                 self._feed = None
         if not self._url:
             return False
-        self._feed = webview.create_window(FeedWindowApi.TITLE, self._url + '/feed', js_api=FeedWindowApi(), width=380, height=520,
-                                           min_size=(260, 200), on_top=False, background_color='#091310')
+        placement = window_placement(self._windows().get('feed'), 380, 520, (260, 200))
+        self._feed = webview.create_window(FeedWindowApi.TITLE, self._url + '/feed', js_api=FeedWindowApi(),
+                                           min_size=(260, 200), on_top=False, background_color='#091310', **placement)
         self._feed.events.closed += self._feed_closed
+        self._track('feed', self._feed, placement)
         self._follow_game()
         return True
 
     def _feed_closed(self):
         self._feed = None
+        if not self._shutting_down:
+            self._remember('feed', open=False)
 
     def open_damage_window(self):
         """The damage session over a windowed/borderless game."""
@@ -465,14 +570,18 @@ class DesktopDialogs:
                 self._damage = None
         if not self._url:
             return False
-        self._damage = webview.create_window(DamageWindowApi.TITLE, self._url + '/damage', js_api=DamageWindowApi(), width=520, height=360,
-                                             min_size=(320, 200), on_top=False, background_color='#091310')
+        placement = window_placement(self._windows().get('damage'), 520, 360, (320, 200))
+        self._damage = webview.create_window(DamageWindowApi.TITLE, self._url + '/damage', js_api=DamageWindowApi(),
+                                             min_size=(320, 200), on_top=False, background_color='#091310', **placement)
         self._damage.events.closed += self._damage_closed
+        self._track('damage', self._damage, placement)
         self._follow_game()
         return True
 
     def _damage_closed(self):
         self._damage = None
+        if not self._shutting_down:
+            self._remember('damage', open=False)
 
     def choose_filter_file(self):
         import webview

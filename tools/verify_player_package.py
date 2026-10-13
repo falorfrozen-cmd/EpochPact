@@ -303,7 +303,7 @@ def main():
             checks.append('first launch performs no selection, installation or gameplay mutation')
             index = request('/').decode()
             assert 'setup-dialog' in index and 'launcher.js' in index
-            for resource in ('app.js', 'style.css', 'stat-model.js', 'session.js', 'collection-ui.js', 'collection.css', 'launcher.js', 'preferences.js', 'crafting-model.js', 'affix-picker.js', 'loot-log.js', 'feed.js', 'damage-meter.js', 'release-notes.js', 'damage.js',
+            for resource in ('app.js', 'style.css', 'stat-model.js', 'session.js', 'collection-ui.js', 'collection.css', 'launcher.js', 'preferences.js', 'crafting-model.js', 'affix-picker.js', 'loot-log.js', 'feed.js', 'damage-meter.js', 'release-notes.js', 'storage-sync.js', 'i18n.js', 'i18n-tr.json', 'i18n-ru.json', 'damage.js',
                              'assets/chronoforge-art.png', 'assets/void-atlas-art.png', 'assets/inter.ttf', 'assets/monster-density.svg'):
                 assert len(request('/ui/' + resource)) > 0, resource
             checks.append('compiled interface serves scripts, font and both theme assets')

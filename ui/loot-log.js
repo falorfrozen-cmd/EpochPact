@@ -20,7 +20,8 @@
   // Rule descriptions carry Unity rich-text tags (<color>, <u>); show plain text.
   const name=String(e.rule||'').replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();
   const outcome=outcomes[e.outcome]??'';
-  return `Rule ${e.ruleNumber}${outcome?' · '+outcome:''}${name?' · '+name:''}`;
+  const t=globalThis.EpochI18n?.t??(x=>x);
+  return `${t('Rule')} ${e.ruleNumber}${outcome?' · '+t(outcome):''}${name?' · '+name:''}`;
  }
  function tierLabel(e){return e.tiers?String(e.tiers).split(' ').filter(Boolean).map(t=>'T'+t).join(' '):'';}
  function itemLabel(e){
@@ -53,18 +54,19 @@
   const s=Math.max(0,Math.round((now-(Number(at)||now))/1000));
   return s<60?`${s}s`:s<3600?`${Math.floor(s/60)}m`:`${Math.floor(s/3600)}h`;
  }
- function piles(e){return e.count>1&&(e.kind==='gold'||e.kind==='amber')?` <small class="muted">(${e.count} pickups)</small>`:'';}
+ function piles(e){const t=globalThis.EpochI18n?.t??(x=>x);return e.count>1&&(e.kind==='gold'||e.kind==='amber')?` <small class="muted">${escape(t(`(${e.count} pickups)`))}</small>`:'';}
  function table(entries,options={}){
   const list=rows(entries,options),now=options.now??Date.now();
   if(!list.length)return '<p class="empty">No pickups yet. Items and gold you or Auto Pickup collect appear here.</p>';
   return `<div class="table-scroll"><table class="loot-table"><thead><tr><th>When</th><th>Pickup</th><th>Tiers</th><th>Rarity</th><th>Loot filter</th><th>By</th></tr></thead><tbody>${list.map(e=>
-   `<tr><td>${escape(age(e.at,now))}</td><td class="${rarityClass(e.rarity)}">${escape(itemLabel(e))}${piles(e)}</td><td>${escape(tierLabel(e))}</td><td>${escape(e.rarity)}</td><td>${escape(ruleLabel(e))}</td><td>${e.automatic?'Auto Pickup':'You'}</td></tr>`).join('')}</tbody></table></div>`;
+   `<tr><td>${escape(age(e.at,now))}</td><td class="${rarityClass(e.rarity)}">${escape(itemLabel(e))}${piles(e)}</td><td>${escape(tierLabel(e))}</td><td>${escape(e.rarity)}</td><td data-no-translate>${escape(ruleLabel(e))}</td><td>${e.automatic?'Auto Pickup':'You'}</td></tr>`).join('')}</tbody></table></div>`;
  }
  function compact(entries,options={}){
   const list=rows(entries,{limit:options.limit??40,...options});
   if(!list.length)return '<p class="empty">Waiting for pickups…</p>';
-  return `<ul class="loot-feed">${list.map(e=>{const rule=ruleLabel(e),tiers=tierLabel(e);
-   return `<li class="${rarityClass(e.rarity)}" title="${escape([itemLabel(e),tiers,rule].filter(Boolean).join('\n'))}"><span>${escape(itemLabel(e))}${piles(e)}${tiers?` <em class="loot-tiers">${escape(tiers)}</em>`:''}</span>${rule?`<small>${escape(rule)}</small>`:''}</li>`;}).join('')}</ul>`;
+  const t=globalThis.EpochI18n?.t??(x=>x);
+  return `<ul class="loot-feed">${list.map(e=>{const rule=ruleLabel(e),tiers=tierLabel(e),item=t(itemLabel(e));
+   return `<li class="${rarityClass(e.rarity)}" data-no-translate title="${escape([item,tiers,rule].filter(Boolean).join('\n'))}"><span>${escape(item)}${piles(e)}${tiers?` <em class="loot-tiers">${escape(tiers)}</em>`:''}</span>${rule?`<small>${escape(rule)}</small>`:''}</li>`;}).join('')}</ul>`;
  }
  function totalGold(entries){return (entries||[]).reduce((t,e)=>t+(e.kind==='gold'?Number(e.gold)||0:0),0);}
  return {merge,newestSeq,ruleLabel,tierLabel,itemLabel,rows,table,compact,totalGold,capacity};
