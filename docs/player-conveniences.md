@@ -248,7 +248,22 @@ once.
   also saves its ZIP in the same folder.
 - **Version:** the sidebar shows the EpochPact version. At startup the app reads
   the latest GitHub release of EpochPact once (no player data is sent) and shows
-  a "New version" link when one exists; Settings → Version turns it off.
+  a "New version · What's new" link when one exists; Settings → Version turns it
+  off and has **Check now**.
+- **Install update:** What's new shows the patch notes of every newer release
+  and **Install update**. The player ZIP is downloaded only from that GitHub
+  release (a dropped connection resumes); its SHA-256 must equal the digest
+  GitHub records for the release file, and every extracted file must match the
+  package's own `SHA256SUMS.txt`, otherwise nothing is changed. **Restart and
+  update** restores temporary game settings as a normal close does, closes
+  EpochPact, and the verified new `EpochPact.exe` replaces the app folder (the
+  old one is kept until the new version has started, and put back on any
+  failure), then opens the new version. Settings in LocalAppData stay; files you
+  put in the app folder move along; README, checksums and Manual Installation
+  beside it are replaced only while they are still the ones EpochPact shipped.
+  The mod in the game folder is then updated automatically as soon as Last Epoch
+  is closed (the running game holds its loaded mod files). The app folder must
+  be somewhere you can change (not Program Files).
 - **Scroll position:** each section reopens where it was left (Settings →
   Navigation and favorites; on by default).
 - **Game setup** has its own section; Overview shows a one-line status with

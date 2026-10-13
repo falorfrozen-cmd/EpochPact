@@ -737,7 +737,7 @@ async function statAction(operation,context=activeStat){
 function renderSettings(){
  let profiles={};try{profiles=JSON.parse(localStorage.getItem(profileKey)||"{}");}catch{}
  const theme=document.documentElement.dataset.theme;
- content.innerHTML=`<section class="panel"><h2>Appearance · Theme</h2><p class="muted">Both themes use the same settings. Switching themes sends no game commands, and your choice is remembered.</p><div class="control-grid theme-grid">${[["chronoforge","Chronoforge","Jade time crystal · aged gold · ancient temple"],["void-atlas","Void Atlas","Violet time rift · horizontal navigation · Void observatory"]].map(([id,title,note])=>`<button data-theme-pick="${id}" class="settings-card ${theme===id?"selected":""}" aria-pressed="${theme===id}"><img src="/ui/assets/${id}-reference.png" alt="${title} design reference"><h3>${title}</h3><p class="muted">${note}</p></button>`).join("")}</div></section><section class="panel"><h2>Draft profiles</h2><div class="note">Profiles store session settings only. Quests, rewards, balances and save actions are never stored or automatically applied.</div><div class="form-grid"><label>Profile name<input id="profile-name" placeholder="Example: Balanced"></label><label>Saved draft<select id="profile-select">${Object.keys(profiles).map(name=>`<option>${esc(name)}</option>`).join("")}</select></label></div><div class="actions"><button id="profile-save">Save draft</button><button id="profile-load">Load draft</button><button id="profile-delete">Delete profile</button></div><label class="startup-profile">Apply at startup<select id="startup-profile">${(()=>{const chosen=readStored("startup-profile","");return [["","Off — start with the game's normal values"],["__last__","My last used settings"],...Object.keys(profiles).map(n=>[n,`Profile: ${n}`])].map(([v,l])=>`<option value="${esc(v)}" ${chosen===v?"selected":""}>${esc(l)}</option>`).join("");})()}</select></label><p class="muted">Applied once each time an offline character is ready, after you start EpochPact or the game. Closing EpochPact still returns the game to its normal values.</p></section>${developer?`<section class="panel"><h2>Game connection</h2><div class="control-grid">${["session_read","status","player_read","characters","play_offline","load_character"].map(id=>actionCard(controlById(id))).join("")}</div></section>`:""}<section class="panel"><h2>Version</h2><p class="muted">EpochPact ${esc(appVersion?"v"+appVersion:"")}. At startup EpochPact can read the latest release on GitHub (no player data is sent) and show a notice when a newer version exists.</p><label class="inline-check"><input type="checkbox" id="update-check" ${readStored("update-check",true)!==false?"checked":""}> Check for EpochPact updates at startup</label></section><section class="panel" id="ingame-report"><h2>In-game report</h2>${ingameReportPanel()}</section><section class="panel"><h2>Support report</h2><p class="muted">Create a ZIP for the EpochPact Discord: your description, versions, setup state and recent EpochPact logs, with an optional screenshot of the game window. Nothing is uploaded; the folder opens so you can attach the file. Your Windows user name is masked; logs can contain character names.</p><label class="wide">What happened?<textarea id="report-description" rows="4" maxlength="4000" placeholder="What did you do, what did you expect, and what happened instead?"></textarea></label><label class="inline-check"><input type="checkbox" id="report-screenshot"> Include a screenshot of the game window</label><div class="actions"><button id="report-create">Create support report</button></div></section><section class="panel"><h2>Recovery backups</h2><p class="muted">Changes to your game save create a backup. Restore a selected backup to undo that change; the game closes normally first.</p>${history.length?`<div class="table-wrap"><table><thead><tr><th>Action</th><th>Time</th><th>Result</th></tr></thead><tbody>${history.map(x=>`<tr><td>${esc(controlById(x.control)?.label)}</td><td>${new Date(x.time*1000).toLocaleTimeString("en-GB")}</td><td>${x.ok?"Complete":"Error / backup available"}</td></tr>`).join("")}</tbody></table></div>`:'<p class="empty">No save actions have been performed in this session.</p>'}${actionCard(controlById("undo"))}</section>`;
+ content.innerHTML=`<section class="panel"><h2>Appearance · Theme</h2><p class="muted">Both themes use the same settings. Switching themes sends no game commands, and your choice is remembered.</p><div class="control-grid theme-grid">${[["chronoforge","Chronoforge","Jade time crystal · aged gold · ancient temple"],["void-atlas","Void Atlas","Violet time rift · horizontal navigation · Void observatory"]].map(([id,title,note])=>`<button data-theme-pick="${id}" class="settings-card ${theme===id?"selected":""}" aria-pressed="${theme===id}"><img src="/ui/assets/${id}-reference.png" alt="${title} design reference"><h3>${title}</h3><p class="muted">${note}</p></button>`).join("")}</div></section><section class="panel"><h2>Draft profiles</h2><div class="note">Profiles store session settings only. Quests, rewards, balances and save actions are never stored or automatically applied.</div><div class="form-grid"><label>Profile name<input id="profile-name" placeholder="Example: Balanced"></label><label>Saved draft<select id="profile-select">${Object.keys(profiles).map(name=>`<option>${esc(name)}</option>`).join("")}</select></label></div><div class="actions"><button id="profile-save">Save draft</button><button id="profile-load">Load draft</button><button id="profile-delete">Delete profile</button></div><label class="startup-profile">Apply at startup<select id="startup-profile">${(()=>{const chosen=readStored("startup-profile","");return [["","Off — start with the game's normal values"],["__last__","My last used settings"],...Object.keys(profiles).map(n=>[n,`Profile: ${n}`])].map(([v,l])=>`<option value="${esc(v)}" ${chosen===v?"selected":""}>${esc(l)}</option>`).join("");})()}</select></label><p class="muted">Applied once each time an offline character is ready, after you start EpochPact or the game. Closing EpochPact still returns the game to its normal values.</p></section>${developer?`<section class="panel"><h2>Game connection</h2><div class="control-grid">${["session_read","status","player_read","characters","play_offline","load_character"].map(id=>actionCard(controlById(id))).join("")}</div></section>`:""}<section class="panel"><h2>Version</h2><p class="muted">EpochPact ${esc(appVersion?"v"+appVersion:"")}. At startup EpochPact can read the latest release on GitHub (no player data is sent) and show a notice when a newer version exists. Install update downloads it from that release, checks its SHA-256 and every file, and restarts EpochPact; your settings stay.</p><label class="inline-check"><input type="checkbox" id="update-check" ${readStored("update-check",true)!==false?"checked":""}> Check for EpochPact updates at startup</label><div class="actions"><button data-update-check-now>Check now</button></div></section><section class="panel" id="ingame-report"><h2>In-game report</h2>${ingameReportPanel()}</section><section class="panel"><h2>Support report</h2><p class="muted">Create a ZIP for the EpochPact Discord: your description, versions, setup state and recent EpochPact logs, with an optional screenshot of the game window. Nothing is uploaded; the folder opens so you can attach the file. Your Windows user name is masked; logs can contain character names.</p><label class="wide">What happened?<textarea id="report-description" rows="4" maxlength="4000" placeholder="What did you do, what did you expect, and what happened instead?"></textarea></label><label class="inline-check"><input type="checkbox" id="report-screenshot"> Include a screenshot of the game window</label><div class="actions"><button id="report-create">Create support report</button></div></section><section class="panel"><h2>Recovery backups</h2><p class="muted">Changes to your game save create a backup. Restore a selected backup to undo that change; the game closes normally first.</p>${history.length?`<div class="table-wrap"><table><thead><tr><th>Action</th><th>Time</th><th>Result</th></tr></thead><tbody>${history.map(x=>`<tr><td>${esc(controlById(x.control)?.label)}</td><td>${new Date(x.time*1000).toLocaleTimeString("en-GB")}</td><td>${x.ok?"Complete":"Error / backup available"}</td></tr>`).join("")}</tbody></table></div>`:'<p class="empty">No save actions have been performed in this session.</p>'}${actionCard(controlById("undo"))}</section>`;
  content.insertAdjacentHTML("beforeend",navigationPicker());
 }
 async function refreshSection(id,{refreshConnectionFirst=true}={}){
@@ -902,14 +902,104 @@ function fontPanel(){
  const options=[`<option value="game" ${current==="game"?"selected":""}>Game font</option>`,...families.map(f=>`<option value="${esc(f)}" ${current===f?"selected":""}>${esc(f)}</option>`)].join("");
  return `<section class="panel"><div class="section-head"><h2>Text and font</h2>${families.length?"":`<button data-refresh="font_read" data-control-id="font_read">Load Windows fonts</button>`}</div><p class="muted">${esc(c.description)} The choice is undone when you choose Game font or close EpochPact.</p><label>Interface font<select data-font-family data-control-id="font_family" ${families.length?"":"disabled"}>${options}</select></label></section>`+settingPanel("Text size",[controlById("font_scale")]);
 }
-// ---- version and update notice: one read of the latest GitHub release.
-let appVersion="";
-async function checkForUpdate(attempt=0){
- let r=null;try{r=await (await fetch("/api/update")).json();}catch{return;}
- if(r?.pending&&attempt<10){setTimeout(()=>void checkForUpdate(attempt+1),1500);return;}
- const node=$("#update-notice");if(!node||!r?.ok||!r.updateAvailable)return;
- node.innerHTML=`New version <b>v${esc(r.latest)}</b> · <a href="${esc(r.url)}" target="_blank" rel="noopener">Download</a>`;node.hidden=false;
+// ---- version, update notice and Install update: one read of the latest GitHub release.
+let appVersion="",updateInfo=null,updatePoll=null;
+async function getJson(path){try{return await (await fetch(path)).json();}catch{return null;}}
+async function updatePost(path){
+ try{return await (await fetch(path,{method:"POST",headers:{"Content-Type":"application/json","X-Epoch-Token":token},body:"{}"})).json();}
+ catch{return {ok:false,error:"EpochPact did not answer. Nothing was changed."};}
 }
+async function checkForUpdate(attempt=0,manual=false){
+ const r=await getJson("/api/update");
+ if(r?.pending&&attempt<10){setTimeout(()=>void checkForUpdate(attempt+1,manual),1500);return;}
+ if(!r?.ok){if(manual)notify(r?.error||"Could not check for updates.",true);return;}
+ if(!r.updateAvailable){if(manual)notify(`EpochPact v${appVersion} is the latest version.`);return;}
+ updateInfo=r;
+ const node=$("#update-notice");
+ if(node){node.innerHTML=`New version <b>v${esc(r.latest)}</b> · <a href="#" data-update-open>What's new</a>`;node.hidden=false;}
+ if(manual)void openUpdateDialog();
+}
+function updateActions(state){
+ const s=state?.state||"idle",r=updateInfo;
+ if(s==="downloading"||s==="verifying")return `<button data-update-cancel>Cancel</button>`;
+ if(s==="ready")return `<button data-update-close>Later</button><button class="primary" data-update-restart>Restart and update</button>`;
+ if(s==="installing")return "";
+ const page=`<a class="button" href="${esc(r?.url||"https://github.com/falorfrozen-cmd/EpochPact/releases")}" target="_blank" rel="noopener">Release page</a>`;
+ const install=r?.installable&&r?.canInstall?`<button class="primary" data-update-download>${s==="error"?"Try again":"Install update"}</button>`:"";
+ return `<button data-update-close>Later</button>${page}${install}`;
+}
+function renderUpdateState(state){
+ const dialog=$("#update-dialog");if(!dialog)return;
+ const s=state?.state||"idle",box=dialog.querySelector("[data-update-progress]"),bar=box.querySelector("progress");
+ box.hidden=s==="idle"&&!state?.installError;
+ bar.hidden=!(s==="downloading"||s==="verifying");
+ bar.value=s==="verifying"?100:s==="downloading"&&state.total?Math.floor(100*state.received/state.total):0;
+ const status=box.querySelector("[data-update-status]");
+ status.textContent=state?.installError||EpochReleaseNotes.progress(state);
+ status.classList.toggle("setting-error",s==="error"||Boolean(state?.installError));
+ const warning=dialog.querySelector("[data-update-warning]"),game=window.EpochLauncher?.state?.();
+ warning.hidden=!(s==="ready"&&game?.running);
+ warning.textContent="Last Epoch is running. EpochPact updates the mod files in the game folder after you close the game; until then it cannot connect to the running game.";
+ dialog.querySelector("[data-update-actions]").innerHTML=updateActions(state);
+}
+async function openUpdateDialog(){
+ const dialog=$("#update-dialog"),r=updateInfo;if(!dialog||!r)return;
+ dialog.querySelector("[data-update-summary]").textContent=`v${appVersion} → v${r.latest}${r.size?` · ${EpochReleaseNotes.megabytes(r.size)}`:""}. `+
+  (!r.canInstall?"Install update works in the EpochPact app from the release ZIP; use the release page here.":
+   !r.installable?r.reason:"Install update downloads the ZIP from EpochPact's GitHub release, checks it, restores temporary game settings and restarts EpochPact. Your settings stay.");
+ const notes=dialog.querySelector("[data-update-notes]");
+ notes.innerHTML=r.release?.notes?EpochReleaseNotes.render(r.release.notes):'<p class="muted">Loading patch notes…</p>';
+ if(!dialog.open)dialog.showModal();
+ const state=await getJson("/api/update/progress");
+ renderUpdateState(state);
+ if(state?.state==="downloading"||state?.state==="verifying")watchUpdate();
+ const history=await getJson("/api/update/notes");
+ if(history?.ok&&history.releases?.length)notes.innerHTML=history.releases.map(x=>`<section class="release">${EpochReleaseNotes.render(x.notes)||`<h3>v${esc(x.version)}</h3>`}</section>`).join("");
+}
+function watchUpdate(){
+ clearTimeout(updatePoll);
+ updatePoll=setTimeout(async()=>{
+  const state=await getJson("/api/update/progress");
+  renderUpdateState(state);
+  if(state?.state==="downloading"||state?.state==="verifying")watchUpdate();
+  else if(state?.state==="ready"){const node=$("#update-notice");if(node)node.innerHTML=`v<b>${esc(updateInfo.latest)}</b> is ready · <a href="#" data-update-open>Restart and update</a>`;}
+ },500);
+}
+async function startUpdate(){
+ const r=await updatePost("/api/update/download");
+ if(!r.ok){renderUpdateState({state:"error",error:r.error});return;}
+ renderUpdateState(r);watchUpdate();
+}
+async function restartForUpdate(){
+ renderUpdateState({state:"installing"});
+ const r=await updatePost("/api/update/install");
+ // On success this window closes; the new version opens on its own.
+ if(!r.ok)renderUpdateState({...(await getJson("/api/update/progress")),installError:r.error});
+}
+// After a restart from Install update: say what happened once, then finish the mod in the game folder.
+function reportUpdate(result){
+ if(!result)return;
+ const node=$("#update-notice");
+ if(result.ok){
+  const game=window.EpochLauncher?.state?.();
+  notify(`EpochPact was updated from v${result.from} to v${result.to}.`+(game?.updateRequired&&game.running?" Close Last Epoch to finish: the mod files in the game folder are then updated automatically.":""));
+  if(node){node.innerHTML=`Updated to <b>v${esc(result.to)}</b>`;node.hidden=false;}
+  window.EpochLauncher?.updateModAfterAppUpdate?.();
+ }else{
+  notify(result.error||"The update was not installed. Nothing was changed.",true);
+  if(node){node.textContent="The update was not installed";node.hidden=false;}
+ }
+}
+document.addEventListener("click",event=>{
+ const t=event.target.closest("[data-update-open],[data-update-close],[data-update-download],[data-update-cancel],[data-update-restart],[data-update-check-now]");
+ if(!t||t.disabled)return;
+ if(t.matches("[data-update-open]")){event.preventDefault();void openUpdateDialog();}
+ else if(t.matches("[data-update-close]"))$("#update-dialog")?.close();
+ else if(t.matches("[data-update-download]"))void startUpdate();
+ else if(t.matches("[data-update-cancel]"))void updatePost("/api/update/cancel").then(()=>getJson("/api/update/progress")).then(renderUpdateState);
+ else if(t.matches("[data-update-restart]"))void restartForUpdate();
+ else if(t.matches("[data-update-check-now]"))void checkForUpdate(0,true);
+});
 // ---- in-game report (hotkey in the game, saved in the game folder)
 function ingameReportPanel(){
  const r=cache.report_read,key=r?.key||"F8",c=controlById("report_key");
@@ -1239,6 +1329,7 @@ async function init(){
   appVersion=boot.version||"";const versionNode=$("#app-version");if(versionNode)versionNode.textContent=appVersion?`v${appVersion}`:"";
   if(!preview&&readStored("update-check",true)!==false)setTimeout(()=>void checkForUpdate(),1500);
   window.EpochLauncher?.init(boot.launcher,{run:runTask,isBusy:()=>busy,confirm:confirmAction,changed:async(reset=true)=>{if(reset){invalidateLive();dirty.clear();monoDrafts={};}await refreshConnection();}});
+  reportUpdate(boot.updated);
   try{const saved=JSON.parse(localStorage.getItem("epochpact.stat-favorites.v1")||"[]");if(Array.isArray(saved))statFavorites=new Set(saved.filter(x=>typeof x==="string"));}catch{}
   profileKey="epochpact.profiles."+(preview?"preview":"live");
   for(const c of catalog.controls)if(["session","actor"].includes(c.lifetime)&&(["number","toggle"].includes(c.widget)||['craft_hope','craft_despair'].includes(c.id)))values[c.id]=appliedValues[c.id]=c.default;

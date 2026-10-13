@@ -18,6 +18,7 @@ import subprocess
 import tempfile
 import secrets
 import stat
+import sys
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -30,6 +31,37 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def processes_inside(folder):
+    """Process IDs whose executable lies inside folder."""
+    import ctypes
+    import ctypes.wintypes as wt
+    psapi = ctypes.WinDLL('psapi')
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.OpenProcess.restype = wt.HANDLE
+    kernel.OpenProcess.argtypes = [wt.DWORD, wt.BOOL, wt.DWORD]
+    kernel.QueryFullProcessImageNameW.argtypes = [wt.HANDLE, wt.DWORD, wt.LPWSTR, ctypes.POINTER(wt.DWORD)]
+    kernel.CloseHandle.argtypes = [wt.HANDLE]
+    pids = (wt.DWORD * 8192)()
+    needed = wt.DWORD()
+    if not psapi.EnumProcesses(pids, ctypes.sizeof(pids), ctypes.byref(needed)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    prefix = os.path.normcase(os.path.realpath(folder)) + os.sep
+    found = []
+    for pid in pids[:needed.value // ctypes.sizeof(wt.DWORD)]:
+        handle = kernel.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            continue
+        try:
+            size = wt.DWORD(32768)
+            name = ctypes.create_unicode_buffer(32768)
+            if kernel.QueryFullProcessImageNameW(handle, 0, name, ctypes.byref(size)) and \
+                    os.path.normcase(os.path.realpath(name.value)).startswith(prefix):
+                found.append(pid)
+        finally:
+            kernel.CloseHandle(handle)
+    return found
 
 
 def fixture(root, name, assembly):
@@ -222,6 +254,7 @@ def main():
             raise RuntimeError('Compiled interface did not become ready within 30 seconds.')
 
         durations = []
+        update_swap = None
         def job(payload, token):
             start = time.monotonic()
             queued = json.loads(request('/api/jobs', payload, token))
@@ -247,6 +280,16 @@ def main():
         def start():
             return subprocess.Popen([str(exe), '--no-open', '--port', str(port)], env=env, cwd=root)
 
+        def stop_inside(folder):
+            # Apps reopened by the update step are not our children: stop exactly
+            # the processes started from this temporary folder, never by name.
+            for pid in processes_inside(folder):
+                subprocess.run(['taskkill', '/PID', str(pid), '/T', '/F'], capture_output=True, timeout=10)
+            deadline = time.monotonic() + 10
+            while processes_inside(folder) and time.monotonic() < deadline:
+                time.sleep(.1)
+            time.sleep(.2)
+
         process = start()
         try:
             bootstrap = boot()
@@ -260,7 +303,7 @@ def main():
             checks.append('first launch performs no selection, installation or gameplay mutation')
             index = request('/').decode()
             assert 'setup-dialog' in index and 'launcher.js' in index
-            for resource in ('app.js', 'style.css', 'stat-model.js', 'session.js', 'collection-ui.js', 'collection.css', 'launcher.js', 'preferences.js', 'crafting-model.js', 'affix-picker.js', 'loot-log.js', 'feed.js', 'damage-meter.js', 'damage.js',
+            for resource in ('app.js', 'style.css', 'stat-model.js', 'session.js', 'collection-ui.js', 'collection.css', 'launcher.js', 'preferences.js', 'crafting-model.js', 'affix-picker.js', 'loot-log.js', 'feed.js', 'damage-meter.js', 'release-notes.js', 'damage.js',
                              'assets/chronoforge-art.png', 'assets/void-atlas-art.png', 'assets/inter.ttf', 'assets/monster-density.svg'):
                 assert len(request('/ui/' + resource)) > 0, resource
             checks.append('compiled interface serves scripts, font and both theme assets')
@@ -301,6 +344,92 @@ def main():
             checks.append('fresh EXE process remembers selected path and issues a new session token')
         finally:
             stop(process)
+        if onedir:
+            # Install update. Nothing here reads GitHub: a staged package is built from this bundle.
+            process = start()
+            try:
+                token = boot()['token']
+                for path in ('/api/update/download', '/api/update/install'):
+                    try:
+                        request(path, {})
+                        raise AssertionError('Unauthenticated update request accepted')
+                    except HTTPError as error:
+                        assert error.code == 403, error.code
+                assert not json.loads(request('/api/update/download', {}, token))['ok']  # no newer release is known
+                assert 'Download the update first' in json.loads(request('/api/update/install', {}, token))['error']
+                assert json.loads(request('/api/update/progress'))['state'] == 'idle'
+                assert not (user / 'updates').exists()
+                checks.append('compiled Install update API needs the session token and installs nothing without a verified download')
+            finally:
+                stop(process)
+
+            def dead_pid():
+                child = subprocess.Popen([sys.executable, '-c', ''])
+                child.wait()
+                return child.pid
+            relaunch = [f'--relaunch-arg={a}' for a in ('--no-open', '--port', str(port))]
+            version = json.loads((exe.parent / 'build-info.json').read_text(encoding='utf-8'))['version']
+            before = sha((exe.parent / 'EpochPact.exe').read_bytes())
+            code = subprocess.run([str(exe), '--apply-update', '--install-dir', str(exe.parent), '--wait-pid', str(dead_pid()), *relaunch],
+                                  env=env, cwd=root, timeout=120).returncode
+            try:
+                assert code == 20, code
+                reopened = boot()
+                assert reopened['updated'] and reopened['updated']['ok'] is False, reopened['updated']
+                assert 'download folder' in reopened['updated']['error']
+                assert reopened['version'] == version and sha((exe.parent / 'EpochPact.exe').read_bytes()) == before
+                assert not list(exe.parent.parent.glob('EpochPact.previous-*'))
+                checks.append('compiled --apply-update outside its download folder changes nothing and reopens the app')
+            finally:
+                stop_inside(exe.parent)
+
+            # An extracted older package (with a player file) and the verified new one staged by the app.
+            package_root = root / 'Update test ü'
+            installed = package_root / 'EpochPact'
+            shutil.copytree(exe.parent, installed)
+            info = json.loads((installed / 'build-info.json').read_text(encoding='utf-8'))
+            info['version'] = '0.1.2-dev.0'
+            (installed / 'build-info.json').write_text(json.dumps(info, indent=2) + '\n', encoding='utf-8')
+            (installed / 'player-notes.txt').write_text('kept by the update', encoding='utf-8')
+            old_root = {'README.md': b'old readme', 'Manual Installation/version.dll': b'old loader copy',
+                        'runtime-manifest.json': json.dumps({'version': '0.1.2-dev.0', 'kind': 'Player',
+                                                             'github': 'https://github.com/falorfrozen-cmd/EpochPact'}).encode()}
+            for name, data in old_root.items():
+                (package_root / name).parent.mkdir(parents=True, exist_ok=True)
+                (package_root / name).write_bytes(data)
+            (package_root / 'SHA256SUMS.txt').write_text(''.join(f'{sha(d)}  {n}\n' for n, d in sorted(old_root.items())), encoding='utf-8')
+            staged = user / 'updates' / version / 'package'
+            shutil.copytree(exe.parent, staged / 'EpochPact')
+            (staged / 'README.md').write_bytes(b'new readme')
+            (staged / 'runtime-manifest.json').write_text(json.dumps({'version': version, 'kind': 'Player',
+                                                                      'github': 'https://github.com/falorfrozen-cmd/EpochPact'}), encoding='utf-8')
+            listed = sorted(p for p in staged.rglob('*') if p.is_file())
+            (staged / 'SHA256SUMS.txt').write_text(''.join(f'{sha(p.read_bytes())}  {p.relative_to(staged).as_posix()}\n' for p in listed),
+                                                   encoding='utf-8')
+            started = time.monotonic()
+            code = subprocess.run([str(staged / 'EpochPact/EpochPact.exe'), '--apply-update', '--install-dir', str(installed),
+                                   '--wait-pid', str(dead_pid()), *relaunch], env=env, cwd=root, timeout=300).returncode
+            try:
+                assert code == 0, (code, (user / 'updates/apply.log').read_text(encoding='utf-8', errors='replace'))
+                update_swap = round(time.monotonic() - started, 1)
+                updated = boot()
+                result = updated['updated']
+                assert result and result['ok'] and result['from'] == '0.1.2-dev.0' and result['to'] == version, result
+                assert updated['version'] == version
+                assert json.loads((installed / 'build-info.json').read_text(encoding='utf-8'))['version'] == version
+                assert (installed / 'player-notes.txt').read_text(encoding='utf-8') == 'kept by the update'
+                assert (package_root / 'README.md').read_bytes() == b'new readme'
+                assert not (package_root / 'Manual Installation').exists()
+                assert json.loads((package_root / 'runtime-manifest.json').read_text(encoding='utf-8'))['version'] == version
+                # The reopened new version removes the previous folder and the download.
+                deadline = time.monotonic() + 30
+                while time.monotonic() < deadline and (list(package_root.glob('EpochPact.previous-*')) or (user / 'updates' / version).exists()):
+                    time.sleep(.2)
+                assert not list(package_root.glob('EpochPact.previous-*'))
+                assert not (user / 'updates' / version).exists()
+                checks.append('compiled update swaps the app folder from its verified download, reopens the new version and removes the previous folder')
+            finally:
+                stop_inside(installed)
         # Exercise the exact Windows collision that previously let a packaged
         # UI receive responses from a legacy source server without Game setup.
         with socket.socket() as legacy:
@@ -333,7 +462,7 @@ def main():
 
     report = {'file': str(args.exe.resolve()), 'layout': 'onedir' if onedir else 'onefile',
               'sha256': sha(args.exe.read_bytes()), 'bytes': args.exe.stat().st_size,
-              'nativePlayerSHA256': sha(core), 'checks': checks, 'jobDurationsMs': durations,
+              'nativePlayerSHA256': sha(core), 'checks': checks, 'jobDurationsMs': durations, 'updateSwapSeconds': update_swap,
               'scope': 'Final compiled EXE, isolated installer fixtures and HTTP interface; no interactive picker test, UAC approval or live gameplay test.'}
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

@@ -48,9 +48,10 @@ class UpdateCheckTests(unittest.TestCase):
     def test_update_endpoint_starts_one_background_check(self):
         import epochpact_ui
         from unittest.mock import patch
+        from tools import app_update
         from tools.ui_bridge import UiBridge
         calls = []
-        with patch.object(uc, 'check', side_effect=lambda version: calls.append(version) or {'ok': True, 'updateAvailable': False}):
+        with patch.object(app_update, 'check', side_effect=lambda version: calls.append(version) or {'ok': True, 'updateAvailable': False}):
             app = epochpact_ui.create_app(UiBridge(preview=True))
             client = app.test_client()
             first = client.get('/api/update').get_json()

@@ -1,7 +1,7 @@
 /* Player setup is explicit. Opening this interface never installs or launches. */
 (function(root){
  'use strict';
- let state=null,run,changed,isBusy,confirm,elevation=false,pickerBusy=false,pathDraft=null;
+ let state=null,run,changed,isBusy,confirm,elevation=false,pickerBusy=false,pathDraft=null,modAfterUpdate=false;
  const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function statusText(){return state.updateRequired?'Mod update required':state.melonLoader?(state.installed?'MelonLoader bridge installed':'MelonLoader detected'):state.foreignLoader?'Another mod loader is installed':state.disabled?'Mod disabled':state.installed?'Player mod installed':state.selected?'Ready to install':'Choose your game';}
  function section(){
@@ -45,6 +45,12 @@
   if(name==='select')await changed();
   else if(name==='install'||name==='launch'||name==='elevated_install'||name==='uninstall')await changed(false);
  }
+ // After Install update the mod in the game folder belongs to the old version: update it
+ // once, as soon as Last Epoch is closed (the game holds its loaded mod files).
+ function finishAppUpdate(){
+  if(!modAfterUpdate||!state?.updateRequired||state.running||state.runningUnknown||isBusy?.())return;
+  modAfterUpdate=false;feedback('Updating the mod in the game folder for the new EpochPact version…');void action('install');
+ }
  async function browse(){
   if(isBusy())return;
   if(!root.pywebview?.api){feedback('Use the desktop app to browse, or enter the full path to Last Epoch.exe and press Save path.',true);return;}
@@ -73,7 +79,13 @@
   init(initial,options){state=initial;({run,changed,isBusy,confirm}=options);render();
    if(state&&!state.selected)document.querySelector('#setup-dialog').showModal();
   },
-  update(next){if(next&&JSON.stringify(next)!==JSON.stringify(state)){state=next;render();}},
+  update(next){if(next&&JSON.stringify(next)!==JSON.stringify(state)){state=next;render();}finishAppUpdate();},
+  state:()=>state,
+  updateModAfterAppUpdate(){
+   modAfterUpdate=true;
+   if(state?.updateRequired&&(state.running||state.runningUnknown))feedback('Close Last Epoch to finish the update: the mod files in the game folder are then updated automatically.');
+   finishAppUpdate();
+  },
   mount(page){if(!state)return;if(page==='game_setup')document.querySelector('#page-content').insertAdjacentHTML('afterbegin','<div data-launcher-panel></div>');else if(page==='overview')document.querySelector('#page-content').insertAdjacentHTML('afterbegin','<div data-launcher-summary></div>');else return;render();},
   disable,
   browsing:()=>pickerBusy,

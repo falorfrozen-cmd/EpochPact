@@ -6,6 +6,7 @@ import contextlib
 import io
 import json
 import logging
+import os
 from logging.handlers import RotatingFileHandler
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
@@ -20,7 +21,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from tools.ui_bridge import ROOT, UiBridge
 from tools.ui_language import english_exception, english_result
 from tools.app_paths import runtime_root, user_root
-from tools import update_check
+from tools import app_update
 from tools.player_setup import FILTER_ACTIONS, PlayerSetup, DesktopDialogs, app_version
 
 
@@ -69,7 +70,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
 
     @app.get("/ui/<path:path>")
     def assets(path):
-        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js", "crafting-model.js", "affix-picker.js", "loot-log.js", "feed.js", "damage-meter.js", "damage.js"):
+        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js", "crafting-model.js", "affix-picker.js", "loot-log.js", "feed.js", "damage-meter.js", "damage.js", "release-notes.js"):
             return send_from_directory(ROOT / "ui", path)
         if path.startswith("assets/"):
             return send_from_directory(ROOT / "ui/assets", path.removeprefix("assets/"))
@@ -86,11 +87,19 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
     @app.get("/api/bootstrap")
     def bootstrap():
         return jsonify(app_id="epochpact-ui-v1", setup_version=1 if setup else 0, preview=bridge.preview, developer=developer, version=app_version(),
-                       token=token, catalog=bridge.public_catalog(), launcher=setup.status() if setup else None)
+                       token=token, catalog=bridge.public_catalog(), launcher=setup.status() if setup else None,
+                       updated=update_state["applied"])
 
     # One background check per app start; game commands never wait for it.
-    update_state = {"started": False, "result": None}
+    update_state = {"started": False, "result": None, "applied": None}
     update_lock = threading.Lock()
+    updater = app_update.Updater(app_version())
+    app.extensions.update(epoch_updater=updater, epoch_request_exit=None)
+    if app_update.app_folder() is not None:
+        # The outcome of an update that just restarted this app; its leftovers go in the background.
+        update_state["applied"] = app_update.take_result()
+        threading.Thread(target=app_update.clean_up, args=(app_version(), update_state["applied"]),
+                         name="epochpact-update-cleanup", daemon=True).start()
 
     @app.get("/api/update")
     def update():
@@ -98,12 +107,60 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None):
             if not update_state["started"]:
                 update_state["started"] = True
                 def run():
-                    result = update_check.check(app_version())
+                    result = app_update.check(app_version())
                     with update_lock:
                         update_state["result"] = result
                 threading.Thread(target=run, name="epochpact-update-check", daemon=True).start()
             result = update_state["result"]
-        return jsonify(result if result is not None else {"ok": True, "pending": True})
+        return jsonify({**(result if result is not None else {"ok": True, "pending": True}),
+                        "canInstall": app_update.app_folder() is not None})
+
+    @app.get("/api/update/notes")
+    def update_notes():
+        return jsonify(app_update.history(app_version()))
+
+    @app.get("/api/update/progress")
+    def update_progress():
+        return jsonify(ok=True, **updater.status())
+
+    @app.post("/api/update/download")
+    def update_download():
+        with update_lock:
+            release = (update_state["result"] or {}).get("release")
+        try:
+            return jsonify(ok=True, **updater.start(release))
+        except app_update.UpdateError as exc:
+            return jsonify(ok=False, error=str(exc))
+
+    @app.post("/api/update/cancel")
+    def update_cancel():
+        return jsonify(ok=True, **updater.cancel())
+
+    @app.post("/api/update/install")
+    def update_install():
+        exit_app = app.extensions.get("epoch_request_exit")
+        if exit_app is None:
+            return jsonify(ok=False, error="Restarting is only possible in the EpochPact desktop app.")
+        if updater.status()["state"] != "ready":
+            return jsonify(ok=False, error="Download the update first.")
+        try:
+            app_update.check_target(app_update.app_folder())
+        except app_update.UpdateError as exc:
+            return jsonify(ok=False, error=str(exc))
+        try:
+            close_session()  # temporary game settings are restored first, as on a normal close
+        except Exception as exc:
+            return jsonify(ok=False, error="EpochPact could not restore temporary settings, so it was not updated. "
+                                           "Return to the game, let it finish loading and try again. " + english_exception(exc))
+        try:
+            state = updater.install(os.getpid(), sys.argv[1:])
+        except (app_update.UpdateError, OSError) as exc:
+            with jobs_lock:  # the app stays open and usable
+                close_state.update(closing=False, closed=False, future=None)
+            return jsonify(ok=False, error=str(exc) if isinstance(exc, app_update.UpdateError) else
+                           f"The update could not be started ({type(exc).__name__}). Nothing was changed.")
+        threading.Timer(0.5, exit_app).start()
+        return jsonify(ok=True, **state)
 
     def perform(payload, revision):
         try:
@@ -256,6 +313,8 @@ def main():
     app = create_app(bridge, developer=args.developer, setup=setup,
                      operation_log=None if args.preview else runtime_root() / "live/ui/operations.log")
     server = interface_server(app, args.port)
+    # Install update closes the app the same way the window's close button does.
+    app.extensions["epoch_request_exit"] = lambda: threading.Thread(target=server.shutdown, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}"
     announcement = f"EpochPact {'PREVIEW' if args.preview else 'LIVE'}: {url}"
     logging.getLogger(__name__).info(announcement)
@@ -293,6 +352,7 @@ def main():
                         "EpochPact", 0x10)
                     return False
             dialogs._window.events.closing += closing
+            app.extensions["epoch_request_exit"] = dialogs._window.destroy
             dialogs._window.events.loaded += lambda: logging.getLogger(__name__).info('Desktop window loaded using Edge WebView2.')
             webview.start(gui='edgechromium', private_mode=False, storage_path=str(user_root() / 'webview'))
         finally:

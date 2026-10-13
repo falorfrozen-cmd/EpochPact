@@ -18,7 +18,9 @@ controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest changes: [0.1.2-dev.21 tier colours on every affix line, coloured and movable rule line](docs/patch-notes-0.1.2-dev.21.md),
+Latest changes: [0.1.2-dev.22 Install update from inside the app](docs/patch-notes-0.1.2-dev.22.md),
+[dev.22 validation](docs/updater-validation-2026-10-13.md),
+[0.1.2-dev.21 tier colours on every affix line, coloured and movable rule line](docs/patch-notes-0.1.2-dev.21.md),
 [dev.21 validation](docs/feedback-group6-validation-2026-10-13.md),
 [0.1.2-dev.20 loot filter rule in tooltips, merged loot feed, windows bound to the game](docs/patch-notes-0.1.2-dev.20.md),
 [dev.20 validation](docs/feedback-group5-validation-2026-10-13.md),

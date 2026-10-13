@@ -1,0 +1,10 @@
+{
+  "version": "0.1.2-dev.22",
+  "files": {
+    "EpochPact.exe": {"sha256": "b8ae2da4eb4bb98a1df82e97f8d6b8c62a66e417c416d3657312ccc13eed7319", "virusTotal": "not run (browser connection unavailable at release)", "localDefender": "No threats found"},
+    "EpochPact.Core.dll": {"sha256": "2f9145c3b6ee57b4ed59ff35e29a19fe6b9d2acec9352f9e0111a8744ee7a776", "virusTotal": "not run (browser connection unavailable at release)", "localDefender": "No threats found"},
+    "version.dll": {"sha256": "0ebdc2c94270c0938e5ea2c49e97d95b9b0f947e6bb0934f133cbe016e07b80d", "virusTotal": "not run (browser connection unavailable at release)", "localDefender": "No threats found"}
+  },
+  "zip": {"sha256": "5a4e7bfb703e67717f530970205f7173adcea350bd8d2d3a791a7816c2b86571", "localDefender": "No threats found"},
+  "note": "Scanned with Windows Defender only; VirusTotal pending. First release with an in-app updater (downloads and replaces its own files): watch for heuristic detections."
+}
