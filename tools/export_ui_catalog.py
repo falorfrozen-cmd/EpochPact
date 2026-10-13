@@ -172,6 +172,7 @@ def controls():
     for id, label, high, description in (
         ("xp", "Öldürme / mote XP çarpanı", 100, "GainExpFromEnemyOrMote kazancı; görev XP ödüllerini çarpmaz."),
         ("gold", "Yerden toplanan altın çarpanı", 100, "Normal altın pickup kazancına uygulanır."),
+        ("amber", "Memory Amber kazanım çarpanı", 100, "The Woven üyesinin kazandığı Memory Amber'a (faction favor) uygulanır; o amber ile gelen itibar da artar."),
         ("drops", "Genel eşya drop adedi çarpanı", 25, "ItemDrop.itemMultiplier; CoF düşman hook'u ile ortak dispatcher."),
         ("density", "Monster density", 5, "Gelecekteki uygun normal paketlerin ortalama boyutu; mevcut paketler değişmez, boss/özel spawn hariç."),
         ("rarity", "Temel rarity yükseltme çarpanı", 10, "Her normal rarity roll'unu (x−1)/x ihtimalle bir kademe yükseltir; Exalted/T7 kontrolü ayrı."),

@@ -25,6 +25,11 @@ std::atomic<uint64_t> gains{0}, boosted{0}, refused{0}, faults{0};
 std::atomic<int> lastIn{0}, lastOut{0};
 std::atomic<uint64_t> repGains{0}, repBoosted{0}, repRefused{0}, repFaults{0}, repAtCap{0}, repManual{0};
 std::atomic<int> repLastIn{0}, repLastOut{0};
+// Memory Amber is The Woven's favor: the same GainFavor call, on that faction.
+constexpr uint8_t kWoven = 3;  // LE.Factions.FactionID.TheWeaver
+std::atomic<double> amberMultiplier{1};
+std::atomic<uint64_t> amberGains{0}, amberBoosted{0};
+std::atomic<int> amberLastIn{0}, amberLastOut{0}, lastFaction{-1}, lastFlags{0};
 thread_local unsigned unscaledReputationDepth = 0;
 struct UnscaledReputation {
     UnscaledReputation() { ++unscaledReputationDepth; }
@@ -52,6 +57,18 @@ void* GetFaction(void* provider, uint8_t id) {
     if (!Value<bool>(Method(provider, "TryGetFaction", 2), provider, args) || !result)
         throw std::runtime_error("faction data not loaded");
     return result;
+}
+// The loaded offline player's faction holder, or null; never throws for a missing faction.
+void* PlayerFactions() {
+    if (!game::IsOfflinePlay()) return nullptr;
+    void* actor = Invoke(Resolve("PlayerFinder", "getPlayerActor", 0, ""));
+    if (!actor || !game::IsAlive(actor)) return nullptr;
+    void* provider = Get<void*>(actor, Offset("Actor", "factionInfo"));
+    return provider && Get<void*>(provider, F("FactionTracker", "actor")) == actor ? provider : nullptr;
+}
+void* TryFaction(void* provider, uint8_t id) {
+    void* result = nullptr; void* args[]{&id, &result};
+    return Value<bool>(Method(provider, "TryGetFaction", 2), provider, args) ? result : nullptr;
 }
 Context Current(const std::string& expected = {}, bool requireMember = false) {
     if (!ready) throw std::runtime_error("CoF metadata unavailable");
@@ -212,12 +229,24 @@ std::string Slots(const Context& c) {
     out << ']'; return out.str();
 }
 void Detour(void* self, int amount, bool ignoreRep, bool ignoreMultiplier, const il2cpp::Method* method) {
-    ++gains; int scaled = amount; const auto m = multiplier.load();
-    if (amount > 0 && !ignoreMultiplier && m != 1) {
-        bool owner = false; std::string why;
-        const bool checked = game::Guarded([&] { const auto c = Current(); owner = c.faction == self && Member(self); }, &why);
+    ++gains; int scaled = amount; const auto m = multiplier.load(), amber = amberMultiplier.load();
+    if (amount > 0 && (m != 1 || amber != 1)) {
+        // Only the loaded player's own Circle of Fortune or The Woven, while a member.
+        int owner = -1; std::string why;
+        const bool checked = game::Guarded([&] {
+            void* provider = PlayerFactions();
+            if (!provider || !Member(self)) return;
+            if (self == TryFaction(provider, 0)) owner = 0;
+            else if (self == TryFaction(provider, kWoven)) owner = kWoven;
+        }, &why);
         if (!checked) ++faults;
-        if (owner) { scaled = rules::ScaleGain(amount, m); ++boosted; } else ++refused;
+        lastFaction = owner; lastFlags = (ignoreRep ? 1 : 0) | (ignoreMultiplier ? 2 : 0);
+        if (owner == 0 && m != 1 && !ignoreMultiplier) { scaled = rules::ScaleGain(amount, m); ++boosted; }
+        else if (owner == kWoven) {
+            ++amberGains;
+            if (amber != 1) { scaled = rules::ScaleGain(amount, amber); ++amberBoosted; }
+            amberLastIn = amount; amberLastOut = scaled;
+        } else ++refused;
     }
     lastIn = amount; lastOut = scaled;
     original(self, scaled, ignoreRep, ignoreMultiplier, method);
@@ -437,7 +466,8 @@ std::string Multiplier(double value) {
         if (!ready || !rules::Multiplier(value)) throw std::runtime_error("CoF favor multiplier must be finite and 1..100");
         if (value == 1) {
             multiplier = 1; std::string why;
-            if (hook::IsInstalled(gain.code) && !hook::Remove(gain.code, &why)) throw std::runtime_error(why);
+            // The hook stays while the Memory Amber multiplier uses it.
+            if (amberMultiplier.load() == 1 && hook::IsInstalled(gain.code) && !hook::Remove(gain.code, &why)) throw std::runtime_error(why);
         } else {
             (void)Current({}, true); std::string why;
             if (!hook::IsInstalled(gain.code) && !hook::Install(gain.code, reinterpret_cast<void*>(&Detour), reinterpret_cast<void**>(&original), &why)) throw std::runtime_error(why);
@@ -461,10 +491,33 @@ std::string ReputationMultiplier(double value) {
         return "{\"ok\":true,\"reputationMultiplier\":" + std::to_string(value) + "}";
     });
 }
+std::string AmberMultiplier(double value) {
+    if (!ready || !gain) return "amber: refused: Faction.GainFavor was not found in this game build";
+    if (!rules::Multiplier(value)) return "amber: refused: the multiplier must be between 1 and 100";
+    std::string why;
+    if (value == 1) {
+        amberMultiplier = 1;
+        if (multiplier.load() == 1 && hook::IsInstalled(gain.code) && !hook::Remove(gain.code, &why)) return "amber: x1 set, but the hook stays: " + why;
+        return "amber -> x1 (off)";
+    }
+    if (!game::IsOfflinePlay()) return "amber: refused: " + game::GateText();
+    if (!hook::IsInstalled(gain.code) && !hook::Install(gain.code, reinterpret_cast<void*>(&Detour), reinterpret_cast<void**>(&original), &why))
+        return "amber: refused: the hook did not go in: " + why;
+    amberMultiplier = value;
+    std::ostringstream out; out << "amber -> x" << value << " (Memory Amber gained by a member of The Woven)";
+    return out.str();
+}
+std::string AmberStatus() {
+    std::ostringstream out; out << "amber: x" << amberMultiplier.load() << ", hook " << (gain && hook::IsInstalled(gain.code) ? "in" : "out")
+        << ", Woven gains " << amberGains.load() << ", boosted " << amberBoosted.load() << ", last " << amberLastIn.load() << " -> " << amberLastOut.load()
+        << ", last favor call faction " << lastFaction.load() << " flags " << lastFlags.load();
+    return out.str();
+}
 std::string Status() {
     std::ostringstream out; out << "CoF favor: x" << multiplier.load() << ", hook " << (gain && hook::IsInstalled(gain.code) ? "in" : "out")
         << ", gains " << gains.load() << ", boosted " << boosted.load() << ", refused " << refused.load() << ", faults " << faults.load()
         << ", last " << lastIn.load() << " -> " << lastOut.load()
+        << "\n" << AmberStatus()
         << "\nCoF reputation: x" << reputationMultiplier.load()
         << ", hook " << (gainReputation && hook::IsInstalled(gainReputation.code) ? "in" : "out")
         << ", gains " << repGains.load() << ", boosted " << repBoosted.load() << ", refused " << repRefused.load()

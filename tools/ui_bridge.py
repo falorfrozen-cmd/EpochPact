@@ -159,7 +159,7 @@ class UiBridge:
                 offline = "gate: offline play" in status
                 player = None
                 values = {}
-                for name in ("xp", "gold", "drops", "density", "rarity", "speed", "cooldown"):
+                for name in ("xp", "gold", "amber", "drops", "density", "rarity", "speed", "cooldown"):
                     match = re.search(rf"(?m)^{name}: x([\d.eE+-]+)", status)
                     if match:
                         values[name] = float(match[1])

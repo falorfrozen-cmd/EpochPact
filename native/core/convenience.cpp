@@ -1529,6 +1529,19 @@ std::string Test(const std::string& id,const std::string& action){
         void* args[]{c.actor,item.Get(),&at,&sound};Invoke(M("GroundItemManager","dropItemForPlayer",4),manager,args);
         return "{\"ok\":true,\"distance\":"+std::to_string(distance)+",\"rarity\":"+std::to_string(rarity)+"}";
     }
+    if(action=="woven-join"||action=="woven-read"){
+        // Disposable test character only: The Woven membership through the game's
+        // own FactionTracker.JoinFaction, and its Memory Amber (the faction's favor).
+        void* provider=Get<void*>(c.actor,F("Actor","factionInfo"));if(!provider)throw std::runtime_error("Faction tracker unavailable.");
+        uint8_t woven=3;  // LE.Factions.FactionID.TheWeaver
+        if(action=="woven-join"){void* a[]{&woven};Invoke(Method(provider,"JoinFaction",1),provider,a);}
+        void* faction=nullptr;void* ta[]{&woven,&faction};
+        if(!Value<bool>(Method(provider,"TryGetFaction",2),provider,ta)||!faction)return std::string("{\"ok\":true,\"woven\":false}");
+        return "{\"ok\":true,\"woven\":true,\"member\":"+std::string(Boolean(Get<bool>(faction,F("Faction","<IsMember>k__BackingField","LE.Factions"))))+
+               ",\"amber\":"+std::to_string(Get<int>(faction,F("Faction","<Favor>k__BackingField","LE.Factions")))+
+               ",\"reputation\":"+std::to_string(Get<int>(faction,F("Faction","<Reputation>k__BackingField","LE.Factions")))+
+               ",\"rank\":"+std::to_string(Get<int>(faction,F("Faction","<Rank>k__BackingField","LE.Factions")))+"}";
+    }
     if(action.rfind("drop-amber-",0)==0){
         // Disposable test character only: one native Memory Amber pile at a distance.
         const int distance=std::stoi(action.substr(11));if(distance<1||distance>80)throw std::runtime_error("Unsupported amber distance.");

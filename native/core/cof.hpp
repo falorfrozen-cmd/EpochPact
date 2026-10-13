@@ -14,6 +14,9 @@ std::string Configure(const std::string& id, int slot, int reward, int lens, boo
 std::string Charges(const std::string& id, int slot, int value);
 std::string Multiplier(double value);
 std::string ReputationMultiplier(double value);
+// Memory Amber gained by a member of The Woven (its favor), on the same GainFavor hook.
+std::string AmberMultiplier(double value);
+std::string AmberStatus();
 std::string Status();
 #ifdef EPOCHPACT_RESEARCH
 std::string TestGain(const std::string& id, int amount, bool includeReputation = false);

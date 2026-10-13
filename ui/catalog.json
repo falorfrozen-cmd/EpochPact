@@ -1530,6 +1530,33 @@
       "documentation": "GEMINI.md"
     },
     {
+      "id": "amber",
+      "group": "general",
+      "label": "Memory Amber kazanım çarpanı",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "amber {value}",
+      "pythonApi": null,
+      "responseFormat": "text",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 1,
+          "maximum": 100
+        }
+      ],
+      "default": 1,
+      "resetCommand": "amber 1",
+      "lifetime": "session",
+      "description": "The Woven üyesinin kazandığı Memory Amber'a (faction favor) uygulanır; o amber ile gelen itibar da artar.",
+      "currentSource": "currentValues.amber",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "GEMINI.md"
+    },
+    {
       "id": "drops",
       "group": "general",
       "label": "Genel eşya drop adedi çarpanı",
@@ -33202,7 +33229,7 @@
     ]
   },
   "counts": {
-    "controls": 159,
+    "controls": 160,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

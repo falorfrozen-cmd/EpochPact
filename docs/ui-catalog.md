@@ -13,7 +13,7 @@ JSON yüklemek hiçbir ayarı oyuna uygulamaz; kayıtlı mod profili oluşturmaz
 
 | Katalog | Adet |
 |---|---:|
-| Panel kontrolü / işlem | 152 |
+| Panel kontrolü / işlem | 160 |
 | SP stat türü | 134 |
 | Hazır stat adı | 72 |
 | Doğrulanmış C satırı | 206 |
@@ -97,6 +97,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 |---|---|---|---|---|
 | `xp` — Öldürme / mote XP çarpanı | `xp {value}` | value: 1…100 | 1 | Oturum |
 | `gold` — Yerden toplanan altın çarpanı | `gold {value}` | value: 1…100 | 1 | Oturum |
+| `amber` — Memory Amber kazanım çarpanı | `amber {value}` | value: 1…100 | 1 | Oturum |
 | `drops` — Genel eşya drop adedi çarpanı | `drops {value}` | value: 1…25 | 1 | Oturum |
 | `density` — Monster density | `density {value}` | value: 1…5 | 1 | Oturum |
 | `rarity` — Temel rarity yükseltme çarpanı | `rarity {value}` | value: 1…10 | 1 | Oturum |
@@ -106,6 +107,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 
 - **Öldürme / mote XP çarpanı:** GainExpFromEnemyOrMote kazancı; görev XP ödüllerini çarpmaz. Reset: `xp 1`.
 - **Yerden toplanan altın çarpanı:** Normal altın pickup kazancına uygulanır. Reset: `gold 1`.
+- **Memory Amber kazanım çarpanı:** The Woven üyesinin kazandığı Memory Amber'a (faction favor) uygulanır; o amber ile gelen itibar da artar. Reset: `amber 1`.
 - **Genel eşya drop adedi çarpanı:** ItemDrop.itemMultiplier; CoF düşman hook'u ile ortak dispatcher. Reset: `drops 1`.
 - **Monster density:** Gelecekteki uygun normal paketlerin ortalama boyutu; mevcut paketler değişmez, boss/özel spawn hariç. Reset: `density 1`.
 - **Temel rarity yükseltme çarpanı:** Her normal rarity roll'unu (x−1)/x ihtimalle bir kademe yükseltir; Exalted/T7 kontrolü ayrı. Reset: `rarity 1`.
@@ -436,6 +438,13 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `font_family` — Interface font | `fontset family {family}` | family: single_token | game | Oturum |
 | `font_scale` — Interface text size | `fontset scale {value}` | value: 0.7…1.5 | 1 | Oturum |
 | `font_read` — Font status | `fontread` | — | — | Okuma |
+| `effects_enabled` — In-game effect HUD | `effectsset enabled {value}` | value: 0…1 | 0 | Oturum |
+| `effects_player` — Show effects on you | `effectsset player {value}` | value: 0…1 | 1 | Oturum |
+| `effects_target` — Show target effects | `effectsset target {value}` | value: 0…1 | 1 | Oturum |
+| `effects_descriptions` — Show effect descriptions | `effectsset descriptions {value}` | value: 0…1 | 1 | Oturum |
+| `effects_scale` — Effect HUD size | `effectsset scale {value}` | value: 0.7…1.5 | 1 | Oturum |
+| `effects_rows` — Maximum visible effect rows | `effectsset rows {value}` | value: 1…12 | 5 | Oturum |
+| `effects_read` — Effect HUD status | `effectsread` | — | — | Okuma |
 
 - **Camera distance:** Move the overhead camera farther away. This changes distance, not field of view; 1× restores the normal distance. Reset: `buildset zoom 1`.
 - **Camera angle:** Set the overhead camera pitch in degrees. Zero uses the game's normal angle. Your saved camera preferences are kept. Reset: `buildset cameraangle 0`.
@@ -462,6 +471,13 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Interface font:** Use a Windows font for the game's interface text; game restores the original fonts. Characters the font lacks use the game's font. Reset: `fontset family game`.
 - **Interface text size:** Multiply the size of the game's interface text. 1 is the game's size. Reset: `fontset scale 1`.
 - **Font status:** Read the font choice, Windows font families and counters.
+- **In-game effect HUD:** Show live effect names, game icons, stack counts and available timers while playing. Click-through, offline and session only. Reset: `effectsset enabled 0`.
+- **Show effects on you:** Show the buffs and debuffs exposed by the game's own player effect UI. Reset: `effectsset player 1`.
+- **Show target effects:** Show the ailments exposed by the currently displayed target's native health bar. Changing target clears the previous effects. Reset: `effectsset target 1`.
+- **Show effect descriptions:** Show a short description read from the game's effect definition. Unknown values are not estimated. Reset: `effectsset descriptions 1`.
+- **Effect HUD size:** Scale the effect panels. Their row count is limited to the available screen space. Reset: `effectsset scale 1`.
+- **Maximum visible effect rows:** Limit rows per panel; additional active effects are counted below the visible rows. This does not limit which game icons can appear. Reset: `effectsset rows 5`.
+- **Effect HUD status:** Read effect HUD settings and availability without enabling it.
 
 ## World & Exploration
 

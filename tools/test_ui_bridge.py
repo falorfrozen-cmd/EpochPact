@@ -483,6 +483,17 @@ class BridgeTests(unittest.TestCase):
     def test_speed_connection_reads_owned_contribution_not_stale_speed_command(self):
         self.assertEqual(self.bridge.connection()['values']['speed'], 1.5)
 
+    def test_connection_reads_the_memory_amber_multiplier_from_status(self):
+        def amber_status(command, **kwargs):
+            if command == 'status':  # the CoF line shares the hook; only the amber line sets the value
+                return ('EpochPact; gate: offline play [client only]\n'
+                        'CoF favor: x1, hook in, gains 3, boosted 0, refused 1, faults 0, last 10 -> 50\n'
+                        'amber: x5, hook in, Woven gains 2, boosted 2, last 10 -> 50, last favor call faction 3 flags 0')
+            return self.send(command, **kwargs)
+        with patch.object(ui.le, 'send', side_effect=amber_status):
+            live = self.bridge.connection()
+        self.assertEqual(live['values']['amber'], 5)
+
     def test_connection_recovers_after_first_unity_frame_timeout_without_mutation(self):
         self.live['sessionread'] = {'ok':False, 'error':'the main thread did not pick the job up'}
         pending = self.bridge.connection()

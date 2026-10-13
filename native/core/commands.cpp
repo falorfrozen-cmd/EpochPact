@@ -331,9 +331,10 @@ std::string Execute(const std::string& line) {
 #endif
     }
     if (cmd == "xp" || cmd == "gold" || cmd == "drops" || cmd == "rarity" || cmd == "speed" ||
-        cmd == "cooldown") {
+        cmd == "cooldown" || cmd == "amber") {
         if (args.empty()) {
             if (cmd == "xp") return xp::Status();
+            if (cmd == "amber") return cof::AmberStatus();
             if (cmd == "rarity") return items::RarityStatus();
             if (cmd == "speed" || cmd == "cooldown") return player::Status();
             return loot::Status();
@@ -343,6 +344,7 @@ std::string Execute(const std::string& line) {
         if (end == args[0].c_str() || *end) return cmd + ": refused: not a number: " + args[0];
         if (cmd == "xp") return xp::Set(m);
         if (cmd == "gold") return loot::SetGold(m);
+        if (cmd == "amber") return cof::AmberMultiplier(m);
         if (cmd == "drops") return loot::SetDrops(m);
         if (cmd == "rarity") return items::SetRarity(m);
         if (cmd == "speed") return player::SetSpeed(m);

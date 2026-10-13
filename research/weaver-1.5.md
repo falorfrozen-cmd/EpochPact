@@ -98,3 +98,16 @@ ilgili canlı veriler snapshot'a alınmalı.
 
 Kaynak kanıtları: `research/live/cof-methods.tsv`, `cof-fields.tsv`, önceki
 `factionread-test.json` ve yeni canlı doğrulama çıktısı (oyun/save verileri Git dışında).
+
+## Memory Amber çarpanı (`amber <1..100>`, 13 Ekim 2026)
+
+Memory Amber, The Woven faction'ının (ID 3) favor'udur. Yığın toplanınca oyun
+`Faction.GainFavor(miktar, ignoreRepGain=false, ignoreMultiplier=false)` çağırır
+ve aynı miktar kadar itibar verir. Çarpan, CoF favor çarpanıyla aynı
+`GainFavor` hook'unu paylaşır; yalnız yüklü oyuncunun The Woven faction'ı ve
+üyeyken çarpar. Hook, iki çarpan da 1 olunca kalkar.
+
+Canlı ölçüm (Last Epoch 1.5.2.1, izole klon; kayıtlar ve çekirdek geri yüklendi):
+üye değilken 10'luk yığın 0 amber verdi (oyun üye olmayana vermiyor, çarpan
+dokunmadı); `FactionTracker.JoinFaction(3)` ile katılınca oyun 500 amber ve
+rank 1 verdi; x1 +10 amber/+10 itibar; x5 iki kez +50/+50; tekrar x1 +10/+10.

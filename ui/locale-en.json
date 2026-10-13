@@ -109,6 +109,10 @@
       "Gold pickup multiplier",
       "Multiplies gold gained from normal gold pickups."
     ],
+    "amber": [
+      "Memory Amber gain multiplier",
+      "Multiplies the Memory Amber that a member of The Woven gains. Reputation earned with that amber rises with it. Offline only; off at 1."
+    ],
     "drops": [
       "Item drop quantity",
       "Increases the number of items dropped by enemies. Circle of Fortune bonuses also apply."
