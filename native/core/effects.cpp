@@ -23,6 +23,7 @@ std::atomic<bool> enabled{false};bool ready=false;double showPlayer=1,showTarget
 uint64_t nextSample=0,updates=0,faults=0,discoveries=0;std::string status="disabled",lastError;
 int boundScene=0;uint64_t maximumSampleMicros=0,steadySampleMicros=0;
 std::string ownerId,ownerName;
+float lineRatio=1.45f; // the HUD font's line height per point of size, measured in the game
 game::Handle actorOwner,managerOwner,canvasOwner,actorInfo,targetOwner,fontOwner;
 struct Definition{std::unique_ptr<Root> value;std::string name,description;};
 std::map<void*,Definition> definitions;
@@ -193,6 +194,13 @@ void BuildPanel(Panel& p,const char* name){
     p.header=New("Title",p.root.rect.Get(),"TextMeshProUGUI",true);
     p.overflow=New("More effects",p.root.rect.Get(),"TextMeshProUGUI",true);
     // No EventSystem components; every Graphic is explicitly non-raycastable.
+    // One line of the font these labels really use (a chosen interface font can
+    // differ from the game's), from the font's own face data, plus a small margin.
+    if(void* font=Invoke(T("get_font",0),p.header.component.Get())){
+        Root face(Invoke(Method(font,"get_faceInfo",0),font));
+        const float point=F<float>(face.Get(),"m_PointSize"),unit=F<float>(face.Get(),"m_Scale"),line=F<float>(face.Get(),"m_LineHeight");
+        lineRatio=rules::LineRatio(point>0?line/point*(unit>0?unit:1.f)*1.05f:0.f);
+    }
 }
 std::unique_ptr<Row> BuildRow(Panel& p){
     auto row=std::make_unique<Row>();row->root=New("Effect",p.root.rect.Get());
@@ -202,28 +210,29 @@ std::unique_ptr<Row> BuildRow(Panel& p){
     row->track=New("Timer track",row->root.rect.Get(),"Image");Tint(row->track.component.Get(),Color{.15f,.2f,.17f,1});row->fill=New("Timer",row->track.rect.Get(),"Image");return row;
 }
 void Render(Panel& p,const std::vector<rules::Effect>& effects,bool target,Rect canvas){
-    const auto layout=rules::Place(canvas.w,canvas.h,scale,static_cast<size_t>(rows),target,details!=0);
+    const auto layout=rules::Place(canvas.w,canvas.h,scale,static_cast<size_t>(rows),target,details!=0,lineRatio);
     const bool show=layout.visible&&!effects.empty()&&(target?showTarget:showPlayer)!=0;
     if(!show){Active(p.root,false);p.shown=false;return;}
     if(!p.root.go.Get())BuildPanel(p,target?"EpochPact Target Effects":"EpochPact Player Effects");
     const size_t desired=std::min(effects.size(),layout.rows);
     // Create at most one row per panel per sample, then reuse it indefinitely.
     if(p.items.size()<desired)p.items.push_back(BuildRow(p));
-    const size_t visible=std::min(desired,p.items.size());const float s=layout.scale,height=60*s+visible*layout.row;
-    Position(p.root,layout.x,layout.y,layout.width,height);Position(p.inner,1,-1,layout.width-2,height-2);Position(p.header,10*s,-5*s,layout.width-20*s,23*s);
+    const size_t visible=std::min(desired,p.items.size());const float s=layout.scale,height=layout.chrome+static_cast<float>(visible)*layout.row;
+    const float timeWidth=std::max(50*s,3.5f*layout.timeSize),timeX=layout.width-20*s-timeWidth;
+    Position(p.root,layout.x,layout.y,layout.width,height);Position(p.inner,1,-1,layout.width-2,height-2);Position(p.header,10*s,-4*s,layout.width-20*s,layout.titleHeight);
     std::string title="ON YOU";if(target&&targetOwner.Get())title=rules::Plain(Text(Invoke(Method(targetOwner.Get(),"GetLocalizedName",0),targetOwner.Get())),100);
-    Label(p.header,title,p.heading,std::max(12.f,15*s),gold);
+    Label(p.header,title,p.heading,layout.titleSize,gold);
     for(size_t i=0;i<p.items.size();++i){auto& r=*p.items[i];Active(r.root,i<visible);if(i>=visible)continue;const auto& e=effects[i];const Color tone=e.positive?buff:harm;
-        Position(r.root,8*s,-(31*s+static_cast<float>(i)*layout.row),layout.width-16*s,layout.row);Position(r.icon,0,-1*s,32*s,32*s);
+        Position(r.root,8*s,-(layout.top+static_cast<float>(i)*layout.row),layout.width-16*s,layout.row);Position(r.icon,0,-1*s,layout.icon,layout.icon);
         if(r.sprite!=e.sprite){void* a[]{e.sprite};Invoke(M("UnityEngine.UI.dll","UnityEngine.UI","Image","set_sprite",1),r.icon.component.Get(),a);r.sprite=e.sprite;}
-        Position(r.name,40*s,0,layout.width-110*s,23*s);Label(r.name,e.name,r.nameText,std::max(12.f,15*s),white);
-        Position(r.description,40*s,-23*s,layout.width-60*s,std::max(28.f,30*s));Active(r.description,details!=0);Label(r.description,e.description.empty()?"Description unavailable":e.description,r.descriptionText,std::max(11.f,11*s),muted);
+        Position(r.name,40*s,0,timeX-44*s,layout.nameHeight);Label(r.name,e.name,r.nameText,layout.nameSize,white);
+        Position(r.description,40*s,-layout.nameHeight,layout.width-60*s,std::max(1.f,layout.descriptionHeight));Active(r.description,details!=0);Label(r.description,e.description.empty()?"Description unavailable":e.description,r.descriptionText,layout.descriptionSize,muted);
         char time[40];if(e.timed)std::snprintf(time,sizeof time,"%.1fs",e.remaining);else std::snprintf(time,sizeof time,"—");
-        Position(r.time,layout.width-70*s,0,50*s,21*s);Label(r.time,time,r.timeText,std::max(11.f,12*s),e.timed&&e.remaining<=2?gold:white);
-        Position(r.stacks,17*s,-21*s,23*s,18*s);Label(r.stacks,e.stackLabel.empty()?(e.stacks>1?std::to_string(e.stacks):""):e.stackLabel,r.stacksText,std::max(11.f,11*s),gold);
+        Position(r.time,timeX,0,timeWidth,layout.timeHeight);Label(r.time,time,r.timeText,layout.timeSize,e.timed&&e.remaining<=2?gold:white);
+        Position(r.stacks,17*s,-(layout.icon-layout.stackHeight),std::max(23*s,2.2f*layout.stackSize),layout.stackHeight);Label(r.stacks,e.stackLabel.empty()?(e.stacks>1?std::to_string(e.stacks):""):e.stackLabel,r.stacksText,layout.stackSize,gold);
         const float width=layout.width-62*s;Position(r.track,40*s,-(layout.row-7*s),width,2*s);Active(r.track,e.timed);Position(r.fill,0,0,width*rules::Fraction(e.remaining,e.duration),2*s);Colorize(r.fill,tone);
     }
-    Position(p.overflow,10*s,-(height-22*s),layout.width-20*s,std::max(18.f,18*s));Label(p.overflow,effects.size()>visible?"+"+std::to_string(effects.size()-visible)+" more active effects":"",p.overflowText,std::max(11.f,10*s),muted);
+    Position(p.overflow,10*s,-(height-layout.footerHeight-3*s),layout.width-20*s,layout.footerHeight);Label(p.overflow,effects.size()>visible?"+"+std::to_string(effects.size()-visible)+" more active effects":"",p.overflowText,layout.footerSize,muted);
     Active(p.root,true);p.shown=true;p.layout=layout;
 }
 void Sample(){
@@ -241,7 +250,7 @@ void Sample(){
 std::string State(){std::ostringstream out;out<<"{\"ok\":true,\"available\":"<<Boolean(ready)<<",\"settings\":{";
     const std::pair<const char*,double> values[]{{"enabled",enabled?1.:0.},{"player",showPlayer},{"target",showTarget},{"descriptions",details},{"scale",scale},{"rows",rows}};bool comma=false;
     for(auto [key,value]:values){if(comma)out<<',';comma=true;out<<Json(key)<<":{\"value\":"<<value<<",\"available\":"<<Boolean(ready)<<'}';}
-    out<<"},\"status\":"<<Json(status)<<",\"playerEffects\":"<<playerEffects.size()<<",\"targetEffects\":"<<targetEffects.size()<<",\"updates\":"<<updates<<",\"discoveries\":"<<discoveries<<",\"maximumSampleMicros\":"<<maximumSampleMicros<<",\"steadySampleMicros\":"<<steadySampleMicros<<",\"faults\":"<<faults<<",\"error\":"<<Json(lastError)<<",\"nativeIcons\":true,\"readOnly\":true}";return out.str();
+    out<<"},\"status\":"<<Json(status)<<",\"playerEffects\":"<<playerEffects.size()<<",\"targetEffects\":"<<targetEffects.size()<<",\"updates\":"<<updates<<",\"discoveries\":"<<discoveries<<",\"lineRatio\":"<<lineRatio<<",\"maximumSampleMicros\":"<<maximumSampleMicros<<",\"steadySampleMicros\":"<<steadySampleMicros<<",\"faults\":"<<faults<<",\"error\":"<<Json(lastError)<<",\"nativeIcons\":true,\"readOnly\":true}";return out.str();
 }
 }
 bool Init(){
@@ -288,6 +297,13 @@ std::string Test(const std::string& expectedId,const std::string& action){
     if(id!=expectedId||name!="EpEffectsTest")throw std::runtime_error("Effect checks require the isolated EpEffectsTest character");
     void* manager=game::StaticObject(game::FindStaticField("LE.dll","","BuffsUIManager","instance"));if(!manager)throw std::runtime_error("Buff UI unavailable");
     if(action=="map-close"){void* ui=game::StaticObject(game::FindStaticField("LE.dll","","UIBase","instance"));Invoke(Method(ui,"closeMap",0),ui);return std::string("{\"ok\":true}");}
+    if(action=="inventory-open"||action=="inventory-close"){
+        // A game menu over the HUD: the panels must hide while it is open.
+        void* ui=game::StaticObject(game::FindStaticField("LE.dll","","UIBase","instance"));if(!ui)throw std::runtime_error("Game UI unavailable");
+        if(action=="inventory-open"){bool show=true,appearances=false,stash=false,last=false;int tab=0;void* a[]{&show,&appearances,&stash,&tab,&last};Invoke(Method(ui,"openInventory",5),ui,a);}
+        else Invoke(Method(ui,"closeInventory",0),ui);
+        return std::string("{\"ok\":true,\"menuOpen\":")+Boolean(Value<bool>(Method(ui,"get_menuOpen",0),ui))+"}";
+    }
     if(action=="target-self"){
         bool inactive=false;void* args[]{Type("LE.dll","","ActorDisplayInformation"),&inactive};Root found(Invoke(Signature("Object","FindObjectsOfType",{"System.Type","System.Boolean"}),nullptr,args));
         const auto count=Get<uintptr_t>(found.Get(),0x18);if(count>2048)throw std::runtime_error("Test display count outside bounds");void* candidate=nullptr;void* sourceActor=nullptr;

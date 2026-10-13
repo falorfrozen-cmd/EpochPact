@@ -15,7 +15,11 @@ when available; definition durations are never presented as live timers.
 Changing or losing the target clears its previous rows. Not every internal
 effect appears in these native UI lists: hidden game effects are outside scope.
 
-Panels show names, short descriptions, stack counts and known remaining time.
+Panels show names, descriptions of up to two lines, stack counts and known
+remaining time. Text keeps a readable minimum size at every HUD size, and each
+text box is sized from that font size and the font's own line height (read
+from the font in use, so a chosen interface font is measured too); a box
+shorter than one line would make the game draw nothing.
 `—` means the timer is unavailable or is not fixed; it does not mean infinite.
 Different stack expiry times are represented by the longest remaining stack.
 The screen fits at most 12 rows per panel; extra active effects are counted.
@@ -36,11 +40,19 @@ reading status, changing themes and loading a draft do not enable the HUD.
 ## Validation
 
 Native build and presentation-rule tests are separate from live game validation.
-The HUD has been exercised in Last Epoch 1.5.2.1 using an isolated character copy.
-Player effects, native icons, target effects, known/unknown timers, overflow and
-an area transition were observed. Some presentation cases used test-only native
-UI fixtures; these do not prove every effect's natural combat trigger. The final
-source revision still needs another live pass and a fresh player package.
-See [the handoff](effects-hud-handoff-2026-10-13.md) for precise coverage and
-remaining work. The interactive design's 24 painted symbols are illustrative
+The layout rules are checked for 750 combinations of screen size, HUD size,
+descriptions and line height (every text box holds a line; name, description and
+timer fit a row; panels stay on screen and apart).
+
+Final revision, Last Epoch 1.5.2.1, three sessions on a fresh isolated character
+copy (saves and the installed runtime restored and hash-verified afterwards):
+real Chill/Slow/Frenzy/Haste and natural Preparation/Grace Period entries with
+counting timers; 12 effects with overflow; sizes 0.7/1.0/1.5 with and without
+descriptions; a target with known and unknown timers, cleared on target loss;
+the inventory open beside the HUD; an area change (Z32 → Z52) keeping the HUD
+with one new discovery; switching off; normal game close (exit 0). Steady
+samples 0.2–0.4 ms, first build of the rows up to 2 ms. The font's measured
+line height was 1.47 × size. Some presentation cases used test-only native UI
+fixtures; these do not prove every effect's natural combat trigger.
+See [the handoff](effects-hud-handoff-2026-10-13.md) for the earlier coverage. The interactive design's 24 painted symbols are illustrative
 and are not used or distributed by the native HUD.
