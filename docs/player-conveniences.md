@@ -140,15 +140,25 @@ values are re-applied on the next frame after a new area's map loads.
   tier.
 - **Colour affix lines by tier** colours the whole affix line in its tier
   colour (rich-text colour; the game resets the text's own colour property).
-  Both can be used together or separately. The game's original line text is
+  Exalted, experimental, personal (champion), corrupted and similar affixes
+  carry the game's own colour tag inside the line (for example
+  `<color=#ABABFFFF>` for experimental), which would win over the tier colour,
+  so the coloured line is written without the game's colour tags; other tags,
+  icons and the corrupted glow stay. Both can be used together or separately. The game's original line text is
   remembered and written back exactly when they are switched off. If a tooltip
   shows a different number of affix lines than the item has, that tooltip is
   left unchanged instead of guessing (`tierread` counts it as
   `tooltipMismatches`).
-- **Loot filter rule in tooltips** adds a line under the item type in every
-  item tooltip: the matching rule of the active loot filter (number,
-  Show/Hide/Highlight, name or the game's description), or "no rule matched".
-  The line is added to the tooltip header's own layout group.
+- **Loot filter rule in tooltips** adds a line to every item tooltip: the
+  matching rule of the active loot filter (number, Show/Hide/Highlight, name
+  or the game's description), or "no rule matched". It is drawn in the colour
+  the filter gives the item's label: the rule's colour preset when the rule
+  recolours (`EpochColorManager.GetLootfilterRuleColor`), otherwise the item's
+  own colour; Hide rules are grey because hidden items have no label.
+  **Rule line position** puts it under the item type (Top), before the affixes
+  (Middle) or at the end of the tooltip below the flavour text (Bottom); the
+  line is added to the header's or the body's own layout group, so the game
+  lays it out. **Rule name only** leaves just the rule's name.
 - **Tier colours**: default T1 white `FFFFFF`, T2 blue `2E8BFF`, T3 gold
   `FFD700`, T4 burnt orange `FF5500`, T5 purple `AA55FF`, T6 green `00FF00`, T7
   red-pink `FF0044`, T8 cyan `00FFFF` (a player's palette; T2 and T5 slightly

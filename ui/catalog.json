@@ -2570,7 +2570,71 @@
       "default": 0,
       "resetCommand": "tierset rules 0",
       "lifetime": "session",
-      "description": "Show which loot filter rule matches an item in its tooltip: rule number, Show/Hide/Highlight and the rule name.",
+      "description": "Show which loot filter rule matches an item in its tooltip: rule number, Show/Hide/Highlight and the rule name, in the colour the rule gives the item's label.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "tier_rule_position",
+      "group": "display",
+      "label": "Rule line position",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "tierset rulepos {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2,
+          "choices": [
+            0,
+            1,
+            2
+          ],
+          "choiceLabels": [
+            "Top: under the item type",
+            "Middle: before the affixes",
+            "Bottom: end of the tooltip"
+          ]
+        }
+      ],
+      "default": 0,
+      "resetCommand": "tierset rulepos 0",
+      "lifetime": "session",
+      "description": "Where the loot filter rule line appears in item tooltips: under the item type, before the affixes, or at the end of the tooltip.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "tier_rule_plain",
+      "group": "display",
+      "label": "Rule name only",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "tierset ruleplain {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "tierset ruleplain 0",
+      "lifetime": "session",
+      "description": "Show only the rule name in the rule line, without \"Loot filter:\", the rule number and Show/Hide/Highlight.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -32956,7 +33020,7 @@
     ]
   },
   "counts": {
-    "controls": 150,
+    "controls": 152,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

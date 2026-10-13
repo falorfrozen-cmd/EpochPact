@@ -6,6 +6,7 @@
 #include "items.hpp"
 #endif
 #include <charconv>
+#include <cstring>
 #include <sstream>
 #include <set>
 
@@ -128,6 +129,8 @@ bool RuleFor(void* unpackedItem, RuleMatch* result) {
         void* args[]{unpackedItem, color, emphasize, &rule, &sound, &icon, &beam, &beamSize, beamColor};
         result->outcome = Value<int>(match, filter, args);
         result->number = rule > 0 ? rule : 0;
+        // Nullable<int>: the HasValue flag, then the value at offset 4.
+        if (color[0]) std::memcpy(&result->color, color + 4, sizeof(int));
         void* rules = Get<void*>(filter, Offset("ItemFilter", "rules", "ItemFiltering"));
         if (!rules) return;
         bool first = true;

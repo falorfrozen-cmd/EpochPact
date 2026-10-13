@@ -280,8 +280,15 @@ def controls():
         'Colour each affix line in item tooltips with its tier colour. The original text returns when switched off.',
         params=[parameter("value","integer",0,1)],default=0,reset='tierset lines 0',doc="docs/player-conveniences.md")
     add('tier_rules',"display",'Loot filter rule in tooltips',"toggle",'tierset rules {value}',"session",
-        'Show which loot filter rule matches an item in its tooltip: rule number, Show/Hide/Highlight and the rule name.',
+        "Show which loot filter rule matches an item in its tooltip: rule number, Show/Hide/Highlight and the rule name, in the colour the rule gives the item's label.",
         params=[parameter("value","integer",0,1)],default=0,reset='tierset rules 0',doc="docs/player-conveniences.md")
+    add('tier_rule_position',"display",'Rule line position',"number",'tierset rulepos {value}',"session",
+        "Where the loot filter rule line appears in item tooltips: under the item type, before the affixes, or at the end of the tooltip.",
+        params=[parameter("value","integer",0,2,choices=[0,1,2])],default=0,reset='tierset rulepos 0',doc="docs/player-conveniences.md")
+    items[-1]["parameters"][0]["choiceLabels"]=["Top: under the item type","Middle: before the affixes","Bottom: end of the tooltip"]
+    add('tier_rule_plain',"display",'Rule name only',"toggle",'tierset ruleplain {value}',"session",
+        'Show only the rule name in the rule line, without "Loot filter:", the rule number and Show/Hide/Highlight.',
+        params=[parameter("value","integer",0,1)],default=0,reset='tierset ruleplain 0',doc="docs/player-conveniences.md")
     add("tier_color","display","Tier colour","selector","tiercolor {tier} {color}","session",
         "Choose the colour for one affix tier (six hexadecimal digits, for example E0315A).",
         params=[parameter("tier","integer",1,8),parameter("color","single_token")],reset="tiercolor reset",doc="docs/player-conveniences.md")

@@ -825,11 +825,21 @@ test('display page shows minimap, tier controls and the tier palette without sen
  const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
  h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};page='display';shippingRenderPage()`);
  const html=h.element('#page-content').innerHTML;
- for(const id of ['map_minimapsize','map_minimapzoom','map_minimapopacity','map_overlayopacity','map_overlayzoom','tier_icons','tier_tooltips','tier_lines','tier_rules','tier_color'])assert.ok(html.includes(`="${id}"`),id);
+ for(const id of ['map_minimapsize','map_minimapzoom','map_minimapopacity','map_overlayopacity','map_overlayzoom','tier_icons','tier_tooltips','tier_lines','tier_rules','tier_rule_position','tier_rule_plain','tier_color'])assert.ok(html.includes(`="${id}"`),id);
+ const position=html.match(/<select data-setting-choice="tier_rule_position"[^>]*>(.*?)<\/select>/s)?.[1]||'';
+ assert.deepEqual([...position.matchAll(/<option value="(\d)"[^>]*>([^<]*)</g)].map(x=>x[1]+' '+x[2]),['0 Top: under the item type','1 Middle: before the affixes','2 Bottom: end of the tooltip']);
  assert.equal([...html.matchAll(/data-tier-color="(\d)"/g)].map(x=>x[1]).join(''),'12345678');
  assert.ok(html.includes('value="#FF0044"'));
- for(const id of ['map_minimapsize','tier_icons','tier_tooltips'])assert.ok(h.run(`automaticSetting(controlById("${id}"))`),id);
+ for(const id of ['map_minimapsize','tier_icons','tier_tooltips','tier_rule_position','tier_rule_plain'])assert.ok(h.run(`automaticSetting(controlById("${id}"))`),id);
  assert.equal(h.calls.length,0);
+});
+test('the in-game stash search help appears on Stash Assistant only',()=>{
+ for(const [target,expected] of [['stash',true],['inventory',false]]){
+  const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
+  h.context.renderCollection=()=>{};  // the Stash Assistant collection view lives in collection.js
+  h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};page='${target}';shippingRenderPage()`);
+  assert.equal((h.element('#page-content').innerHTML.match(/In-game stash search/g)||[]).length,expected?1:0,target);
+ }
 });
 test('a customised tier palette is pushed once per character and the default palette sends nothing',async()=>{
  const h=automaticHarness();const store={};

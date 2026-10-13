@@ -619,7 +619,15 @@
     ],
     "tier_rules": [
       "Loot filter rule in tooltips",
-      "Show which loot filter rule matches an item in its tooltip: rule number, Show/Hide/Highlight and the rule name."
+      "Show which loot filter rule matches an item in its tooltip: rule number, Show/Hide/Highlight and the rule name, in the colour the rule gives the item's label."
+    ],
+    "tier_rule_position": [
+      "Rule line position",
+      "Where the loot filter rule line appears in item tooltips: under the item type, before the affixes, or at the end of the tooltip."
+    ],
+    "tier_rule_plain": [
+      "Rule name only",
+      "Show only the rule name in the rule line, without \"Loot filter:\", the rule number and Show/Hide/Highlight."
     ]
   },
   "researchOnly": {

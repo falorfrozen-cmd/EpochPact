@@ -13,7 +13,7 @@ JSON yüklemek hiçbir ayarı oyuna uygulamaz; kayıtlı mod profili oluşturmaz
 
 | Katalog | Adet |
 |---|---:|
-| Panel kontrolü / işlem | 150 |
+| Panel kontrolü / işlem | 152 |
 | SP stat türü | 134 |
 | Hazır stat adı | 72 |
 | Doğrulanmış C satırı | 206 |
@@ -428,6 +428,8 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `tier_tooltips` — Tier tags in tooltips | `tierset tooltips {value}` | value: 0…1 | 0 | Oturum |
 | `tier_lines` — Colour affix lines by tier | `tierset lines {value}` | value: 0…1 | 0 | Oturum |
 | `tier_rules` — Loot filter rule in tooltips | `tierset rules {value}` | value: 0…1 | 0 | Oturum |
+| `tier_rule_position` — Rule line position | `tierset rulepos {value}` | value: 0/1/2 | 0 | Oturum |
+| `tier_rule_plain` — Rule name only | `tierset ruleplain {value}` | value: 0…1 | 0 | Oturum |
 | `tier_color` — Tier colour | `tiercolor {tier} {color}` | tier: 1…8; color: single_token | — | Oturum |
 | `tier_read` — Tier display status | `tierread` | — | — | Okuma |
 | `map_settings_read` — Map display settings | `mapsettings` | — | — | Okuma |
@@ -451,7 +453,9 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Affix tiers on item icons:** Show each affix tier as coloured digits on inventory, stash and equipment icons (for example 7 6 5 4). Display only; items are unchanged. Reset: `tierset icons 0`.
 - **Tier tags in tooltips:** Add a coloured T1-T8 tag in front of each affix in item tooltips. The tags are removed when switched off. Reset: `tierset tooltips 0`.
 - **Colour affix lines by tier:** Colour each affix line in item tooltips with its tier colour. The original text returns when switched off. Reset: `tierset lines 0`.
-- **Loot filter rule in tooltips:** Show which loot filter rule matches an item in its tooltip: rule number, Show/Hide/Highlight and the rule name. Reset: `tierset rules 0`.
+- **Loot filter rule in tooltips:** Show which loot filter rule matches an item in its tooltip: rule number, Show/Hide/Highlight and the rule name, in the colour the rule gives the item's label. Reset: `tierset rules 0`.
+- **Rule line position:** Where the loot filter rule line appears in item tooltips: under the item type, before the affixes, or at the end of the tooltip. Reset: `tierset rulepos 0`.
+- **Rule name only:** Show only the rule name in the rule line, without "Loot filter:", the rule number and Show/Hide/Highlight. Reset: `tierset ruleplain 0`.
 - **Tier colour:** Choose the colour for one affix tier (six hexadecimal digits, for example E0315A). Reset: `tiercolor reset`.
 - **Tier display status:** Read tier display settings, palette and counters.
 - **Map display settings:** Read minimap and overlay display settings.

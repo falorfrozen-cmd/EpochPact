@@ -12,6 +12,8 @@
 #include <fstream>
 #include <atomic>
 #include <cmath>
+#include <cstdio>
+#include <algorithm>
 #include <functional>
 #include <map>
 #include <unordered_map>
@@ -1119,6 +1121,110 @@ std::string Test(const std::string& id,const std::string& action){
         }
         throw std::runtime_error("No inventory item with at least two affixes.");
     }
+    if(action.rfind("special-",0)==0||action=="tooltip-unique"||action=="tooltip-lines"||action=="label-colors"){
+        struct C4{float r,g,b,a;};
+        auto hex=[](C4 c){char b[8];auto v=[](float x){return static_cast<int>(std::lround(std::clamp(x,0.f,1.f)*255.f));};std::snprintf(b,sizeof b,"%02X%02X%02X",v(c.r),v(c.g),v(c.b));return std::string(b);};
+        auto objectOf=[&](void* component){return Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),component);};
+        auto activeSelf=[&](void* component){Root g(objectOf(component));return Value<bool>(Method(g.Get(),"get_activeSelf",0),g.Get());};
+        auto nameOf=[&](void* component){Root g(objectOf(component));return Text(Invoke(M("Object","get_name",0,"UnityEngine","UnityEngine.CoreModule.dll"),g.Get()));};
+        Root tmpType(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("Unity.TextMeshPro.dll","TMPro","TMP_Text"))));
+        if(action=="label-colors"){
+            // Read-only: how the game colours item labels on the ground.
+            std::ostringstream out;
+            out<<"{\"ok\":true,\"emphasisOpen\":"<<Json(Text(Invoke(M("GroundItemLabel","get_EmphasisOpenTag",0))))<<",\"emphasisClose\":"<<Json(Text(Invoke(M("GroundItemLabel","get_EmphasisCloseTag",0))))<<",\"labels\":[";
+            bool comma=false;int n=0;
+            for(void* label:Find("LE.dll","","GroundItemLabel")){
+                if(!label||!game::IsAlive(label)||n>=12)continue;
+                Root g(objectOf(label));if(!Value<bool>(Method(g.Get(),"get_activeInHierarchy",0),g.Get()))continue;
+                void* e=Get<void*>(label,F("GroundItemLabel","eColor"));
+                void* ta[]{tmpType.Get()};void* text=Invoke(Signature("GameObject","GetComponentInChildren",{"System.Type"}),g.Get(),ta);
+                if(comma)out<<',';comma=true;++n;
+                out<<"{\"rule\":"<<Get<int>(label,F("GroundItemLabel","<CurrentRuleNumber>k__BackingField"))<<",\"recolor\":"<<Boolean(Get<bool>(label,F("GroundItemLabel","filterDidRecolorLabel")))
+                   <<",\"emphasized\":"<<Boolean(Get<bool>(label,F("GroundItemLabel","emphasized")));
+                if(e)out<<",\"color\":"<<Json(hex(Get<C4>(e,F("EpochColor.Ecolor","color"))))<<",\"light\":"<<Json(hex(Get<C4>(e,F("EpochColor.Ecolor","lightColor"))))
+                        <<",\"tooltipName\":"<<Json(hex(Get<C4>(e,F("EpochColor.Ecolor","tooltipNameColor"))))<<",\"hexCode\":"<<Json(Text(Get<void*>(e,F("EpochColor.Ecolor","hexCode"))));
+                if(text)out<<",\"textColor\":"<<Json(hex(Value<C4>(M("Graphic","get_color",0,"UnityEngine.UI","UnityEngine.UI.dll"),text)))<<",\"text\":"<<Json(Text(Invoke(Method(text,"get_text",0),text)).substr(0,120));
+                out<<'}';
+            }
+            return out.str()+"]}";
+        }
+        if(action.rfind("special-",0)==0||action=="tooltip-unique"){
+            // Disposable character only. special-<kind>: give the next unchanged
+            // inventory item's first affix a special kind (the affix fields as
+            // the game stores them). tooltip-unique: the first unique item.
+            // Then open its tooltip, as hovering it would.
+            const std::string kind=action=="tooltip-unique"?"":action.substr(8);
+            // affix-<id>: the first affix gets that affix id (for loot filter affix rules).
+            const bool setId=kind.rfind("affix-",0)==0;
+            if(!kind.empty()&&!setId&&kind!="exalted"&&kind!="experimental"&&kind!="personal"&&kind!="corrupted")throw std::runtime_error("Unsupported special affix fixture.");
+            auto managers=Find("LE.dll","","TooltipItemManager");if(managers.empty())throw std::runtime_error("Tooltip manager unavailable.");
+            void* chosen=nullptr;void* data=nullptr;
+            for(void* icon:Find("LE.dll","","InventoryItemUI")){
+                Root go(objectOf(icon));if(!Value<bool>(Method(go.Get(),"get_activeInHierarchy",0),go.Get()))continue;
+                void* entry=Get<void*>(icon,F("InventoryItemUI","<EntryRef>k__BackingField"));void* d=entry?Get<void*>(entry,F("ItemContainerEntry","data")):nullptr;
+                if(!d)continue;
+                if(kind.empty()){if(Value<bool>(Method(d,"isUnique",0),d)){chosen=icon;data=d;break;}continue;}
+                void* list=Get<void*>(d,F("ItemData","affixes"));if(!list||Entries(list).size()<2||Get<bool>(d,F("ItemData","corrupted")))continue;
+                bool plain=true;for(void* x:Entries(list))plain&=x&&!Get<int>(x,F("ItemAffix","specialAffixType"))&&!Get<int>(x,F("ItemAffix","sealedAffixType"))&&Get<uint8_t>(x,F("ItemAffix","affixTier"))<5;
+                if(plain){chosen=icon;data=d;break;}
+            }
+            if(!chosen)throw std::runtime_error(kind.empty()?"No visible unique inventory item.":"No unchanged visible inventory item with at least two affixes.");
+            if(!kind.empty()){
+                void* affix=Entries(Get<void*>(data,F("ItemData","affixes"))).front();
+                auto bytes=static_cast<char*>(affix);
+                if(setId)*reinterpret_cast<uint16_t*>(bytes+F("ItemAffix","affixId"))=static_cast<uint16_t>(std::stoi(kind.substr(6)));
+                else if(kind=="exalted")*reinterpret_cast<uint8_t*>(bytes+F("ItemAffix","affixTier"))=6;
+                else if(kind=="experimental")*reinterpret_cast<int*>(bytes+F("ItemAffix","specialAffixType"))=1;
+                else if(kind=="personal")*reinterpret_cast<int*>(bytes+F("ItemAffix","specialAffixType"))=2;
+                else{*reinterpret_cast<int*>(bytes+F("ItemAffix","sealedAffixType"))=3;Invoke(Method(data,"SetAsCorrupted",0),data);}
+            }
+            Root unpacked(Invoke(Method(data,"getAsUnpacked",0),data));
+            Root t(Invoke(componentTransform,chosen));Root go(objectOf(chosen));
+            Vec3 at=Value<Vec3>(transformPosition,t.Get());
+            Vec2 size=Value<Vec2>(M("RectTransform","get_sizeDelta",0,"UnityEngine","UnityEngine.CoreModule.dll"),t.Get());
+            int slot=0;Vec2 offset{0,0};void* a[]{unpacked.Get(),&slot,&offset,&at,go.Get(),&size};
+            Invoke(Method(managers.front(),"OpenItemTooltip",6),managers.front(),a);
+        }
+        // The open item tooltip: its affix lines as drawn (tags included), our
+        // loot filter rule lines and where they sit next to the game's lines.
+        void* tooltip=game::StaticObject(game::FindStaticField("LE.dll","","UITooltipItem","instance"));
+        if(!tooltip)throw std::runtime_error("No item tooltip yet.");
+        Root tooltipTransform(Invoke(componentTransform,tooltip));
+        std::ostringstream out;out<<"{\"ok\":true,\"lines\":[";bool comma=false;
+        auto line=[&](const std::string& field,void* affixLine){
+            if(!affixLine||!game::IsAlive(affixLine)||!activeSelf(affixLine))return;
+            void* text=Get<void*>(affixLine,F("UITooltipItemAffix","_text"));if(!text)return;
+            if(comma)out<<',';comma=true;out<<Json(field+": "+Text(Invoke(Method(text,"get_text",0),text)).substr(0,300));};
+        for(const char* field:{"sealedAffix","sealedPrimordialAffix","sealedCorruptedAffix"})line(field,Get<void*>(tooltip,F("UITooltipItem",field)));
+        for(const char* list:{"prefixesText","suffixesText","uniqueAffixesText"})for(void* l:Entries(Get<void*>(tooltip,F("UITooltipItem",list))))line(list,l);
+        out<<"],\"places\":[";comma=false;
+        auto place=[&](const std::string& label,void* component){
+            if(!component||!game::IsAlive(component))return;
+            Root tr(Invoke(componentTransform,component));const auto r=RectIn(tr.Get(),tooltipTransform.Get());
+            Root parent(Invoke(M("Transform","get_parent",0,"UnityEngine","UnityEngine.CoreModule.dll"),tr.Get()));Root go(objectOf(component));
+            if(comma)out<<',';comma=true;
+            out<<"{\"what\":"<<Json(label)<<",\"name\":"<<Json(nameOf(component))<<",\"parent\":"<<Json(Text(Invoke(M("Object","get_name",0,"UnityEngine","UnityEngine.CoreModule.dll"),parent.Get())))
+               <<",\"active\":"<<Boolean(Value<bool>(Method(go.Get(),"get_activeInHierarchy",0),go.Get()))<<",\"rect\":["<<r.x<<','<<r.y<<','<<r.w<<','<<r.h<<']';
+            if(label.rfind("rule",0)==0){
+                out<<",\"text\":"<<Json(Text(Invoke(Method(component,"get_text",0),component)));}
+            if(label=="type"||label=="lore"||label.rfind("rule",0)==0||label=="prefixesText"||label=="suffixesText"){
+                struct V4{float x,y,z,w;};const auto m=Value<V4>(Method(component,"get_margin",0),component);
+                out<<",\"margin\":["<<m.x<<','<<m.y<<','<<m.z<<','<<m.w<<"],\"alignment\":"<<Value<int>(Method(component,"get_alignment",0),component)<<",\"fontSize\":"<<Value<float>(Method(component,"get_fontSize",0),component);}
+            out<<'}';};
+        place("type",Get<void*>(tooltip,F("UITooltipItem","typeText")));
+        place("implicits",Get<void*>(tooltip,F("UITooltipItem","implicitText")));
+        place("lore",Get<void*>(tooltip,F("UITooltipItem","loreText")));
+        for(const char* list:{"prefixesText","suffixesText"})for(void* l:Entries(Get<void*>(tooltip,F("UITooltipItem",list))))
+            if(l&&game::IsAlive(l)&&activeSelf(l)){place(std::string(list),Get<void*>(l,F("UITooltipItemAffix","_text")));break;}
+        {Root go(objectOf(tooltip));bool inactive=true;void* ia[]{tmpType.Get(),&inactive};
+            Root all(Invoke(Signature("GameObject","GetComponentsInChildren",{"System.Type","System.Boolean"}),go.Get(),ia));
+            for(uintptr_t i=0;i<Get<uintptr_t>(all.Get(),0x18);++i){void* text=Get<void*>(all.Get(),0x20+8*i);
+                if(text&&nameOf(text)=="EpochPact loot filter rule")place("rule",text);}
+            void* footer=Get<void*>(tooltip,F("UITooltipItem","requirementsFooter"));
+            if(footer){Root ft(Invoke(M("GameObject","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),footer));const auto r=RectIn(ft.Get(),tooltipTransform.Get());
+                if(comma)out<<',';comma=true;out<<"{\"what\":\"footer\",\"rect\":["<<r.x<<','<<r.y<<','<<r.w<<','<<r.h<<"]}";}}
+        return out.str()+"]}";
+    }
     if(action=="tooltip-first"||action=="tooltip-close"){
         // Opens the game's own item tooltip for the first visible inventory item
         // with affixes, exactly as hovering it would, so tooltip display hooks
@@ -1399,9 +1505,12 @@ std::string Test(const std::string& id,const std::string& action){
     }
     if(action.rfind("drop-item-",0)==0){
         // Disposable test character only: one generated item on the ground,
-        // via the game's own generator and drop call. Format drop-item-<distance>-<rarity>.
+        // via the game's own generator and drop call. Format drop-item-<distance>-<rarity>[-<affix id>];
+        // the affix id replaces the first affix's id (for loot filter affix rules).
         const auto dash=action.find('-',10);if(dash==std::string::npos)throw std::runtime_error("use drop-item-<distance>-<rarity>");
-        const int distance=std::stoi(action.substr(10,dash-10));int rarity=std::stoi(action.substr(dash+1));
+        const auto affixDash=action.find('-',dash+1);
+        const int distance=std::stoi(action.substr(10,dash-10));int rarity=std::stoi(action.substr(dash+1,affixDash==std::string::npos?std::string::npos:affixDash-dash-1));
+        const int affixId=affixDash==std::string::npos?-1:std::stoi(action.substr(affixDash+1));
         if(distance<1||distance>80||rarity<0||rarity>7)throw std::runtime_error("Unsupported item fixture.");
         void* generator=Get<void*>(c.actor,F("Actor","generateItems"));if(!generator)throw std::runtime_error("Item generator unavailable.");
         bool no=false;int level=20,location=0,type=rarity==7?-1:0,subtype=rarity==7?-1:0,sockets=0,unique=rarity==7?1:-1,lp=0,rank=0,legendaryType=0,corrupt=0;
@@ -1410,6 +1519,8 @@ std::string Test(const std::string& id,const std::string& action){
             replacement,corruption,&corrupt,effectiveness,nullptr,nullptr,special,&no,minSpecial,overrideLP};
         Root item(Invoke(M("GenerateItems","initialiseRandomItemData",26),generator,gen));
         if(!item.Get())throw std::runtime_error("The game did not generate an item.");
+        if(affixId>=0){auto list=Entries(Get<void*>(item.Get(),F("ItemData","affixes")));if(list.empty()||!list.front())throw std::runtime_error("The generated item has no affix.");
+            *reinterpret_cast<uint16_t*>(static_cast<char*>(list.front())+F("ItemAffix","affixId"))=static_cast<uint16_t>(affixId);}
         void* manager=game::StaticObject(game::FindStaticField("LE.dll","","GroundItemManager","instance"));
         if(!manager)throw std::runtime_error("Ground item manager unavailable.");
         Vec3 at=Position(c.actor);at.x+=static_cast<float>(distance);bool sound=false;
