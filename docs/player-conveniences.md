@@ -180,6 +180,21 @@ values are re-applied on the next frame after a new area's map loads.
   1 restore every text's own font, material and sizes exactly; closing
   EpochPact does the same. Nothing is written to the game's settings.
 
+### Buffs & debuffs in game
+
+A native, click-through HUD inside the game: your buffs and debuffs and the
+current target's ailments with the game's icons, names, two-line descriptions,
+stacks and time left. Size, rows, descriptions and which panels show can be
+set. See [effects-hud.md](effects-hud.md) for how it reads the game's own UI
+and what was measured.
+
+### Memory Amber multiplier
+
+**Memory Amber gain multiplier** (general multipliers, ×1–×100) multiplies the
+Memory Amber a member of The Woven picks up (`Faction.GainFavor` on The Woven);
+the reputation from that amber rises with it. It shares the hook of the Circle
+of Fortune favor multiplier and is removed when both are 1.
+
 ## Inventory
 
 The game inventory gains **Stash**, **Stash all** and **Vendor** buttons. The same
