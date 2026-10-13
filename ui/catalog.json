@@ -4321,6 +4321,188 @@
         "offline"
       ],
       "documentation": "docs/progression.md"
+    },
+    {
+      "id": "effects_enabled",
+      "group": "display",
+      "label": "In-game effect HUD",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "effectsset enabled {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "effectsset enabled 0",
+      "lifetime": "session",
+      "description": "Show live effect names, game icons, stack counts and available timers while playing. Click-through, offline and session only.",
+      "currentSource": "liveState.effectsread.settings.enabled.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/effects-hud.md"
+    },
+    {
+      "id": "effects_player",
+      "group": "display",
+      "label": "Show effects on you",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "effectsset player {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 1,
+      "resetCommand": "effectsset player 1",
+      "lifetime": "session",
+      "description": "Show the buffs and debuffs exposed by the game's own player effect UI.",
+      "currentSource": "liveState.effectsread.settings.player.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/effects-hud.md"
+    },
+    {
+      "id": "effects_target",
+      "group": "display",
+      "label": "Show target effects",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "effectsset target {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 1,
+      "resetCommand": "effectsset target 1",
+      "lifetime": "session",
+      "description": "Show the ailments exposed by the currently displayed target's native health bar. Changing target clears the previous effects.",
+      "currentSource": "liveState.effectsread.settings.target.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/effects-hud.md"
+    },
+    {
+      "id": "effects_descriptions",
+      "group": "display",
+      "label": "Show effect descriptions",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "effectsset descriptions {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 1,
+      "resetCommand": "effectsset descriptions 1",
+      "lifetime": "session",
+      "description": "Show a short description read from the game's effect definition. Unknown values are not estimated.",
+      "currentSource": "liveState.effectsread.settings.descriptions.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/effects-hud.md"
+    },
+    {
+      "id": "effects_scale",
+      "group": "display",
+      "label": "Effect HUD size",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "effectsset scale {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0.7,
+          "maximum": 1.5
+        }
+      ],
+      "default": 1,
+      "resetCommand": "effectsset scale 1",
+      "lifetime": "session",
+      "description": "Scale the effect panels. Their row count is limited to the available screen space.",
+      "currentSource": "liveState.effectsread.settings.scale.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/effects-hud.md"
+    },
+    {
+      "id": "effects_rows",
+      "group": "display",
+      "label": "Maximum visible effect rows",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "effectsset rows {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        }
+      ],
+      "default": 5,
+      "resetCommand": "effectsset rows 5",
+      "lifetime": "session",
+      "description": "Limit rows per panel; additional active effects are counted below the visible rows. This does not limit which game icons can appear.",
+      "currentSource": "liveState.effectsread.settings.rows.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/effects-hud.md"
+    },
+    {
+      "id": "effects_read",
+      "group": "display",
+      "label": "Effect HUD status",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "effectsread",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read effect HUD settings and availability without enabling it.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/effects-hud.md"
     }
   ],
   "contract": {
@@ -33020,7 +33202,7 @@
     ]
   },
   "counts": {
-    "controls": 152,
+    "controls": 159,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

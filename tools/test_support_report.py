@@ -7,7 +7,7 @@ import unittest
 import zipfile
 import zlib
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from tools import support_report, le_session as le
 from tools.player_setup import PlayerSetup
@@ -16,6 +16,20 @@ from tools.test_player_setup import game
 
 
 class ReportTests(unittest.TestCase):
+    def test_window_capture_restores_thread_dpi_context_even_on_failure(self):
+        change = Mock(return_value=123)
+        with patch.object(support_report.sys, 'platform', 'win32'), patch.object(support_report.ctypes, 'WinDLL', return_value=Mock(SetThreadDpiAwarenessContext=change)), patch.object(support_report, '_capture_window', side_effect=RuntimeError('capture failed')):
+            with self.assertRaisesRegex(RuntimeError, 'capture failed'):
+                support_report.capture_window(99)
+        self.assertEqual(change.call_count, 2)
+        self.assertEqual(change.call_args_list[0].args[0].value, support_report.wt.HANDLE(-4).value)
+        self.assertEqual(change.call_args_list[1].args[0], 123)
+
+    def test_window_capture_keeps_compatibility_without_thread_dpi_api(self):
+        with patch.object(support_report.sys, 'platform', 'win32'), patch.object(support_report.ctypes, 'WinDLL', return_value=Mock(SetThreadDpiAwarenessContext=None)), patch.object(support_report, '_capture_window', return_value=b'png') as capture:
+            self.assertEqual(support_report.capture_window(99), b'png')
+            capture.assert_called_once_with(99)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

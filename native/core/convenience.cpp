@@ -8,6 +8,7 @@
 #include "lifecycle.hpp"
 #include "convenience_rules.hpp"
 #include "common.hpp"
+#include "effects.hpp"
 #include <array>
 #include <fstream>
 #include <atomic>
@@ -787,6 +788,7 @@ void Frame(){
     if(measureFrames){const auto sample=Micros();if(previousFrame&&frameGaps.size()<10000)frameGaps.push_back(sample-previousFrame);previousFrame=sample;}
 #endif
     if(lifecycle::Stopping())return;
+    effects::Frame();
     if(pendingStashPanel.Get()&&!game::Guarded([]{RestoreStashTab();},nullptr)){pendingStashPanel.Reset();++stashRestoreFailures;}
     if(pendingLegacyStash.Get()&&!game::Guarded([]{RestoreLegacyStashTab();},nullptr)){pendingLegacyStash.Reset();++stashRestoreFailures;}
     const auto clock=GetTickCount64();

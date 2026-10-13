@@ -88,7 +88,7 @@ function applyStartupProfile(){
  notify(`Applying ${profile.name} (${changes} setting${changes===1?"":"s"}).`);
  setTimeout(()=>void applyDraft(),0);
 }
-function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|pickupradius|pickupinterval|autopickup|mapreveal|mapset|tierset|fontset) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
+function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|pickupradius|pickupinterval|autopickup|mapreveal|mapset|tierset|fontset|effectsset) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
 function automaticOwner(){
  if(preview)return "preview";
  const p=connected.player;
@@ -254,6 +254,7 @@ function eligible(control) {
  if(!connected.connected)return false;
  const buildKey=control.commandTemplate?.startsWith("buildset ")?control.commandTemplate.split(" ")[1]:null;
  if(buildKey && cache.build_read?.settings?.[buildKey]?.available===false)return false;
+ if(control.commandTemplate?.startsWith("effectsset ")&&cache.effects_read?.available===false)return false;
  if(control.requirements.includes("offline") && (!connected.offline || connected.state!=="InGame" || connected.transitioning)) return false;
  for(const state of ["Login","CharacterSelect"]) if(control.requirements.includes(state+"_and_not_transitioning") && (connected.state!==state||connected.transitioning))return false;
  return true;
@@ -529,6 +530,7 @@ async function openPage(){
  if(readId&&eligible(controlById(readId))&&(!cache[readId]||["general","loot","crafting","display","world","inventory"].includes(page)))await refreshSection(readId);
  if(page==="loot"&&!preview)await refreshSection("pickup_radius_read",{refreshConnectionFirst:false});
  if(page==="display")await refreshSection("build_read",{refreshConnectionFirst:false});
+ if(page==="display"&&controlById("effects_read"))await refreshSection("effects_read",{refreshConnectionFirst:false});
  if(page==="settings"&&!preview&&connected.connected&&controlById("report_read"))await refreshSection("report_read",{refreshConnectionFirst:false});
  if(page==="summons"&&!preview&&connected.connected&&controlById("damage_session_read")){const r=await job({type:"control",id:"damage_session_read",operation:"read"}).catch(()=>null);if(r?.ok){cache.damage_session_read=r;renderDamage();}}
  if(page==="world")await refreshSection("map_read",{refreshConnectionFirst:false});
@@ -546,6 +548,7 @@ function renderPage(){
   content.innerHTML=settingPanel("General game settings",catalog.controls.filter(c=>c.group==="general"&&["number","toggle"].includes(c.widget)&&!c.id.startsWith("loot_")&&!c.id.startsWith("craft_")&&!c.id.startsWith("map_")));
  }else if(page==="display"){
   content.innerHTML=settingPanel("Camera",["build_zoom","build_cameraangle"].map(controlById))+settingPanel("Minimap and overlay",["map_minimapsize","map_minimapzoom","map_minimapopacity","map_overlayopacity","map_overlayzoom"].map(controlById))+settingPanel("Item tiers",["tier_icons","tier_tooltips","tier_lines","tier_rules","tier_rule_position","tier_rule_plain"].map(controlById))+tierPalette()+fontPanel()+settingPanel("Graphics effects",catalog.controls.filter(c=>c.group==="display"&&c.id.startsWith("qol_")))+`<p class="note">Graphics overrides last for this character session. Turning them off restores the previous renderer values. Your saved graphics preferences are kept.</p>`;
+  content.innerHTML=settingPanel("Buffs & debuffs in game",["effects_enabled","effects_player","effects_target","effects_descriptions","effects_scale","effects_rows"].map(controlById))+`<p class="note">Uses live game icons and descriptions. Effects with no readable timer show —. The panels let clicks pass through and only show effects exposed by the game's native UI.</p>`+content.innerHTML;
  }else if(page==="world"){
   content.innerHTML=settingPanel("Map visibility",[controlById("map_reveal")])+settingPanel("Nearby interactions",["qol_chests","qol_shrines","qol_portals"].map(controlById));
  }else if(page==="inventory"){
@@ -756,6 +759,11 @@ async function refreshSection(id,{refreshConnectionFirst=true}={}){
  renderPage();
 }
 function syncLootCraft(id,result){
+ if(id==="effects_read"||id.startsWith("effects_")){
+  cache.effects_read={...cache.effects_read,...result};
+  for(const [key,setting] of Object.entries(result.settings||{})){const cid="effects_"+key;if(!controlById(cid)||setting.value==null)continue;appliedValues[cid]=setting.value;if(!dirty.has(cid)&&!autoManaged(cid))values[cid]=setting.value;}
+  return true;
+ }
  if(["pickup_radius","pickup_radius_read","pickup_interval"].includes(id)){cache.pickup_radius_read={...cache.pickup_radius_read,...result};
   if(result.radius!=null){appliedValues.pickup_radius=result.radius;if(!dirty.has("pickup_radius")&&!autoManaged("pickup_radius"))values.pickup_radius=result.radius;}
   if(result.intervalSeconds!=null){appliedValues.pickup_interval=result.intervalSeconds;if(!dirty.has("pickup_interval")&&!autoManaged("pickup_interval"))values.pickup_interval=result.intervalSeconds;}

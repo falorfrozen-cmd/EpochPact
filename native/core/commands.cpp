@@ -29,6 +29,7 @@
 #include "fonts.hpp"
 #include "report.hpp"
 #include "convenience.hpp"
+#include "effects.hpp"
 #include "ipc_protocol.hpp"
 #include <mutex>
 #ifdef EPOCHPACT_RESEARCH
@@ -93,6 +94,8 @@ std::string Execute(const std::string& line) {
     if(cmd=="treerespec")return args.size()==2?builds::Respec(args[0],args[1]):"{\"ok\":false,\"error\":\"use treerespec save-id skills|passives|weaver\"}";
     if(cmd=="inventoryread")return args.empty()?convenience::InventoryRead():"{\"ok\":false,\"error\":\"inventoryread expects no arguments\"}";
     if(cmd=="qolread")return args.empty()?convenience::Read():"{\"ok\":false,\"error\":\"qolread expects no arguments\"}";
+    if(cmd=="effectsread")return args.empty()?effects::Read():"{\"ok\":false,\"error\":\"effectsread expects no arguments\"}";
+    if(cmd=="effectsset"){double value=0;return args.size()==2&&statedit::Number(args[1],&value)?effects::Set(args[0],value):"{\"ok\":false,\"error\":\"use effectsset setting value\"}";}
     if(cmd=="damagesession")return args.size()<=1?convenience::DamageSession(args.empty()?"":args[0]):"{\"ok\":false,\"error\":\"use damagesession [start|stop|reset]\"}";
     if(cmd=="summonread")return args.empty()?convenience::Summons():"{\"ok\":false,\"error\":\"summonread expects no arguments\"}";
     if(cmd=="qolset"){double value=0;return args.size()==2&&statedit::Number(args[1],&value)?convenience::Set(args[0],value):"{\"ok\":false,\"error\":\"use qolset setting value\"}";}
@@ -142,6 +145,7 @@ std::string Execute(const std::string& line) {
         return args.size()==2 && statedit::Number(args[1],&value)?builds::Set(args[0],value):"{\"ok\":false,\"error\":\"use buildset setting value\"}";
     }
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+    if(cmd=="effectstest")return args.size()==2?effects::Test(args[0],args[1]):"{\"ok\":false,\"error\":\"use effectstest isolated-id action\"}";
     if(cmd=="qoltest")return args.size()==2?convenience::Test(args[0],args[1]):"{\"ok\":false,\"error\":\"use qoltest isolated-id action\"}";
     if(cmd=="masterytest")return args.size()==2?progression::TestMastery(args[0],args[1]):"{\"ok\":false,\"error\":\"use masterytest isolated-id read|close|select|confirm|cancel\"}";
     if(cmd=="buildtest")return args.size()==2?builds::Test(args[0],args[1]):"{\"ok\":false,\"error\":\"use buildtest isolated-id action\"}";

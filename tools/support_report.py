@@ -76,6 +76,22 @@ def capture_window(hwnd: int) -> bytes | None:
     """The game window's own rendering as PNG, even behind other windows (not when minimised)."""
     if sys.platform != 'win32' or not hwnd:
         return None
+    # PrintWindow renders physical pixels. A DPI-unaware HTTP worker otherwise
+    # obtains a virtualised client rectangle and crops a 125%/150% game window.
+    user32 = ctypes.WinDLL('user32', use_last_error=True)
+    change = getattr(user32, 'SetThreadDpiAwarenessContext', None)
+    previous = None
+    if change:
+        change.argtypes = [wt.HANDLE]; change.restype = wt.HANDLE
+        previous = change(wt.HANDLE(-4))  # PER_MONITOR_AWARE_V2, this thread only
+    try:
+        return _capture_window(hwnd)
+    finally:
+        if previous:
+            change(previous)
+
+
+def _capture_window(hwnd: int) -> bytes | None:
     user32 = ctypes.WinDLL('user32', use_last_error=True)
     gdi32 = ctypes.WinDLL('gdi32', use_last_error=True)
     user32.IsIconic.argtypes = [wt.HWND]

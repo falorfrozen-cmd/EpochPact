@@ -410,7 +410,7 @@ class UiBridge:
                 return progression.undo(Path(args["backup"]))
             save_id = None
             identity = None
-            if (control["group"] == "general" or (control["commandTemplate"] or "").startswith(("buildset ","qolset ","pickupradius ","pickupinterval ","mapset ","tierset ","fontset "))) and control["widget"] in ("number", "toggle") and "expected_id" in supplied:
+            if (control["group"] == "general" or (control["commandTemplate"] or "").startswith(("buildset ","qolset ","pickupradius ","pickupinterval ","mapset ","tierset ","fontset ","effectsset "))) and control["widget"] in ("number", "toggle") and "expected_id" in supplied:
                 # Delayed auto-applies belong to the actor present at the edit,
                 # never to a character loaded while the request was queued.
                 expected_id = supplied["expected_id"]
@@ -594,6 +594,12 @@ class UiBridge:
                 key = control["commandTemplate"].split()[1]
                 state["settings"][key] = {"value": control["default"] if operation == "reset" else a["value"], "available": True}
                 self.demo_values[cid] = state["settings"][key]["value"]
+            return {**state, "preview": True}
+        if cid.startswith("effects_"):
+            state = self.demo.setdefault("effectsread", {"ok": True, "available": True, "settings": {}, "status": "preview", "nativeIcons": True, "readOnly": True})
+            if cid != "effects_read":
+                key = control["commandTemplate"].split()[1]
+                state["settings"][key] = {"value": control["default"] if operation == "reset" else a["value"], "available": True}
             return {**state, "preview": True}
         if cid in ("atlas_read", "stash_read", "echo_read", "echo_focus"):
             raise RuntimeError("This feature needs a loaded offline character. Preview does not invent collection or Echo data.")

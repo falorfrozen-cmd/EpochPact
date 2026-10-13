@@ -833,6 +833,18 @@ test('display page shows minimap, tier controls and the tier palette without sen
  for(const id of ['map_minimapsize','tier_icons','tier_tooltips','tier_rule_position','tier_rule_plain'])assert.ok(h.run(`automaticSetting(controlById("${id}"))`),id);
  assert.equal(h.calls.length,0);
 });
+test('effect HUD controls stay explicit, auto-apply and synchronize their native status',()=>{
+ const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
+ h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};page='display';shippingRenderPage()`);
+ const html=h.element('#page-content').innerHTML;
+ for(const id of ['effects_enabled','effects_player','effects_target','effects_descriptions','effects_scale','effects_rows']){
+  assert.ok(html.includes(`="${id}"`),id);assert.ok(h.run(`automaticSetting(controlById('${id}'))`),id);
+ }
+ assert.equal(h.calls.length,0);
+ h.run(`syncLootCraft('effects_read',{ok:true,available:true,settings:{enabled:{value:1},scale:{value:1.2}}})`);
+ assert.equal(h.run('values.effects_enabled'),1);assert.equal(h.run('values.effects_scale'),1.2);
+ h.run(`cache.effects_read.available=false`);assert.equal(h.run(`eligible(controlById('effects_enabled'))`),false);
+});
 test('the in-game stash search help appears on Stash Assistant only',()=>{
  for(const [target,expected] of [['stash',true],['inventory',false]]){
   const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));

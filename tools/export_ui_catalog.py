@@ -307,6 +307,18 @@ def controls():
         "Multiply the size of the game's interface text. 1 is the game's size.",
         params=[parameter("value","number",0.7,1.5)],default=1,reset="fontset scale 1",doc="docs/player-conveniences.md")
     add("font_read","display","Font status","read","fontread","read_only","Read the font choice, Windows font families and counters.",doc="docs/player-conveniences.md")
+    for key,label,low,high,default,description in (
+        ("enabled","In-game effect HUD",0,1,0,"Show live effect names, game icons, stack counts and available timers while playing. Click-through, offline and session only."),
+        ("player","Show effects on you",0,1,1,"Show the buffs and debuffs exposed by the game's own player effect UI."),
+        ("target","Show target effects",0,1,1,"Show the ailments exposed by the currently displayed target's native health bar. Changing target clears the previous effects."),
+        ("descriptions","Show effect descriptions",0,1,1,"Show a short description read from the game's effect definition. Unknown values are not estimated."),
+        ("scale","Effect HUD size",0.7,1.5,1,"Scale the effect panels. Their row count is limited to the available screen space."),
+        ("rows","Maximum visible effect rows",1,12,5,"Limit rows per panel; additional active effects are counted below the visible rows. This does not limit which game icons can appear."),
+    ):
+        add("effects_"+key,"display",label,"toggle" if high==1 else "number","effectsset "+key+" {value}","session",description,
+            params=[parameter("value","number" if key=="scale" else "integer",low,high)],default=default,
+            reset="effectsset "+key+" "+str(default),current="liveState.effectsread.settings."+key+".value",doc="docs/effects-hud.md")
+    add("effects_read","display","Effect HUD status","read","effectsread","read_only","Read effect HUD settings and availability without enabling it.",doc="docs/effects-hud.md")
     add("map_reveal","world","Reveal zone map","toggle","mapreveal {value}","session",
         "Display the whole minimap/overlay using a fog shader substitution. Does not change exploration saves or spawn enemies. Off restores the current native fog texture.",
         params=[value(0,1)], default=0,reset="mapreveal 0",api="tools.loot_crafting_backend.reveal_map(value)",current="liveState.mapread.enabled",requires=("loaded_actor",),doc="docs/ce-feature-additions.md")

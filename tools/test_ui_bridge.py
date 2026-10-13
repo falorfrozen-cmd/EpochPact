@@ -15,6 +15,35 @@ from epochpact_ui import create_app
 
 
 class BridgeTests(unittest.TestCase):
+    def test_effect_hud_rejects_stale_auto_apply_before_dispatch(self):
+        with self.assertRaisesRegex(RuntimeError, 'character has changed'):
+            self.bridge.execute('effects_enabled', {'value': 1, 'expected_id': '41'})
+        self.assertFalse(any(c.startswith('effectsset') for c in self.commands))
+
+    def test_effect_hud_bounds_reject_before_dispatch(self):
+        for cid, value in [('effects_enabled', 2), ('effects_scale', .69), ('effects_scale', 1.51), ('effects_rows', 13), ('effects_rows', 1.5)]:
+            with self.subTest(cid=cid, value=value), self.assertRaises(ValueError):
+                self.bridge.execute(cid, {'value': value})
+        self.assertEqual(self.commands, [])
+
+    def test_effect_hud_is_explicit_and_restored_on_desktop_close(self):
+        self.live['effectsset enabled 1'] = {'ok': True, 'settings': {'enabled': {'value': 1}}}
+        self.live['effectsset enabled 0'] = {'ok': True, 'settings': {'enabled': {'value': 0}}}
+        result = self.bridge.execute('effects_enabled', {'value': 1, 'expected_id': '42'})
+        self.assertTrue(result['ok'])
+        self.assertEqual(self.commands.count('effectsset enabled 1'), 1)
+        self.assertEqual(self.bridge.restore_session()['restored'], 1)
+        self.assertEqual(self.commands.count('effectsset enabled 0'), 1)
+        self.assertFalse(any(c.startswith(('questscomplete', 'craftmaterials', 'treerespec')) for c in self.commands))
+
+    def test_effect_preview_never_invents_live_effects(self):
+        bridge = ui.UiBridge(preview=True)
+        result = bridge.execute('effects_enabled', {'value': 1})
+        self.assertTrue(result['preview'])
+        self.assertEqual(result['settings']['enabled']['value'], 1)
+        self.assertNotIn('effects', result)
+        self.assertEqual(self.commands, [])
+
     def test_material_stock_requires_current_identity_and_retains_backup(self):
         self.live['craftmaterials 42 10000']={'ok':True,'backup':'test-only-snapshot','updatedKinds':12,'target':10000}
         result=self.bridge.execute('craft_materials', {'expected_id':'42','value':10000})
@@ -204,7 +233,7 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','stashrule','report','damagesession','summonread','inventoryread','inventoryaction ')):
+        if command.startswith(('qolread','qolset ','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','summonread','inventoryread','inventoryaction ')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})

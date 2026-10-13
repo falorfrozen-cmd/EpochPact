@@ -628,6 +628,34 @@
     "tier_rule_plain": [
       "Rule name only",
       "Show only the rule name in the rule line, without \"Loot filter:\", the rule number and Show/Hide/Highlight."
+    ],
+    "effects_enabled": [
+      "In-game effect HUD",
+      "Show live effect names, game icons, stack counts and available timers while playing. Click-through, offline and session only."
+    ],
+    "effects_player": [
+      "Show effects on you",
+      "Show the buffs and debuffs exposed by the game's own player effect UI."
+    ],
+    "effects_target": [
+      "Show target effects",
+      "Show the ailments exposed by the currently displayed target's native health bar. Changing target clears the previous effects."
+    ],
+    "effects_descriptions": [
+      "Show effect descriptions",
+      "Show a short description read from the game's effect definition. Unknown values are not estimated."
+    ],
+    "effects_scale": [
+      "Effect HUD size",
+      "Scale the effect panels. Their row count is limited to the available screen space."
+    ],
+    "effects_rows": [
+      "Maximum visible effect rows",
+      "Limit rows per panel; additional active effects are counted below the visible rows. This does not limit which game icons can appear."
+    ],
+    "effects_read": [
+      "Effect HUD status",
+      "Read effect HUD settings and availability without enabling it."
     ]
   },
   "researchOnly": {
