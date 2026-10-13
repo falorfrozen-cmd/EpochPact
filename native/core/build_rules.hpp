@@ -23,4 +23,23 @@ inline int ExtraProjectiles(int nativeExtra, double multiplier, int flat) {
     // At least one projectile already exists. Scale the total, not only the extras.
     return nativeExtra < 0 ? nativeExtra : std::max(0, Budget(nativeExtra + 1, multiplier, flat, 64) - 1);
 }
+// How il2cpp_field_set_value expects a field's source, from the IL2CPP type
+// code of the field (Il2CppTypeEnum): a reference field takes the reference
+// itself, a primitive value field takes the address of its data. Anything else
+// (structs, generic value types, pointers) is not copied field by field.
+enum class FieldCopy { Value, Reference, Unsupported };
+inline FieldCopy CopyKind(int typeCode) {
+    if (typeCode >= 0x02 && typeCode <= 0x0d) return FieldCopy::Value;  // BOOLEAN .. R8
+    switch (typeCode) {
+    case 0x0e:  // STRING
+    case 0x12:  // CLASS
+    case 0x14:  // ARRAY
+    case 0x15:  // GENERICINST (List<T> here; checked by the caller's field list)
+    case 0x1c:  // OBJECT
+    case 0x1d:  // SZARRAY
+        return FieldCopy::Reference;
+    default:
+        return FieldCopy::Unsupported;
+    }
+}
 }

@@ -143,11 +143,22 @@ void* GlobalNodeDetour(void* self,uint8_t id,M method) {
         for(const char* name:{"name","id","maxPoints","requiredMastery","masteryRequirement","requirements","recalculatedRequirementReferences"}) {
             const auto* f=il2cpp::api().class_get_field_from_name(cls,name);if(!f)throw std::runtime_error("passive validation field unavailable");
             const auto offset=il2cpp::api().field_get_offset(f);
+            const int type=il2cpp::api().type_get_type(il2cpp::api().field_get_type(f));
+            const bool threshold=!std::strcmp(name,"requiredMastery")||!std::strcmp(name,"masteryRequirement");
+            if(threshold&&type!=0x05)throw std::runtime_error(std::string("passive threshold field is no longer a byte: ")+name);
             uint8_t zero=0;
-            void* source=(!std::strcmp(name,"requiredMastery")||!std::strcmp(name,"masteryRequirement"))?static_cast<void*>(&zero):static_cast<void*>(static_cast<char*>(native)+offset);
+            void* source=threshold?static_cast<void*>(&zero):static_cast<void*>(static_cast<char*>(native)+offset);
             // il2cpp_field_set_value takes the reference itself for managed
-            // reference fields; only value types take an address to their data.
-            if(!std::strcmp(name,"name")||!std::strcmp(name,"requirements")||!std::strcmp(name,"recalculatedRequirementReferences"))source=Get<void*>(native,offset);
+            // reference fields; value types take an address to their data. Decide
+            // by the field's declared type: recalculatedRequirementReferences is a
+            // bool the game sets once a node's requirements were resolved, so
+            // reading it as a reference faulted for every node the panel had shown
+            // and those nodes silently kept their native thresholds.
+            switch(rules::CopyKind(type)) {
+            case rules::FieldCopy::Reference: source=Get<void*>(native,offset);break;
+            case rules::FieldCopy::Value: break;
+            default: throw std::runtime_error(std::string("passive validation field type changed: ")+name);
+            }
             il2cpp::api().field_set_value(root->Get(),f,source);
         }
         result=root->Get();passiveValidation->nodes.push_back(std::move(root));
@@ -834,6 +845,94 @@ std::string Test(const std::string& id,const std::string& action) {
                 if(comma)out<<',';comma=true;out<<"{\"id\":"<<Json(Text(tid))<<",\"class\":"<<Json(il2cpp::api().class_get_name(il2cpp::api().object_get_class(d)))<<",\"allocated\":"<<Value<int>(Method(d,"numberOfPointsAllocated",0),d)<<",\"nodes\":[";bool next=false;
                 for(void* n:Entries(Get<void*>(global.Get(),F("GlobalTreeData.TreeData","nodes")))){if(!n)continue;if(next)out<<',';next=true;void* requirements=Get<void*>(n,F("GlobalTreeData.NodeData","requirements"));out<<"{\"id\":"<<int(Get<uint8_t>(n,F("GlobalTreeData.NodeData","id")))<<",\"name\":"<<Json(Text(Get<void*>(n,F("GlobalTreeData.NodeData","name"))))<<",\"cap\":"<<int(Get<uint8_t>(n,F("GlobalTreeData.NodeData","maxPoints")))<<",\"mastery\":"<<int(Get<uint8_t>(n,F("GlobalTreeData.NodeData","requiredMastery")))<<",\"threshold\":"<<int(Get<uint8_t>(n,F("GlobalTreeData.NodeData","masteryRequirement")))<<",\"requirements\":"<<(requirements?Entries(requirements).size():0)<<'}';}out<<"]}";
             }return out.str()+"]}";
+        }
+        if(action.rfind("passive-map-",0)==0||action.rfind("passive-jump-",0)==0) {
+            // Isolated clone only: spend points into the nodes of one mastery
+            // (0 = base class) up to each node's cap through the game's own spend
+            // command, and record what each node accepted and the mastery levels.
+            // passive-jump- starts at the highest thresholds, past every native gate.
+            const bool jump=action.rfind("passive-jump-",0)==0;const int target=std::stoi(action.substr(jump?13:12));if(target<0||target>3)throw std::runtime_error("mastery 0..3");
+            void* data=Get<void*>(tree,treePassive);void* tid=Get<void*>(data,F("LocalTreeData.TreeData","treeID"));void* getArgs[]{tid};
+            Root all(Invoke(game::FindMethod("LE.dll","LE.AssetManagement","GlobalAssets","get_GlobalTreeData",0)));Root global(Invoke(Method(all.Get(),"getTreeData",1),all.Get(),getArgs));
+            uint8_t cls=Value<uint8_t>(Method(tree,"GetCharacterClassID",0),tree);
+            auto constant=[](const char* name){uint8_t v=0;if(const auto* f=game::FindStaticField("LE.dll","","GlobalTreeData",name))il2cpp::api().field_static_get_value(f,&v);return int(v);};
+            auto levels=[&]{Root a(Invoke(Method(tree,"getMasteryLevels",0),tree));std::string s="[";const auto n=Get<uintptr_t>(a.Get(),0x18);for(uintptr_t i=0;i<n&&i<8;++i){if(i)s+=',';s+=std::to_string(Get<uint8_t>(a.Get(),0x20+i));}return s+"]";};
+            struct N{int id,mastery,threshold,cap;std::string name;};std::vector<N> nodes;
+            for(void* n:Entries(Get<void*>(global.Get(),F("GlobalTreeData.TreeData","nodes")))){if(!n)continue;const int m=Get<uint8_t>(n,F("GlobalTreeData.NodeData","requiredMastery"));if(m!=target)continue;
+                nodes.push_back({Get<uint8_t>(n,F("GlobalTreeData.NodeData","id")),m,Get<uint8_t>(n,F("GlobalTreeData.NodeData","masteryRequirement")),Get<uint8_t>(n,F("GlobalTreeData.NodeData","maxPoints")),Text(Get<void*>(n,F("GlobalTreeData.NodeData","name")))});}
+            std::stable_sort(nodes.begin(),nodes.end(),[jump](const N& a,const N& b){return jump?a.threshold>b.threshold:a.threshold<b.threshold;});
+            const auto spend=game::FindMethod("LE.dll","","LocalTreeData","tryToSpendPassivePoint",2);
+            // The panel resolves the requirements of every node it shows, which
+            // marks them (recalculatedRequirementReferences). Do the same here so
+            // the spends below meet nodes in the state a player's clicks meet them.
+            int resolved=0;
+            for(void* n:Entries(Get<void*>(global.Get(),F("GlobalTreeData.TreeData","nodes")))){if(!n||Get<uint8_t>(n,F("GlobalTreeData.NodeData","requiredMastery"))!=target)continue;
+                void* a[]{global.Get()};Invoke(game::FindMethod("LE.dll","","GlobalTreeData.NodeData","getRequirements",1),n,a);resolved+=Get<bool>(n,F("GlobalTreeData.NodeData","recalculatedRequirementReferences"))?1:0;}
+            const uint64_t faultsBefore=faults;
+            std::ostringstream out;out<<"{\"ok\":true,\"mastery\":"<<target<<",\"resolvedNodes\":"<<resolved<<",\"chosenMastery\":"<<int(Value<uint8_t>(Method(tree,"getChosenMastery",0),tree))
+               <<",\"unspentBefore\":"<<Value<uint16_t>(Method(data,"getUnspentPoints",0),data)<<",\"levelsBefore\":"<<levels()
+               <<",\"constants\":{\"baseLevelForMasteryNodes\":"<<constant("baseClassLevelRequiredForMasteryNodes")<<",\"baseMaximum\":"<<constant("baseClassMaximumMasteryLevel")
+               <<",\"masteryMaximum\":"<<constant("masteryClassMaximumMasteryLevel")<<",\"unchosenMaximum\":"<<constant("maximumUnchosenMasteryLevel")<<"},\"nodes\":[";
+            bool comma=false;
+            for(const auto& node:nodes){int accepted=0;
+                for(int k=0;k<node.cap;++k){uint8_t c=cls,nodeId=static_cast<uint8_t>(node.id);void* a[]{&c,&nodeId};if(!Value<bool>(spend,tree,a))break;++accepted;}
+                if(comma)out<<',';comma=true;
+                out<<"{\"id\":"<<node.id<<",\"name\":"<<Json(node.name)<<",\"threshold\":"<<node.threshold<<",\"cap\":"<<node.cap<<",\"accepted\":"<<accepted<<",\"levels\":"<<levels()<<'}';}
+            return out.str()+"],\"unspentAfter\":"+std::to_string(Value<uint16_t>(Method(data,"getUnspentPoints",0),data))+",\"levelsAfter\":"+levels()+",\"faults\":"+std::to_string(faults-faultsBefore)+"}";
+        }
+        if(action.rfind("choose-mastery-",0)==0) {
+            uint8_t mastery=static_cast<uint8_t>(std::stoi(action.substr(15)));if(mastery<1||mastery>3)throw std::runtime_error("mastery 1..3");
+            void* a[]{&mastery};Invoke(game::FindMethod("LE.dll","","LocalTreeData","receiveChooseMasteriesCommand",1),tree,a);
+            return "{\"ok\":true,\"chosenMastery\":"+std::to_string(Value<uint8_t>(Method(tree,"getChosenMastery",0),tree))+"}";
+        }
+        if(action.rfind("passive-ui-",0)==0) {
+            // Isolated clone only: the banner passive panel as a player uses it.
+            // A mouse click on one of its nodes runs SkillTreeNode.Clicked ->
+            // TreeUIManager.characterTreeNodeClicked -> receiveSpendPassivePointCommand
+            // (its nodes have no TreeNode, so the preview/Save path is not used).
+            void* ui=game::StaticObject(game::FindStaticField("LE.dll","","UIBase","instance"));if(!ui)throw std::runtime_error("Game UI unavailable");
+            void* data=Get<void*>(tree,treePassive);
+            auto committed=[&](int id){for(void* n:Entries(Get<void*>(data,F("LocalTreeData.TreeData","nodes"))))if(n&&Get<uint8_t>(n,F("LocalTreeData.NodeData","id"))==id)return int(Get<uint8_t>(n,F("LocalTreeData.NodeData","pointsAllocated")));return 0;};
+            auto view=[]{return game::StaticObject(game::FindStaticField("LE.dll","","TreeUIManager","characterTree"));};
+            // Every node the panel holds: its shown points against the saved ones.
+            auto state=[&](int only){
+                void* v=view();
+                std::ostringstream out;out<<"{\"ok\":true,\"open\":"<<Boolean(Value<bool>(Method(ui,"IsPassivesPanelOpen",0),ui))<<",\"viewUnspent\":"<<(v?Get<int>(v,F("Tree","unspentPoints")):-1)
+                   <<",\"unspent\":"<<Value<uint16_t>(Method(data,"getUnspentPoints",0),data)<<",\"faults\":"<<faults<<",\"nodes\":[";bool comma=false;
+                if(v)for(void* n:Entries(Get<void*>(v,F("Tree","nodeList")))){if(!n)continue;const int m=Get<int>(n,F("SkillTreeNode","mastery"));if(only>=0&&m!=only)continue;const int node=Get<uint8_t>(n,F("SkillTreeNode","id"));
+                    if(comma)out<<',';comma=true;out<<"{\"id\":"<<node<<",\"mastery\":"<<m<<",\"threshold\":"<<Get<int>(n,F("SkillTreeNode","masteryRequirement"))<<",\"shown\":"<<Get<int>(n,F("SkillTreeNode","_pointsAllocated"))<<",\"saved\":"<<committed(node)<<'}';}
+                return out.str()+"]}";};
+            if(action=="passive-ui-open"){bool sound=false;void* a[]{&sound};Invoke(Method(ui,"OpenPassivePanel",1),ui,a);return state(-1);}
+            if(action=="passive-ui-close"){Invoke(Method(ui,"closePassiveTree",0),ui);return state(-1);}
+            if(action=="passive-ui-state")return state(-1);
+            if(action.rfind("passive-ui-show-",0)==0){
+                // The mastery buttons on the banner: show that mastery's page.
+                uint8_t mastery=static_cast<uint8_t>(std::stoi(action.substr(16)));if(mastery>3)throw std::runtime_error("mastery 0..3");
+                void* a[]{&mastery};Invoke(game::FindMethod("LE.dll","","TreeUIManager","updatePassiveTreeDisplayForMastery",1),nullptr,a);return state(-1);
+            }
+            if(action.rfind("passive-ui-press-",0)==0){
+                // Highest thresholds first, as a player jumping past them.
+                const int target=std::stoi(action.substr(17));if(target<0||target>3)throw std::runtime_error("mastery 0..3");
+                void* v=view();if(!v)throw std::runtime_error("open the passive panel first");
+                void* tid=Get<void*>(data,F("LocalTreeData.TreeData","treeID"));void* getArgs[]{tid};
+                Root all(Invoke(game::FindMethod("LE.dll","LE.AssetManagement","GlobalAssets","get_GlobalTreeData",0)));Root global(Invoke(Method(all.Get(),"getTreeData",1),all.Get(),getArgs));
+                struct N{std::unique_ptr<Root> node;int id,threshold,cap;std::string name;int before=0,after=0,shown=0;bool resolved=false;std::string error;};std::vector<N> nodes;
+                for(void* n:Entries(Get<void*>(v,F("Tree","nodeList")))){if(!n||Get<int>(n,F("SkillTreeNode","mastery"))!=target)continue;
+                    uint8_t nodeId=Get<uint8_t>(n,F("SkillTreeNode","id"));void* a[]{&nodeId};Root g(Invoke(globalNodeRef,global.Get(),a));
+                    nodes.push_back({std::make_unique<Root>(n),nodeId,Get<int>(n,F("SkillTreeNode","masteryRequirement")),int(Get<uint8_t>(g.Get(),F("GlobalTreeData.NodeData","maxPoints"))),Text(Get<void*>(n,F("SkillTreeNode","nodeName")))});
+                    nodes.back().resolved=Get<bool>(g.Get(),F("GlobalTreeData.NodeData","recalculatedRequirementReferences"));}
+                std::stable_sort(nodes.begin(),nodes.end(),[](const N& a,const N& b){return a.threshold>b.threshold;});
+                const uint64_t faultsBefore=faults;
+                for(auto& node:nodes){void* n=node.node->Get();node.before=committed(node.id);
+                    for(int k=0;k<node.cap+1;++k){const int was=committed(node.id);
+                        try{Invoke(Method(n,"Clicked",0),n);}catch(const std::exception& e){node.error=e.what();}
+                        if(!node.error.empty()||committed(node.id)==was)break;}
+                    node.after=committed(node.id);node.shown=Get<int>(n,F("SkillTreeNode","_pointsAllocated"));}
+                std::ostringstream out;out<<"{\"ok\":true,\"mastery\":"<<target<<",\"chosenMastery\":"<<int(Value<uint8_t>(Method(tree,"getChosenMastery",0),tree))<<",\"faults\":"<<(faults-faultsBefore)<<",\"pressed\":[";bool comma=false;
+                for(const auto& node:nodes){if(comma)out<<',';comma=true;out<<"{\"id\":"<<node.id<<",\"name\":"<<Json(node.name)<<",\"threshold\":"<<node.threshold<<",\"cap\":"<<node.cap<<",\"resolved\":"<<Boolean(node.resolved)<<",\"before\":"<<node.before<<",\"saved\":"<<node.after<<",\"shown\":"<<node.shown;if(!node.error.empty())out<<",\"error\":"<<Json(node.error);out<<'}';}
+                return out.str()+"],\"unspent\":"+std::to_string(Value<uint16_t>(Method(data,"getUnspentPoints",0),data))+"}";
+            }
+            throw std::runtime_error("unknown passive panel test");
         }
         if(action.rfind("spend-",0)==0) {
             const auto split=action.rfind('-');uint8_t node=static_cast<uint8_t>(std::stoi(action.substr(split+1)));bool accepted=false;

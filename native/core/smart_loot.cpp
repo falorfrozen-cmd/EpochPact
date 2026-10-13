@@ -214,10 +214,11 @@ std::string Test(const std::string& id,const std::string& action) {
                 bool locked=false;void* args[]{&locked};
                 Invoke(Method(system,"set_TooltipLockActive",1),system,args);
                 // Model the normal pointer-exit state, not only the visual hide.
-                void* empty=nullptr;
+                // Both are reference fields: field_set_value takes the reference
+                // itself, so null is passed directly (not the address of a null).
                 auto* cls=il2cpp::api().object_get_class(system);
-                il2cpp::api().field_set_value(system,il2cpp::api().class_get_field_from_name(cls,"_activeHoveredItemRect"),&empty);
-                il2cpp::api().field_set_value(system,il2cpp::api().class_get_field_from_name(cls,"_activeItemTooltipInfo"),&empty);
+                il2cpp::api().field_set_value(system,il2cpp::api().class_get_field_from_name(cls,"_activeHoveredItemRect"),nullptr);
+                il2cpp::api().field_set_value(system,il2cpp::api().class_get_field_from_name(cls,"_activeItemTooltipInfo"),nullptr);
                 Invoke(Method(system,"CloseAllTooltips",0),system);
             }
             if(action=="tooltip-open") {

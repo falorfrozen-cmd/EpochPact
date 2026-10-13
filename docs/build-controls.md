@@ -13,7 +13,7 @@ The player interface is English in both Chronoforge and Void Atlas.
 | Passive points | 1–10× / 1× | Multiplies level-derived points. Quest points remain unchanged. The total is rounded down: two eligible level points at 1.5× become three. |
 | Skill points | 1–10× / 1× | Multiplies the native budget including equipment skill levels. Level 20 plus one equipment level at 2× gives 42 points. |
 | Weaver points | 1–10× and 0–500 extra / 1×, 0 | Multiplies earned rank/Woven Echo points, then adds the flat amount. |
-| Tree connections | Three separate switches / off | Bypasses preceding skill/passive/Weaver nodes and passive mastery thresholds. Individual node caps and available point budgets remain enforced. |
+| Tree connections | Three separate switches / off | Bypasses preceding skill/passive/Weaver nodes and passive mastery thresholds, including the 20 base-class points before mastery nodes and nodes past 20 points in masteries you did not choose. Individual node caps and available point budgets remain enforced. |
 | Projectiles | 1–8× and 0–32 extra / 1×, 0 | Scales native ExtraProjectiles volleys and local-player moving, curved and parabolic ability emissions, then adds extras, up to 64 per emission group. Already-created extra projectiles are not multiplied again. Stationary areas, beams, actors and summons are excluded. Separate emissions in a skill can each receive the flat extras. |
 
 Budgets are derived from natural progress, not the last modified result, so repeated

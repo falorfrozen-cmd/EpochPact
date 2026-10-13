@@ -18,7 +18,9 @@ controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest changes: [0.1.2-dev.23 buffs & debuffs in game, Memory Amber multiplier](docs/patch-notes-0.1.2-dev.23.md),
+Latest changes: [0.1.2-dev.24 passive tree connections fix](docs/patch-notes-0.1.2-dev.24.md),
+[dev.24 validation](docs/passive-tree-validation-2026-10-13.md),
+[0.1.2-dev.23 buffs & debuffs in game, Memory Amber multiplier](docs/patch-notes-0.1.2-dev.23.md),
 [dev.23 validation](docs/hud-amber-validation-2026-10-13.md),
 [0.1.2-dev.22 Install update from inside the app](docs/patch-notes-0.1.2-dev.22.md),
 [dev.22 validation](docs/updater-validation-2026-10-13.md),
