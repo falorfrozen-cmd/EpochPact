@@ -48,7 +48,7 @@ The game must be able to write its EpochPact IPC folder. A writable Steam librar
 
 ## Update, rollback and removal
 
-Close the game and app before updating. Extract the new complete app folder, then use **Install mod** to update the owned runtime. Do not mix UI and DLL versions. Previous runtime files are backed up under **<game>/EpochPact/install-backups/<id>**; follow that backup's README with the matching older app to roll back.
+From 0.1.2-dev.22 on, **New version → Install update** in the app downloads the next release from EpochPact's GitHub page, checks its SHA-256 and every file, replaces this folder and reopens EpochPact; the mod in the game folder is updated when Last Epoch is closed. To update by hand instead, close the game and app, extract the new complete app folder, then use **Install mod** to update the owned runtime. Do not mix UI and DLL versions. Previous runtime files are backed up under **<game>/EpochPact/install-backups/<id>**; follow that backup's README with the matching older app to roll back.
 
 For manual updates, retain the previous two native DLLs and complete app folder outside the game, then replace them with the matching new versions.
 

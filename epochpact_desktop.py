@@ -52,6 +52,10 @@ def installer():
 def main():
     if '--install-plugin' in sys.argv:
         return installer()
+    if '--apply-update' in sys.argv:
+        # The verified new EpochPact.exe from the update folder swaps the app folder, then starts the new app.
+        from tools import app_update
+        return app_update.apply_main(sys.argv[1:])
     user_root().mkdir(parents=True, exist_ok=True)
     handler = RotatingFileHandler(user_root() / 'startup.log', maxBytes=1024*1024, backupCount=2, encoding='utf-8')
     logging.basicConfig(handlers=[handler], level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')

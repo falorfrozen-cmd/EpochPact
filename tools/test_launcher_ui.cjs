@@ -87,3 +87,26 @@ test('the full setup panel is only on Game setup; Overview shows one status line
  h.api.mount('overview');assert.ok(h.inserted[0].includes('data-launcher-summary'));
  h.api.mount('game_setup');assert.ok(h.inserted[1].includes('data-launcher-panel'));
 });
+test('after Install update the game-folder mod is updated once, only while the game is closed',async()=>{
+ const h=harness({selected:true,installed:false,updateRequired:true,running:true,executable:'C:/LE/Last Epoch.exe'});
+ h.api.updateModAfterAppUpdate();
+ assert.deepEqual(h.calls,[]);  // the running game holds its loaded mod files
+ h.api.update({selected:true,installed:false,updateRequired:true,running:true,executable:'C:/LE/Last Epoch.exe',revision:2});
+ assert.deepEqual(h.calls,[]);
+ h.setBusy(true);
+ h.api.update({selected:true,installed:false,updateRequired:true,running:false,executable:'C:/LE/Last Epoch.exe',revision:3});
+ assert.deepEqual(h.calls,[]);  // never while another operation runs
+ h.setBusy(false);
+ h.api.update({selected:true,installed:false,updateRequired:true,running:false,executable:'C:/LE/Last Epoch.exe',revision:4});
+ await new Promise(r=>setTimeout(r,0));
+ assert.deepEqual(h.calls.map(c=>c.action),['install']);
+ h.api.update({selected:true,installed:false,updateRequired:true,running:false,executable:'C:/LE/Last Epoch.exe',revision:5});
+ await new Promise(r=>setTimeout(r,0));
+ assert.equal(h.calls.length,1);  // once
+ assert.equal(h.api.state().updateRequired,true);
+});
+test('without an app update a mod mismatch is never installed automatically',()=>{
+ const h=harness({selected:true,installed:false,updateRequired:true,running:false,executable:'C:/LE/Last Epoch.exe'});
+ h.api.update({selected:true,installed:false,updateRequired:true,running:false,executable:'C:/LE/Last Epoch.exe',revision:2});
+ assert.deepEqual(h.calls,[]);
+});
