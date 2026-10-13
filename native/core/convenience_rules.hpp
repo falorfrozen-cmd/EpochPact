@@ -47,4 +47,22 @@ struct Budget {
     size_t checked=0;uint64_t start;
     bool Next(uint64_t now){if(checked>=MaximumChecks||now-start>=MaximumMicros)return false;++checked;return true;}
 };
+// A zone load queues a few hundred condition handlers. Classify them in
+// batches so nearby objects are usable within a second of loading, without
+// a long frame: at most 32 handlers or 1 ms per work tick.
+struct ClassifyBudget {
+    static constexpr size_t MaximumHandlers=32;
+    static constexpr uint64_t MaximumMicros=1000;
+    size_t classified=0;uint64_t start;
+    bool Next(uint64_t now){if(classified>=MaximumHandlers||now-start>=MaximumMicros)return false;++classified;return true;}
+};
+// After the n-th trigger of an object that is still usable: wait 2, 4 and 8 s,
+// then never again. A chest or shrine the game will not consume must not pull
+// at the character every few seconds.
+constexpr int MaximumTriggers=4;
+inline uint64_t TriggerRetryMs(int attempts){
+    if(attempts<=0)return 0;
+    if(attempts>=MaximumTriggers)return UINT64_MAX;
+    return 2000ull<<(attempts-1);
+}
 }

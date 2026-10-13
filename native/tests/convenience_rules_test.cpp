@@ -39,5 +39,9 @@ int main(){
     Check(!PlaceToolbar(menu,screen,{grid.x,grid.y,0,grid.h},footer,left,currency).visible);
     Budget count{0,100};for(int i=0;i<8;++i)Check(count.Next(101));Check(!count.Next(101));
     Budget time{0,100};Check(time.Next(1599));Check(!time.Next(1600));
+    ClassifyBudget batch{0,100};for(int i=0;i<32;++i)Check(batch.Next(101));Check(!batch.Next(101));
+    ClassifyBudget slow{0,100};Check(slow.Next(1099));Check(!slow.Next(1100));
+    Check(TriggerRetryMs(0)==0&&TriggerRetryMs(1)==2000&&TriggerRetryMs(2)==4000&&TriggerRetryMs(3)==8000);
+    Check(TriggerRetryMs(4)==UINT64_MAX&&TriggerRetryMs(100)==UINT64_MAX&&TriggerRetryMs(-1)==0);
     std::printf("PASS %u scale/window/currency/translation combinations, dedicated lower row, square cells, maximum balances, invalid bounds and budgets\n",cases);
 }

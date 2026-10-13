@@ -15,6 +15,14 @@ int main() {
     check(ExtraProjectiles(40,8,32)==63,"bounded projectile count");
     check(SkillXp(0,100)==0 && SkillXp(-10,10)==-10,"no XP created for empty/negative gain");
     check(SkillXp(1000000000,100)==2147483647,"XP overflow saturates");
+    check(BlessingStandard(3,0,0)==3 && BlessingStandard(3,2,0)==3,"native blessing count without a request");
+    check(BlessingStandard(3,0,5)==5 && BlessingStandard(3,1,5)==4 && BlessingStandard(3,2,5)==3,"five choices in total with corruption extras");
+    check(BlessingStandard(3,0,4)==4 && BlessingStandard(3,2,4)==3,"four choices never remove the game's own extras");
+    check(BlessingStandard(3,2,3)==3 && BlessingStandard(3,1,3)==3,"three choices keep a higher native total");
+    check(BlessingStandard(3,-1,5)==3 && BlessingStandard(-1,0,5)==-1,"invalid native counts pass through");
+    check(BlessingShown(3,0)==3 && BlessingShown(3,5)==5 && BlessingShown(4,5)==5 && BlessingShown(5,3)==5 && BlessingShown(-1,5)==-1,"reward panel shows the filled count");
+    for(int extra=0;extra<=2;++extra)for(int requested:{0,3,4,5})
+        check(BlessingStandard(3,extra,requested)+extra==BlessingShown(3+extra,requested),"filled and shown blessing counts agree");
     // GlobalTreeData.NodeData fields as the game declares them.
     check(CopyKind(0x0e)==FieldCopy::Reference && CopyKind(0x15)==FieldCopy::Reference,"name and requirements copy the reference");
     check(CopyKind(0x05)==FieldCopy::Value,"byte ids, caps and thresholds copy their data");

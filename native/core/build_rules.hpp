@@ -23,6 +23,19 @@ inline int ExtraProjectiles(int nativeExtra, double multiplier, int flat) {
     // At least one projectile already exists. Scale the total, not only the extras.
     return nativeExtra < 0 ? nativeExtra : std::max(0, Budget(nativeExtra + 1, multiplier, flat, 64) - 1);
 }
+// Blessing choices after a Monolith boss. The game fills
+// numberOfStandardBlessings + extraBlessings option slots (extras come from
+// corruption) from a generator it always asks for 3 + extraBlessings. Raise the
+// standard part so the total reaches the requested count; never lower what the
+// game offers, so the generator always returns at least as many as are filled.
+inline int BlessingStandard(int standard, int extra, int requested) {
+    if (requested <= 0 || extra < 0 || standard < 0) return standard;
+    return std::max(standard, requested - extra);
+}
+// The reward panel shows this many option slots (it hides slots 4 and 5 below it).
+inline int BlessingShown(int native, int requested) {
+    return requested > 0 && native >= 0 ? std::max(native, requested) : native;
+}
 // How il2cpp_field_set_value expects a field's source, from the IL2CPP type
 // code of the field (Il2CppTypeEnum): a reference field takes the reference
 // itself, a primitive value field takes the address of its data. Anything else

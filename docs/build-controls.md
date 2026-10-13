@@ -43,7 +43,10 @@ profile or theme action invokes it.
 
 - **Camera distance:** 1–2×, default 1×. Extends overhead distance without changing FOV
   or the player's saved camera preferences.
-- **Blessing choices:** native count (0), or 3, 4 or 5. Changes newly generated rewards.
+- **Blessing choices:** native count (0), or 3, 4 or 5 after a Monolith boss. The
+  generator, the reward's option slots and the reward panel all use the same
+  count, and it is never lower than the game's own (corruption adds up to two).
+  Changes newly generated rewards.
 - **Maximum blessing rolls:** sets newly generated blessing implicit rolls to their
   upper bound. Existing equipped blessings are not rewritten.
 - **Temporary summon duration:** 1–10×, default 1×. Extends player-owned summons using

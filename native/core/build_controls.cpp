@@ -23,7 +23,7 @@ Setting skillXp{"skillxp",1,100,1}, passive{"passivepoints",1,10,1}, skills{"ski
     summonDuration{"summonduration",1,10,1}, offhand{"offhand",0,1,0,true}, fullSets{"fullsets",0,1,0,true},
     freeSkills{"skillnodes",0,1,0,true}, freePassives{"passivenodes",0,1,0,true}, freeWeaver{"weavernodes",0,1,0,true};
 std::array<Setting*,17> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&freeSkills,&freePassives,&freeWeaver};
-game::MethodRef getActor, offline, xpRef, skillRef, passiveRef, weaverRef, zoomRef, projectileRef, blessingRef;
+game::MethodRef getActor, offline, xpRef, skillRef, passiveRef, weaverRef, zoomRef, projectileRef, blessingRef, populateRef, optionsRef;
 game::MethodRef summonRef, slotRef, alternateSlotRef, linkedRef, invalidRef, enforceRef, mainRestrictionRef, offRestrictionRef, equipRef;
 game::MethodRef constructionRef, drainRef, summonedTickRef;
 game::MethodRef skillUnspentRef, passiveUnspentRef, weaverUnspentRef;
@@ -48,6 +48,8 @@ using VoidFn=void(*)(void*,M); VoidFn originalPassive=nullptr, originalZoom=null
 struct Vec3 {float x,y,z;};
 using ProjectileFn=int(*)(void*,const Vec3*,const Vec3*,M); ProjectileFn originalProjectile=nullptr;
 using BlessingFn=void*(*)(void*,uint8_t,int,int,int,bool,M); BlessingFn originalBlessing=nullptr;
+using PopulateFn=void(*)(void*,uint8_t,int,int,int,M); PopulateFn originalPopulate=nullptr;
+using OptionsFn=void(*)(void*,uint8_t,int,int,M); OptionsFn originalOptions=nullptr;
 using TickFn=void(*)(void*,float,M);TickFn originalSummon=nullptr;
 TickFn originalDrain=nullptr, originalSummonedTick=nullptr;
 using ConstructionFn=void*(*)(void*,void*,const Vec3*,const Vec3*,int,void*,bool,bool,void*,bool,void*,float,uint16_t,bool,const Vec3*,M);
@@ -487,9 +489,22 @@ void MaxBlessings(void* options) {
 void* BlessingDetour(void* self,uint8_t timeline,int difficulty,int count,int extra,bool lucky,M method) {
     bool owned=false; Checked([&]{owned=Actor()!=nullptr;});
     const int requested=static_cast<int>(blessings.value);
-    void* result=originalBlessing(self,timeline,difficulty,owned && requested?requested:count,owned && requested?0:extra,lucky,method);
+    // Keep the game's corruption extras: populateBlessingOptions fills
+    // standard + extra slots from this list and must find that many items.
+    void* result=originalBlessing(self,timeline,difficulty,owned?rules::BlessingStandard(count,extra,requested):count,extra,lucky,method);
     if(result && owned && perfectBlessings.value==1) Checked([&]{Root root(result);MaxBlessings(root.Get());});
     return result;
+}
+void PopulateDetour(void* self,uint8_t timeline,int difficulty,int standard,int extra,M method) {
+    // The boss reward fills only standard + extra option slots, whatever the
+    // generator returned; raise the slots to the requested total as well.
+    bool owned=false; Checked([&]{owned=Actor()!=nullptr;});
+    originalPopulate(self,timeline,difficulty,owned?rules::BlessingStandard(standard,extra,static_cast<int>(blessings.value)):standard,extra,method);
+}
+void OptionsDetour(void* self,uint8_t timeline,int difficulty,int count,M method) {
+    // The reward panel hides option slots 4 and 5 unless this count reaches them.
+    bool owned=false; Checked([&]{owned=Actor()!=nullptr;});
+    originalOptions(self,timeline,difficulty,owned?rules::BlessingShown(count,static_cast<int>(blessings.value)):count,method);
 }
 Hook xpHook{&xpRef,reinterpret_cast<void*>(&XpDetour),reinterpret_cast<void**>(&originalXp)},
     skillHook{&skillRef,reinterpret_cast<void*>(&SkillDetour),reinterpret_cast<void**>(&originalSkill)},
@@ -499,6 +514,8 @@ Hook xpHook{&xpRef,reinterpret_cast<void*>(&XpDetour),reinterpret_cast<void**>(&
     zoomHook{&zoomRef,reinterpret_cast<void*>(&ZoomDetour),reinterpret_cast<void**>(&originalZoom)},
     projectileHook{&projectileRef,reinterpret_cast<void*>(&ProjectileDetour),reinterpret_cast<void**>(&originalProjectile)},
     blessingHook{&blessingRef,reinterpret_cast<void*>(&BlessingDetour),reinterpret_cast<void**>(&originalBlessing)},
+    populateHook{&populateRef,reinterpret_cast<void*>(&PopulateDetour),reinterpret_cast<void**>(&originalPopulate)},
+    optionsHook{&optionsRef,reinterpret_cast<void*>(&OptionsDetour),reinterpret_cast<void**>(&originalOptions)},
     summonHook{&summonRef,reinterpret_cast<void*>(&SummonDetour),reinterpret_cast<void**>(&originalSummon)},
     drainHook{&drainRef,reinterpret_cast<void*>(&DrainDetour),reinterpret_cast<void**>(&originalDrain)},
     summonedTickHook{&summonedTickRef,reinterpret_cast<void*>(&SummonedTickDetour),reinterpret_cast<void**>(&originalSummonedTick)},
@@ -542,6 +559,7 @@ std::vector<Hook*> Hooks(const Setting& s) {
     if(&s==&summonDuration)return {&summonHook,&drainHook,&summonedTickHook};
     if(&s==&offhand)return {&slotHook,&alternateSlotHook,&linkedHook,&invalidHook,&enforceHook,&mainRestrictionHook,&offRestrictionHook};
     if(&s==&skills)return {&skillHook,&skillUnspentHook};
+    if(&s==&blessings)return {&blessingHook,&populateHook,&optionsHook};
     if(&s==&freeSkills||&s==&freePassives||&s==&freeWeaver)return {&requirementHook,&requirementPreviewHook,&passiveRequirementHook,&uiRequirementHook,&reachableHook,&globalNodeHook,&passiveSpendHook,&passiveBulkHook,&masteryHook,&masteryUpdateHook,&respecCostHook};
     return {For(s)};
 }
@@ -601,6 +619,8 @@ bool Init() {
         zoomRef=game::FindMethod("LE.dll","","CameraManager","ApplyZoom",0);
         projectileRef=game::FindMethod("LE.dll","","ExtraProjectiles","GetTotalExtraProjectiles",2);
         blessingRef=game::FindMethod("LE.dll","","GenerateItems","rollBlessingsForTimelineDifficulty",5);
+        populateRef=game::FindMethod("LE.dll","","ItemContainersManager","populateBlessingOptions",4);
+        optionsRef=game::FindMethod("LE.dll","","UIBase","OpenBlessingOptions",3);
         summonRef=game::FindMethod("LE.dll","","DestroyAfterDuration","OnUpdateTick",1);
         drainRef=game::FindMethod("LE.dll","","AcceleratingHealthDrain","OnUpdateTick",1);
         summonedTickRef=game::FindMethod("LE.dll","","Summoned","OnUpdateTick",1);
@@ -831,6 +851,36 @@ std::string Test(const std::string& id,const std::string& action) {
             for(auto& root:setEntries){void* s=root->Get();uint8_t sp=Get<uint8_t>(s,F("Stats.Stat","property")),special=Get<uint8_t>(s,F("Stats.Stat","specialTag"));int tags=Get<int>(s,F("Stats.Stat","tags")),extra=Get<int>(s,F("Stats.Stat","extraTag"));float zero=0;bool no=false;void* args[]{&sp,&tags,&zero,&zero,&zero,&special,&extra,&no,&no};float actual=Value<float>(Method(stats,"GetStatValue",9),stats,args);
                 if(next)out<<',';next=true;out<<"{\"sp\":"<<int(sp)<<",\"tags\":"<<tags<<",\"special\":"<<int(special)<<",\"extra\":"<<extra<<",\"actual\":"<<actual<<'}';}return out.str()+"]}";
         }
+        if(action.rfind("blessing-populate-",0)==0) {
+            // Isolated clone only: what a Monolith boss reward does, with
+            // extraBlessings (corruption) = N; read back the filled option slots.
+            int extra=std::stoi(action.substr(18));if(extra<0||extra>2)throw std::runtime_error("extra 0..2");
+            Root manager(Invoke(game::FindMethod("LE.dll","","ItemContainersManager","get_Instance",0)));
+            void* container=Get<void*>(manager.Get(),F("ItemContainersManager","blessings"));
+            // The game clears only the slots it is about to fill; start empty.
+            for(void* slot:Entries(Get<void*>(container,F("ItemContainersManager.BlessingItemContainer","optionContainers"))))Invoke(Method(slot,"Clear",0),slot);
+            uint8_t timeline=1;int difficulty=0,standard=3;void* args[]{&timeline,&difficulty,&standard,&extra};Invoke(populateRef,manager.Get(),args);
+            std::ostringstream out;out<<"{\"ok\":true,\"extra\":"<<extra<<",\"requested\":"<<blessings.value<<",\"slots\":[";bool comma=false;
+            for(void* slot:Entries(Get<void*>(container,F("ItemContainersManager.BlessingItemContainer","optionContainers")))){
+                Root content(Invoke(Method(slot,"GetContent",0),slot));const auto entries=Entries(content.Get());int top=0;
+                if(!entries.empty()){void* item=Get<void*>(entries.front(),F("ItemContainerEntry","data"));void* rolls=item?Get<void*>(item,implicitRolls):nullptr;
+                    if(rolls)for(uintptr_t i=0,n=Get<uintptr_t>(rolls,0x18);i<n&&i<32;++i)top+=Get<uint8_t>(rolls,0x20+i)==255;}
+                if(comma)out<<',';comma=true;out<<"{\"filled\":"<<Boolean(!entries.empty())<<",\"maxRolls\":"<<top<<'}';}
+            return out.str()+"]}";
+        }
+        if(action.rfind("blessing-panel-",0)==0) {
+            // Isolated clone only: open the reward panel with the game's own count
+            // (3 + extra) and report which option slots it shows.
+            int count=std::stoi(action.substr(15));if(count<3||count>5)throw std::runtime_error("count 3..5");
+            void* ui=game::StaticObject(game::FindStaticField("LE.dll","","UIBase","instance"));if(!ui)throw std::runtime_error("Game UI unavailable");
+            uint8_t timeline=1;int difficulty=0;void* args[]{&timeline,&difficulty,&count};Invoke(optionsRef,ui,args);
+            void* panel=game::StaticObject(game::FindStaticField("LE.dll","","BlessingRewardPanelManager","instance"));if(!panel)throw std::runtime_error("reward panel unavailable");
+            std::ostringstream out;out<<"{\"ok\":true,\"count\":"<<count<<",\"requested\":"<<blessings.value<<",\"shown\":[";bool comma=false;
+            for(void* option:Entries(Get<void*>(panel,F("BlessingRewardPanelManager","blessingOptions")))){
+                Root go(Invoke(game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Component","get_gameObject",0),option));
+                if(comma)out<<',';comma=true;out<<Boolean(Value<bool>(game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","GameObject","get_activeSelf",0),go.Get()));}
+            return out.str()+"]}";
+        }
         if(action=="blessings") {
             void* generator=Get<void*>(actor,F("Actor","generateItems"));uint8_t timeline=1;int difficulty=0,count=3,extra=0;bool lucky=false;
             void* args[]{&timeline,&difficulty,&count,&extra,&lucky};Root result(Invoke(blessingRef,generator,args));
@@ -879,6 +929,43 @@ std::string Test(const std::string& id,const std::string& action) {
                 if(comma)out<<',';comma=true;
                 out<<"{\"id\":"<<node.id<<",\"name\":"<<Json(node.name)<<",\"threshold\":"<<node.threshold<<",\"cap\":"<<node.cap<<",\"accepted\":"<<accepted<<",\"levels\":"<<levels()<<'}';}
             return out.str()+"],\"unspentAfter\":"+std::to_string(Value<uint16_t>(Method(data,"getUnspentPoints",0),data))+",\"levelsAfter\":"+levels()+",\"faults\":"+std::to_string(faults-faultsBefore)+"}";
+        }
+        if(action=="exit-to-select") {
+            void* ui=game::StaticObject(game::FindStaticField("LE.dll","","UIBase","instance"));if(!ui)throw std::runtime_error("Game UI unavailable");
+            Invoke(Method(ui,"ExitToCharacterSelect",0),ui);return std::string("{\"ok\":true}");
+        }
+        if(action.rfind("tree-alloc-",0)==0||action.rfind("tree-map-",0)==0) {
+            // Isolated clone only. tree-alloc-<passive|weaver|skillN>: the saved
+            // allocation. tree-map-<weaver|skillN>: spend every node up to its cap
+            // through the game's own spend command, deepest (highest id) first.
+            const bool map=action.rfind("tree-map-",0)==0;const std::string which=action.substr(map?9:11);
+            void* data=nullptr;void* ability=nullptr;
+            if(which=="passive")data=Get<void*>(tree,treePassive);
+            else if(which=="weaver")data=Get<void*>(tree,treeWeaver);
+            else if(which.rfind("skill",0)==0){const auto entries=Entries(Get<void*>(tree,treeSkills));data=entries.at(std::stoi(which.substr(5)));ability=Get<void*>(data,F("LocalTreeData.SkillTreeData","ability"));}
+            if(!data)throw std::runtime_error("tree unavailable");
+            auto points=[&](int id){for(void* n:Entries(Get<void*>(data,F("LocalTreeData.TreeData","nodes"))))if(n&&Get<uint8_t>(n,F("LocalTreeData.NodeData","id"))==id)return int(Get<uint8_t>(n,F("LocalTreeData.NodeData","pointsAllocated")));return 0;};
+            auto unspent=[&]{return int(Value<uint16_t>(Method(data,"getUnspentPoints",0),data));};
+            void* tid=Get<void*>(data,F("LocalTreeData.TreeData","treeID"));
+            std::ostringstream out;out<<"{\"ok\":true,\"tree\":"<<Json(Text(tid))<<",\"allocated\":"<<Value<int>(Method(data,"numberOfPointsAllocated",0),data)<<",\"unspent\":"<<unspent();
+            if(!map){out<<",\"nodes\":[";bool comma=false;
+                for(void* n:Entries(Get<void*>(data,F("LocalTreeData.TreeData","nodes")))){if(!n)continue;const int p=Get<uint8_t>(n,F("LocalTreeData.NodeData","pointsAllocated"));if(!p)continue;
+                    if(comma)out<<',';comma=true;out<<'['<<int(Get<uint8_t>(n,F("LocalTreeData.NodeData","id")))<<','<<p<<']';}
+                return out.str()+"]}";}
+            void* getArgs[]{tid};Root all(Invoke(game::FindMethod("LE.dll","LE.AssetManagement","GlobalAssets","get_GlobalTreeData",0)));Root global(Invoke(Method(all.Get(),"getTreeData",1),all.Get(),getArgs));
+            struct N{int id,cap,requirements;};std::vector<N> nodes;
+            for(void* n:Entries(Get<void*>(global.Get(),F("GlobalTreeData.TreeData","nodes")))){if(!n)continue;const int cap=Get<uint8_t>(n,F("GlobalTreeData.NodeData","maxPoints"));if(!cap)continue;
+                void* requirements=Get<void*>(n,F("GlobalTreeData.NodeData","requirements"));nodes.push_back({Get<uint8_t>(n,F("GlobalTreeData.NodeData","id")),cap,requirements?int(Entries(requirements).size()):0});}
+            std::stable_sort(nodes.begin(),nodes.end(),[](const N& a,const N& b){return a.id>b.id;});
+            const auto spendSkill=game::FindMethod("LE.dll","","LocalTreeData","receiveSpendSkillPointCommand",2);
+            const auto spendWeaver=game::FindMethod("LE.dll","","LocalTreeData","ReceiveSpendWeaverPointCommand",1);
+            const uint64_t faultsBefore=faults;out<<",\"nodes\":[";bool comma=false;
+            for(const auto& node:nodes){int accepted=0;
+                for(int k=0;k<node.cap&&unspent()>0;++k){uint8_t nodeId=static_cast<uint8_t>(node.id);bool ok=false;
+                    if(ability){void* a[]{ability,&nodeId};ok=Value<bool>(spendSkill,tree,a);}else{void* a[]{&nodeId};ok=Value<bool>(spendWeaver,tree,a);}
+                    if(!ok)break;++accepted;}
+                if(comma)out<<',';comma=true;out<<"{\"id\":"<<node.id<<",\"cap\":"<<node.cap<<",\"requirements\":"<<node.requirements<<",\"accepted\":"<<accepted<<",\"saved\":"<<points(node.id)<<'}';}
+            return out.str()+"],\"unspentAfter\":"+std::to_string(unspent())+",\"faults\":"+std::to_string(faults-faultsBefore)+"}";
         }
         if(action.rfind("choose-mastery-",0)==0) {
             uint8_t mastery=static_cast<uint8_t>(std::stoi(action.substr(15)));if(mastery<1||mastery>3)throw std::runtime_error("mastery 1..3");

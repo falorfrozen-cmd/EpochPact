@@ -85,8 +85,19 @@ adds backups and file sharing on top of that.
 ## World & Exploration
 
 Chest and shrine switches use the normal condition handler within three game
-units. Used or unavailable interactions are skipped. Collection and interactions
-pause while inspecting an item or using the inventory, stash or vendor.
+units. Used or unavailable interactions are skipped. An object the game still
+offers after a trigger is tried again after 2, 4 and 8 seconds and then left
+alone. Collection and interactions pause while inspecting an item or using the
+inventory, stash or vendor.
+
+Objects are found once, by six scene searches spread over a third of a second,
+when a switch is turned on. After that, new zones register their chests,
+shrines, portals and cave entrances while they load (Awake/initialisation
+hooks), so a zone change searches nothing. A zone queues a few hundred condition
+handlers while it loads; they are sorted in batches (32, or 1 ms, per 50 ms
+tick), so nearby objects are usable within about a second of arriving.
+`qolread` reports `sceneSearches` and `handlersQueued`/`handlersClassified`/
+`handlersPending`.
 
 The portal switch arms **one** nearby interaction, waits ten seconds after loading
 and switches itself off after use. This prevents immediate return-portal loops.
@@ -104,11 +115,15 @@ blur, ambient occlusion and volumetric fog have session switches. EpochPact keep
 each original renderer/profile value and restores it when its switch is disabled.
 Missing scene effects are skipped; disabling an effect cannot improve performance
 if that effect was already absent or disabled. Saved graphics preferences are kept.
-Scene effects are searched when a switch changes and three times while a newly
-loaded scene settles (about 0.5, 3 and 10 seconds after it loads), not every
-second; each search can take tens of milliseconds. Components that the game
-tries to re-enable later are clamped by the existing `Behaviour.set_enabled`
-detour. `qolread` reports `graphicsScans` and `maximumGraphicsMicros`.
+Once a second the switches are applied to the post-processing volumes the game
+has registered (its own `PostProcessManager` list) and to the volumetric fog
+camera (`HxVolumetricCamera.Active`) — no scene search, about 0.1 ms. Reflection
+probes have no such list: they are searched once, two seconds after a zone
+loads, and when the switch is turned on (well under a millisecond in play). The
+fog switch also searches for other fog cameras once when it is turned on.
+Components that the game tries to re-enable later are clamped by the existing
+`Behaviour.set_enabled` detour. `qolread` reports `graphicsScans` and
+`maximumGraphicsMicros`.
 
 ### Minimap and overlay map
 
