@@ -1,13 +1,22 @@
 # Effects HUD handoff — 2026-10-13
 
-> **Taken over by Claude Code the same day.** Steps 1–3 below are done: full
-> suites rebuilt and green; the final test core ran in three live sessions on a
-> fresh isolated character. Two defects were found and fixed: at HUD size 0.7
-> the title, names, timers and stack counts were not drawn (text boxes scaled
-> below the readable text size), and descriptions were cut to one line. The
-> rules test used `assert`, which the native build's `/DNDEBUG` removes, so it
-> checked nothing; it now uses explicit checks (750 layout cases). Details in
-> [effects-hud.md](effects-hud.md). Release is planned as 0.1.2-dev.23.
+> **Taken over by Claude Code the same day and released in 0.1.2-dev.23**
+> (commit `e0560ca`, 2026-10-13). All five remaining steps below are done:
+> full suites rebuilt and green; the final test core ran in three live sessions
+> on a fresh isolated character; the player DLL, EXE and ZIP were built from
+> the final sources; the compiled package passed 24/24 player checks (including
+> Install update) and 4/4 connection checks, and Windows Defender found no
+> threats. Two defects were found and fixed: at HUD size 0.7 the title, names,
+> timers and stack counts were not drawn (text boxes scaled below the readable
+> text size), and descriptions were cut to one line. The rules test used
+> `assert`, which the native build's `/DNDEBUG` removes, so it checked nothing;
+> it now uses explicit checks (750 layout cases). Not verified in the game:
+> startup failure reporting (it cannot be triggered without breaking game
+> data), hiding while a menu or the world map is open, and switching off on a
+> character change; the inventory does not hide the HUD. Details in
+> [effects-hud.md](effects-hud.md) and
+> [hud-amber-validation-2026-10-13.md](hud-amber-validation-2026-10-13.md).
+> The sections below are the original handoff, kept as written.
 
 ## Status
 
