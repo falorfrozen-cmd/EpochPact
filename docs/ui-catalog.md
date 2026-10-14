@@ -401,11 +401,23 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
 | `build_summonduration` — Summon lifetime multiplier | `buildset summonduration {value}` | value: 1…10 | 1 | Oturum |
+| `build_minionextra` — Extra minions per skill | `buildset minionextra {value}` | value: 0…20 | 0 | Oturum |
+| `build_totemextra` — Extra totems per skill | `buildset totemextra {value}` | value: 0…10 | 0 | Oturum |
+| `build_ballistaextra` — Extra ballistas | `buildset ballistaextra {value}` | value: 0…10 | 0 | Oturum |
+| `build_forgedextra` — Extra forged weapons | `buildset forgedextra {value}` | value: 0…20 | 0 | Oturum |
+| `build_companionextra` — Extra companions | `buildset companionextra {value}` | value: 0…10 | 0 | Oturum |
+| `build_immortalminions` — Immortal minions | `buildset immortalminions {value}` | value: 0…1 | 0 | Oturum |
 | `damage_session_read` — Damage session | `damagesession` | — | — | Okuma |
 | `damage_session` — Damage session control | `damagesession {action}` | action: start/stop/reset | — | Görünüm |
 | `summons_read` — Live summoned allies | `summonread` | — | — | Okuma |
 
 - **Summon lifetime multiplier:** Extend player-owned summon expiry timers and slow native health decay, including Wraith/Abomination paths. AI, attacks and combat damage remain normal. Permanent minions remain permanent. Reset: `buildset summonduration 1`.
+- **Extra minions per skill:** Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies and other minions. Cast the skill again to fill the new places. Totems, ballistas, forged weapons and companions have their own settings. Reset: `buildset minionextra 0`.
+- **Extra totems per skill:** Raise each totem skill's own limit by this many (Thorn Totem, Storm Totem, Warcry Totem and other totems). Reset: `buildset totemextra 0`.
+- **Extra ballistas:** Raise the Ballista limit by this many. Reset: `buildset ballistaextra 0`.
+- **Extra forged weapons:** Raise the forged weapon limit by this many. Reset: `buildset forgedextra 0`.
+- **Extra companions:** Raise your companion limit by this many. The game's other companion rules still apply, such as one of each kind. Reset: `buildset companionextra 0`.
+- **Immortal minions:** Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back. Reset: `buildset immortalminions 0`.
 - **Damage session:** Read the damage session: per ally type and your character, DPS over 10 s, 60 s, 10 min and 60 min, averages, totals and hits.
 - **Damage session control:** Start, stop or reset the damage session. Damage is only recorded while it runs; stopped values stay until reset.
 - **Live summoned allies:** Read each active player-owned summon: health, armour, uncapped resistances and global damage increase. These are actual live values; damage increase is not skill DPS.

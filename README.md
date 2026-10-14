@@ -18,7 +18,9 @@ controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest changes: [0.1.2-dev.29 better Turkish and Russian texts](docs/patch-notes-0.1.2-dev.29.md),
+Latest changes: [0.1.2-dev.30 minion counts and immortal minions](docs/patch-notes-0.1.2-dev.30.md),
+[dev.30 minions](docs/minions-validation-2026-10-14.md),
+[0.1.2-dev.29 better Turkish and Russian texts](docs/patch-notes-0.1.2-dev.29.md),
 [dev.29 translation review](docs/translation-review-2026-10-14.md),
 [0.1.2-dev.28 loot window filters, affix shard details, damage by type](docs/patch-notes-0.1.2-dev.28.md),
 [dev.28 filters](docs/filters-validation-2026-10-14.md),

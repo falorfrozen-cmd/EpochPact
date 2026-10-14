@@ -36,6 +36,30 @@ inline int BlessingStandard(int standard, int extra, int requested) {
 inline int BlessingShown(int native, int requested) {
     return requested > 0 && native >= 0 ? std::max(native, requested) : native;
 }
+// Summon counts. The game reads a summon skill's limit while it summons and
+// unsummons its lowest-priority minions above that limit. The extra raises the
+// limit for that summon only; the kind of summon decides which extra applies.
+enum class SummonKind { Minion, Totem, Ballista, Forged, Companion };
+constexpr uint32_t TotemTag = 16384;  // AT.Totem
+inline SummonKind KindOf(bool companion, bool ballista, bool forged, uint32_t tags, bool countsAsTotem) {
+    if (companion) return SummonKind::Companion;  // limited by the companion limit instead
+    if (ballista) return SummonKind::Ballista;
+    if (forged) return SummonKind::Forged;
+    if ((tags & TotemTag) || countsAsTotem) return SummonKind::Totem;
+    return SummonKind::Minion;
+}
+constexpr int MaximumSummonLimit = 200;
+// Never lowers what the game allows; the raised total stays bounded.
+inline int RaisedLimit(int native, int extra) {
+    if (native < 0 || extra <= 0 || native >= MaximumSummonLimit) return native;
+    return std::min(MaximumSummonLimit, native + extra);
+}
+// The companion limit (the game multiplies it by 60 for each companion's share).
+constexpr int MaximumCompanions = 20;
+inline int RaisedCompanions(int native, int extra) {
+    if (native < 0 || extra <= 0 || native >= MaximumCompanions) return native;
+    return std::min(MaximumCompanions, native + extra);
+}
 // How il2cpp_field_set_value expects a field's source, from the IL2CPP type
 // code of the field (Il2CppTypeEnum): a reference field takes the reference
 // itself, a primitive value field takes the address of its data. Anything else

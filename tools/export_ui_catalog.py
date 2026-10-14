@@ -87,6 +87,12 @@ def controls():
         ("projectiles", "skills", "Projectile count multiplier", 1, 8, 1, False, "Multiply player-owned projectile volleys and moving projectile emissions that lack a native extra-projectile component. Each emission group is capped at 64. Beams, stationary areas, summons and enemy attacks are excluded."),
         ("projectileflat", "skills", "Extra projectiles", 0, 32, 0, True, "Add extra projectiles after the multiplier in each projectile emission group. Supports native volleys and retrofitted moving projectiles; does not duplicate beams or stationary areas."),
         ("summonduration", "summons", "Summon lifetime multiplier", 1, 10, 1, False, "Extend player-owned summon expiry timers and slow native health decay, including Wraith/Abomination paths. AI, attacks and combat damage remain normal. Permanent minions remain permanent."),
+        ("minionextra", "summons", "Extra minions per skill", 0, 20, 0, True, "Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies and other minions. Cast the skill again to fill the new places. Totems, ballistas, forged weapons and companions have their own settings."),
+        ("totemextra", "summons", "Extra totems per skill", 0, 10, 0, True, "Raise each totem skill's own limit by this many (Thorn Totem, Storm Totem, Warcry Totem and other totems)."),
+        ("ballistaextra", "summons", "Extra ballistas", 0, 10, 0, True, "Raise the Ballista limit by this many."),
+        ("forgedextra", "summons", "Extra forged weapons", 0, 20, 0, True, "Raise the forged weapon limit by this many."),
+        ("companionextra", "summons", "Extra companions", 0, 10, 0, True, "Raise your companion limit by this many. The game's other companion rules still apply, such as one of each kind."),
+        ("immortalminions", "summons", "Immortal minions", 0, 1, 0, True, "Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back."),
         ("blessingoptions", "monolith", "Blessing choices", 0, 5, 0, True, "Choose Normal, 3, 4 or 5 options for newly generated Monolith boss rewards. This does not change existing rewards."),
         ("blessingrolls", "monolith", "Maximum blessing rolls", 0, 1, 0, True, "Use the upper roll limit on newly generated boss blessing options. Existing blessings are kept."),
     ):

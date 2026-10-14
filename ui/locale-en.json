@@ -401,6 +401,30 @@
       "Summon lifetime multiplier",
       "Extend player-owned summon expiry timers and slow native health decay, including Wraith/Abomination paths. AI, attacks and combat damage remain normal. Permanent minions remain permanent."
     ],
+    "build_minionextra": [
+      "Extra minions per skill",
+      "Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies and other minions. Cast the skill again to fill the new places. Totems, ballistas, forged weapons and companions have their own settings."
+    ],
+    "build_totemextra": [
+      "Extra totems per skill",
+      "Raise each totem skill's own limit by this many (Thorn Totem, Storm Totem, Warcry Totem and other totems)."
+    ],
+    "build_ballistaextra": [
+      "Extra ballistas",
+      "Raise the Ballista limit by this many."
+    ],
+    "build_forgedextra": [
+      "Extra forged weapons",
+      "Raise the forged weapon limit by this many."
+    ],
+    "build_companionextra": [
+      "Extra companions",
+      "Raise your companion limit by this many. The game's other companion rules still apply, such as one of each kind."
+    ],
+    "build_immortalminions": [
+      "Immortal minions",
+      "Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back."
+    ],
     "build_blessingoptions": [
       "Blessing choices",
       "Choose Normal, 3, 4 or 5 options for newly generated Monolith boss rewards. This does not change existing rewards."

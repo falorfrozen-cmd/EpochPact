@@ -23,6 +23,14 @@ int main() {
     check(BlessingShown(3,0)==3 && BlessingShown(3,5)==5 && BlessingShown(4,5)==5 && BlessingShown(5,3)==5 && BlessingShown(-1,5)==-1,"reward panel shows the filled count");
     for(int extra=0;extra<=2;++extra)for(int requested:{0,3,4,5})
         check(BlessingStandard(3,extra,requested)+extra==BlessingShown(3+extra,requested),"filled and shown blessing counts agree");
+    // Summon counts.
+    check(KindOf(true,true,true,TotemTag,true)==SummonKind::Companion,"a companion uses the companion limit");
+    check(KindOf(false,true,false,TotemTag,false)==SummonKind::Ballista && KindOf(false,false,true,TotemTag,false)==SummonKind::Forged,"Ballista and forged weapons before the totem tag");
+    check(KindOf(false,false,false,TotemTag|8192,false)==SummonKind::Totem && KindOf(false,false,false,8192,true)==SummonKind::Totem,"totem tag or the game's counts-as-totem flag");
+    check(KindOf(false,false,false,8192,false)==SummonKind::Minion && KindOf(false,false,false,0,false)==SummonKind::Minion,"everything else is a minion");
+    check(RaisedLimit(2,3)==5 && RaisedLimit(2,0)==2 && RaisedLimit(2,-4)==2,"extra minions add to the skill's own limit");
+    check(RaisedLimit(195,20)==MaximumSummonLimit && RaisedLimit(250,5)==250 && RaisedLimit(-1,5)==-1,"bounded, never lowered, invalid passes through");
+    check(RaisedCompanions(2,2)==4 && RaisedCompanions(1,0)==1 && RaisedCompanions(19,10)==MaximumCompanions && RaisedCompanions(25,1)==25,"companion limit");
     // GlobalTreeData.NodeData fields as the game declares them.
     check(CopyKind(0x0e)==FieldCopy::Reference && CopyKind(0x15)==FieldCopy::Reference,"name and requirements copy the reference");
     check(CopyKind(0x05)==FieldCopy::Value,"byte ids, caps and thresholds copy their data");

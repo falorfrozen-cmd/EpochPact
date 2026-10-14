@@ -468,6 +468,18 @@ test('live summon table shows real values and never presents historical or faile
  h.run('cache.summons_read.player.id="0";cache.summons_read.readError=true');html=h.run('summonTable()');assert.ok(html.includes('unavailable'));assert.ok(!html.includes('Skeleton'));
 });
 
+test('the Summons page offers every minion count and immortal minions without sending a change',()=>{
+ const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
+ h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};cache={};ST.name=row=>row.name;page='summons';shippingRenderPage()`);
+ const html=h.element('#page-content').innerHTML;
+ assert.ok(html.includes('Minion counts'));
+ for(const key of ['minionextra','totemextra','ballistaextra','forgedextra','companionextra','immortalminions'])assert.ok(html.includes(`data-setting="build_${key}"`),key);
+ assert.ok(html.includes('data-setting-toggle="build_immortalminions"'),'immortal minions is an on/off switch');
+ assert.ok(/0–20 · Default: 0/.test(html),'counts show their range without a multiplier sign');
+ assert.ok(!/0–20×/.test(html));
+ assert.equal(h.calls.length,0,'rendering sends nothing');
+});
+
 test('summon damage columns expose measured events and clear comparisons for a restarted game',()=>{
  const h=automaticHarness();h.run(`connected.sessionKey='10:1';cache.summons_read={player:{id:'0'},damageWindowSeconds:5,summons:[{instance:12,name:'Skeleton',measuredDps:450,lastDamage:150}]};summonBaselineOwner=automaticOwner();summonBaseline={12:300};`);
  let html=h.run('summonTable()');assert.ok(html.includes('+150'));assert.ok(html.includes('450'));assert.ok(html.includes('5 seconds collected'));

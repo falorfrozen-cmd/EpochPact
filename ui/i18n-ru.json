@@ -1536,5 +1536,18 @@
 "Automatically collects items and resources by your Pickup mode and Pickup category choices. Pauses while you inspect an item.": "Автоматически собирает предметы и ресурсы согласно режиму подбора и выбранным категориям подбора. Приостанавливается, пока вы осматриваете предмет.",
 "How often auto pickup scans for drops: from 0.25 s (default) to 10 s. Longer intervals reduce system load. When the game reports a full inventory, equipment pickup pauses until you open and close your inventory; gold, potions, tomes, bones, materials and everything else continue to be collected.": "Как часто автоподбор ищет добычу: от 0,25 с (по умолчанию) до 10 с. Чем больше интервал, тем ниже нагрузка на систему. Когда игра сообщает о полном инвентаре, автоподбор снаряжения приостанавливается, пока вы не откроете и не закроете инвентарь, а золото, зелья, тома, кости, материалы и всё остальное продолжают собираться.",
 "Limits auto pickup to 1–60 game units around your character. At 0, every drop the game has loaded in the current area is collected. Auto pickup pauses while an item tooltip is shown.": "Ограничивает автоподбор радиусом 1–60 игровых единиц вокруг персонажа. При значении 0 собирается вся добыча, которую игра загрузила в текущей зоне. Автоподбор приостанавливается, пока открыта подсказка предмета.",
-"s": "с"
+"s": "с",
+"Minion counts": "Количество миньонов",
+"Extra minions per skill": "Дополнительные миньоны на навык",
+"Extra totems per skill": "Дополнительные тотемы на навык",
+"Extra ballistas": "Дополнительные баллисты",
+"Extra forged weapons": "Дополнительное кованое оружие",
+"Extra companions": "Дополнительные спутники",
+"Immortal minions": "Бессмертные миньоны",
+"Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies and other minions. Cast the skill again to fill the new places. Totems, ballistas, forged weapons and companions have their own settings.": "Увеличивает собственный лимит каждого навыка призыва на это число: скелеты, скелеты-маги, призраки, големы, зомби и другие миньоны. Примените навык снова, чтобы заполнить новые места. У тотемов, баллист, кованого оружия и спутников свои настройки.",
+"Raise each totem skill's own limit by this many (Thorn Totem, Storm Totem, Warcry Totem and other totems).": "Увеличивает собственный лимит каждого навыка тотема на это число (Thorn Totem, Storm Totem, Warcry Totem и другие тотемы).",
+"Raise the Ballista limit by this many.": "Увеличивает лимит баллист на это число.",
+"Raise the forged weapon limit by this many.": "Увеличивает лимит кованого оружия на это число.",
+"Raise your companion limit by this many. The game's other companion rules still apply, such as one of each kind.": "Увеличивает лимит спутников на это число. Остальные правила игры для спутников действуют, например по одному каждого вида.",
+"Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back.": "Ваших миньонов, спутников, тотемы и баллисты нельзя убить уроном (собственное состояние игры «не может умереть»): смертельный урон оставляет их с 0 здоровья. Они по-прежнему исчезают, когда истекает их длительность или когда их отзывают. При отключении миньон с 0 здоровья получает 1 здоровье."
 }

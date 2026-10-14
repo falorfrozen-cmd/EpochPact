@@ -583,6 +583,168 @@
       "documentation": "docs/build-controls.md"
     },
     {
+      "id": "build_minionextra",
+      "group": "summons",
+      "label": "Extra minions per skill",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "buildset minionextra {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        }
+      ],
+      "default": 0,
+      "resetCommand": "buildset minionextra 0",
+      "lifetime": "session",
+      "description": "Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies and other minions. Cast the skill again to fill the new places. Totems, ballistas, forged weapons and companions have their own settings.",
+      "currentSource": "liveState.buildread.settings.minionextra.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
+      "id": "build_totemextra",
+      "group": "summons",
+      "label": "Extra totems per skill",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "buildset totemextra {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      ],
+      "default": 0,
+      "resetCommand": "buildset totemextra 0",
+      "lifetime": "session",
+      "description": "Raise each totem skill's own limit by this many (Thorn Totem, Storm Totem, Warcry Totem and other totems).",
+      "currentSource": "liveState.buildread.settings.totemextra.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
+      "id": "build_ballistaextra",
+      "group": "summons",
+      "label": "Extra ballistas",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "buildset ballistaextra {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      ],
+      "default": 0,
+      "resetCommand": "buildset ballistaextra 0",
+      "lifetime": "session",
+      "description": "Raise the Ballista limit by this many.",
+      "currentSource": "liveState.buildread.settings.ballistaextra.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
+      "id": "build_forgedextra",
+      "group": "summons",
+      "label": "Extra forged weapons",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "buildset forgedextra {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        }
+      ],
+      "default": 0,
+      "resetCommand": "buildset forgedextra 0",
+      "lifetime": "session",
+      "description": "Raise the forged weapon limit by this many.",
+      "currentSource": "liveState.buildread.settings.forgedextra.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
+      "id": "build_companionextra",
+      "group": "summons",
+      "label": "Extra companions",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "buildset companionextra {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      ],
+      "default": 0,
+      "resetCommand": "buildset companionextra 0",
+      "lifetime": "session",
+      "description": "Raise your companion limit by this many. The game's other companion rules still apply, such as one of each kind.",
+      "currentSource": "liveState.buildread.settings.companionextra.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
+      "id": "build_immortalminions",
+      "group": "summons",
+      "label": "Immortal minions",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "buildset immortalminions {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "buildset immortalminions 0",
+      "lifetime": "session",
+      "description": "Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back.",
+      "currentSource": "liveState.buildread.settings.immortalminions.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
       "id": "build_blessingoptions",
       "group": "monolith",
       "label": "Blessing choices",
@@ -33281,7 +33443,7 @@
     ]
   },
   "counts": {
-    "controls": 162,
+    "controls": 168,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

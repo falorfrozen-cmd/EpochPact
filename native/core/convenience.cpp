@@ -1719,11 +1719,42 @@ std::string Test(const std::string& id,const std::string& action){
         }
         throw std::runtime_error("Test map destination unavailable.");
     }
-    if(action=="summon-cast"){
-        uint16_t abilityId=379;void* a[]{&abilityId};Root ability(Invoke(Signature("Ability","getAbility",{"System.UInt16"},"","LE.dll"),nullptr,a));
-        if(!ability.Get())throw std::runtime_error("Ballista ability unavailable.");
+    if(action=="summon-counts"){
+        // The character's own summons, counted by the ability that made them.
+        void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));if(!tracker)throw std::runtime_error("Summon tracker unavailable.");
+        std::map<std::string,int> counts;int total=0;
+        for(void* summoned:Entries(Get<void*>(tracker,F("SummonTracker","summons")))){
+            if(!summoned||!game::IsAlive(summoned))continue;void* refs=Get<void*>(summoned,F("Summoned","references"));
+            void* ability=refs?Get<void*>(refs,F("CreationReferences","thisAbility")):nullptr;
+            ++counts[ability?Text(Get<void*>(ability,F("Ability","abilityName"))):std::string("?")];++total;
+        }
+        std::ostringstream out;out<<"{\"ok\":true,\"total\":"<<total<<",\"companionLimit\":";
+        void* stats=Get<void*>(c.actor,F("Actor","stats"));out<<(stats?Value<int>(Method(stats,"getMaximumCompanions",0),stats):-1)<<",\"byAbility\":{";
+        bool comma=false;for(const auto& [name,n]:counts){if(comma)out<<',';comma=true;out<<Json(name)<<':'<<n;}
+        return out.str()+"}}";
+    }
+    if(action.rfind("minion-hit-",0)==0){
+        // Disposable test character only: the first own summon takes this much health damage directly.
+        const float amount=std::stof(action.substr(11));if(!(amount>0&&amount<1e9f))throw std::runtime_error("Unsupported damage.");
+        void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));void* actor=nullptr;
+        for(void* summoned:Entries(Get<void*>(tracker,F("SummonTracker","summons"))))if(summoned&&game::IsAlive(summoned)){actor=Get<void*>(summoned,F("Summoned","actor"));if(actor&&game::IsAlive(actor))break;actor=nullptr;}
+        if(!actor)throw std::runtime_error("Cast a test ally first.");
+        Root pin(actor);void* health=Get<void*>(actor,F("Actor","health"));Root healthPin(health);
+        const float before=Get<float>(health,F("BaseHealth","currentHealth"));const bool cannot=Value<bool>(Method(health,"CannotDie",0),health);
+        // A minion that is not damageable right now (emerging) is made damageable for this hit only.
+        bool& damageable=*reinterpret_cast<bool*>(static_cast<char*>(health)+F("BaseHealth","damageable"));const bool wasDamageable=damageable;damageable=true;
+        float hit=amount;void* a[]{&hit};const float dealt=Value<float>(Method(health,"HealthDamage",1),health,a);
+        if(game::IsAlive(health))damageable=wasDamageable;
+        const float after=game::IsAlive(health)?Get<float>(health,F("BaseHealth","currentHealth")):-1.f;
+        return "{\"ok\":true,\"name\":"+Json(Text(Invoke(M("Object","get_name",0,"UnityEngine","UnityEngine.CoreModule.dll"),actor)))+",\"before\":"+std::to_string(before)+",\"after\":"+std::to_string(after)+
+            ",\"dealt\":"+std::to_string(dealt)+",\"wasDamageable\":"+Boolean(wasDamageable)+",\"cannotDie\":"+Boolean(cannot)+",\"alive\":"+Boolean(game::IsAlive(actor))+"}";
+    }
+    if(action=="summon-cast"||action.rfind("summon-cast-",0)==0){
+        // summon-cast: the Ballista; summon-cast-<ability id>: any ability, cast by the character.
+        uint16_t abilityId=action=="summon-cast"?379:static_cast<uint16_t>(std::stoi(action.substr(12)));void* a[]{&abilityId};Root ability(Invoke(Signature("Ability","getAbility",{"System.UInt16"},"","LE.dll"),nullptr,a));
+        if(!ability.Get())throw std::runtime_error("Ability unavailable.");
         void* constructor=Get<void*>(c.actor,F("Actor","abilityObjectConstructor"));Vec3 p=Position(c.actor),direction{0,0,1};p.x+=2;float delay=0;int type=1;bool mutate=true;void* args[]{constructor,&p,&direction,&delay,&type,&mutate,nullptr};Invoke(Method(ability.Get(),"CastAfterDelay",7),ability.Get(),args);
-        return "{\"ok\":true,\"requested\":true}";
+        return "{\"ok\":true,\"requested\":true,\"ability\":"+Json(Text(Get<void*>(ability.Get(),F("Ability","abilityName"))))+"}";
     }
     if(action=="combat-clock")return "{\"ok\":true,\"timeScale\":"+std::to_string(Value<float>(M("Time","get_timeScale",0,"UnityEngine","UnityEngine.CoreModule.dll")))+",\"damageCalls\":"+std::to_string(testDamageCalls)+",\"ownedCalls\":"+std::to_string(testDamageOwned)+",\"lastPrimary\":"+std::to_string(testDamagePrimary)+",\"lastSecondary\":"+std::to_string(testDamageSecondary)+"}";
     if(action=="ally-attack"||action.rfind("player-attack-",0)==0){

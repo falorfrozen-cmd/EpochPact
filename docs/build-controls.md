@@ -56,6 +56,26 @@ profile or theme action invokes it.
   is unchanged. Permanent summons retain their normal age. These hooks do not
   scale AI or attack tick time. Class conversions using entirely different lifetime
   mechanisms still require their own validation.
+- **Minion counts:** extra minions per summon skill (0–20), extra totems per totem
+  skill (0–10), extra ballistas (0–10), extra forged weapons (0–20) and extra
+  companions (0–10), default 0. `SummonEntityOnDeath.Summon` reads the skill's
+  limit while it summons and unsummons the lowest-priority minions above it; for
+  the offline player's own summons that limit is raised for the call only and
+  restored afterwards. The kind comes from the summoning ability: companions
+  (`Ability.companion`) keep their one-of-each-kind skill limits and get the
+  companion limit instead (`Stats.getMaximumCompanions`, which the game
+  multiplies by 60 for each companion's share); Ballista and Summon Forged Weapon
+  by name; totems by `Ability.getTagsWithFakeTags`, as `SummonTracker` counts
+  them; everything else is a minion. Bounded at 200 per skill and 20 companions
+  (`build_rules.hpp`). The companion extra adds to any Maximum companions stat
+  bonus from the stat editor.
+- **Immortal minions:** the game's own cannot-die state
+  (`BaseHealth.AddSourceOfCannotDie`) for every summon whose creators lead back to
+  the offline player, existing ones when switched on and new ones as
+  `Summoned.initialise` registers them. Lethal damage leaves them at 0 health
+  without dying; durations and unsummoning are unchanged. Switching it off
+  removes exactly the sources EpochPact added and gives a minion at 0 health 1
+  health back.
 - **Minion bonuses:** the Summons page reuses the character-stat editor for minion
   damage, health, attack/cast speed, critical stats, duration and companion limits.
   It does not introduce a second stat implementation.

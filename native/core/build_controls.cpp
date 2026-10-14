@@ -9,6 +9,7 @@
 #include <memory>
 #include <sstream>
 #include <map>
+#include <set>
 
 namespace ep::builds {
 namespace {
@@ -21,11 +22,15 @@ Setting skillXp{"skillxp",1,100,1}, passive{"passivepoints",1,10,1}, skills{"ski
     projectile{"projectiles",1,8,1}, projectileFlat{"projectileflat",0,32,0,true},
     blessings{"blessingoptions",0,5,0,true}, perfectBlessings{"blessingrolls",0,1,0,true},
     summonDuration{"summonduration",1,10,1}, offhand{"offhand",0,1,0,true}, fullSets{"fullsets",0,1,0,true},
-    freeSkills{"skillnodes",0,1,0,true}, freePassives{"passivenodes",0,1,0,true}, freeWeaver{"weavernodes",0,1,0,true};
-std::array<Setting*,17> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&freeSkills,&freePassives,&freeWeaver};
+    freeSkills{"skillnodes",0,1,0,true}, freePassives{"passivenodes",0,1,0,true}, freeWeaver{"weavernodes",0,1,0,true},
+    minionExtra{"minionextra",0,20,0,true}, companionExtra{"companionextra",0,10,0,true}, totemExtra{"totemextra",0,10,0,true},
+    ballistaExtra{"ballistaextra",0,10,0,true}, forgedExtra{"forgedextra",0,20,0,true}, immortal{"immortalminions",0,1,0,true};
+std::array<Setting*,23> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&freeSkills,&freePassives,&freeWeaver,
+    &minionExtra,&companionExtra,&totemExtra,&ballistaExtra,&forgedExtra,&immortal};
 game::MethodRef getActor, offline, xpRef, skillRef, passiveRef, weaverRef, zoomRef, projectileRef, blessingRef, populateRef, optionsRef;
 game::MethodRef summonRef, slotRef, alternateSlotRef, linkedRef, invalidRef, enforceRef, mainRestrictionRef, offRestrictionRef, equipRef;
 game::MethodRef constructionRef, drainRef, summonedTickRef;
+game::MethodRef sedSummonRef, maxCompanionsRef, summonedInitRef;
 game::MethodRef skillUnspentRef, passiveUnspentRef, weaverUnspentRef;
 game::MethodRef requirementRef, requirementPreviewRef, passiveRequirementRef, uiRequirementRef, reachableRef,
     globalNodeRef, passiveSpendRef, passiveBulkRef, masteryRef, masteryUpdateRef, respecCostRef;
@@ -325,6 +330,98 @@ void SummonedTickDetour(void* self,float delta,M method) {
         *age-=delta*(1-1/static_cast<float>(summonDuration.value));}
     originalSummonedTick(self,delta,method);
 }
+// ---- Summon counts and immortal minions.
+// SummonEntityOnDeath.Summon reads the skill's limit while it summons and
+// unsummons the lowest-priority minions above it: the limit is raised for that
+// call only and restored afterwards (the object is pooled and re-mutated).
+using SedSummonFn=void(*)(void*,M);SedSummonFn originalSedSummon=nullptr;
+using CompanionsFn=int(*)(void*,M);CompanionsFn originalCompanions=nullptr;
+using SummonedInitFn=void(*)(void*,M);SummonedInitFn originalSummonedInit=nullptr;
+std::atomic<uint64_t> raisedSummons{0},raisedCompanionReads{0},immortalAdded{0};
+std::string lastSummonAbility;const char* lastSummonKind="";int lastSummonNative=-1,lastSummonLimit=-1;
+std::map<void*,std::unique_ptr<Root>> immortalHealth;  // BaseHealth given one cannot-die source by us
+const char* KindName(rules::SummonKind kind){
+    switch(kind){case rules::SummonKind::Totem:return "totem";case rules::SummonKind::Ballista:return "ballista";
+        case rules::SummonKind::Forged:return "forged";case rules::SummonKind::Companion:return "companion";default:return "minion";}
+}
+void SedSummonDetour(void* self,M method){
+    struct Restore{int* field=nullptr;int before=0;~Restore(){if(field)*field=before;}} restore;
+    if(self&&(minionExtra.value>0||totemExtra.value>0||ballistaExtra.value>0||forgedExtra.value>0))Checked([&]{
+        if(!Get<bool>(self,F("SummonEntityOnDeath","limitNumber")))return;
+        void* refs=Component(self,"CreationReferences");void* local=Actor();
+        if(!refs||!local||Get<void*>(refs,F("CreationReferences","creator"))!=local)return;
+        void* ability=Get<void*>(refs,F("CreationReferences","thisAbility"));if(!ability)return;
+        const std::string name=Text(Get<void*>(ability,F("Ability","abilityName")));
+        // Companions keep the game's one-of-each-kind skill limits; their count is the companion limit.
+        const bool companion=Get<bool>(self,F("SummonEntityOnDeath","companion"))||Get<bool>(ability,F("Ability","companion"));
+        const auto kind=rules::KindOf(companion,name=="Ballista",name.find("Forged Weapon")!=std::string::npos,
+            Value<uint32_t>(Method(ability,"getTagsWithFakeTags",0),ability),  // as SummonTracker counts totems
+            Get<bool>(self,F("SummonEntityOnDeath","countsAsTotemEvenIfAbilityIsNotTotemAbility")));
+        if(kind==rules::SummonKind::Companion){lastSummonAbility=name;lastSummonKind=KindName(kind);lastSummonNative=lastSummonLimit=Get<int>(self,F("SummonEntityOnDeath","limit"));return;}
+        const double extra=kind==rules::SummonKind::Totem?totemExtra.value.load():kind==rules::SummonKind::Ballista?ballistaExtra.value.load():
+            kind==rules::SummonKind::Forged?forgedExtra.value.load():minionExtra.value.load();
+        int* limit=reinterpret_cast<int*>(static_cast<char*>(self)+F("SummonEntityOnDeath","limit"));
+        const int raised=rules::RaisedLimit(*limit,static_cast<int>(extra));
+        lastSummonAbility=name;lastSummonKind=KindName(kind);lastSummonNative=*limit;lastSummonLimit=raised;
+        if(raised!=*limit){restore.field=limit;restore.before=*limit;*limit=raised;++raisedSummons;}
+    });
+    originalSedSummon(self,method);
+}
+int CompanionsDetour(void* self,M method){
+    const int native=originalCompanions(self,method);
+    int result=native;
+    if(companionExtra.value>0)Checked([&]{void* local=Actor();if(local&&self==Get<void*>(local,F("Actor","stats")))result=rules::RaisedCompanions(native,static_cast<int>(companionExtra.value));});
+    if(result!=native)++raisedCompanionReads;
+    return result;
+}
+// The player, or an ally whose creators lead back to the player.
+bool OwnedActor(void* actor){
+    void* local=Actor();
+    for(unsigned depth=0;actor&&local&&depth<8;++depth){
+        if(actor==local)return true;
+        if(!game::IsAlive(actor))return false;
+        void* summoned=Component(actor,"Summoned");if(!summoned)return false;
+        void* refs=Get<void*>(summoned,F("Summoned","references"));if(!refs)return false;
+        actor=Get<void*>(refs,F("CreationReferences","creator"));
+    }return false;
+}
+// The game's own cannot-die state (BaseHealth.AddSourceOfCannotDie), once per minion.
+void MakeImmortal(void* actor){
+    if(!actor||!game::IsAlive(actor))return;
+    void* health=Get<void*>(actor,F("Actor","health"));if(!health||!game::IsAlive(health)||immortalHealth.contains(health))return;
+    Invoke(Method(health,"AddSourceOfCannotDie",0),health);
+    immortalHealth.emplace(health,std::make_unique<Root>(health));++immortalAdded;
+}
+void PruneImmortal(){for(auto it=immortalHealth.begin();it!=immortalHealth.end();)if(!game::IsAlive(it->first))it=immortalHealth.erase(it);else ++it;}
+// A new summon registers itself with its creator's tracker in Summoned.initialise.
+void SummonedInitDetour(void* self,M method){
+    originalSummonedInit(self,method);
+    if(immortal.value==1&&self)Checked([&]{
+        if(immortalHealth.size()>256)PruneImmortal();
+        void* refs=Get<void*>(self,F("Summoned","references"));
+        if(refs&&OwnedActor(Get<void*>(refs,F("CreationReferences","creator"))))MakeImmortal(Get<void*>(self,F("Summoned","actor")));
+    });
+}
+void SetImmortal(bool on){
+    if(!on){
+        // A minion kept alive at 0 health gets 1 health back, so it does not die the moment the setting is off.
+        for(auto& [health,root]:immortalHealth)if(game::IsAlive(health))Checked([&]{
+            float& current=*reinterpret_cast<float*>(static_cast<char*>(health)+F("BaseHealth","currentHealth"));if(current<1)current=1;
+            Invoke(Method(health,"RemoveSourceOfCannotDie",0),health);});
+        immortalHealth.clear();return;
+    }
+    PruneImmortal();
+    void* local=Actor();if(!local)return;
+    std::vector<void*> creators{local};std::set<void*> seen{local};
+    for(size_t i=0;i<creators.size()&&seen.size()<=256;++i){
+        void* tracker=Get<void*>(creators[i],F("Actor","summonTracker"));if(!tracker)continue;
+        for(void* summoned:Entries(Get<void*>(tracker,F("SummonTracker","summons")))){
+            if(!summoned||!game::IsAlive(summoned))continue;
+            void* actor=Get<void*>(summoned,F("Summoned","actor"));if(!actor||!seen.insert(actor).second)continue;
+            creators.push_back(actor);MakeImmortal(actor);
+        }
+    }
+}
 bool LocalSlot(void* self) {
     if(!self)return false;
     const char* cls=il2cpp::api().class_get_name(il2cpp::api().object_get_class(self));
@@ -519,6 +616,9 @@ Hook xpHook{&xpRef,reinterpret_cast<void*>(&XpDetour),reinterpret_cast<void**>(&
     summonHook{&summonRef,reinterpret_cast<void*>(&SummonDetour),reinterpret_cast<void**>(&originalSummon)},
     drainHook{&drainRef,reinterpret_cast<void*>(&DrainDetour),reinterpret_cast<void**>(&originalDrain)},
     summonedTickHook{&summonedTickRef,reinterpret_cast<void*>(&SummonedTickDetour),reinterpret_cast<void**>(&originalSummonedTick)},
+    sedSummonHook{&sedSummonRef,reinterpret_cast<void*>(&SedSummonDetour),reinterpret_cast<void**>(&originalSedSummon)},
+    companionsHook{&maxCompanionsRef,reinterpret_cast<void*>(&CompanionsDetour),reinterpret_cast<void**>(&originalCompanions)},
+    summonedInitHook{&summonedInitRef,reinterpret_cast<void*>(&SummonedInitDetour),reinterpret_cast<void**>(&originalSummonedInit)},
     constructionHook{&constructionRef,reinterpret_cast<void*>(&ConstructionDetour),reinterpret_cast<void**>(&originalConstruction)},
     slotHook{&slotRef,reinterpret_cast<void*>(&SlotDetour),reinterpret_cast<void**>(&originalSlot)},
     alternateSlotHook{&alternateSlotRef,reinterpret_cast<void*>(&AlternateSlotDetour),reinterpret_cast<void**>(&originalAlternateSlot)},
@@ -549,6 +649,9 @@ Hook* For(const Setting& s) {
     if(&s==&zoom || &s==&angle)return &zoomHook;
     if(&s==&projectile || &s==&projectileFlat)return &projectileHook;
     if(&s==&summonDuration)return &summonHook;
+    if(&s==&minionExtra||&s==&totemExtra||&s==&ballistaExtra||&s==&forgedExtra)return &sedSummonHook;
+    if(&s==&companionExtra)return &companionsHook;
+    if(&s==&immortal)return &summonedInitHook;
     if(&s==&offhand)return &slotHook;
     if(&s==&fullSets)return &equipHook;
     if(&s==&freeSkills||&s==&freePassives||&s==&freeWeaver)return &requirementHook;
@@ -590,6 +693,8 @@ std::string State() {
     std::ostringstream out; out<<"{\"ok\":true,\"settings\":{"; bool comma=false;
     for(auto* s:settings){bool available=true;for(auto* h:Hooks(*s))available=available && static_cast<bool>(*h->ref);if(comma)out<<',';comma=true;out<<Json(s->key)<<":{\"value\":"<<s->value<<",\"available\":"<<Boolean(available)<<'}';}
     out<<"},\"counters\":{\"skillXp\":"<<xpCalls<<",\"projectiles\":"<<projectileCalls<<",\"projectileRetrofits\":"<<retrofits<<",\"summonDecayTicks\":"<<drainCalls<<",\"lastProjectileNative\":"<<lastProjectileNative<<",\"lastProjectileTotal\":"<<lastProjectileTotal<<",\"blessings\":"<<blessingCalls<<",\"faults\":"<<faults<<'}';
+    out<<",\"summons\":{\"limitsRaised\":"<<raisedSummons<<",\"companionLimitReads\":"<<raisedCompanionReads<<",\"immortal\":"<<immortalHealth.size()<<",\"immortalAdded\":"<<immortalAdded
+       <<",\"lastAbility\":"<<Json(lastSummonAbility)<<",\"lastKind\":"<<Json(lastSummonKind)<<",\"lastNative\":"<<lastSummonNative<<",\"lastLimit\":"<<lastSummonLimit<<'}';
     void* actor=Actor();void* tree=Tree(actor);
     if(tree){void* character=Get<void*>(Get<void*>(actor,actorTracker),trackerData);
         out<<",\"player\":{\"id\":"<<Json(Text(Invoke(Method(character,"get_Id",0),character)))<<",\"name\":"<<Json(Text(Get<void*>(character,Offset("CharacterData","<CharacterName>k__BackingField","LE.Data"))))<<'}';
@@ -624,6 +729,9 @@ bool Init() {
         summonRef=game::FindMethod("LE.dll","","DestroyAfterDuration","OnUpdateTick",1);
         drainRef=game::FindMethod("LE.dll","","AcceleratingHealthDrain","OnUpdateTick",1);
         summonedTickRef=game::FindMethod("LE.dll","","Summoned","OnUpdateTick",1);
+        sedSummonRef=game::FindMethod("LE.dll","","SummonEntityOnDeath","Summon",0);
+        maxCompanionsRef=game::FindMethod("LE.dll","","Stats","getMaximumCompanions",0);
+        summonedInitRef=game::FindMethod("LE.dll","","Summoned","initialise",0);
         constructionRef=game::FindMethod("LE.dll","","AbilityObjectConstructor","constructAbilityObject",14);
         durationOffset=Offset("DestroyAfterDuration","duration");
         slotRef=game::FindMethod("LE.dll","","OneSlotItemContainer","CanAddItemType",1);
@@ -656,7 +764,7 @@ bool Init() {
     } catch(const std::exception& e){Log("build controls unavailable: %s",e.what());return false;}
 }
 std::string Read(){return Run([]{return State();});}
-void ReleaseRoots(){componentTypes.clear();setEntries.clear();setStatsOwner.Reset();
+void ReleaseRoots(){componentTypes.clear();setEntries.clear();setStatsOwner.Reset();immortalHealth.clear();
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
     testConstructed.Reset();
 #endif
@@ -679,9 +787,10 @@ std::string Set(const std::string& key,double value) {
         try {
             if(s==&passive||s==&skills||s==&weaver||s==&weaverFlat||s==&freeSkills||s==&freePassives||s==&freeWeaver)RefreshBudgets();
             if(s==&zoom || s==&angle){void* camera=game::StaticObject(game::FindStaticField("LE.dll","","CameraManager","instance"));if(camera)Invoke(zoomRef,camera);}
+            if(s==&immortal)SetImmortal(value!=0);
             if(s==&fullSets){void* manager=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));if(manager)ReconcileSets(Get<void*>(manager,Offset("ItemContainersManager","itemEquipManager")));}
             for(auto* entry:hooks)if(!Needed(entry)&&hook::IsInstalled(entry->ref->code)&&!hook::Remove(entry->ref->code,&why))throw std::runtime_error("cannot restore feature hook: "+why);
-        }catch(...){s->value=previous;Checked([&]{if(s==&passive||s==&skills||s==&weaver||s==&weaverFlat)RefreshBudgets();});for(auto* back:fresh)if(!Needed(back))hook::Remove(back->ref->code,nullptr);throw;}
+        }catch(...){s->value=previous;Checked([&]{if(s==&passive||s==&skills||s==&weaver||s==&weaverFlat)RefreshBudgets();if(s==&immortal)SetImmortal(previous!=0);});for(auto* back:fresh)if(!Needed(back))hook::Remove(back->ref->code,nullptr);throw;}
         return State();
     });
 }

@@ -1536,5 +1536,18 @@
 "Automatically collects items and resources by your Pickup mode and Pickup category choices. Pauses while you inspect an item.": "Eşyaları ve kaynakları Toplama modu ve Toplama kategorisi seçimlerinize göre otomatik toplar. Bir eşyayı incelerken duraklar.",
 "How often auto pickup scans for drops: from 0.25 s (default) to 10 s. Longer intervals reduce system load. When the game reports a full inventory, equipment pickup pauses until you open and close your inventory; gold, potions, tomes, bones, materials and everything else continue to be collected.": "Otomatik toplamanın düşen eşyaları ne sıklıkla taradığı: 0,25 sn (varsayılan) ile 10 sn arası. Uzun aralıklar sistem yükünü azaltır. Oyun envanterin dolu olduğunu bildirdiğinde ekipman toplama, envanterinizi açıp kapatana kadar duraklar; altın, iksirler, tome'lar, kemikler, malzemeler ve geri kalan her şey toplanmaya devam eder.",
 "Limits auto pickup to 1–60 game units around your character. At 0, every drop the game has loaded in the current area is collected. Auto pickup pauses while an item tooltip is shown.": "Otomatik toplamayı karakterinizin çevresindeki 1–60 oyun birimiyle sınırlar. 0 değerinde oyunun bulunduğunuz bölgede yüklediği tüm düşen eşyalar toplanır. Bir eşyanın ipucu kutusu açıkken otomatik toplama duraklar.",
-"s": "sn"
+"s": "sn",
+"Minion counts": "Minion sayıları",
+"Extra minions per skill": "Beceri başına ek minion",
+"Extra totems per skill": "Beceri başına ek totem",
+"Extra ballistas": "Ek ballista",
+"Extra forged weapons": "Ek forged weapon",
+"Extra companions": "Ek companion",
+"Immortal minions": "Ölümsüz minion'lar",
+"Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies and other minions. Cast the skill again to fill the new places. Totems, ballistas, forged weapons and companions have their own settings.": "Her çağırma becerisinin kendi sınırını bu kadar artırır: iskeletler, iskelet büyücüler, wraith'ler, golem'ler, zombiler ve diğer minion'lar. Yeni yerleri doldurmak için beceriyi yeniden kullanın. Totem'lerin, ballista'ların, forged weapon'ların ve companion'ların kendi ayarları vardır.",
+"Raise each totem skill's own limit by this many (Thorn Totem, Storm Totem, Warcry Totem and other totems).": "Her totem becerisinin kendi sınırını bu kadar artırır (Thorn Totem, Storm Totem, Warcry Totem ve diğer totem'ler).",
+"Raise the Ballista limit by this many.": "Ballista sınırını bu kadar artırır.",
+"Raise the forged weapon limit by this many.": "Forged weapon sınırını bu kadar artırır.",
+"Raise your companion limit by this many. The game's other companion rules still apply, such as one of each kind.": "Companion sınırınızı bu kadar artırır. Oyunun diğer companion kuralları, örneğin her türden bir tane, geçerliliğini korur.",
+"Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back.": "Minion'larınız, companion'larınız, totem'leriniz ve ballista'larınız hasarla öldürülemez (oyunun kendi ölemez durumu): ölümcül hasar onları 0 canda bırakır. Süreleri dolunca veya geri çağrılınca yine kaybolurlar. Kapatıldığında 0 candaki bir minion 1 can geri alır."
 }
