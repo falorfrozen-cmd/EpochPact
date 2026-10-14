@@ -109,11 +109,11 @@ def controls():
         add("qol_"+key,group,label,"toggle","qolset "+key+" {value}","session",description,
             params=[parameter("value","integer",0,1)],default=0,reset="qolset "+key+" 0",current="liveState.qolread.settings."+key+".value",doc="docs/player-conveniences.md")
     add("pickup_radius","loot","Auto pickup radius","number","pickupradius {value}","session",
-        "Limit automatic collection to 1–60 game units. Zero collects all loaded drops, as in earlier versions. Item tooltips pause collection.",
+        "Limits auto pickup to 1–60 game units around your character. At 0, every drop the game has loaded in the current area is collected. Auto pickup pauses while an item tooltip is shown.",
         params=[parameter("value","number",0,60)],default=0,reset="pickupradius 0",doc="docs/player-conveniences.md")
     add("pickup_radius_read","loot","Pickup radius status","read","pickupradius","read_only","Read the current pickup radius.",doc="docs/player-conveniences.md")
     add("pickup_interval","loot","Auto pickup interval","number","pickupinterval {value}","session",
-        'How often automatic collection scans for drops: 0.25 s (default) up to 10 s. Longer intervals do less work per second. When the game reports a full inventory, equipment waits until you open and close your inventory; gold, potions, tomes, bones and materials continue.',
+        'How often auto pickup scans for drops: from 0.25 s (default) to 10 s. Longer intervals reduce system load. When the game reports a full inventory, equipment pickup pauses until you open and close your inventory; gold, potions, tomes, bones, materials and everything else continue to be collected.',
         params=[parameter("value","number",0.25,10)],default=0.25,reset="pickupinterval 0.25",doc="docs/player-conveniences.md")
     add("loot_log","loot","Recent pickups","read","lootlog","read_only",
         'Recent item and gold pickups, by you or Auto Pickup: name, rarity and the loot filter rule that matched (the same number the game shows with Item rule numbering). Reading it does not change the game.',doc="docs/player-conveniences.md")

@@ -1283,7 +1283,7 @@
 "Cooldown / charge speed",
 "Reduces cooldowns and speeds up normal charge regeneration.",
 "Auto pickup",
-"Collects nearby items, gold, potions, tomes and bones through the game's normal pickup actions. Pauses while you inspect an item.",
+"Automatically collects items and resources by your Pickup mode and Pickup category choices. Pauses while you inspect an item.",
 "Density diagnostics",
 "Shows pack and generator counts, planned and observed spawns, and excluded groups.",
 "Read character sheet mappings",
@@ -1444,7 +1444,7 @@
 "Disable volumetric fog",
 "Disable the game's Hx volumetric camera effect for this session. Normal gameplay visibility and saved settings are kept.",
 "Auto pickup radius",
-"Limit automatic collection to 1–60 game units. Zero collects all loaded drops, as in earlier versions. Item tooltips pause collection.",
+"Limits auto pickup to 1–60 game units around your character. At 0, every drop the game has loaded in the current area is collected. Auto pickup pauses while an item tooltip is shown.",
 "Read active player-owned allies: health, armour, resistances and measured damage. DPS uses recent applied hits; attack a target to collect a comparison.",
 "Live inventory",
 "Read the loaded character and inventory item count without changing items.",
@@ -1463,7 +1463,7 @@
 "Craft affixes up to T7",
 "Upgrade existing T5 and T6 affixes with shards, one tier at a time. Stops at T7. Use plain shards or Basic Glyph of Hope for T6/T7. Material, Forging Potential and level requirements remain.",
 "Auto pickup interval",
-"How often automatic collection scans for drops: 0.25 s (default) up to 10 s. Longer intervals do less work per second. When the game reports a full inventory, equipment waits until you open and close your inventory; gold, potions, tomes, bones and materials continue.",
+"How often auto pickup scans for drops: from 0.25 s (default) to 10 s. Longer intervals reduce system load. When the game reports a full inventory, equipment pickup pauses until you open and close your inventory; gold, potions, tomes, bones, materials and everything else continue to be collected.",
 "Pick up everything now",
 "Collect every drop the game has loaded right now, ignoring the radius. Your pickup rules, categories, loot filter and inventory space still apply. Runs across several frames.",
 "Recent item and gold pickups, by you or Auto Pickup: name, rarity and the loot filter rule that matched (the same number the game shows with Item rule numbering). Reading it does not change the game.",
@@ -1535,5 +1535,6 @@
 "Read effect HUD settings and availability without enabling it.",
 "Top: under the item type",
 "Middle: before the affixes",
-"Bottom: end of the tooltip"
+"Bottom: end of the tooltip",
+"s"
 ]

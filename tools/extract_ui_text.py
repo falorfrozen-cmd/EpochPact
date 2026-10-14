@@ -22,6 +22,9 @@ SOURCES = ['app.js', 'launcher.js', 'collection-ui.js', 'feed.js', 'damage.js', 
            'affix-picker.js', 'crafting-model.js', 'session.js', 'stat-model.js', 'preferences.js', 'release-notes.js',
            'index.html', 'feed.html', 'damage.html']
 OUTPUT = ROOT / 'ui/i18n-source.json'
+# Unit abbreviations written after numbers (unitFor in app.js): too short for
+# the text rules, but Turkish and Russian write them differently ("sn", "с").
+UNITS = ('s',)
 # Player-facing messages raised by the desktop backend.
 PYTHON_SOURCES = ['tools/ui_bridge.py', 'tools/player_setup.py', 'tools/ui_language.py', 'tools/app_update.py', 'epochpact_ui.py']
 CODE_TOKENS = ('${', '=>', '();', '){', '==', '!=', '&&', '||', '.map(', 'esc(', 'cache.',
@@ -261,12 +264,13 @@ def collect() -> list[str]:
     for control in catalog.get('controls', []):
         for parameter in control.get('parameters') or []:
             texts += parameter.get('choiceLabels') or []
+    texts += list(UNITS)
     seen, out = set(), []
     for t in texts:
         # The page translates the parts around " · " one by one, so a text never
         # starts or ends with that separator.
         t = re.sub(r"^·\s*|\s*·$", '', normalise(t))
-        if t and t not in seen and (COUNT_PHRASE.fullmatch(t) or text_like(re.sub(r"\{\d+\}", '', t))):
+        if t and t not in seen and (t in UNITS or COUNT_PHRASE.fullmatch(t) or text_like(re.sub(r"\{\d+\}", '', t))):
             seen.add(t)
             out.append(t)
     return out

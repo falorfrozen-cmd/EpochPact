@@ -29,9 +29,12 @@
   templates.sort((a,b)=>b.first.length-a.first.length);
   return {exact,templates};
  }
- function translator(dictionary){
+ // decimalComma: a value that is a decimal number ("0.25") is written with a
+ // decimal comma ("0,25"), as Turkish and Russian write numbers.
+ function translator(dictionary,{decimalComma=false}={}){
   const {exact,templates}=compile(dictionary);
   const edges=text=>[text.slice(0,text.length-text.trimStart().length),text.slice(text.trimEnd().length)];
+  const decimal=value=>decimalComma&&/^\s*[+\-−]?\d+\.\d+\s*$/.test(value)?value.replace('.',','):value;
   let nesting=0;
   function lookup(core){
    const hit=exact.get(core);
@@ -44,7 +47,7 @@
     const values={};t.order.forEach((index,i)=>{
      const value=m[i+1];let inner=null;
      if(nesting<2&&/[A-Za-z]/.test(value)){nesting++;try{inner=translate(value);}finally{nesting--;}}
-     values[index]=inner===null?value:inner;
+     values[index]=inner===null?decimal(value):inner;
     });
     return t.target.replace(/\{(\d+)\}/g,(_,n)=>values[n]??'');
    }
@@ -133,7 +136,7 @@
   let dictionary=null;
   try{const request=new win.XMLHttpRequest();request.open('GET',`/ui/i18n-${language}.json`,false);request.send();if(request.status===200)dictionary=JSON.parse(request.responseText);}catch{}
   if(!dictionary)return api;
-  const translate=translator(dictionary);
+  const translate=translator(dictionary,{decimalComma:language==='tr'||language==='ru'});
   api.t=text=>translate(text)??text;
   const observer=new win.MutationObserver(records=>{
    for(const r of records){

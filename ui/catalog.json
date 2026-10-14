@@ -925,7 +925,7 @@
       "default": 0,
       "resetCommand": "pickupradius 0",
       "lifetime": "session",
-      "description": "Limit automatic collection to 1–60 game units. Zero collects all loaded drops, as in earlier versions. Item tooltips pause collection.",
+      "description": "Limits auto pickup to 1–60 game units around your character. At 0, every drop the game has loaded in the current area is collected. Auto pickup pauses while an item tooltip is shown.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -972,7 +972,7 @@
       "default": 0.25,
       "resetCommand": "pickupinterval 0.25",
       "lifetime": "session",
-      "description": "How often automatic collection scans for drops: 0.25 s (default) up to 10 s. Longer intervals do less work per second. When the game reports a full inventory, equipment waits until you open and close your inventory; gold, potions, tomes, bones and materials continue.",
+      "description": "How often auto pickup scans for drops: from 0.25 s (default) to 10 s. Longer intervals reduce system load. When the game reports a full inventory, equipment pickup pauses until you open and close your inventory; gold, potions, tomes, bones, materials and everything else continue to be collected.",
       "currentSource": null,
       "requirements": [
         "offline"

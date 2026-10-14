@@ -135,7 +135,7 @@
     ],
     "autopickup": [
       "Auto pickup",
-      "Collects nearby items, gold, potions, tomes and bones through the game's normal pickup actions. Pauses while you inspect an item."
+      "Automatically collects items and resources by your Pickup mode and Pickup category choices. Pauses while you inspect an item."
     ],
     "density_read": [
       "Density diagnostics",
@@ -471,7 +471,7 @@
     ],
     "pickup_radius": [
       "Auto pickup radius",
-      "Limit automatic collection to 1–60 game units. Zero collects all loaded drops, as in earlier versions. Item tooltips pause collection."
+      "Limits auto pickup to 1–60 game units around your character. At 0, every drop the game has loaded in the current area is collected. Auto pickup pauses while an item tooltip is shown."
     ],
     "summons_read": [
       "Live summoned allies",
@@ -515,7 +515,7 @@
     ],
     "pickup_interval": [
       "Auto pickup interval",
-      "How often automatic collection scans for drops: 0.25 s (default) up to 10 s. Longer intervals do less work per second. When the game reports a full inventory, equipment waits until you open and close your inventory; gold, potions, tomes, bones and materials continue."
+      "How often auto pickup scans for drops: from 0.25 s (default) to 10 s. Longer intervals reduce system load. When the game reports a full inventory, equipment pickup pauses until you open and close your inventory; gold, potions, tomes, bones, materials and everything else continue to be collected."
     ],
     "pickup_now": [
       "Pick up everything now",

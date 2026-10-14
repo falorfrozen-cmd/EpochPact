@@ -35,6 +35,24 @@ test('a value that is itself interface text is translated too',()=>{
  assert.equal(t('Default: rank bonus'),'Varsayılan: rütbe bonusu');
 });
 
+test('Turkish and Russian write decimal values with a comma and translate the unit',()=>{
+ const dictionary={'{0}–{1}{2} · Default: {3}':'{0}–{1}{2} · По умолчанию: {3}','s':'с','game units':'игровых ед.','Speed ×{0}':'Скорость ×{0}'};
+ const ru=i18n.translator(dictionary,{decimalComma:true});
+ assert.equal(ru('0.25–10 s · Default: 0.25'),'0,25–10 с · По умолчанию: 0,25');
+ assert.equal(ru('0–60 game units · Default: 0'),'0–60 игровых ед. · По умолчанию: 0');
+ assert.equal(ru('Speed ×1.5'),'Скорость ×1,5');
+ assert.equal(ru('s'),'с','the unit after a number field');
+ const en=i18n.translator(dictionary);
+ assert.equal(en('0.25–10 s · Default: 0.25'),'0.25–10 с · По умолчанию: 0.25','without the option the number stays as written');
+ assert.equal(ru('Speed ×1.2.3'),'Скорость ×1.2.3','only a plain decimal number changes');
+ const source=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/i18n-source.json'),'utf8'));
+ assert.ok(source.includes('s'),'the seconds unit is in the text list');
+ for(const language of ['tr','ru']){
+  const d=JSON.parse(fs.readFileSync(path.join(__dirname,`../ui/i18n-${language}.json`),'utf8'));
+  assert.equal(d.s,language==='tr'?'sn':'с');
+ }
+});
+
 test('lines and " · " parts are translated one by one when the whole is unknown',()=>{
  const t=i18n.translator({'Character: {0}':'Karakter: {0}','Loaded offline character':'Yüklü çevrimdışı karakter','{0} selected T7 affixes':'{0} seçili T7 affix','Midpoint rolls':'Orta değerler','No materials are consumed.':'Malzeme harcanmaz.','Tab {0}':'Sekme {0}'});
  assert.equal(t('Character: Loaded offline character\nWraith Dagger\n3 selected T7 affixes · 1 odd part · Midpoint rolls\n\nNo materials are consumed.'),
