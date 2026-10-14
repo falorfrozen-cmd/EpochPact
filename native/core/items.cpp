@@ -354,23 +354,30 @@ struct ActiveList {
 ActiveList g_activeLists[5];
 
 // A snapshot of one managed List<T>: element pointers are copied out first, because the
-// pickup calls remove elements from the list while it is being walked.
+// pickup calls remove elements from the list while it is being walked. At most `cap`
+// entries are looked at; a longer list continues from `cursor` on the next scan
+// (rules::NextWindow), so items behind hundreds of others are still reached.
 template <typename F>
-int SnapshotList(void* listObj, void** out, int cap, F&& keep) {
+int SnapshotList(void* listObj, void** out, int cap, F&& keep, unsigned long long* cursor = nullptr) {
     if (!listObj) return 0;
     void* arr = *reinterpret_cast<void* const*>(static_cast<const char*>(listObj) + kListItems);
     int32_t size = *reinterpret_cast<int32_t*>(static_cast<char*>(listObj) + kListSize);
     if (!arr || size <= 0) return 0;
     const int32_t length = *reinterpret_cast<int32_t*>(static_cast<char*>(arr) + kArrayLength);
     if (size > length) size = length;  // never trust the count alone
-    if (size > cap) size = cap;
+    unsigned long long fromStart = 0;
+    const auto window = rules::NextWindow(size, cap, cursor ? *cursor : fromStart);
     int n = 0;
-    for (int32_t i = 0; i < size; ++i) {
+    for (int32_t k = 0; k < window.count; ++k) {
+        const int32_t i = (window.start + k) % size;
         if (void* elem = *reinterpret_cast<void* const*>(static_cast<char*>(arr) + kArrayFirst + 8 * i))
             if (keep(elem)) out[n++] = elem;
     }
     return n;
 }
+// Where the next scan of each list continues (main thread only): ground item
+// labels, then gold, potions, XP tomes, Favor tomes and bones.
+unsigned long long g_labelCursor = 0, g_listCursor[5]{};
 
 // LE.Factions pickupables: Memory Amber, Soul Embers and XP motes. The game
 // collects them when the player walks close; PickupObject is its own call.
@@ -443,7 +450,7 @@ PickResult PickAll(int maxCalls = 8, bool everywhere = false) {
                     labelCount = SnapshotList(inner, labels, kMaxPerScan, [&](void* label) {
                         ++labelSeen;
                         return *reinterpret_cast<void* const*>(label) == g_groundItemLabel && (everywhere || InRadius(label,player,true)) && smartloot::Accept(label);
-                    });
+                    }, &g_labelCursor);
                     for (int i = 0; i < labelCount; ++i) labelMaterial[i] = smartloot::IsMaterial(labels[i]);
                 }
             }
@@ -455,7 +462,7 @@ PickResult PickAll(int maxCalls = 8, bool everywhere = false) {
                     for (int i = 0; i < 5; ++i) {
                         if (!smartloot::Category(i) || !g_activeLists[i].pick || !g_activeLists[i].offset) continue;
                         void* listObj = *reinterpret_cast<void* const*>(static_cast<char*>(mgr) + g_activeLists[i].offset);
-                        *count[i] = SnapshotList(listObj, out[i], kMaxPerScan, [&](void* object) { return everywhere || InRadius(object,player,false); });
+                        *count[i] = SnapshotList(listObj, out[i], kMaxPerScan, [&](void* object) { return everywhere || InRadius(object,player,false); }, &g_listCursor[i]);
                     }
                 }
             }

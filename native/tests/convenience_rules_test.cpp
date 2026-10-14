@@ -43,6 +43,14 @@ int main(){
     ClassifyBudget slow{0,100};Check(slow.Next(1099));Check(!slow.Next(1100));
     Check(TriggerRetryMs(0)==0&&TriggerRetryMs(1)==2000&&TriggerRetryMs(2)==4000&&TriggerRetryMs(3)==8000);
     Check(TriggerRetryMs(4)==UINT64_MAX&&TriggerRetryMs(100)==UINT64_MAX&&TriggerRetryMs(-1)==0);
+    // Interaction areas.
+    Check(InArea(2.9,0,0,3,0)&&!InArea(3.1,0,0,3,0)&&InArea(2,0,2,3,0)&&!InArea(2.2,0,2.2,3,0));  // circle on the ground
+    Check(InArea(2.9,0,2.9,3,1)&&!InArea(3.1,0,0,3,1));                                            // square corners count
+    Check(InArea(1,2.9,0,3,0)&&!InArea(1,3.1,0,3,0)&&InArea(1,9,0,10,0)&&!InArea(1,11,0,10,0));  // another floor stays out
+    Check(!InArea(0,0,0,0,0)&&!InArea(0,0,0,-1,0)&&!InArea(std::numeric_limits<double>::quiet_NaN(),0,0,3,0));
+    Check(AreaPoints(0)==48&&AreaPoints(1)==4);
+    {double x=0,z=0;AreaPoint(1,5,2,x,z);Check(x==5&&z==5);AreaPoint(0,2,12,x,z);Check(std::abs(x)<1e-9&&std::abs(z-2)<1e-9);
+        for(int i=0;i<48;++i){AreaPoint(0,7,i,x,z);Check(std::abs(std::sqrt(x*x+z*z)-7)<1e-9);}}
     // Damage by type: proportional to the hit's own parts, summing to the applied damage.
     {
         const float nan=std::numeric_limits<float>::quiet_NaN(),inf=std::numeric_limits<float>::infinity();

@@ -1,5 +1,6 @@
-/* Always-on-top damage window: reads the damage session once a second and can
-   start, stop or reset it. A session left running when the window closed
+/* Always-on-top damage window: reads the damage session once a second while it
+   runs (every few seconds otherwise, so a session started or stopped in
+   EpochPact's main window shows up here too) and can start, stop or reset it. A session left running when the window closed
    starts again once the game is ready the next time the window opens.
    Nothing else is sent to the game. */
 (function(){
@@ -14,7 +15,7 @@
  if(!Array.isArray(options.hidden))options.hidden=[];
  options.hidden=options.hidden.filter(k=>typeof k==='string').slice(0,100);
  const save=()=>{try{localStorage.setItem(key,JSON.stringify(options));}catch{}};
- let state=null,busy=false;
+ let state=null,busy=false,lastRead=0;
  const transport=window.EpochSession.create({fetch:(...a)=>fetch(...a),sleep:ms=>new Promise(r=>setTimeout(r,ms)),isReadOnly:p=>p.operation==='read'});
  // One switch per row the session has (ally types, the allies' total, you);
  // rebuilt only when that list changes, so an open menu keeps its focus.
@@ -38,7 +39,7 @@
    if(r?.ok){state=r;render();}
    else $('#damage-status').textContent=r?.error||'Waiting for an offline character…';
   }catch{$('#damage-status').textContent='EpochPact is not responding.';}
-  finally{busy=false;}
+  finally{busy=false;lastRead=Date.now();}
  }
  async function start(){
   window.EpochOverlay.install(window,{options,save,minimum:[260,120]});
@@ -54,7 +55,7 @@
   $('#damage-toggle').addEventListener('click',()=>{const action=state?.active?'stop':'start';options.running=action==='start';save();void call(action);});
   $('#damage-reset').addEventListener('click',()=>void call('reset'));
   await call();
-  setInterval(()=>{if(!document.hidden&&state?.active)void call();},1000);
+  setInterval(()=>{if(!document.hidden&&(state?.active||Date.now()-lastRead>=3000))void call();},1000);
   // Resume once per window opening; a later Stop elsewhere is respected.
   let resumed=false;
   const resume=async()=>{if(resumed||!options.running||busy)return;if(!state)await call();if(!state)return;resumed=true;if(!state.active)await call('start');};

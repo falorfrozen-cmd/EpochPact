@@ -825,6 +825,120 @@
       "documentation": null
     },
     {
+      "id": "qol_arearadius",
+      "group": "world",
+      "label": "Interaction radius",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "qolarea radius {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 1,
+          "maximum": 30
+        }
+      ],
+      "default": 3,
+      "resetCommand": "qolarea radius 3",
+      "lifetime": "session",
+      "description": "How near a chest, shrine or portal must be before it is used: this many game units around it (3 is the earlier fixed distance). The height may differ by up to the same distance, at least 3, so objects on another floor stay out.",
+      "currentSource": "liveState.qolread.settings.arearadius.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "qol_areashape",
+      "group": "world",
+      "label": "Interaction area shape",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "qolarea shape {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1,
+          "choices": [
+            0,
+            1
+          ],
+          "choiceLabels": [
+            "Circle",
+            "Square"
+          ]
+        }
+      ],
+      "default": 0,
+      "resetCommand": "qolarea shape 0",
+      "lifetime": "session",
+      "description": "The area around each chest, shrine or portal: a circle, or a square.",
+      "currentSource": "liveState.qolread.settings.areashape.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "qol_areashow",
+      "group": "world",
+      "label": "Show interaction areas",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "qolarea show {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "qolarea show 0",
+      "lifetime": "session",
+      "description": "Draw the area around each chest, shrine and portal that will still be used, within 60 game units. An outline disappears once the object is used.",
+      "currentSource": "liveState.qolread.settings.areashow.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "qol_areacolor",
+      "group": "world",
+      "label": "Interaction area colour",
+      "widget": "selector",
+      "availability": "implemented",
+      "commandTemplate": "qolarea color {color}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "color",
+          "type": "single_token"
+        }
+      ],
+      "default": "3FD0FF",
+      "resetCommand": "qolarea color 3FD0FF",
+      "lifetime": "session",
+      "description": "Colour of the drawn areas (six hexadecimal digits, for example 3FD0FF).",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "qol_chests",
       "group": "world",
       "label": "Open nearby chests",
@@ -844,7 +958,7 @@
       "default": 0,
       "resetCommand": "qolset chests 0",
       "lifetime": "session",
-      "description": "Open eligible world chests within 3 game units, through the normal interaction. Locked and used chests are skipped.",
+      "description": "Open eligible world chests within the interaction radius, through the normal interaction. Locked and used chests are skipped.",
       "currentSource": "liveState.qolread.settings.chests.value",
       "requirements": [
         "offline"
@@ -871,7 +985,7 @@
       "default": 0,
       "resetCommand": "qolset shrines 0",
       "lifetime": "session",
-      "description": "Activate eligible shrines within 3 game units. Native conditions and the normal shrine buff are kept.",
+      "description": "Activate eligible shrines within the interaction radius. Native conditions and the normal shrine buff are kept.",
       "currentSource": "liveState.qolread.settings.shrines.value",
       "requirements": [
         "offline"
@@ -898,7 +1012,7 @@
       "default": 0,
       "resetCommand": "qolset portals 0",
       "lifetime": "session",
-      "description": "Arm a single automatic portal interaction within 3 game units. Waits 10 seconds after loading and turns off after use to prevent travel loops.",
+      "description": "Arm a single automatic portal interaction within the interaction radius. Waits 10 seconds after loading and turns off after use to prevent travel loops.",
       "currentSource": "liveState.qolread.settings.portals.value",
       "requirements": [
         "offline"
@@ -33443,7 +33557,7 @@
     ]
   },
   "counts": {
-    "controls": 168,
+    "controls": 172,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

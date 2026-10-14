@@ -876,6 +876,51 @@ test('a customised tier palette is pushed once per character and the default pal
  await h.run('applyTierPalette()');assert.equal(h.calls.length,1);
  store['epochpact.tier-palette.v1']='["bad"]';assert.equal(h.run('storedTierPalette()[6]'),'FF0044');
 });
+test('the World page offers the interaction area and sends only a custom area colour',async()=>{
+ const h=automaticHarness();const store={};
+ h.context.localStorage={getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=String(v);},removeItem:k=>{delete store[k];}};
+ h.run(`values={};page='world';shippingRenderPage()`);
+ const html=h.element('#page-content').innerHTML;
+ for(const id of ['qol_arearadius','qol_areashape','qol_areashow'])assert.ok(html.includes(`="${id}"`),id);
+ assert.ok(html.includes('data-area-color value="#3FD0FF"'));
+ assert.equal(h.calls.length,0,'rendering sends nothing');
+ assert.ok(h.run('automaticSetting(controlById("qol_arearadius"))'));
+ assert.equal(h.run('unitFor(controlById("qol_arearadius"))'),' game units');
+ h.run(`connected.sessionKey='k'`);await h.run('applyAreaColor()');assert.equal(h.calls.length,0,'the default colour sends nothing');
+ store['epochpact.area-color.v1']=JSON.stringify('ff3366');h.replies.push({ok:true});await h.run('applyAreaColor()');
+ assert.deepEqual(h.calls.map(c=>[c.id,c.args.color]),[['qol_areacolor','FF3366']]);
+ store['epochpact.area-color.v1']='"bad"';assert.equal(h.run('storedAreaColor()'),'3FD0FF');
+});
+test('a panel or card hidden with its × stays hidden and Settings lists it to show again',async()=>{
+ const h=automaticHarness();const store={};
+ h.context.localStorage={getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=String(v);},removeItem:k=>{delete store[k];}};
+ const part=(isCard,inner)=>({id:'',hidden:false,dataset:{},html:'',matches:s=>isCard&&s==='article.control-card',
+  querySelector(s){if(s===':scope > [data-hide-part]')return this.html.includes('data-hide-part')?{}:null;return inner(s);},
+  insertAdjacentHTML(_,v){this.html+=v;}});
+ const card=part(true,s=>s==='form[data-id]'?{dataset:{id:'loot_affixes'}}:s==='h2,h3,.control-title'?{textContent:'Wanted T7 affixes'}:null);
+ const panel=part(false,s=>s==='h2'?{textContent:' Filters '}:null);
+ const content=h.element('#page-content');content.querySelectorAll=()=>[card,panel];
+ h.run(`page='loot';applyHiddenParts();applyHiddenParts()`);
+ assert.equal(card.dataset.part,'card:loot_affixes');assert.equal(panel.dataset.part,'panel:loot:Filters');
+ assert.equal((card.html.match(/data-hide-part/g)||[]).length,1,'one × per part');assert.ok(!card.hidden&&!panel.hidden);
+ const click=b=>Promise.all(content.listeners.click.map(fn=>fn({target:{closest:s=>s==='button'?b:null}})));
+ await click({disabled:false,dataset:{hidePart:''},parentElement:card});
+ assert.ok(card.hidden);assert.ok(JSON.parse(store['epochpact.hidden-parts.v1'])['card:loot_affixes'].label.endsWith('Wanted T7 affixes'));
+ card.hidden=false;h.run('applyHiddenParts()');assert.ok(card.hidden,'stays hidden on the next render');assert.ok(!panel.hidden);
+ h.run(`page='settings'`);assert.ok(h.run('hiddenPartsPanel()').includes('data-show-part="card:loot_affixes"'));
+ store['epochpact.hidden-parts.v1']='{}';assert.ok(h.run('hiddenPartsPanel()').includes('Nothing is hidden.'));
+ assert.equal(h.calls.length,0,'hiding parts sends nothing to the game');
+});
+test('a new version opens its window once by itself and a manual check always opens it',async()=>{
+ const h=harness();const store={};let opened=0,latest='0.1.2-dev.31';
+ h.context.localStorage={getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=String(v);},removeItem:k=>{delete store[k];}};
+ h.context.getJson=async()=>({ok:true,updateAvailable:true,latest});h.context.openUpdateDialog=async()=>{opened++;};
+ await h.run('checkForUpdate()');assert.equal(opened,1);assert.ok(h.element('#update-notice').innerHTML.includes('v0.1.2-dev.31'));
+ await h.run('checkForUpdate()');assert.equal(opened,1,'the same version does not open again');
+ assert.ok(!h.element('#update-notice').hidden,'the sidebar notice stays');
+ await h.run('checkForUpdate(0,true)');assert.equal(opened,2,'Check now always opens it');
+ latest='0.1.2-dev.32';await h.run('checkForUpdate()');assert.equal(opened,3,'a newer version opens once more');
+});
 test('loot filter files panel lists filters and routes export, duplicate and backup to the launcher',async()=>{
  const h=automaticHarness();h.run(`page='loot'`);
  h.replies.push({ok:true,filters:[{file:'Sorcerer.xml',name:'Sorcerer <b>',rules:4,enabled:3,modified:1760000000,valid:true},{file:'Broken.xml',name:'Broken',valid:false,error:'damaged',rules:0,enabled:0,modified:1760000000}]});

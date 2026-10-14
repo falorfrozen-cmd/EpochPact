@@ -459,15 +459,31 @@
     ],
     "qol_chests": [
       "Open nearby chests",
-      "Open eligible world chests within 3 game units, through the normal interaction. Locked and used chests are skipped."
+      "Open eligible world chests within the interaction radius, through the normal interaction. Locked and used chests are skipped."
     ],
     "qol_shrines": [
       "Activate nearby shrines",
-      "Activate eligible shrines within 3 game units. Native conditions and the normal shrine buff are kept."
+      "Activate eligible shrines within the interaction radius. Native conditions and the normal shrine buff are kept."
     ],
     "qol_portals": [
       "Use the next nearby portal",
-      "Arm a single automatic portal interaction within 3 game units. Waits 10 seconds after loading and turns off after use to prevent travel loops."
+      "Arm a single automatic portal interaction within the interaction radius. Waits 10 seconds after loading and turns off after use to prevent travel loops."
+    ],
+    "qol_arearadius": [
+      "Interaction radius",
+      "How near a chest, shrine or portal must be before it is used: this many game units around it (3 is the earlier fixed distance). The height may differ by up to the same distance, at least 3, so objects on another floor stay out."
+    ],
+    "qol_areashape": [
+      "Interaction area shape",
+      "The area around each chest, shrine or portal: a circle, or a square."
+    ],
+    "qol_areashow": [
+      "Show interaction areas",
+      "Draw the area around each chest, shrine and portal that will still be used, within 60 game units. An outline disappears once the object is used."
+    ],
+    "qol_areacolor": [
+      "Interaction area colour",
+      "Colour of the drawn areas (six hexadecimal digits, for example 3FD0FF)."
     ],
     "qol_shadows": [
       "Disable shadows",

@@ -11,6 +11,12 @@ the last item cached by the game's tooltip system does not keep collection pause
 Manual clicks remain available. Automatic collection is limited to eight pickups
 per scan and uses the existing loot filter and category selections.
 
+Each scan looks at up to 256 ground labels (and 256 entries of each other drop
+list). With more on the ground, for example after a large Prophecy or a boss, the
+next scan continues where the previous one stopped, so every drop is reached
+within a few scans and a long list of unwanted items no longer stops collection
+until the next zone. The work per scan stays the same.
+
 The radius slider accepts 0–60 game units. `0` preserves collection of all loaded
 drops; a positive value requires a valid player position and only collects drops
 inside that distance. It does not load distant or unloaded objects.
@@ -101,8 +107,19 @@ adds backups and file sharing on top of that.
 
 ## World & Exploration
 
-Chest and shrine switches use the normal condition handler within three game
-units. Used or unavailable interactions are skipped. An object the game still
+Chest and shrine switches use the normal condition handler within the
+**Interaction radius** (1–30 game units, 3 by default, the earlier fixed
+distance). **Interaction area shape** chooses a circle or a square around each
+object; the height may differ by up to the same distance (at least 3), so
+objects on another floor stay out. Used or unavailable interactions are skipped.
+
+**Show interaction areas** draws the area on the ground around every chest,
+shrine and portal within 60 game units that will still be used (at most six new
+outlines per quarter second); an outline disappears once its object is used.
+**Interaction area colour** is remembered on this device and sent again when a
+character is ready. If the game cannot draw an outline, the switch turns itself
+off and `qolread` reports the reason in `area.error`. `qolarea radius|shape|show|color`
+sets these values; `qolread` reports them in `area`. An object the game still
 offers after a trigger is tried again after 2, 4 and 8 seconds and then left
 alone. Collection and interactions pause while inspecting an item or using the
 inventory, stash or vendor.
@@ -300,8 +317,10 @@ once.
   also saves its ZIP in the same folder.
 - **Version:** the sidebar shows the EpochPact version. At startup the app reads
   the latest GitHub release of EpochPact once (no player data is sent) and shows
-  a "New version · What's new" link when one exists; Settings → Version turns it
-  off and has **Check now**.
+  a "New version · What's new" link when one exists. The first time a version is
+  found, its What's new window also opens by itself, once; after that only the
+  link stays. Settings → Version turns the check off and has **Check now**, which
+  always opens the window.
 - **Install update:** What's new shows the patch notes of every newer release
   and **Install update**. The player ZIP is downloaded only from that GitHub
   release (a dropped connection resumes); its SHA-256 must equal the digest
@@ -318,6 +337,13 @@ once.
   be somewhere you can change (not Program Files).
 - **Scroll position:** each section reopens where it was left (Settings →
   Navigation and favorites; on by default).
+- **Hide parts of a page:** pointing at a panel or card shows a small × in its
+  corner; selecting it hides that panel or card on this device. **Settings →
+  Hidden parts** lists everything hidden with **Show** and **Show all**. Hiding
+  only removes it from the page; a setting keeps the value it has.
+- **Text size:** Settings → Text size makes everything in the app window 90–150 %
+  as large (remembered on this device). The loot and damage windows keep their
+  own text size in their ⚙.
 - **Game setup** has its own section; Overview shows a one-line status with
   Launch offline or a link to Game setup when something is needed.
 
@@ -335,7 +361,9 @@ damage ("in combat"). Values stay after Stop, when you switch windows or after
 allies die, until **Reset**. **Copy as CSV** copies the table; **Open damage
 window** shows it in a small always-on-top window (windowed or borderless game)
 with Start/Stop/Reset in its bar and the same window options as the loot
-window. Allies are found once a second.
+window. A session started or reset in the main window appears in the damage
+window within about three seconds, and the other way round. Allies are found
+once a second.
 
 **Damage type** (on the Summons page and in the damage window's ⚙) shows one
 type only — Physical, Fire, Cold, Lightning, Necrotic, Void or Poison — for

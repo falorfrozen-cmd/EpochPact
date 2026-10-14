@@ -101,10 +101,19 @@ def controls():
             reset="buildset "+key+" "+str(default), current="liveState.buildread.settings."+key+".value", doc="docs/build-controls.md")
         if key=="blessingoptions":items[-1]["parameters"][0]["choices"]=[0,3,4,5]
     add("qol_read", "world", "Convenience settings", "read", "qolread", "read_only", "Read the current world and display controls.")
+    add("qol_arearadius","world","Interaction radius","number","qolarea radius {value}","session","How near a chest, shrine or portal must be before it is used: this many game units around it (3 is the earlier fixed distance). The height may differ by up to the same distance, at least 3, so objects on another floor stay out.",
+        params=[parameter("value","number",1,30)],default=3,reset="qolarea radius 3",current="liveState.qolread.settings.arearadius.value",doc="docs/player-conveniences.md")
+    add("qol_areashape","world","Interaction area shape","number","qolarea shape {value}","session","The area around each chest, shrine or portal: a circle, or a square.",
+        params=[parameter("value","integer",0,1,choices=[0,1])],default=0,reset="qolarea shape 0",current="liveState.qolread.settings.areashape.value",doc="docs/player-conveniences.md")
+    items[-1]["parameters"][0]["choiceLabels"]=["Circle","Square"]
+    add("qol_areashow","world","Show interaction areas","toggle","qolarea show {value}","session","Draw the area around each chest, shrine and portal that will still be used, within 60 game units. An outline disappears once the object is used.",
+        params=[parameter("value","integer",0,1)],default=0,reset="qolarea show 0",current="liveState.qolread.settings.areashow.value",doc="docs/player-conveniences.md")
+    add("qol_areacolor","world","Interaction area colour","selector","qolarea color {color}","session","Colour of the drawn areas (six hexadecimal digits, for example 3FD0FF).",
+        params=[parameter("color","single_token")],default="3FD0FF",reset="qolarea color 3FD0FF",doc="docs/player-conveniences.md")
     for key,group,label,description in (
-        ("chests","world","Open nearby chests","Open eligible world chests within 3 game units, through the normal interaction. Locked and used chests are skipped."),
-        ("shrines","world","Activate nearby shrines","Activate eligible shrines within 3 game units. Native conditions and the normal shrine buff are kept."),
-        ("portals","world","Use the next nearby portal","Arm a single automatic portal interaction within 3 game units. Waits 10 seconds after loading and turns off after use to prevent travel loops."),
+        ("chests","world","Open nearby chests","Open eligible world chests within the interaction radius, through the normal interaction. Locked and used chests are skipped."),
+        ("shrines","world","Activate nearby shrines","Activate eligible shrines within the interaction radius. Native conditions and the normal shrine buff are kept."),
+        ("portals","world","Use the next nearby portal","Arm a single automatic portal interaction within the interaction radius. Waits 10 seconds after loading and turns off after use to prevent travel loops."),
         ("shadows","display","Disable shadows","Disable rendered shadows for this session. Your saved graphics settings are kept."),
         ("reflections","display","Disable reflections","Disable real-time reflection probes and screen-space reflection effects. Existing graphics preferences are restored when disabled."),
         ("bloom","display","Disable bloom","Disable bloom in active scene post-processing profiles, without changing saved graphics preferences."),

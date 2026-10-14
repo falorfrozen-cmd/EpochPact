@@ -199,6 +199,33 @@ int main() {
     Check(now.find("\"ok\":true") != std::string::npos && !ep::items::g_inventoryFull.load() && pickups > slowBefore,
           "explicit pick-up-now clears the full pause and collects every loaded drop");
     ep::items::SetInterval(0.25);
+    {
+        // A big drop: 300 labels, the first 270 unwanted. Each scan still looks at
+        // no more than 256, but continues where the last one stopped.
+        struct BigArray { void* cls{}; void* monitor{}; void* bounds{}; uintptr_t length = 300; void* data[300]{}; };
+        struct BigList { void* cls{}; void* monitor{}; void* items{}; int count = 300; };
+        static BigArray big; static BigList bigList; static Label many[300];
+        for (int i = 0; i < 300; ++i) big.data[i] = &many[i];
+        bigList.items = &big;
+        auto wanted = [&](void* label) { return static_cast<Label*>(label) - many >= 270; };
+        void* out[256]; unsigned long long cursor = 0;
+        const int first = ep::items::SnapshotList(&bigList, out, 256, wanted, &cursor);
+        const int second = ep::items::SnapshotList(&bigList, out, 256, wanted, &cursor);
+        Check(first == 0 && second == 30, "items behind 256 unwanted labels are reached on the next scan");
+        int examined = 0; cursor = 0;
+        for (int scan = 0; scan < 3; ++scan) ep::items::SnapshotList(&bigList, out, 256, [&](void*) { ++examined; return false; }, &cursor);
+        Check(examined == 3 * 256, "every scan still looks at no more than 256 labels");
+        unsigned long long fromStart = 0;
+        Check(ep::items::SnapshotList(&bigList, out, 256, wanted) == 0, "without a cursor a scan starts at the front, as before");
+        auto w = ep::items::rules::NextWindow(300, 256, fromStart);
+        auto w2 = ep::items::rules::NextWindow(300, 256, fromStart);
+        Check(w.start == 0 && w.count == 256 && w2.start == 256 && w2.count == 256 && fromStart == 212, "the window wraps around the list");
+        unsigned long long small = 77;
+        auto w3 = ep::items::rules::NextWindow(2, 256, small);
+        Check(w3.start == 0 && w3.count == 2 && small == 0, "a short list is read whole from the front");
+        unsigned long long empty = 5;
+        Check(ep::items::rules::NextWindow(0, 256, empty).count == 0 && empty == 0, "an empty list resets the cursor");
+    }
     std::printf("items_test: %d/%d passed\n", passed, total);
     return total - passed;
 }

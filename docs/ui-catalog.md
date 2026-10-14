@@ -498,6 +498,10 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
 | `qol_read` — Convenience settings | `qolread` | — | — | Okuma |
+| `qol_arearadius` — Interaction radius | `qolarea radius {value}` | value: 1…30 | 3 | Oturum |
+| `qol_areashape` — Interaction area shape | `qolarea shape {value}` | value: 0…1 | 0 | Oturum |
+| `qol_areashow` — Show interaction areas | `qolarea show {value}` | value: 0…1 | 0 | Oturum |
+| `qol_areacolor` — Interaction area colour | `qolarea color {color}` | color: single_token | 3FD0FF | Oturum |
 | `qol_chests` — Open nearby chests | `qolset chests {value}` | value: 0…1 | 0 | Oturum |
 | `qol_shrines` — Activate nearby shrines | `qolset shrines {value}` | value: 0…1 | 0 | Oturum |
 | `qol_portals` — Use the next nearby portal | `qolset portals {value}` | value: 0…1 | 0 | Oturum |
@@ -505,9 +509,9 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `map_read` — Map display status | `mapread` | — | — | Okuma |
 
 - **Convenience settings:** Read the current world and display controls.
-- **Open nearby chests:** Open eligible world chests within 3 game units, through the normal interaction. Locked and used chests are skipped. Reset: `qolset chests 0`.
-- **Activate nearby shrines:** Activate eligible shrines within 3 game units. Native conditions and the normal shrine buff are kept. Reset: `qolset shrines 0`.
-- **Use the next nearby portal:** Arm a single automatic portal interaction within 3 game units. Waits 10 seconds after loading and turns off after use to prevent travel loops. Reset: `qolset portals 0`.
+- **Open nearby chests:** Open eligible world chests within the interaction radius, through the normal interaction. Locked and used chests are skipped. Reset: `qolset chests 0`.
+- **Activate nearby shrines:** Activate eligible shrines within the interaction radius. Native conditions and the normal shrine buff are kept. Reset: `qolset shrines 0`.
+- **Use the next nearby portal:** Arm a single automatic portal interaction within the interaction radius. Waits 10 seconds after loading and turns off after use to prevent travel loops. Reset: `qolset portals 0`.
 - **Reveal zone map:** Display the whole minimap/overlay using a fog shader substitution. Does not change exploration saves or spawn enemies. Off restores the current native fog texture. API: `tools.loot_crafting_backend.reveal_map(value)`. Reset: `mapreveal 0`.
 - **Map display status:** Read map visibility and active hooks. API: `tools.loot_crafting_backend.map_read()`.
 

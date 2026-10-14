@@ -243,7 +243,7 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','summonread','inventoryread','inventoryaction ','affixinfo ')):
+        if command.startswith(('qolread','qolset ','qolarea ','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','summonread','inventoryread','inventoryaction ','affixinfo ')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})
@@ -414,6 +414,26 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(len(self.commands), sent)
         self.bridge.execute('tier_rule_color', {}, 'reset')
         self.assertEqual(self.commands[-1], 'tiercolor rule label')
+
+    def test_interaction_area_settings_stay_in_range_and_the_colour_is_six_hex_digits(self):
+        for value in ('3FD0FF', 'ff3366'):
+            self.bridge.execute('qol_areacolor', {'color': value})
+            self.assertEqual(self.commands[-1], f'qolarea color {value}')
+        sent = len(self.commands)
+        for bad in ('label', '#3FD0FF', '3FD0F', '3FD0FFF', '3FD0FF;status', 'blue'):
+            with self.subTest(color=bad), self.assertRaises(ValueError):
+                self.bridge.execute('qol_areacolor', {'color': bad})
+        for control, bad in (('qol_arearadius', 0), ('qol_arearadius', 31), ('qol_areashape', 2), ('qol_areashow', 2)):
+            with self.subTest(control=control, value=bad), self.assertRaises(ValueError):
+                self.bridge.execute(control, {'value': bad})
+        self.assertEqual(len(self.commands), sent)
+        for control, value, command in (('qol_arearadius', 8, 'qolarea radius 8'), ('qol_areashape', 1, 'qolarea shape 1'), ('qol_areashow', 1, 'qolarea show 1')):
+            self.bridge.execute(control, {'value': value})
+            self.assertEqual(self.commands[-1], command)
+        self.bridge.execute('qol_areacolor', {}, 'reset')
+        self.assertEqual(self.commands[-1], 'qolarea color 3FD0FF')
+        self.bridge.execute('qol_arearadius', {}, 'reset')
+        self.assertEqual(self.commands[-1], 'qolarea radius 3')
 
     def test_selector_resets_do_not_require_the_old_selection(self):
         for control, command in (('loot_mode', 'lootmode all'), ('loot_affixes', 'lootaffixes none')):

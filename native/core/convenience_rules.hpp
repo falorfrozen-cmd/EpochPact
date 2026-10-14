@@ -65,6 +65,22 @@ inline uint64_t TriggerRetryMs(int attempts){
     if(attempts>=MaximumTriggers)return UINT64_MAX;
     return 2000ull<<(attempts-1);
 }
+// How near a chest, shrine or portal must be: a circle or a square of `radius`
+// game units on the ground around it. The height may differ by up to
+// max(3, radius), so an object on another floor stays out.
+constexpr double MinimumAreaRadius=1,MaximumAreaRadius=30;
+inline bool InArea(double dx,double dy,double dz,double radius,int shape){
+    if(!std::isfinite(dx)||!std::isfinite(dy)||!std::isfinite(dz)||!std::isfinite(radius)||radius<=0)return false;
+    if(std::abs(dy)>std::max(3.0,radius))return false;
+    if(shape==1)return std::abs(dx)<=radius&&std::abs(dz)<=radius;
+    return dx*dx+dz*dz<=radius*radius;
+}
+// The drawn outline: 48 points on the circle, or the square's 4 corners.
+inline int AreaPoints(int shape){return shape==1?4:48;}
+inline void AreaPoint(int shape,double radius,int index,double& x,double& z){
+    if(shape==1){static constexpr int sx[4]{-1,1,1,-1},sz[4]{-1,-1,1,1};x=radius*sx[index&3];z=radius*sz[index&3];return;}
+    const double angle=6.283185307179586*index/AreaPoints(0);x=radius*std::cos(angle);z=radius*std::sin(angle);
+}
 // The damage meter splits a hit's applied damage by damage type (the game's
 // DamageType order: physical, fire, cold, lightning, necrotic, void, poison)
 // in proportion to the hit's own damage per type. Parts that are not finite

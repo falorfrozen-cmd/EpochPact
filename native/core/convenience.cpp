@@ -38,6 +38,10 @@ Setting chests{"chests"},shrines{"shrines"},portals{"portals"},shadows{"shadows"
 std::array<Setting*,9> settings{&chests,&shrines,&portals,&shadows,&reflections,&bloom,&motionBlur,&occlusion,&fog};
 game::MethodRef findObjects,componentTransform,transformPosition;
 std::atomic<bool> active{false};
+// Interaction area: how near a chest, shrine or portal must be (rules::InArea),
+// and an optional outline drawn around each one with the game's LineRenderer.
+std::atomic<double> areaRadius{3};std::atomic<int> areaShape{0};std::atomic<bool> areaShow{false};std::atomic<uint32_t> areaColor{0x3FD0FF};
+uint64_t areaVersion=1;  // shape, radius or colour changed: outlines are rebuilt
 uint64_t lastScan=0,portalGrace=0,faults=0,openedChests=0,usedShrines=0,usedPortals=0;
 game::Handle owner;
 std::map<std::string,std::unique_ptr<Root>> typeRoots;
@@ -252,7 +256,7 @@ std::vector<void*> Find(const char* image,const char* ns,const char* cls){
     return out;
 }
 Vec3 Position(void* component){Root t(Invoke(componentTransform,component));return Value<Vec3>(transformPosition,t.Get());}
-bool Near(void* object,const Vec3& p){auto v=Position(object);double x=v.x-p.x,y=v.y-p.y,z=v.z-p.z;return x*x+y*y+z*z<=9.;}
+bool Near(void* object,const Vec3& p){auto v=Position(object);return rules::InArea(v.x-p.x,v.y-p.y,v.z-p.z,areaRadius.load(),areaShape.load());}
 void* Ui(){void* ui=game::StaticObject(game::FindStaticField("LE.dll","","UIBase","instance"));if(!ui||!game::IsAlive(ui))throw std::runtime_error("Game interface unavailable.");return ui;}
 bool PanelOpen(){void* ui=Ui();return Value<bool>(Method(ui,"IsInventoryOpen",0),ui)||Value<bool>(Method(ui,"IsStashOpen",0),ui)||Value<bool>(Method(ui,"IsShopOpen",0),ui);}
 const il2cpp::Method* Signature(const char* cls,const char* name,std::initializer_list<const char*> parameters,const char* ns="UnityEngine",const char* image="UnityEngine.CoreModule.dll"){
@@ -808,6 +812,73 @@ void Interactions(void* actor){
     }
     maximumInteractionMicros=std::max(maximumInteractionMicros,Micros()-start);
 }
+// ---- Interaction area outlines: one LineRenderer per eligible chest, shrine
+// or portal within 60 game units, in the active scene (gone with the zone).
+struct Ring{std::unique_ptr<Root> object;uint64_t version=0;};
+std::map<void*,Ring> rings;  // candidate object -> its outline GameObject
+std::unique_ptr<Root> ringMaterial;std::string ringShader,areaError;
+uint64_t nextRingUpdate=0,ringsCreated=0;
+const il2cpp::Class* UnityClass(const char* name){return game::FindClass("UnityEngine.CoreModule.dll","UnityEngine",name);}
+void* RingMaterial(){
+    if(ringMaterial&&game::IsAlive(ringMaterial->Get()))return ringMaterial->Get();
+    for(const char* name:{"Sprites/Default","Unlit/Color","UI/Default","Hidden/Internal-Colored"}){
+        Root text(il2cpp::api().string_new(name));void* a[]{text.Get()};
+        void* shader=Invoke(Signature("Shader","Find",{"System.String"}),nullptr,a);
+        if(!shader||!game::IsAlive(shader))continue;
+        Root material(il2cpp::api().object_new(UnityClass("Material")));void* sa[]{shader};
+        Invoke(Signature("Material",".ctor",{"UnityEngine.Shader"}),material.Get(),sa);
+        ringMaterial=std::make_unique<Root>(material.Get());ringShader=name;return material.Get();
+    }
+    throw std::runtime_error("The game has no shader for the interaction area outline.");
+}
+void DestroyRing(Ring& ring){
+    void* object=ring.object?ring.object->Get():nullptr;
+    if(object&&game::IsAlive(object)){void* a[]{object};Invoke(Signature("Object","Destroy",{"UnityEngine.Object"}),nullptr,a);}
+    ring.object.reset();
+}
+void ClearRings(){for(auto& [object,ring]:rings)game::Guarded([&]{DestroyRing(ring);},nullptr);rings.clear();}
+void* CreateRing(void* target){
+    const Vec3 c=Position(target);const int shape=areaShape.load();const double radius=areaRadius.load();
+    void* material=RingMaterial();
+    Root name(il2cpp::api().string_new("EpochPact interaction area"));
+    Root go(il2cpp::api().object_new(UnityClass("GameObject")));void* na[]{name.Get()};
+    Invoke(Signature("GameObject",".ctor",{"System.String"}),go.Get(),na);
+    Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(UnityClass("LineRenderer"))));void* ta[]{type.Get()};
+    void* line=Invoke(Signature("GameObject","AddComponent",{"System.Type"}),go.Get(),ta);
+    if(!line)throw std::runtime_error("LineRenderer unavailable.");
+    auto call=[&](const char* cls,const char* method,void* value){void* a[]{value};Invoke(M(cls,method,1,"UnityEngine","UnityEngine.CoreModule.dll"),line,a);};
+    bool yes=true,no=false;float width=0.08f;int shadows=0;const int points=rules::AreaPoints(shape);
+    call("LineRenderer","set_useWorldSpace",&yes);call("LineRenderer","set_loop",&yes);
+    call("LineRenderer","set_startWidth",&width);call("LineRenderer","set_endWidth",&width);
+    int count=points;call("LineRenderer","set_positionCount",&count);
+    for(int i=0;i<points;++i){double x=0,z=0;rules::AreaPoint(shape,radius,i,x,z);Vec3 p{c.x+static_cast<float>(x),c.y+0.15f,c.z+static_cast<float>(z)};
+        int index=i;void* a[]{&index,&p};Invoke(M("LineRenderer","SetPosition",2,"UnityEngine","UnityEngine.CoreModule.dll"),line,a);}
+    struct Color{float r,g,b,a;};const uint32_t rgb=areaColor.load();
+    Color color{((rgb>>16)&255)/255.f,((rgb>>8)&255)/255.f,(rgb&255)/255.f,0.9f};
+    call("LineRenderer","set_startColor",&color);call("LineRenderer","set_endColor",&color);
+    call("Renderer","set_sharedMaterial",material);call("Renderer","set_shadowCastingMode",&shadows);call("Renderer","set_receiveShadows",&no);
+    return go.Get();
+}
+void UpdateRings(void* actor){
+    const auto now=GetTickCount64();if(now<nextRingUpdate)return;nextRingUpdate=now+250;
+    if(!areaShow.load()){if(!rings.empty())ClearRings();return;}
+    const Vec3 player=Position(actor);std::set<void*> keep;int created=0;
+    for(auto& entry:candidates){
+        auto* setting=entry.kind==0?&chests:entry.kind==1?&shrines:&portals;
+        void* object=entry.object->Get();
+        if(!setting->value||!object||!game::IsAlive(object)||entry.retryAfter==UINT64_MAX)continue;
+        const Vec3 at=Position(object);const double dx=at.x-player.x,dz=at.z-player.z;if(dx*dx+dz*dz>3600)continue;
+        if(entry.kind<2){void* handler=entry.handler?entry.handler->Get():nullptr;
+            if(handler&&game::IsAlive(handler)&&Value<bool>(Method(handler,"triggeredAndCannotTriggerMultipleTimes",0),handler))continue;}
+        keep.insert(object);
+        auto found=rings.find(object);
+        if(found!=rings.end()&&found->second.version==areaVersion&&found->second.object&&game::IsAlive(found->second.object->Get()))continue;
+        if(created>=6)continue;  // a few new outlines per update
+        if(found!=rings.end()){DestroyRing(found->second);rings.erase(found);}
+        rings.emplace(object,Ring{std::make_unique<Root>(CreateRing(object)),areaVersion});++created;++ringsCreated;
+    }
+    for(auto it=rings.begin();it!=rings.end();)if(!keep.contains(it->first)){DestroyRing(it->second);it=rings.erase(it);}else ++it;
+}
 std::string AllyType(void* actor){
     Root gameObject(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),actor));
     std::string name=Text(Invoke(M("Object","get_name",0,"UnityEngine","UnityEngine.CoreModule.dll"),gameObject.Get()));
@@ -932,10 +1003,18 @@ void Frame(){
 #else
             Interactions(actor);
 #endif
-        }
+            std::string ringWhy;
+            if(!game::Guarded([&]{UpdateRings(actor);},&ringWhy)){areaShow=false;areaError=ringWhy;game::Guarded([]{ClearRings();},nullptr);Log("interaction areas off: %s",ringWhy.c_str());}
+        }else if(!rings.empty())game::Guarded([]{ClearRings();},nullptr);
     },&why)){++faults;retryWork=now+5000;Log("convenience: %s",why.c_str());}
 }
 std::string State(){std::ostringstream out;out<<"{\"ok\":true,\"settings\":{";bool comma=false;for(auto* s:settings){if(comma)out<<',';comma=true;out<<Json(s->key)<<":{\"value\":"<<s->value<<",\"available\":"<<Boolean(mainthread::HookInstalled())<<'}';}
+    // The area settings as qol_area* controls read them.
+    out<<",\"arearadius\":{\"value\":"<<areaRadius.load()<<",\"available\":true},\"areashape\":{\"value\":"<<areaShape.load()
+       <<",\"available\":true},\"areashow\":{\"value\":"<<(areaShow.load()?1:0)<<",\"available\":true}";
+    {char hex[8];std::snprintf(hex,sizeof hex,"%06X",areaColor.load()&0xFFFFFF);
+     out<<"},\"area\":{\"radius\":"<<areaRadius.load()<<",\"shape\":"<<areaShape.load()<<",\"show\":"<<Boolean(areaShow.load())<<",\"color\":"<<Json(hex)
+        <<",\"outlines\":"<<rings.size()<<",\"outlinesCreated\":"<<ringsCreated<<",\"shader\":"<<Json(ringShader)<<",\"error\":"<<Json(areaError);}
     unsigned visible=0;for(auto& b:shortcuts)if(Value<bool>(Method(b.object->Get(),"get_activeInHierarchy",0),b.object->Get()))++visible;
     return out.str()+"},\"inventoryButtons\":"+std::to_string(shortcuts.size())+",\"inventoryButtonsVisible\":"+std::to_string(visible)+",\"frameUpdates\":"+std::to_string(frameUpdates)+",\"inventoryChecks\":"+std::to_string(inventoryChecks)+",\"inventorySearches\":"+std::to_string(inventorySearches)+",\"inventoryMicros\":"+std::to_string(inventoryMicros)+",\"maximumInventoryMicros\":"+std::to_string(maximumInventoryMicros)+",\"inventoryStatus\":"+Json(inventoryStatus)+",\"graphicsOverrides\":"+std::to_string(saved.size())+",\"chestsOpened\":"+std::to_string(openedChests)+",\"shrinesUsed\":"+std::to_string(usedShrines)+",\"portalsUsed\":"+std::to_string(usedPortals)+",\"interactionCandidates\":"+std::to_string(candidates.size())+",\"handlersQueued\":"+std::to_string(handlersQueued)+",\"handlersClassified\":"+std::to_string(handlersClassified)+",\"handlersPending\":"+std::to_string(pendingHandlers.size())+",\"interactionChecks\":"+std::to_string(interactionChecks)+",\"sceneSearches\":"+std::to_string(sceneSearches)+",\"maximumDiscoveryMicros\":"+std::to_string(maximumDiscoveryMicros)+",\"maximumInteractionMicros\":"+std::to_string(maximumInteractionMicros)+",\"lastStashTab\":"+std::to_string(lastStashTab)+",\"stashTabRestores\":"+std::to_string(stashRestores)+",\"stashTabRestoreFailures\":"+std::to_string(stashRestoreFailures)+",\"graphicsScans\":"+std::to_string(graphicsScans)+",\"activeScene\":"+std::to_string(ActiveScene())+",\"graphicsScene\":"+std::to_string(graphicsScene)+",\"interactionScene\":"+std::to_string(interactionScene)+",\"maximumGraphicsMicros\":"+std::to_string(maximumGraphicsMicros)+",\"faults\":"+std::to_string(faults)+"}";}
 }
@@ -992,6 +1071,16 @@ std::string Set(const std::string& key,double value){return Run([&]{
     if(key=="reflections"&&value)graphicsScene=ActiveScene();  // searched below, not again two seconds later
     try {if(key!="chests"&&key!="shrines"&&key!="portals")Graphics(key=="reflections"?kSearchProbes:key=="fog"?kSearchFogCameras:0);}
     catch(...){(*it)->value=previous;try{Graphics(0);}catch(...){++faults;}throw;}
+    return State();
+});}
+std::string SetArea(const std::string& key,const std::string& value){return Run([=]{
+    if(key=="radius"){double r=0;if(!statedit::Number(value,&r)||!(r>=rules::MinimumAreaRadius&&r<=rules::MaximumAreaRadius))throw std::runtime_error("use qolarea radius 1-30");areaRadius=r;}
+    else if(key=="shape"){if(value!="0"&&value!="1")throw std::runtime_error("use qolarea shape 0 (circle) or 1 (square)");areaShape=value=="1"?1:0;}
+    else if(key=="show"){if(value!="0"&&value!="1")throw std::runtime_error("use qolarea show 0 or 1");areaShow=value=="1";areaError.clear();}
+    else if(key=="color"){if(value.size()!=6||value.find_first_not_of("0123456789abcdefABCDEF")!=std::string::npos)throw std::runtime_error("use qolarea color RRGGBB");
+        areaColor=static_cast<uint32_t>(std::stoul(value,nullptr,16));}
+    else throw std::runtime_error("use qolarea radius|shape|show|color value");
+    ++areaVersion;nextRingUpdate=0;if(!areaShow)ClearRings();
     return State();
 });}
 std::string DamageSession(const std::string& action){return Run([=]{
@@ -1379,7 +1468,7 @@ std::string Test(const std::string& id,const std::string& action){
         }
         throw std::runtime_error("No visible inventory item with affixes.");
     }
-    if(action=="panels-close"){bool sound=false;void* a[]{&sound};Invoke(Method(ui,"closeShop",0),ui);Invoke(Method(ui,"closeStash",1),ui,a);Invoke(Method(ui,"closeInventory",0),ui);return State();}
+    if(action=="panels-close"){bool sound=false;void* a[]{&sound};Invoke(Method(ui,"closeShop",0),ui);Invoke(Method(ui,"closeStash",1),ui,a);Invoke(Method(ui,"closeInventory",0),ui);Invoke(Method(ui,"closeMap",0),ui);return State();}
     if(action.rfind("drop-gold-",0)==0){
         // Disposable test character only: one native gold pile at a distance.
         const int distance=std::stoi(action.substr(10));if(distance<1||distance>80)throw std::runtime_error("Unsupported gold distance.");
@@ -1879,14 +1968,16 @@ std::string Test(const std::string& id,const std::string& action){
         }
         return out.str()+"}}";
     }
-    if(action=="world"||action=="near-chest"||action=="near-shrine"||action=="near-portal"){
+    if(action=="world"||action=="near-chest"||action=="near-shrine"||action=="near-portal"||action.rfind("near-chest-",0)==0){
+        // near-chest-<distance>: stand that far from the nearest ready chest (radius checks).
+        const float away=action.rfind("near-chest-",0)==0?std::stof(action.substr(11)):0.f;
         Root playerObject(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),c.actor));void* a[]{playerObject.Get()};Vec3 player=Position(c.actor);
         std::ostringstream out;out<<"{\"ok\":true,\"objects\":[";bool comma=false;
         for(const char* cls:{"ChestVisualsCreator","ShrineVisualsCreator","ChestSync","ShrineSync"})for(void* object:Find("LE.dll","",cls)){
             void* handler=Get<void*>(object,F(cls,"conditionHandler"));if(!handler)continue;
             bool used=Value<bool>(Method(handler,"triggeredAndCannotTriggerMultipleTimes",0),handler),ready=!used&&Value<bool>(Method(handler,"CheckConditionReadiness",1),handler,a);
             if(comma)out<<',';comma=true;out<<"{\"kind\":"<<Json(cls)<<",\"ready\":"<<Boolean(ready)<<",\"near\":"<<Boolean(Near(object,player))<<'}';
-            if(ready&&((action=="near-chest"&&std::string(cls).rfind("Chest",0)==0)||(action=="near-shrine"&&std::string(cls).rfind("Shrine",0)==0))){Vec3 p=Position(object);void* agent=Get<void*>(c.actor,F("Actor","navMeshAgent"));void* args[]{&p};if(!Value<bool>(Method(agent,"Warp",1),agent,args))throw std::runtime_error("Native NavMesh warp refused.");return "{\"ok\":true,\"warped\":true}";}
+            if(ready&&((action.rfind("near-chest",0)==0&&std::string(cls).rfind("Chest",0)==0)||(action=="near-shrine"&&std::string(cls).rfind("Shrine",0)==0))){Vec3 p=Position(object);p.x+=away;void* agent=Get<void*>(c.actor,F("Actor","navMeshAgent"));void* args[]{&p};if(!Value<bool>(Method(agent,"Warp",1),agent,args))throw std::runtime_error("Native NavMesh warp refused.");return "{\"ok\":true,\"warped\":true}";}
         }
         for(void* portal:Find("LE.dll","Networking.Multiplayer.Interactables.Portals","PortalSync")){
             bool ready=Get<bool>(portal,F("PortalSync","initialized","Networking.Multiplayer.Interactables.Portals"));
@@ -1897,5 +1988,5 @@ std::string Test(const std::string& id,const std::string& action){
     throw std::runtime_error("Unknown convenience check.");
 });}
 #endif
-void ReleaseRoots(){monitorUntil=0;monitoredAllies.clear();damageOwner.Reset();disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();gridTransform.Reset();ClearInteractions();saved.clear();typeRoots.clear();owner.Reset();active=false;}
+void ReleaseRoots(){rings.clear();ringMaterial.reset();monitorUntil=0;monitoredAllies.clear();damageOwner.Reset();disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();gridTransform.Reset();ClearInteractions();saved.clear();typeRoots.clear();owner.Reset();active=false;}
 }

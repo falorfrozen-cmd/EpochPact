@@ -251,6 +251,8 @@ class UiBridge:
                     raise ValueError("Choose a font from the list.")
                 if control["id"] == "tier_color" and not re.fullmatch(r"[0-9A-Fa-f]{6}", value):
                     raise ValueError("Enter a colour as six hexadecimal digits, for example E0315A.")
+                if control["id"] == "qol_areacolor" and not re.fullmatch(r"[0-9A-Fa-f]{6}", value):
+                    raise ValueError("Enter a colour as six hexadecimal digits, for example 3FD0FF.")
                 if control["id"] == "tier_rule_color" and not re.fullmatch(r"label|[0-9A-Fa-f]{6}", value):
                     raise ValueError("Enter a colour as six hexadecimal digits, or label for the label colour.")
                 if control["id"] == "loot_affixes" and value != "none":

@@ -66,6 +66,38 @@ const tr=text=>window.EpochI18n?.t?.(text)??text;
 function storageKey(name){return `epochpact.${name}.${preview?"preview":"live"}`;}
 function readStored(name,fallback){try{const v=JSON.parse(localStorage.getItem(storageKey(name))??"null");return v??fallback;}catch{return fallback;}}
 function writeStored(name,value){try{localStorage.setItem(storageKey(name),JSON.stringify(value));return true;}catch{return false;}}
+// ---- Text size of this window (Settings → Text size); the loot and damage windows have their own.
+const textScales=[0.9,1,1.1,1.25,1.4,1.5];
+function storedTextScale(){try{const v=Number(JSON.parse(localStorage.getItem("epochpact.text-scale.v1")||"1"));return textScales.includes(v)?v:1;}catch{return 1;}}
+function applyTextScale(){const v=storedTextScale(),style=document.documentElement?.style;if(style)style.zoom=v===1?"":String(v);}
+applyTextScale();
+// ---- Hidden parts: panels and cards hidden with their ×; Settings → Hidden parts shows them again.
+// A card is known by its control, a panel by its id or its English title (read before the page is translated).
+function hiddenParts(){try{const v=JSON.parse(localStorage.getItem("epochpact.hidden-parts.v1")||"{}");return v&&typeof v==="object"&&!Array.isArray(v)?v:{};}catch{return {};}}
+function saveHiddenParts(v){try{localStorage.setItem("epochpact.hidden-parts.v1",JSON.stringify(v));}catch{}}
+function partKey(el){
+ if(el.dataset.part)return el.dataset.part;
+ let key="";
+ if(el.matches("article.control-card")){const id=el.dataset.setting||el.querySelector("form[data-id]")?.dataset.id||el.querySelector("[data-id]")?.dataset.id;if(id)key="card:"+id;}
+ else if(el.id)key="panel:"+el.id;
+ else{const title=el.querySelector("h2")?.textContent.trim();if(title)key="panel:"+page+":"+title;}
+ if(key)el.dataset.part=key;
+ return key;
+}
+function applyHiddenParts(){
+ if(page==="settings"||typeof content?.querySelectorAll!=="function")return;
+ const hidden=hiddenParts();
+ for(const el of content.querySelectorAll("section.panel,article.control-card")){
+  if(!el?.dataset||typeof el.matches!=="function")continue;
+  const key=partKey(el);if(!key)continue;
+  if(hidden[key]){el.hidden=true;continue;}
+  if(!el.querySelector(":scope > [data-hide-part]"))el.insertAdjacentHTML("afterbegin",'<button type="button" class="hide-part" data-hide-part title="Hide this" aria-label="Hide this">×</button>');
+ }
+}
+function hiddenPartsPanel(){
+ const hidden=Object.entries(hiddenParts());
+ return `<section class="panel" id="hidden-parts"><div class="section-head"><h2>Hidden parts</h2>${hidden.length?'<button data-show-all-parts>Show all</button>':""}</div><p class="muted">Panels and cards you hid with their ×. Hiding only removes them from the page; a setting keeps the value it has.</p>${hidden.length?`<ul class="hidden-parts">${hidden.map(([key,v])=>`<li><span data-no-translate>${esc(v?.label||key)}</span><button data-show-part="${esc(key)}">Show</button></li>`).join("")}</ul>`:'<p class="empty">Nothing is hidden. Point at a panel or card and select its × to hide it.</p>'}</section>`;
+}
 function profileSetting(c){return Boolean(c&&["session","actor"].includes(c.lifetime)&&["number","toggle"].includes(c.widget));}
 // "My last used settings" is the default: set things up once and they come
 // back after EpochPact, the game or an update restarts. "__off__" is the
@@ -115,7 +147,7 @@ function applyStartupProfile(){
  notify(changes+replays===1?`Applying ${tr(profile.name)} (1 setting).`:`Applying ${tr(profile.name)} (${changes+replays} settings).`);
  setTimeout(async()=>{if(changes)await applyDraft();if(replays)await replayLastSettings();},0);
 }
-function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|pickupradius|pickupinterval|autopickup|mapreveal|mapset|tierset|fontset|effectsset) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
+function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|qolarea|pickupradius|pickupinterval|autopickup|mapreveal|mapset|tierset|fontset|effectsset) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
 function automaticOwner(){
  if(preview)return "preview";
  const p=connected.player;
@@ -294,6 +326,7 @@ function eligible(control) {
  return true;
 }
 function updateDisabled() {
+ applyHiddenParts();
  window.EpochLauncher?.disable();
  document.documentElement.dataset.uiMode=developer?"developer":"player";
  document.querySelectorAll('[data-developer-only]').forEach(el=>el.hidden=!developer);
@@ -392,7 +425,7 @@ async function refreshConnection(silent=true,refreshCurrent=true,{preservePage=f
  const masteryMayHaveChanged=page==="campaign"&&cache.progress_read?.mastery?.panelOpen===true;
  const recovered=background&&(!previous.offline||restarted)&&result.offline;
  if((refreshCurrent||recovered)&&readId&&(!cache[readId]||["general","loot","crafting"].includes(page)||masteryMayHaveChanged)&&eligible(controlById(readId)))await refreshSection(readId,{refreshConnectionFirst:false});
- if(result.offline){applyStartupProfile();setTimeout(()=>void applyTierPalette(),0);}
+ if(result.offline){applyStartupProfile();setTimeout(()=>void applyTierPalette(),0);setTimeout(()=>void applyAreaColor(),0);}
  }finally{connectionChecking=false;connectionNextCheck=Date.now()+(connected.offline?10000:["stopped","setup","update_required","waiting_frame","read_error"].includes(connected.phase)?5000:2000);}
 }
 async function pollConnection(){
@@ -405,7 +438,7 @@ setInterval(()=>void pollConnection(),1000);
 function syncSpeed(){
  const modes=actorValues["9:0:0:0"]?.modes;if(modes){appliedValues.speed=1+(modes.increased||0);if(!dirty.has("speed"))values.speed=appliedValues.speed;}
 }
-function unitFor(c){return c.id==="pickup_radius"?" game units":c.id==="pickup_interval"?" s":c.id.startsWith("map_")&&c.id.endsWith("opacity")?"":c.id.startsWith("map_")?"×":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["craft_fp","build_weaverflat","build_projectileflat","build_blessingoptions","build_minionextra","build_totemextra","build_ballistaextra","build_forgedextra","build_companionextra"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
+function unitFor(c){return c.id==="pickup_radius"||c.id==="qol_arearadius"?" game units":c.id==="pickup_interval"?" s":c.id.startsWith("map_")&&c.id.endsWith("opacity")?"":c.id.startsWith("map_")?"×":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["craft_fp","build_weaverflat","build_projectileflat","build_blessingoptions","build_minionextra","build_totemextra","build_ballistaextra","build_forgedextra","build_companionextra"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
 function settingDisplayValue(id,value){return id==="speed"&&Number.isFinite(value)?Number(value.toFixed(6)):value;}
 function settingCard(c) {
  const p=c.parameters.find(x=>x.name==="value"),v=settingDisplayValue(c.id,values[c.id]??c.default),unit=unitFor(c);
@@ -596,7 +629,7 @@ function renderPage(){
   content.innerHTML=settingPanel("Camera",["build_zoom","build_cameraangle"].map(controlById))+settingPanel("Minimap and overlay",["map_minimapsize","map_minimapzoom","map_minimapopacity","map_overlayopacity","map_overlayzoom"].map(controlById))+settingPanel("Item tiers",["tier_icons","tier_tooltips","tier_lines","tier_rules","tier_rule_position","tier_rule_plain"].map(controlById))+tierPalette()+fontPanel()+settingPanel("Graphics effects",catalog.controls.filter(c=>c.group==="display"&&c.id.startsWith("qol_")))+`<p class="note">Graphics overrides last for this character session. Turning them off restores the previous renderer values. Your saved graphics preferences are kept.</p>`;
   content.innerHTML=settingPanel("Buffs & debuffs in game",["effects_enabled","effects_player","effects_target","effects_descriptions","effects_scale","effects_rows"].map(controlById))+`<p class="note">Uses live game icons and descriptions. Effects with no readable timer show —. The panels let clicks pass through and only show effects exposed by the game's native UI.</p>`+content.innerHTML;
  }else if(page==="world"){
-  content.innerHTML=settingPanel("Map visibility",[controlById("map_reveal")])+settingPanel("Nearby interactions",["qol_chests","qol_shrines","qol_portals"].map(controlById));
+  content.innerHTML=settingPanel("Map visibility",[controlById("map_reveal")])+settingPanel("Nearby interactions",["qol_chests","qol_shrines","qol_portals","qol_arearadius","qol_areashape","qol_areashow"].map(controlById).filter(Boolean))+areaColorPanel();
  }else if(page==="inventory"){
   content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory shortcuts</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the game's placement: tabs whose stash priority matches an item first, otherwise the selected tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_stash","inventory_vendor","inventory_stashall"].map(id=>actionCard(controlById(id))).join("")}</div></section>`+stashRulesPanel();
  }else if(page==="loot"){
@@ -627,6 +660,7 @@ function renderPage(){
  if(page==="monolith"){content.insertAdjacentHTML("beforeend",navigatorPanel());renderEchoResults();}
  if(page==="stash")content.insertAdjacentHTML("beforeend",stashSearchHelp());
  window.EpochLauncher?.mount(page);
+ applyHiddenParts();
  updateDisabled();
 }
 function questTable(){
@@ -784,7 +818,7 @@ function renderSettings(){
  let profiles={};try{profiles=JSON.parse(localStorage.getItem(profileKey)||"{}");}catch{}
  const theme=document.documentElement.dataset.theme;
  content.innerHTML=`<section class="panel"><h2>Language</h2><p class="muted">The language of the EpochPact windows. Names that come from the game — items, affixes, stats, zones — stay as the game data writes them.</p><label class="startup-profile">Language<select id="language-select" data-no-translate>${Object.entries(window.EpochI18n?.languages||{en:"English"}).map(([v,l])=>`<option value="${v}" ${v===(window.EpochI18n?.language||"en")?"selected":""}>${l}</option>`).join("")}</select></label></section><section class="panel"><h2>Appearance · Theme</h2><p class="muted">Both themes use the same settings. Switching themes sends no game commands, and your choice is remembered.</p><div class="control-grid theme-grid">${[["chronoforge","Chronoforge","Jade time crystal · aged gold · ancient temple"],["void-atlas","Void Atlas","Violet time rift · horizontal navigation · Void observatory"]].map(([id,title,note])=>`<button data-theme-pick="${id}" class="settings-card ${theme===id?"selected":""}" aria-pressed="${theme===id}"><img src="/ui/assets/${id}-reference.png" alt="${title} design reference"><h3>${title}</h3><p class="muted">${note}</p></button>`).join("")}</div></section><section class="panel"><h2>Draft profiles</h2><div class="note">Profiles store session settings only. Quests, rewards, balances and save actions are never stored or automatically applied.</div><div class="form-grid"><label>Profile name<input id="profile-name" placeholder="Example: Balanced"></label><label>Saved draft<select id="profile-select">${Object.keys(profiles).map(name=>`<option>${esc(name)}</option>`).join("")}</select></label></div><div class="actions"><button id="profile-save">Save draft</button><button id="profile-load">Load draft</button><button id="profile-delete">Delete profile</button></div><label class="startup-profile">Apply at startup<select id="startup-profile">${(()=>{const chosen=startupChoice();return [["__off__","Off — start with the game's normal values"],["__last__","My last used settings (recommended)"],...Object.keys(profiles).map(n=>[n,`Profile: ${n}`])].map(([v,l])=>`<option value="${esc(v)}" ${chosen===v?"selected":""}>${esc(l)}</option>`).join("");})()}</select></label><p class="muted">Applied once each time an offline character is ready, after you start EpochPact or the game, and after an update. Closing EpochPact still returns the game to its normal values until it starts again. Your last used settings include loot modes, collection categories, wanted affixes and the font. Profiles, theme and window places are kept in EpochPact's preferences file, so they survive updates.</p></section>${developer?`<section class="panel"><h2>Game connection</h2><div class="control-grid">${["session_read","status","player_read","characters","play_offline","load_character"].map(id=>actionCard(controlById(id))).join("")}</div></section>`:""}<section class="panel"><h2>Version</h2><p class="muted">EpochPact ${esc(appVersion?"v"+appVersion:"")}. At startup EpochPact can read the latest release on GitHub (no player data is sent) and show a notice when a newer version exists. Install update downloads it from that release, checks its SHA-256 and every file, and restarts EpochPact; your settings stay.</p><label class="inline-check"><input type="checkbox" id="update-check" ${readStored("update-check",true)!==false?"checked":""}> Check for EpochPact updates at startup</label><div class="actions"><button data-update-check-now>Check now</button></div></section><section class="panel" id="ingame-report"><h2>In-game report</h2>${ingameReportPanel()}</section><section class="panel"><h2>Support report</h2><p class="muted">Create a ZIP for the EpochPact Discord: your description, versions, setup state and recent EpochPact logs, with an optional screenshot of the game window. Nothing is uploaded; the folder opens so you can attach the file. Your Windows user name is masked; logs can contain character names.</p><label class="wide">What happened?<textarea id="report-description" rows="4" maxlength="4000" placeholder="What did you do, what did you expect, and what happened instead?"></textarea></label><label class="inline-check"><input type="checkbox" id="report-screenshot"> Include a screenshot of the game window</label><div class="actions"><button id="report-create">Create support report</button></div></section><section class="panel"><h2>Recovery backups</h2><p class="muted">Changes to your game save create a backup. Restore a selected backup to undo that change; the game closes normally first.</p>${history.length?`<div class="table-wrap"><table><thead><tr><th>Action</th><th>Time</th><th>Result</th></tr></thead><tbody>${history.map(x=>`<tr><td>${esc(controlById(x.control)?.label)}</td><td>${new Date(x.time*1000).toLocaleTimeString("en-GB")}</td><td>${x.ok?"Complete":"Error / backup available"}</td></tr>`).join("")}</tbody></table></div>`:'<p class="empty">No save actions have been performed in this session.</p>'}${actionCard(controlById("undo"))}</section>`;
- content.insertAdjacentHTML("beforeend",navigationPicker());
+ content.insertAdjacentHTML("beforeend",navigationPicker()+`<section class="panel"><h2>Text size</h2><p class="muted">Makes everything in this window larger or smaller. The loot and damage windows have their own text size in their ⚙.</p><label class="startup-profile">Text size<select id="text-scale">${textScales.map(v=>`<option value="${v}" ${v===storedTextScale()?"selected":""}>${Math.round(v*100)}%</option>`).join("")}</select></label></section>`+hiddenPartsPanel());
 }
 async function refreshSection(id,{refreshConnectionFirst=true}={}){
  if(busy)return;
@@ -887,6 +921,17 @@ function ruleColorRow(){
  const rule=storedRuleColor(),custom=rule!=="label",off=!eligible(c)?"disabled":"";
  return `<div class="rule-color-row"><label>Rule line colour<select data-rule-color-mode ${off}><option value="label" ${custom?"":"selected"}>Like the item's label on the ground</option><option value="custom" ${custom?"selected":""}>One colour for every rule</option></select></label><label>Colour<input type="color" data-rule-color value="#${custom?rule:"FFD27F"}" ${custom&&!off?"":"disabled"}></label></div><p class="muted">The loot filter rule line in item tooltips. Like the label: the rule's own colour when it recolours the item's label, otherwise the item's colour (grey for Hide rules).</p><div data-id="tier_rule_color" hidden></div>`;
 }
+// The interaction area colour: remembered on this device and sent when a character is ready.
+function storedAreaColor(){try{const v=JSON.parse(localStorage.getItem("epochpact.area-color.v1")||'"3FD0FF"');if(/^[0-9A-F]{6}$/i.test(v))return String(v).toUpperCase();}catch{}return "3FD0FF";}
+function areaColorPanel(){
+ const c=controlById("qol_areacolor");if(!c)return "";
+ return `<section class="panel"><h2>Interaction area colour</h2><p class="muted">${esc(description(c))}</p><div class="rule-color-row"><label>Colour<input type="color" data-area-color value="#${storedAreaColor()}" ${eligible(c)?"":"disabled"}></label></div><div data-id="qol_areacolor" hidden></div></section>`;
+}
+async function applyAreaColor(){
+ const c=controlById("qol_areacolor"),color=storedAreaColor();
+ if(!c||color==="3FD0FF"||!connected.connected||preview)return;
+ try{await job({type:"control",id:"qol_areacolor",operation:"set",args:{expected_session:connected.sessionKey,color}});}catch{}
+}
 function sendRuleColor(){const v=storedRuleColor();return runTask({type:"control",id:"tier_rule_color",args:{color:v}},{silent:true});}
 const tierPaletteApplied=new Set();
 async function applyTierPalette(force=false){
@@ -973,7 +1018,11 @@ async function checkForUpdate(attempt=0,manual=false){
  updateInfo=r;
  const node=$("#update-notice");
  if(node){node.innerHTML=`New version <b>v${esc(r.latest)}</b> · <a href="#" data-update-open>What's new</a>`;node.hidden=false;}
+ // A version EpochPact has not announced yet opens its window once by itself;
+ // after that the notice in the sidebar stays.
+ const announced=readStored("update-announced","");
  if(manual)void openUpdateDialog();
+ else if(announced!==r.latest){writeStored("update-announced",r.latest);void openUpdateDialog();}
 }
 function updateActions(state){
  const s=state?.state||"idle",r=updateInfo;
@@ -1159,7 +1208,10 @@ async function pollConveniences(){
  finally{liveReading=false;armAutomatic();}
 }
 setInterval(()=>void pollConveniences(),1000);
-setInterval(()=>{if(page==="summons"&&!preview&&!document.hidden&&!busy&&cache.damage_session_read?.active)void job({type:"control",id:"damage_session_read",operation:"read"}).then(r=>{if(r?.ok&&page==="summons"){cache.damage_session_read=r;updateDamageView(r);}}).catch(()=>{});},1000);
+// Every second while the session runs, every few seconds otherwise: a session
+// started or stopped in the damage window shows up here too.
+let damageReadAt=0;
+setInterval(()=>{if(page==="summons"&&!preview&&!document.hidden&&!busy&&(cache.damage_session_read?.active||Date.now()-damageReadAt>=3000)){damageReadAt=Date.now();void job({type:"control",id:"damage_session_read",operation:"read"}).then(r=>{if(r?.ok&&page==="summons"){cache.damage_session_read=r;updateDamageView(r);}}).catch(()=>{});}},1000);
 function formArgs(form,c){
  const data=new FormData(form),args={};
  for(const p of c.parameters){if(p.name==="save_id")continue;let v=data.get(p.name);if(p.type==="optional_integer"&&(v===""||v===null))continue;
@@ -1248,6 +1300,16 @@ content.addEventListener("submit",e=>{if(e.target.matches(".control-form")){e.pr
 content.addEventListener('toggle',e=>{if(e.target.hasAttribute?.('data-workshop-advanced'))workshopAdvanced=e.target.open;if(e.target.dataset?.craftDisclosure)craftDisclosure[e.target.dataset.craftDisclosure]=e.target.open;},true);
 content.addEventListener("click",async e=>{
  const b=e.target.closest("button");if(!b||b.disabled)return;
+ if(b.dataset.hidePart!==undefined){
+  const el=b.parentElement,key=el?partKey(el):"";if(!key)return;
+  const title=el.querySelector("h2,h3,.control-title")?.textContent.replace("×","").trim()||key;
+  const hidden=hiddenParts();hidden[key]={label:`${tr(pages[page]?.[0]||page)} · ${title}`};saveHiddenParts(hidden);
+  el.hidden=true;notify("Hidden. Settings → Hidden parts shows it again.");return;
+ }
+ if(b.dataset.showPart!==undefined||b.dataset.showAllParts!==undefined){
+  const hidden=hiddenParts();if(b.dataset.showAllParts!==undefined)for(const k of Object.keys(hidden))delete hidden[k];else delete hidden[b.dataset.showPart];
+  saveHiddenParts(hidden);renderSettings();return;
+ }
  if(b.dataset.go){if(b.dataset.craftTarget)craftingSection=b.dataset.craftTarget;go(b.dataset.go);}
  else if(b.hasAttribute?.('data-affix-add'))moveWantedAffixes('available');
  else if(b.hasAttribute?.('data-affix-remove'))moveWantedAffixes('selected');
@@ -1375,6 +1437,7 @@ content.addEventListener("change",e=>{
   else{const row=e.target.dataset.damageRow;f.hidden=f.hidden.filter(k=>k!==row);if(!e.target.checked)f.hidden.push(row);}
   writeStored("damage-panel",f);const live=$("#damage-live");if(live&&window.EpochDamage)live.innerHTML=window.EpochDamage.table(cache.damage_session_read,f);return;
  }
+ if(e.target.id==="text-scale"){try{localStorage.setItem("epochpact.text-scale.v1",JSON.stringify(Number(e.target.value)));}catch{}applyTextScale();return;}
  if(e.target.id==="remember-scroll"){writeStored("remember-scroll",e.target.checked);return;}
  if(e.target.id==="update-check"){writeStored("update-check",e.target.checked);return;}
  if(e.target.dataset.stashRuleLink){
@@ -1382,6 +1445,11 @@ content.addEventListener("change",e=>{
   if(tab)void stashRulesAction("assign",{tab,rule:number});else if(previous!=null)void stashRulesAction("assign",{tab:previous,rule:0});return;
  }
  if(e.target.dataset.fontFamily!==undefined){const family=e.target.value;values.font_family=family;void runTask({type:"control",id:"font_family",args:{family:family.replace(/ /g,"%20")}},{silent:true});return;}
+ if(e.target.dataset.areaColor!==undefined){
+  const color=String(e.target.value||"#3FD0FF").replace("#","").toUpperCase();
+  try{localStorage.setItem("epochpact.area-color.v1",JSON.stringify(color));}catch{}
+  void runTask({type:"control",id:"qol_areacolor",args:{color}},{silent:true});return;
+ }
  if(e.target.dataset.ruleColorMode!==undefined||e.target.dataset.ruleColor!==undefined){
   const row=e.target.closest(".rule-color-row"),mode=row?.querySelector("[data-rule-color-mode]")?.value,picker=row?.querySelector("[data-rule-color]");
   const value=mode==="custom"?String(picker?.value||"#FFD27F").replace("#","").toUpperCase():"label";

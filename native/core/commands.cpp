@@ -98,6 +98,7 @@ std::string Execute(const std::string& line) {
     if(cmd=="effectsset"){double value=0;return args.size()==2&&statedit::Number(args[1],&value)?effects::Set(args[0],value):"{\"ok\":false,\"error\":\"use effectsset setting value\"}";}
     if(cmd=="damagesession")return args.size()<=1?convenience::DamageSession(args.empty()?"":args[0]):"{\"ok\":false,\"error\":\"use damagesession [start|stop|reset]\"}";
     if(cmd=="summonread")return args.empty()?convenience::Summons():"{\"ok\":false,\"error\":\"summonread expects no arguments\"}";
+    if(cmd=="qolarea")return args.size()==2?convenience::SetArea(args[0],args[1]):"{\"ok\":false,\"error\":\"use qolarea radius|shape|show|color value\"}";
     if(cmd=="qolset"){double value=0;return args.size()==2&&statedit::Number(args[1],&value)?convenience::Set(args[0],value):"{\"ok\":false,\"error\":\"use qolset setting value\"}";}
     if(cmd=="tierread")return args.empty()?tiers::Read():"{\"ok\":false,\"error\":\"tierread expects no arguments\"}";
     if(cmd=="tierset")return args.size()==2&&args[1].size()==1&&args[1][0]>='0'&&args[1][0]<='2'?tiers::Set(args[0],args[1][0]-'0'):"{\"ok\":false,\"error\":\"use tierset icons|tooltips|lines|rules|ruleplain 0|1 or tierset rulepos 0|1|2\"}";

@@ -82,3 +82,27 @@ test('loot feed: an affix that cannot be read is tried at most three times',asyn
  assert.equal(p.calls.filter(c=>c.id==='affix_info').length,3);
  assert.ok(!p.elements['#feed-list'].innerHTML.includes('title="Odd shard\n'),'no description without a read');
 });
+
+test('damage window: a session started in the main window shows up without reopening the window',async()=>{
+ let clock=1000,active=false;
+ const stopped={ok:true,active:false,elapsedSeconds:0,combatSeconds:0,hits:0,types:[],allies:{total:0,hits:0}};
+ const running=()=>({ok:true,active:true,elapsedSeconds:12,combatSeconds:8,hits:5,types:[{name:'You',live:1,total:1432,hits:5,dps10:120,dps60:23.5,combatAverage:179,elements:{total:[0,625,0,807,0,0,0]}}],allies:{total:0,hits:0}});
+ const p=page('damage.js',{replies:x=>x.id==='damage_session_read'?(active?running():stopped):{ok:false}});
+ p.context.Date={now:()=>clock};
+ p.run();await settle();await settle();
+ assert.match(p.elements['#damage-table'].innerHTML,/No damage recorded/);
+ const tick=async()=>{for(const fn of p.intervals)fn();await settle();await settle();};
+ const reads=()=>p.calls.filter(c=>c.id==='damage_session_read').length;
+ // Started elsewhere: within a few seconds the window reads it, without any click here.
+ active=true;
+ const before=reads();clock+=1000;await tick();
+ assert.equal(reads(),before,'a stopped session is not read every second');
+ clock+=2500;await tick();
+ assert.ok(reads()>before,'but it is read again after a few seconds');
+ assert.ok(p.elements['#damage-table'].innerHTML.includes('You (character)'));
+ assert.match(p.elements['#damage-status'].textContent,/Measuring/);
+ // Now running: read every second.
+ const running1=reads();clock+=1000;await tick();
+ assert.ok(reads()>running1,'a running session is read every second');
+ assert.ok(p.calls.every(c=>c.id==='damage_session_read'),'reading never starts or stops the session');
+});
