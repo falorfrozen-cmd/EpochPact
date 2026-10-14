@@ -2336,7 +2336,7 @@
         {
           "name": "affixes",
           "type": "single_token",
-          "maximumLength": 63
+          "maximumLength": 160
         },
         {
           "name": "perfect",
@@ -2353,7 +2353,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "Replace the selected forge item with a recovery backup. Combine a template, regular T7 affixes and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling.",
+      "description": "Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8 with a chosen or random roll; T8 is primordial, one per item) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling.",
       "currentSource": null,
       "requirements": [
         "offline",

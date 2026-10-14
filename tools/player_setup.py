@@ -385,29 +385,78 @@ FILTER_ACTIONS = ('filters', 'filter_import', 'filter_export', 'filter_duplicate
 
 
 class FeedWindowApi:
-    """js_api of an always-on-top window (loot feed, damage): only its own opacity."""
+    """js_api of a small window (loot feed, damage). The window has no Windows
+    frame: its page moves it (drag region), resizes it from the corner grip and
+    hides it. Only the page background is see-through (transparent window)."""
     TITLE = 'EpochPact Loot Feed'
+    MINIMUM = (220, 120)
 
-    def set_feed_opacity(self, percent):
-        if not isinstance(percent, (int, float)) or not 30 <= percent <= 100:
+    def __init__(self):
+        self._window = None  # private: pywebview must not reflect the native window
+        self._on_hide = None  # private: tells EpochPact the player hid this window
+
+    def resize_window(self, width, height):
+        if self._window is None or not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in (width, height)):
             return False
-        if sys.platform != 'win32':
+        width, height = int(width), int(height)
+        if not (self.MINIMUM[0] <= width <= 8000 and self.MINIMUM[1] <= height <= 8000):
             return False
-        user32 = ctypes.WinDLL('user32', use_last_error=True)
-        user32.FindWindowW.argtypes = [wt.LPCWSTR, wt.LPCWSTR]; user32.FindWindowW.restype = wt.HWND
-        user32.GetWindowLongPtrW.argtypes = [wt.HWND, ctypes.c_int]; user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
-        user32.SetWindowLongPtrW.argtypes = [wt.HWND, ctypes.c_int, ctypes.c_ssize_t]; user32.SetWindowLongPtrW.restype = ctypes.c_ssize_t
-        user32.SetLayeredWindowAttributes.argtypes = [wt.HWND, wt.DWORD, ctypes.c_ubyte, wt.DWORD]; user32.SetLayeredWindowAttributes.restype = wt.BOOL
-        hwnd = user32.FindWindowW(None, self.TITLE)
-        if not hwnd:
+        self._window.resize(width, height)
+        return True
+
+    def hide_window(self):
+        """The player hid the window (−): it closes and is not reopened at the
+        next start; its place, size and options stay remembered."""
+        if self._window is None:
             return False
-        GWL_EXSTYLE, WS_EX_LAYERED, LWA_ALPHA = -20, 0x80000, 0x2
-        user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED)
-        return bool(user32.SetLayeredWindowAttributes(hwnd, 0, round(percent * 255 / 100), LWA_ALPHA))
+        if self._on_hide is not None:
+            self._on_hide()
+        self._window.destroy()
+        return True
 
 
 class DamageWindowApi(FeedWindowApi):
     TITLE = 'EpochPact Damage'
+    MINIMUM = (260, 120)
+
+
+def overlay_window(webview, api, url, placement):
+    """Create a small window: frameless, transparent background, moved and resized by its page."""
+    window = webview.create_window(api.TITLE, url, js_api=api, min_size=api.MINIMUM, on_top=False, frameless=True,
+                                   easy_drag=False, transparent=True, background_color='#091310', **placement)
+    api._window = window
+    size, first = (placement.get('width'), placement.get('height')), [True]
+
+    def loaded():
+        # Without a frame the window opens smaller by the frame it was created
+        # with: set the remembered size exactly once the page is there.
+        if first[0] and all(isinstance(v, int) for v in size):
+            first[0] = False
+            window.resize(*size)
+        reshow_window(api.TITLE)
+    window.events.loaded += loaded
+    return window
+
+
+def reshow_window(title, user32=None):
+    """A transparent WebView2 window opened while EpochPact runs is sometimes
+    drawn with an opaque grey background until it is shown again (measured:
+    about half of the windows; after one hide/show all of them were clear).
+    Hide and show it once its page has loaded, without taking the focus."""
+    if user32 is None:
+        if sys.platform != 'win32':
+            return False
+        user32 = ctypes.WinDLL('user32', use_last_error=True)
+        user32.FindWindowW.argtypes = [wt.LPCWSTR, wt.LPCWSTR]; user32.FindWindowW.restype = wt.HWND
+        user32.IsWindowVisible.argtypes = [wt.HWND]; user32.IsWindowVisible.restype = wt.BOOL
+        user32.ShowWindowAsync.argtypes = [wt.HWND, ctypes.c_int]; user32.ShowWindowAsync.restype = wt.BOOL
+    hwnd = user32.FindWindowW(None, title)
+    if not hwnd or not user32.IsWindowVisible(hwnd):
+        return False  # gone, or hidden while the game is minimised
+    SW_HIDE, SW_SHOWNOACTIVATE = 0, 4
+    user32.ShowWindowAsync(hwnd, SW_HIDE)
+    user32.ShowWindowAsync(hwnd, SW_SHOWNOACTIVATE)
+    return True
 
 
 def _point_on_monitor(x: int, y: int) -> bool:
@@ -510,6 +559,17 @@ class DesktopDialogs:
         if closing:
             self._flush_moves()
 
+    def _close_windows(self):
+        """EpochPact's main window has closed: the loot and damage windows close
+        with it (they have no title bar of their own) and stay remembered as open."""
+        self._shutting_down = True
+        for window in (self._feed, self._damage):
+            if window is not None:
+                try:
+                    window.destroy()
+                except Exception:
+                    logging.getLogger(__name__).exception('Small window could not be closed')
+
     def _restore_windows(self):
         """Reopen the loot feed / damage windows that were open when EpochPact closed."""
         if self._restored:
@@ -545,9 +605,10 @@ class DesktopDialogs:
                 self._feed = None
         if not self._url:
             return False
-        placement = window_placement(self._windows().get('feed'), 380, 520, (260, 200))
-        self._feed = webview.create_window(FeedWindowApi.TITLE, self._url + '/feed', js_api=FeedWindowApi(),
-                                           min_size=(260, 200), on_top=False, background_color='#091310', **placement)
+        placement = window_placement(self._windows().get('feed'), 380, 520, FeedWindowApi.MINIMUM)
+        api = FeedWindowApi()
+        api._on_hide = lambda: self._hidden('feed')
+        self._feed = overlay_window(webview, api, self._url + '/feed', placement)
         self._feed.events.closed += self._feed_closed
         self._track('feed', self._feed, placement)
         self._follow_game()
@@ -555,8 +616,19 @@ class DesktopDialogs:
 
     def _feed_closed(self):
         self._feed = None
-        if not self._shutting_down:
-            self._remember('feed', open=False)
+        self._closed('feed')
+
+    # Only hiding (− in the window, Hide in EpochPact) forgets a window. Any
+    # other close — EpochPact's X, the taskbar's "Close all windows", Alt+F4,
+    # in whatever order Windows closes them — keeps it for the next start.
+    def _hidden(self, name):
+        self._remember(name, open=False)
+        logging.getLogger(__name__).info('%s window hidden by the player', name)
+
+    def _closed(self, name):
+        state = self._windows().get(name) or {}
+        logging.getLogger(__name__).info('%s window closed (reopens at the next start: %s, EpochPact closing: %s)',
+                                         name, bool(state.get('open')), self._shutting_down)
 
     def open_damage_window(self):
         """The damage session over a windowed/borderless game."""
@@ -570,9 +642,10 @@ class DesktopDialogs:
                 self._damage = None
         if not self._url:
             return False
-        placement = window_placement(self._windows().get('damage'), 520, 360, (320, 200))
-        self._damage = webview.create_window(DamageWindowApi.TITLE, self._url + '/damage', js_api=DamageWindowApi(),
-                                             min_size=(320, 200), on_top=False, background_color='#091310', **placement)
+        placement = window_placement(self._windows().get('damage'), 520, 360, DamageWindowApi.MINIMUM)
+        api = DamageWindowApi()
+        api._on_hide = lambda: self._hidden('damage')
+        self._damage = overlay_window(webview, api, self._url + '/damage', placement)
         self._damage.events.closed += self._damage_closed
         self._track('damage', self._damage, placement)
         self._follow_game()
@@ -580,8 +653,25 @@ class DesktopDialogs:
 
     def _damage_closed(self):
         self._damage = None
-        if not self._shutting_down:
-            self._remember('damage', open=False)
+        self._closed('damage')
+
+    def overlay_windows(self):
+        """Which small windows are open (for the Show/Hide buttons in EpochPact)."""
+        return {'feed': self._feed is not None, 'damage': self._damage is not None}
+
+    def hide_loot_feed(self):
+        window = self._feed
+        if window is not None:
+            self._hidden('feed')
+            window.destroy()
+        return True
+
+    def hide_damage_window(self):
+        window = self._damage
+        if window is not None:
+            self._hidden('damage')
+            window.destroy()
+        return True
 
     def choose_filter_file(self):
         import webview

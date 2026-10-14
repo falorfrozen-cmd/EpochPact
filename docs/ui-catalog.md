@@ -204,7 +204,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Craft level:** Local normal forge only; other item and equipment rules remain. API: `tools.loot_crafting_backend.bypass_level(value)`. Reset: `craftlevel 0`.
 - **Forge selected item:** Perform exactly one normal craft on the current game forge selection. Requires an eligible item/material and matching offline character; snapshot before craft. API: `tools.loot_crafting_backend.forge(save_id)`.
 - **Load workshop templates:** Read the game's public Unique/Set templates and affix names. Does not create or modify items. API: `tools.build_backend.workshop_catalog()`.
-- **Create custom gear:** Replace the selected forge item with a recovery backup. Combine a template, regular T7 affixes and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling. API: `tools.build_backend.custom(save_id, template_id, affixes, perfect, modifiers='none')`.
+- **Create custom gear:** Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8 with a chosen or random roll; T8 is primordial, one per item) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling. API: `tools.build_backend.custom(save_id, template_id, affixes, perfect, modifiers='none')`.
 - **Crafting ayarlarını normale döndür:** FP=1, doğal glyph şansları, normal shard tüketimi; tüm crafting hook'ları kaldırılır. API: `tools.loot_crafting_backend.reset_craft()`.
 
 ## Kampanya ve waypoint

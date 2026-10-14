@@ -415,7 +415,7 @@
     ],
     "craft_custom": [
       "Create custom gear",
-      "Replace the selected forge item with a recovery backup. Combine a template, regular T7 affixes and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling."
+      "Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8 with a chosen or random roll; T8 is primordial, one per item) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling."
     ],
     "craft_materials_read": [
       "Crafting material stock",

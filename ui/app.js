@@ -468,8 +468,19 @@ function workshopPicker(kind){
  const matches=craftingModel.filtered(entries,workshopFilters[kind]),selected=workshopDraft[kind],shown=matches.slice(0,workshopListLimits[kind]);
  return `<div class="craft-pick-count">${matches.length} matches · ${selected.length} selected</div><div class="craft-pick-list">${shown.map(x=>`<label><input type="checkbox" data-workshop-pick="${kind}" value="${esc(x.id)}" ${selected.includes(String(x.id))?'checked':''}><span>${esc(x.name)}</span></label>`).join('')||`<p class="muted">${cache.craft_custom_catalog?.items?.length?'No matches. Try another search.':'Load item choices above to see the available options.'}</p>`}</div>${matches.length>shown.length?`<button type="button" class="quiet" data-workshop-more="${kind}">Show more (${shown.length} of ${matches.length})</button>`:''}`;
 }
+function workshopAffixRows(){
+ const data=cache.craft_custom_catalog,entries=data?.affixes||[];
+ return workshopDraft.affixes.map(id=>{
+  const name=clean(entries.find(x=>String(x.id)===id)?.name||id),s=craftingModel.setting(workshopDraft,id),top=craftingModel.tiersOf(data,id),random=s.roll==='random';
+  const tiers=Array.from({length:top},(_,i)=>i+1).map(t=>`<option value="${t}" ${s.tier===t?'selected':''}>${t===craftingModel.PRIMORDIAL?'T8 · primordial':'T'+t}</option>`).join('');
+  return `<div class="craft-affix-row"><span class="craft-affix-name">${esc(name)}</span><label>Tier<select data-workshop-tier="${esc(id)}">${tiers}</select></label><label>Roll<span class="craft-roll"><input type="number" min="1" max="100" step="1" data-workshop-roll="${esc(id)}" value="${random?'':s.roll}" ${random?'disabled':''} aria-label="${esc(`Roll of ${name} in percent`)}">%</span></label><label class="inline-check"><input type="checkbox" data-workshop-random="${esc(id)}" ${random?'checked':''}> Random</label><button type="button" class="craft-chip" data-workshop-remove="affixes" data-choice="${esc(id)}" aria-label="${esc(`Remove ${name} from the item`)}">×</button></div>`;
+ }).join('')||'<span class="muted">No replacements selected. Current affixes are kept.</span>';
+}
+function workshopSetting(id,change){workshopDraft.settings={...workshopDraft.settings,[id]:{...craftingModel.setting(workshopDraft,id),...change}};}
+function refreshWorkshopSummary(){const summary=$('#workshop-summary');if(summary)summary.innerHTML=workshopSummary();updateDisabled();}
 function workshopChips(kind){
- const entries=kind==='affixes'?(cache.craft_custom_catalog?.affixes||[]):workshopModifierEntries();
+ if(kind==='affixes')return workshopAffixRows();
+ const entries=workshopModifierEntries();
  return workshopDraft[kind].map(id=>`<button type="button" class="craft-chip" data-workshop-remove="${kind}" data-choice="${esc(id)}" aria-label="Remove ${esc(clean(entries.find(x=>String(x.id)===id)?.name||id))}">${esc(clean(entries.find(x=>String(x.id)===id)?.name||id))}<span aria-hidden="true"> ×</span></button>`).join('')||`<span class="muted">${kind==='affixes'?'No replacements selected. Current affixes are kept.':'No extra effects selected.'}</span>`;
 }
 function workshopTemplateOptions(){
@@ -493,7 +504,7 @@ function updateWorkshopUi(){
 }
 function customWorkshop(){
  const forge=cache.craft_read?.forgePreview,loaded=!!cache.craft_custom_catalog?.items?.length;
- return `<section class="panel craft-workshop"><div class="section-head"><h2>Custom Items</h2><button data-refresh="craft_custom_catalog" data-control-id="craft_custom_catalog">${loaded?'Refresh item choices':'Load item choices'}</button></div><p class="muted">Keep your item’s equipment base. Choose its template and affixes, then review the result before creating it.</p><form class="control-form" data-id="craft_custom"><section class="craft-step"><h3><span>1</span>Select the item in the game</h3><p>Open the game’s forge and place the equipment item you want to change.</p><div class="craft-item-state"><span>${forge?.canCustom?`Equipment selected · ${forge.forgingPotential??'—'} Forging Potential · ${forge.affixes?.length??0} affixes`:'Waiting for an equipment item in the game’s forge.'}</span><button type="button" data-refresh="craft_read" data-control-id="craft_read">Refresh selected item</button></div></section><section class="craft-step"><h3><span>2</span>Choose a template</h3><p>Use Exalted for affixes only, or copy one Unique / Set template onto this base.</p><div class="craft-template-search"><label>Find a template<input type="search" data-workshop-search="template" value="${esc(workshopFilters.template)}" placeholder="Search item names..."></label><label>Type<select data-workshop-kind><option value="all" ${workshopTemplateKind==='all'?'selected':''}>All templates</option><option value="unique" ${workshopTemplateKind==='unique'?'selected':''}>Unique</option><option value="set" ${workshopTemplateKind==='set'?'selected':''}>Set</option></select></label></div><label>Template<select name="template_id" data-workshop-template>${workshopTemplateOptions()}</select></label></section><section class="craft-step"><h3><span>3</span>Choose T7 affixes</h3><p>Click to add or remove an affix. Choose up to ${workshopDraft.modifiers.length?6:7}; leave all unchecked to keep the item’s current affixes.</p><label>Find an affix<input type="search" data-workshop-search="affixes" value="${esc(workshopFilters.affixes)}" placeholder="Search health, damage, resistance..."></label><div data-workshop-list="affixes">${workshopPicker('affixes')}</div><div class="craft-chips" data-workshop-chips="affixes">${workshopChips('affixes')}</div></section><details class="craft-step craft-extra" data-workshop-advanced ${workshopAdvanced?'open':''}><summary>Add extra Unique / Set effects <span>Advanced · optional</span></summary><p>Mix individual effects from different items. Choose up to 64 lines. They share one affix slot, so only six regular affixes can be selected.</p><label>Find an effect<input type="search" data-workshop-search="modifiers" value="${esc(workshopFilters.modifiers)}" placeholder="Search a source item or effect..."></label><div data-workshop-list="modifiers">${workshopPicker('modifiers')}</div><div class="craft-chips" data-workshop-chips="modifiers">${workshopChips('modifiers')}</div></details><section class="craft-step"><h3><span>4</span>Review and create</h3><label>Roll quality<select name="perfect"><option value="1" ${workshopDraft.perfect==='1'?'selected':''}>Maximum rolls</option><option value="0" ${workshopDraft.perfect==='0'?'selected':''}>Midpoint rolls</option></select></label><p class="muted">Midpoint applies to newly chosen affixes and effects. Without extra effects, keeping current affixes preserves their tiers and midpoint mode keeps their existing rolls. Adding extra effects rebuilds kept affixes at T7 with the chosen rolls.</p><div id="workshop-summary">${workshopSummary()}</div><p class="muted">Replaces the selected item once and saves a recovery backup. This custom action does not consume crafting materials.</p><p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" class="primary" data-control-id="craft_custom">Create custom item</button></div></section></form></section>`;
+ return `<section class="panel craft-workshop"><div class="section-head"><h2>Custom Items</h2><button data-refresh="craft_custom_catalog" data-control-id="craft_custom_catalog">${loaded?'Refresh item choices':'Load item choices'}</button></div><p class="muted">Keep your item’s equipment base. Choose its template and affixes, then review the result before creating it.</p><form class="control-form" data-id="craft_custom"><section class="craft-step"><h3><span>1</span>Select the item in the game</h3><p>Open the game’s forge and place the equipment item you want to change.</p><div class="craft-item-state"><span>${forge?.canCustom?`Equipment selected · ${forge.forgingPotential??'—'} Forging Potential · ${forge.affixes?.length??0} affixes`:'Waiting for an equipment item in the game’s forge.'}</span><button type="button" data-refresh="craft_read" data-control-id="craft_read">Refresh selected item</button></div></section><section class="craft-step"><h3><span>2</span>Choose a template</h3><p>Use Exalted for affixes only, or copy one Unique / Set template onto this base.</p><div class="craft-template-search"><label>Find a template<input type="search" data-workshop-search="template" value="${esc(workshopFilters.template)}" placeholder="Search item names..."></label><label>Type<select data-workshop-kind><option value="all" ${workshopTemplateKind==='all'?'selected':''}>All templates</option><option value="unique" ${workshopTemplateKind==='unique'?'selected':''}>Unique</option><option value="set" ${workshopTemplateKind==='set'?'selected':''}>Set</option></select></label></div><label>Template<select name="template_id" data-workshop-template>${workshopTemplateOptions()}</select></label></section><section class="craft-step"><h3><span>3</span>Choose T7 affixes</h3><p>Click to add or remove an affix. Choose up to ${workshopDraft.modifiers.length?6:7}; leave all unchecked to keep the item’s current affixes.</p><label>Find an affix<input type="search" data-workshop-search="affixes" value="${esc(workshopFilters.affixes)}" placeholder="Search health, damage, resistance..."></label><div data-workshop-list="affixes">${workshopPicker('affixes')}</div><div class="craft-chips" data-workshop-chips="affixes">${workshopChips('affixes')}</div></section><details class="craft-step craft-extra" data-workshop-advanced ${workshopAdvanced?'open':''}><summary>Add extra Unique / Set effects <span>Advanced · optional</span></summary><p>Mix individual effects from different items. Choose up to 64 lines. They share one affix slot, so only six regular affixes can be selected.</p><label>Find an effect<input type="search" data-workshop-search="modifiers" value="${esc(workshopFilters.modifiers)}" placeholder="Search a source item or effect..."></label><div data-workshop-list="modifiers">${workshopPicker('modifiers')}</div><div class="craft-chips" data-workshop-chips="modifiers">${workshopChips('modifiers')}</div></details><section class="craft-step"><h3><span>4</span>Review and create</h3><label>Roll quality<select name="perfect"><option value="1" ${workshopDraft.perfect==='1'?'selected':''}>Maximum rolls</option><option value="0" ${workshopDraft.perfect==='0'?'selected':''}>Midpoint rolls</option></select></label><p class="muted">Each chosen affix has its own tier (T1–T8) and roll (1–100% of its tier's range, or Random). T8 is the game's primordial tier: one per item, shown for affixes that have it; the game limits how many primordial items you can wear. Roll quality applies to the template, implicits and extra effects, and is the starting roll for newly chosen affixes. Without extra effects, keeping current affixes preserves their tiers and midpoint mode keeps their existing rolls. Adding extra effects rebuilds kept affixes at T7 with the chosen rolls.</p><div id="workshop-summary">${workshopSummary()}</div><p class="muted">Replaces the selected item once and saves a recovery backup. This custom action does not consume crafting materials.</p><p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" class="primary" data-control-id="craft_custom">Create custom item</button></div></section></form></section>`;
 }
 function renderCrafting(){
  const forge=cache.craft_read?.forgePreview,stock=cache.craft_materials_read,stockCurrent=window.EpochSession.current(stock,connected,preview);
@@ -1044,7 +1055,7 @@ function ingameReportPanel(){
 // ---- damage session (on only while the player wants it)
 function damagePanel(){
  if(!controlById("damage_session"))return "";
- const s=cache.damage_session_read,D=window.EpochDamage,win=window.pywebview?.api?.open_damage_window?'<button data-damage-window>Open damage window</button>':"";
+ const s=cache.damage_session_read,D=window.EpochDamage,win=window.pywebview?.api?.open_damage_window?`<button data-damage-window>${overlayOpen.damage?"Hide damage window":"Open damage window"}</button>`:"";
  return `<section class="panel" id="damage-panel"><div class="section-head"><h2>Damage meter</h2><div class="actions"><button class="${s?.active?"":"primary"}" data-damage-action="${s?.active?"stop":"start"}" data-control-id="damage_session">${s?.active?"Stop":"Start"}</button><button data-damage-action="reset" data-control-id="damage_session">Reset</button><button data-damage-csv ${s?.types?.length?"":"disabled"}>Copy as CSV</button>${win}</div></div><p class="muted">Records damage by your allies (grouped by type) and your character only while it runs, so it costs nothing when stopped. Values stay after Stop until Reset, also when you switch windows. The damage window stays on top of a windowed or borderless game.</p><p class="note" id="damage-status">${esc(D?D.status(s):"")}</p><div id="damage-live">${D?D.table(s):""}</div></section>`;
 }
 function renderDamage(){const node=$("#damage-panel");if(node)node.outerHTML=damagePanel();updateDisabled();}
@@ -1053,9 +1064,21 @@ async function damageAction(action){
  if(r?.ok){cache.damage_session_read=r;renderDamage();}
 }
 let lootEntries=[],lootOwner=null;
+// Loot and damage windows: the buttons read Open or Hide from the windows'
+// real state (a window can also be hidden from its own − button).
+let overlayOpen={feed:false,damage:false};
+function updateOverlayButtons(){
+ const feed=$("#loot-feed-open"),damage=document.querySelector("[data-damage-window]");
+ if(feed)feed.textContent=overlayOpen.feed?"Hide loot window":"Open loot window";
+ if(damage)damage.textContent=overlayOpen.damage?"Hide damage window":"Open damage window";
+}
+async function refreshOverlayState(){
+ const api=window.pywebview?.api;if(!api?.overlay_windows)return;
+ try{const s=await api.overlay_windows();overlayOpen={feed:!!s?.feed,damage:!!s?.damage};updateOverlayButtons();}catch{}
+}
 function lootTable(){return window.EpochLootLog?window.EpochLootLog.table(lootEntries):'<p class="empty">No pickups yet.</p>';}
 function lootPanel(){
- const feed=window.pywebview?.api?.open_loot_feed?'<button id="loot-feed-open">Open loot window</button>':"";
+ const feed=window.pywebview?.api?.open_loot_feed?`<button id="loot-feed-open">${overlayOpen.feed?"Hide loot window":"Open loot window"}</button>`:"";
  return `<section class="panel"><div class="section-head"><h2>Recent pickups</h2><div class="actions">${feed}<button id="loot-log-refresh" data-refresh="loot_log" data-control-id="loot_log">Refresh</button></div></div><p class="muted">Items and gold you or Auto Pickup collect, with the loot filter rule that matched. "Rule" uses the same number as the game's Item rule numbering setting. The loot window stays on top of a windowed or borderless game.</p><div id="loot-log-live">${lootTable()}</div><div class="control-grid">${actionCard(controlById("loot_log_clear"))}</div></section>`;
 }
 let summonBaseline={};
@@ -1198,7 +1221,7 @@ content.addEventListener("click",async e=>{
  else if(b.dataset.reportNow!==undefined){const r=await runTask({type:"control",id:"report_now"},{silent:true});if(r?.ok){notify(`Report saved: ${r.folder.split(/[\\/]/).pop()} (in the game's EpochPact\\reports folder).`);void refreshSection("report_read");}}
  else if(b.dataset.damageAction)await damageAction(b.dataset.damageAction);
  else if(b.dataset.damageCsv!==undefined){const text=window.EpochDamage.csv(cache.damage_session_read);try{await navigator.clipboard.writeText(text);notify("Damage table copied as CSV.");}catch{const area=document.createElement("textarea");area.value=text;document.body.appendChild(area);area.select();document.execCommand("copy");area.remove();notify("Damage table copied as CSV.");}}
- else if(b.dataset.damageWindow!==undefined){try{await window.pywebview.api.open_damage_window();}catch{notify("Could not open the damage window.",true);}}
+ else if(b.dataset.damageWindow!==undefined){try{await (overlayOpen.damage?window.pywebview.api.hide_damage_window():window.pywebview.api.open_damage_window());}catch{notify("Could not open the damage window.",true);}await refreshOverlayState();}
  else if(b.id==="report-create"){
   const r=await runTask({type:"launcher",action:"report",args:{description:$("#report-description").value,screenshot:$("#report-screenshot").checked}},{silent:true});
   if(r?.ok){notify(r.message);$("#report-description").value="";}
@@ -1209,7 +1232,7 @@ content.addEventListener("click",async e=>{
  else if(b.id==="filter-import"){let path=null;try{path=await window.pywebview.api.choose_filter_file();}catch{notify("Could not open the file picker.",true);}if(path)await filterAction("filter_import",{path});}
  else if(b.dataset.filterExport)await filterAction("filter_export",{file:b.dataset.filterExport});
  else if(b.dataset.filterDuplicate)await filterAction("filter_duplicate",{file:b.dataset.filterDuplicate});
- else if(b.id==="loot-feed-open"){try{await window.pywebview.api.open_loot_feed();}catch{notify("Could not open the loot window.",true);}}
+ else if(b.id==="loot-feed-open"){try{await (overlayOpen.feed?window.pywebview.api.hide_loot_feed():window.pywebview.api.open_loot_feed());}catch{notify("Could not open the loot window.",true);}await refreshOverlayState();}
  else if(b.id==="loot-log-refresh"){convenienceNextRead.loot_log=0;await pollConveniences();}
  else if(b.id==="summon-baseline-clear"){summonBaseline={};summonBaselineOwner="";$("#summon-live").innerHTML=summonTable();}
  else if(b.dataset.refresh)await refreshSection(b.dataset.refresh);
@@ -1270,6 +1293,7 @@ function rememberMonolithInput(input){
 }
 content.addEventListener("input",e=>{
  const t=e.target;
+ if(t.dataset?.workshopRoll){const v=Number(t.value);if(t.value!==''&&Number.isInteger(v))workshopSetting(t.dataset.workshopRoll,{roll:v});else workshopSetting(t.dataset.workshopRoll,{roll:NaN});refreshWorkshopSummary();return;}
  if(t.hasAttribute?.('data-affix-search')){wantedAffixes.query=t.value;updateWantedAffixLists();return;}
  if(t.dataset.workshopSearch){
   const kind=t.dataset.workshopSearch;workshopFilters[kind]=t.value;
@@ -1293,6 +1317,14 @@ content.addEventListener("input",e=>{
  }
 });
 content.addEventListener("change",e=>{
+ if(e.target.dataset?.workshopTier){workshopSetting(e.target.dataset.workshopTier,{tier:Number(e.target.value)});refreshWorkshopSummary();return;}
+ if(e.target.dataset?.workshopRoll)return;
+ if(e.target.dataset?.workshopRandom){
+  const id=e.target.dataset.workshopRandom,input=e.target.closest('.craft-affix-row')?.querySelector('[data-workshop-roll]');
+  workshopSetting(id,{roll:e.target.checked?'random':(String(workshopDraft.perfect)==='0'?50:100)});
+  if(input){input.disabled=e.target.checked;input.value=e.target.checked?'':craftingModel.setting(workshopDraft,id).roll;}
+  refreshWorkshopSummary();return;
+ }
  if(e.target.dataset.reportKey!==undefined){void (async()=>{const r=await runTask({type:"control",id:"report_key",args:{key:e.target.value}},{silent:true});if(r?.ok){cache.report_read=r;notify(r.key==="off"?"In-game report hotkey turned off.":`In-game report hotkey: ${r.key}.`);}})();return;}
  if(e.target.id==="remember-scroll"){writeStored("remember-scroll",e.target.checked);return;}
  if(e.target.id==="update-check"){writeStored("update-check",e.target.checked);return;}
@@ -1383,4 +1415,6 @@ async function init(){
 void init();
 // Focus refresh complements automatic startup/restart recovery. Both paths
 // read state only; opening the UI never submits campaign or reward mutations.
+window.addEventListener("focus",()=>void refreshOverlayState());window.addEventListener("pywebviewready",()=>void refreshOverlayState());
+setInterval(()=>{if(!document.hidden&&($("#loot-feed-open")||$("[data-damage-window]")))void refreshOverlayState();},3000);
 window.addEventListener("focus",()=>{if(catalog&&!busy&&!window.EpochLauncher?.browsing())void refreshConnection(true,true,{preservePage:true});});

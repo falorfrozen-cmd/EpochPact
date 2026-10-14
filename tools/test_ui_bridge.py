@@ -110,6 +110,16 @@ class BridgeTests(unittest.TestCase):
                 self.bridge.execute('craft_custom', {'template_id':-1,'affixes':csv,'perfect':1,'expected_id':'42'})
         self.assertEqual(self.commands, [])
 
+    def test_custom_crafting_tiers_and_rolls_are_checked_before_ipc(self):
+        for csv in ('1:9:50', '1:0:50', '1:7:0', '1:7:101', '1:7', '1:7:x', '1:8:100,2:8:r', '1:7:50,1:5:50', '70000:7:50'):
+            with self.subTest(csv=csv), self.assertRaises(ValueError):
+                self.bridge.execute('craft_custom', {'template_id':-1,'affixes':csv,'perfect':1,'expected_id':'42'})
+        self.assertEqual(self.commands, [])
+        chosen = '0:1:1,1:5:50,2:8:100,3:7:r,4,5:2:99,6:6:100'
+        self.live[f'craftcustom 42 -1 {chosen} 1'] = {'ok':True,'backup':'test-only-snapshot'}
+        self.bridge.execute('craft_custom', {'template_id':-1,'affixes':chosen,'perfect':1,'expected_id':'42'})
+        self.assertEqual(self.commands.count(f'craftcustom 42 -1 {chosen} 1'), 1, 'seven affixes with tiers and rolls fit the limit')
+
     def test_custom_crafting_dispatches_once_and_retains_backup(self):
         self.live['craftcustom 42 -1 0,1,2,3,4,5,6 1']={'ok':True,'backup':'test-only-snapshot'}
         result=self.bridge.execute('craft_custom', {'template_id':-1,'affixes':'0,1,2,3,4,5,6','perfect':1,'expected_id':'42'})

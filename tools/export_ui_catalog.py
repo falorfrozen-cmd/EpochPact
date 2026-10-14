@@ -251,10 +251,10 @@ def controls():
         "Read the game's public Unique/Set templates and affix names. Does not create or modify items.",
         api="tools.build_backend.workshop_catalog()", requires=("loaded_actor",), doc="docs/build-controls.md")
     add("craft_custom", "crafting", "Create custom gear", "button", "craftmix {save_id} {template_id} {affixes} {perfect} {modifiers}", "game_save",
-        "Replace the selected forge item with a recovery backup. Combine a template, regular T7 affixes and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling.",
+        "Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8 with a chosen or random roll; T8 is primordial, one per item) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling.",
         params=[save_id, parameter("template_id", "integer", -1, 65535), parameter("affixes", "single_token"), parameter("perfect", "integer", 0, 1),parameter("modifiers","optional_single_token")],
         api="tools.build_backend.custom(save_id, template_id, affixes, perfect, modifiers='none')", requires=("loaded_actor",), doc="docs/build-controls.md")
-    items[-1]["parameters"][2]["maximumLength"] = 63
+    items[-1]["parameters"][2]["maximumLength"] = 160
     items[-1]["parameters"][4]["maximumLength"] = 2048
     add('map_minimapsize',"display",'Minimap size',"number","mapset minimapsize {value}","session",
         "Scale the corner minimap, including its frame. 1 is the game's size.",

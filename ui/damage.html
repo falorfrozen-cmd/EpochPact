@@ -1,22 +1,33 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="overlay-page">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EpochPact Damage</title><link rel="stylesheet" href="/ui/style.css"></head>
-<body class="feed-body">
- <header class="feed-head">
-  <strong>Damage</strong>
-  <label title="Window opacity">Opacity <input type="range" id="damage-opacity" min="30" max="100" step="5" value="100"></label>
+<body class="overlay-body">
+ <header class="overlay-bar">
+  <span class="overlay-drag pywebview-drag-region">Damage</span>
+  <button type="button" id="damage-toggle">Start</button>
+  <button type="button" id="damage-reset">Reset</button>
+  <button type="button" data-overlay-options title="Window options" aria-label="Window options">⚙</button>
+  <button type="button" data-overlay-hide title="Hide this window" aria-label="Hide this window">−</button>
  </header>
- <div class="feed-options">
-  <button id="damage-toggle">Start</button>
-  <button id="damage-reset">Reset</button>
-  <label><input type="checkbox" id="damage-compact" checked> Compact</label>
- </div>
- <p id="damage-status" class="muted">Connecting…</p>
- <main id="damage-table"><p class="empty">Waiting…</p></main>
+ <section class="overlay-options" hidden>
+  <div class="overlay-row">
+   <label><input type="checkbox" id="damage-compact" checked> Compact</label>
+  </div>
+  <label>Background <input type="color" data-overlay="background"></label>
+  <label>Background opacity <span class="overlay-range"><input type="range" min="0" max="100" step="5" data-overlay="backgroundOpacity"><output data-overlay-value></output></span></label>
+  <label>Text colour <input type="color" data-overlay="text"></label>
+  <label>Text size <input type="range" min="10" max="22" step="1" data-overlay="fontSize"></label>
+  <label>Row spacing <select data-overlay="spacing"><option value="compact">Compact</option><option value="normal">Normal</option><option value="roomy">Roomy</option></select></label>
+  <label>Top bar <select data-overlay="bar"><option value="hover">On hover</option><option value="always">Always</option></select></label>
+ </section>
+ <p id="damage-status" class="overlay-status muted">Connecting…</p>
+ <main class="overlay-content" id="damage-table"><p class="empty">Waiting…</p></main>
+ <span class="overlay-grip" title="Resize" aria-hidden="true"></span>
  <script src="/ui/storage-sync.js"></script>
  <script src="/ui/i18n.js"></script>
  <script src="/ui/session.js"></script>
  <script src="/ui/damage-meter.js"></script>
+ <script src="/ui/overlay.js"></script>
  <script src="/ui/damage.js"></script>
 </body>
 </html>

@@ -115,13 +115,24 @@ class WindowMemoryTests(unittest.TestCase):
         time.sleep(1.0)
         self.assertEqual(self.state(), {'feed': {'open': True, 'width': 420, 'height': 760}})
 
-    def test_closing_a_window_forgets_it_but_closing_the_app_keeps_it_open(self):
+    def test_hiding_a_window_forgets_it_but_any_other_close_keeps_it_open(self):
+        from unittest.mock import MagicMock
         self.dialogs._track('feed', FakeWindow())
         self.dialogs._track('damage', FakeWindow())
+        self.dialogs._feed = MagicMock()
+        self.dialogs.hide_loot_feed()          # Hide in EpochPact (− in the window does the same)
         self.dialogs._feed_closed()
-        self.dialogs._prepare_close(True)
-        self.dialogs._damage_closed()
+        self.dialogs._damage_closed()          # closed before EpochPact's own close ran (taskbar, Alt+F4)
         self.assertEqual(self.state(), {'feed': {'open': False}, 'damage': {'open': True}})
+
+    def test_closing_epochpact_closes_the_small_windows_and_keeps_them_open(self):
+        from unittest.mock import MagicMock
+        self.dialogs._track('feed', FakeWindow())
+        self.dialogs._feed = feed = MagicMock()
+        feed.destroy.side_effect = self.dialogs._feed_closed
+        self.dialogs._close_windows()
+        feed.destroy.assert_called_once_with()
+        self.assertEqual(self.state(), {'feed': {'open': True}})
 
     def test_windows_open_at_start_reopen_once(self):
         self.store.set_json('epochpact.windows.v1', {'feed': {'open': True}, 'damage': {'open': False}})

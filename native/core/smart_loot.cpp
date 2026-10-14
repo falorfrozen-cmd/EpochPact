@@ -78,12 +78,15 @@ int Integer(const std::string& s) {
     if (error!=std::errc{} || end!=s.data()+s.size()) throw std::runtime_error("expected integer");
     return v;
 }
-std::vector<std::pair<int,std::string>> AffixCatalog() {
+struct CatalogAffix { int id; std::string name; size_t tiers; };
+// With the tier count: Craft from EpochPact offers T8 only where the game has it.
+std::vector<CatalogAffix> AffixCatalog() {
     Root data(Invoke(getAffixes));
     Root list(Invoke(Method(data.Get(), "get_AllAffixes", 0), data.Get()));
-    std::vector<std::pair<int,std::string>> result;
-    const auto id=Offset("AffixList.Affix","affixId");
-    for (void* a : Entries(list.Get())) if (a && !workshop::Owns(Get<int>(a,id))) result.emplace_back(Get<int>(a,id), Text(Invoke(Method(a,"getAffixDisplayName",0),a)));
+    std::vector<CatalogAffix> result;
+    const auto id=Offset("AffixList.Affix","affixId"), tiers=Offset("AffixList.Affix","tiers");
+    for (void* a : Entries(list.Get())) if (a && !workshop::Owns(Get<int>(a,id)))
+        result.push_back({Get<int>(a,id), Text(Invoke(Method(a,"getAffixDisplayName",0),a)), Entries(Get<void*>(a,tiers)).size()});
     return result;
 }
 }
@@ -164,8 +167,8 @@ std::string Read() {
     return Run([] {
         std::string state=State(); state.pop_back(); state+=" ,\"affixes\":[";
         bool first=true;
-        if (ready) for (const auto& [id,name]:AffixCatalog()) { if(!first) state+=','; first=false;
-            state+="{\"id\":"+std::to_string(id)+",\"name\":"+Json(name)+"}"; }
+        if (ready) for (const auto& a:AffixCatalog()) { if(!first) state+=','; first=false;
+            state+="{\"id\":"+std::to_string(a.id)+",\"name\":"+Json(a.name)+",\"tiers\":"+std::to_string(a.tiers)+"}"; }
         return state+"]}";
     });
 }
@@ -181,7 +184,7 @@ std::string Set(const std::string& key, const std::string& value) {
         } else if(key=="lp") { next.minimumLP=Integer(value); if(next.minimumLP<0||next.minimumLP>4) throw std::runtime_error("LP threshold 0..4"); }
         else if(key=="affixes") {
             next.affixes.clear(); std::set<int> available;
-            for(const auto& a:AffixCatalog()) available.insert(a.first);
+            for(const auto& a:AffixCatalog()) available.insert(a.id);
             if(value!="none") { std::istringstream in(value); std::string part;
                 if(value.empty()||value.back()==',') throw std::runtime_error("invalid affix IDs");
                 while(std::getline(in,part,',')) { const int id=Integer(part);

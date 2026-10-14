@@ -66,7 +66,10 @@ profile or theme action invokes it.
 2. Open **Crafting → Custom Items**, refresh the selected item and load item choices.
 3. Select one whole public Unique/Set template, or Exalted affixes only. Optionally
    search and select individual modifier lines from multiple Unique and Set sources.
-4. Search and check up to seven distinct T7 affixes, and choose maximum or midpoint rolls. When
+4. Search and check up to seven distinct affixes. Each chosen affix has its own
+   **tier** (T1–T8) and **roll** (1–100% of that tier's range, or **Random**); new
+   affixes start at T7 with the item-wide roll quality (maximum 100% or midpoint
+   50%), which also applies to the template, implicits and extra effects. When
    adding a mixed modifier recipe, choose at most six regular affixes: the recipe
    occupies the seventh native affix slot and contains up to 64 distinct lines.
 5. Use the explicit craft button and confirm the selected character/item.
@@ -78,6 +81,16 @@ existing affix IDs. Without extra effects, their tiers stay unchanged; maximum
 mode maximizes their rolls and midpoint mode keeps their existing rolls. With a
 mixed effect recipe, kept affixes are rebuilt at T7 with the chosen roll quality.
 Idols and crafting materials are excluded.
+
+**T8 is the game's primordial tier.** It is offered only for affixes whose game
+data has an eighth tier (most regular affixes; 49 stop at T7), and an item can
+have one: the game's own `ItemData.MakeAffixSealedPrimordialAffix` seals it
+(sealed type 2) and marks the item primordial, keeping the chosen roll. The game
+limits how many primordial items a character can wear, and for an item without
+a Unique/Set template it sets the rarity from the regular affixes (at most 4).
+The command format is `craftcustom <save> <template|-1> <affixes> <0|1>` where each
+affix is an ID (T7, item-wide roll, as before) or `ID:tier:roll` with tier 1–8 and
+roll 1–100 or `r`, for example `12:8:100,345:5:50,6:7:r`.
 
 The native v6 format stores at most seven affixes. Eight are rejected before mutation;
 otherwise the native three-bit affix count would become zero on reload. Mixed recipes

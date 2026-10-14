@@ -72,7 +72,7 @@ def create_app(bridge=None, *, developer=False, operation_log=None, setup=None, 
 
     @app.get("/ui/<path:path>")
     def assets(path):
-        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js", "crafting-model.js", "affix-picker.js", "loot-log.js", "feed.js", "damage-meter.js", "damage.js", "release-notes.js", "storage-sync.js", "i18n.js", "i18n-tr.json", "i18n-ru.json"):
+        if path in ("app.js", "style.css", "stat-model.js", "session.js", "collection-ui.js", "collection.css", "launcher.js", "preferences.js", "crafting-model.js", "affix-picker.js", "loot-log.js", "feed.js", "damage-meter.js", "damage.js", "release-notes.js", "storage-sync.js", "overlay.js", "i18n.js", "i18n-tr.json", "i18n-ru.json"):
             return send_from_directory(ROOT / "ui", path)
         if path.startswith("assets/"):
             return send_from_directory(ROOT / "ui/assets", path.removeprefix("assets/"))
@@ -375,6 +375,7 @@ def main():
                         "EpochPact", 0x10)
                     return False
             dialogs._window.events.closing += closing
+            dialogs._window.events.closed += dialogs._close_windows
             app.extensions["epoch_request_exit"] = dialogs._window.destroy
             def loaded():
                 logging.getLogger(__name__).info('Desktop window loaded using Edge WebView2.')

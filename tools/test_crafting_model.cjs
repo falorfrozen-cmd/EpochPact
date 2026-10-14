@@ -11,7 +11,7 @@ test('a normal recipe uses seven affixes, a mixed recipe leaves its seventh slot
  const d={...C.defaults(),affixes:['0','1','2','3','4','5','6']};
  assert.equal(C.problem(d,data), '');d.modifiers=['u0:0'];assert.match(C.problem(d,data),/at most 6/);
  d.affixes.pop();assert.equal(C.problem(d,data),'');
- assert.deepEqual(C.args(d),{template_id:-1,affixes:'0,1,2,3,4,5',perfect:1,modifiers:'u0:0'});
+ assert.deepEqual(C.args(d),{template_id:-1,affixes:'0:7:100,1:7:100,2:7:100,3:7:100,4:7:100,5:7:100',perfect:1,modifiers:'u0:0'},'unchanged affixes: T7 at the item-wide roll');
 });
 test('keeping current affixes includes the real normal-affix count and excludes an existing mixed recipe',()=>{
  const d={...C.defaults(),modifiers:['u0:0']};
@@ -30,4 +30,23 @@ test('an untouched recipe keeps affixes and omits extra effects; summary disting
  assert.equal(C.summary({...C.defaults(),affixes:['0'],perfect:'0'},data).rolls,'Midpoint rolls');
  const mixed=C.summary({...C.defaults(),modifiers:['u0:0'],perfect:'0'},data);
  assert.equal(mixed.affixes,'Current affixes rebuilt at T7');assert.equal(mixed.rolls,'Midpoint rolls');assert.equal(mixed.effects,'1 extra effect');
+});
+
+test('each affix has its own tier 1-8 and roll 1-100% or random',()=>{
+ const tiers={affixes:[{id:0,name:'A',tiers:8},{id:1,name:'B',tiers:8},{id:2,name:'C',tiers:7}],items:data.items,modifiers:[]};
+ const d={...C.defaults(),affixes:['0','1','2'],settings:{0:{tier:8,roll:100},1:{tier:1,roll:'random'},2:{tier:5,roll:37}}};
+ assert.equal(C.problem(d,tiers),'');
+ assert.equal(C.args(d).affixes,'0:8:100,1:1:r,2:5:37');
+ assert.equal(C.summary(d,tiers).affixes,'3 selected affixes · T8, T1, T5');
+ assert.equal(C.summary({...C.defaults(),affixes:['0']},tiers).affixes,'1 selected affix · T7');
+ assert.match(C.problem({...d,settings:{...d.settings,1:{tier:8,roll:50}}},tiers),/one T8/,'one primordial affix per item');
+ assert.match(C.problem({...d,settings:{...d.settings,2:{tier:8,roll:50},0:{tier:7,roll:50}}},tiers),/no T8/,'T8 only where the game has it');
+ for(const roll of [0,101,1.5,NaN,'x'])assert.match(C.problem({...d,settings:{...d.settings,2:{tier:5,roll}}},tiers),/roll from 1 to 100/);
+ for(const tier of [0,9,2.5])assert.match(C.problem({...d,settings:{...d.settings,2:{tier,roll:50}}},tiers),/tier from T1 to T8/);
+ assert.match(C.problem({...C.defaults(),affixes:['0'],settings:{0:{tier:8,roll:50}}},{...tiers,affixes:[{id:0,name:'A'}]}),/no T8/,'an older catalog without tier counts offers T1-T7');
+});
+test('a new affix starts at T7 with the item-wide maximum or midpoint roll',()=>{
+ assert.deepEqual(C.setting(C.defaults(),'4'),{tier:7,roll:100});
+ assert.deepEqual(C.setting({...C.defaults(),perfect:'0'},'4'),{tier:7,roll:50});
+ assert.equal(C.tiersOf({affixes:[{id:4,tiers:12}]},'4'),8,'never above T8');
 });

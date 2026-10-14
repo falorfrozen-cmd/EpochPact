@@ -78,9 +78,9 @@ function customCraftHarness(){
 }
 test('custom item uses all selected checkboxes even when searches hide them and requires confirmation before one mutation',async()=>{
  const h=customCraftHarness();h.run(`workshopFilters.affixes='missing';workshopFilters.modifiers='missing';confirmAction=async(title,message)=>{assertCustomMessage=message;return false;}`);
- await h.run('formAction(customForm)');assert.equal(h.calls.length,0);assert.match(h.run('assertCustomMessage'),/2 selected T7 affixes/);
+ await h.run('formAction(customForm)');assert.equal(h.calls.length,0);assert.match(h.run('assertCustomMessage'),/2 selected affixes · T7, T7/);
  h.run('confirmAction=async()=>true');h.replies.push({ok:true,backup:'fixture-backup',history:[{backup:'fixture-backup'}],forgePreview:{player:{id:'0'},canCustom:true}});await h.run('formAction(customForm)');
- assert.deepEqual(h.calls.map(x=>[x.id,x.args]),[['craft_custom',{template_id:5,affixes:'0,1',perfect:1,modifiers:'u0:0',expected_id:'0'}]]);
+ assert.deepEqual(h.calls.map(x=>[x.id,x.args]),[['craft_custom',{template_id:5,affixes:'0:7:100,1:7:100',perfect:1,modifiers:'u0:0',expected_id:'0'}]]);
  assert.equal(h.run('history.length'),1);
 });
 test('custom item invalid or stale catalog selections cannot dispatch a mutation',async()=>{

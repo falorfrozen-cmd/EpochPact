@@ -3,18 +3,13 @@
  'use strict';
  const $=s=>document.querySelector(s);
  const key='epochpact.loot-feed.v1';
- let options={gold:true,materials:true,opacity:100};
+ let options={gold:true,materials:true};
  try{options={...options,...JSON.parse(localStorage.getItem(key)||'{}')};}catch{}
+ // The old whole-window opacity becomes the background opacity (overlay.js).
+ Object.assign(options,window.EpochOverlay.normalise(options));delete options.opacity;
  const save=()=>{try{localStorage.setItem(key,JSON.stringify(options));}catch{}};
  let entries=[],busy=false;
  const transport=window.EpochSession.create({fetch:(...a)=>fetch(...a),sleep:ms=>new Promise(r=>setTimeout(r,ms)),isReadOnly:()=>true});
- function applyOpacity(){
-  const value=Math.min(100,Math.max(30,Number(options.opacity)||100));
-  $('#feed-opacity').value=value;
-  // The desktop window applies real transparency; a browser tab dims instead.
-  if(window.pywebview?.api?.set_feed_opacity)window.pywebview.api.set_feed_opacity(value).catch(()=>{});
-  else document.body.style.opacity=String(value/100);
- }
  function render(){
   $('#feed-list').innerHTML=window.EpochLootLog.compact(entries,{gold:options.gold,materials:options.materials});
   const gold=window.EpochLootLog.totalGold(entries);$('#feed-gold-total').textContent=gold?`Gold: ${gold.toLocaleString('en-US')}`:'';
@@ -29,13 +24,12 @@
   finally{busy=false;}
  }
  async function start(){
+  window.EpochOverlay.install(window,{options,save,minimum:[220,120]});
   try{const boot=await (await fetch('/api/bootstrap')).json();transport.setSession(boot);}catch{$('#feed-status').textContent='Open EpochPact first.';return;}
   $('#feed-gold').checked=options.gold;$('#feed-materials').checked=options.materials;
   $('#feed-gold').addEventListener('change',e=>{options.gold=e.target.checked;save();render();});
   $('#feed-materials').addEventListener('change',e=>{options.materials=e.target.checked;save();render();});
-  $('#feed-opacity').addEventListener('input',e=>{options.opacity=Number(e.target.value);save();applyOpacity();});
-  window.addEventListener('pywebviewready',applyOpacity);
-  applyOpacity();render();await poll();setInterval(()=>void poll(),2000);
+  render();await poll();setInterval(()=>void poll(),2000);
  }
  void start();
 })();

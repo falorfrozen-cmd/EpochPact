@@ -255,8 +255,14 @@ class UiBridge:
                     if not re.fullmatch(r"\d+(?:,\d+)*", value) or len(value.split(",")) > 64:
                         raise ValueError("Enter up to 64 comma-separated affix IDs, or none.")
                 if control["id"] == "craft_custom" and name == "affixes" and value != "keep":
-                    if not re.fullmatch(r"\d+(?:,\d+)*", value) or len(value.split(",")) > 7 or len(set(value.split(","))) != len(value.split(",")):
+                    # Each affix: ID (T7, item-wide roll) or ID:tier 1-8:roll 1-100 or r (random); one T8 per item.
+                    tokens = value.split(",")
+                    ids = [t.split(":")[0] for t in tokens]
+                    if (not all(re.fullmatch(r"\d{1,5}(?::[1-8]:(?:r|100|[1-9]\d?))?", t) for t in tokens) or len(tokens) > 7
+                            or len(set(ids)) != len(ids) or any(int(i) > 65535 for i in ids)):
                         raise ValueError("Choose up to seven different affixes, or keep the current affixes.")
+                    if sum(1 for t in tokens if t.count(":") == 2 and t.split(":")[1] == "8") > 1:
+                        raise ValueError("An item can have one T8 (primordial) affix.")
                 if control["id"] == "craft_custom" and name == "modifiers" and value != "none":
                     parts=value.split(",")
                     if len(parts)>64 or len(set(parts))!=len(parts) or not all(re.fullmatch(r"[us]\d+:\d+",x) for x in parts):
