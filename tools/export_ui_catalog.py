@@ -119,6 +119,9 @@ def controls():
         'Recent item and gold pickups, by you or Auto Pickup: name, rarity and the loot filter rule that matched (the same number the game shows with Item rule numbering). Reading it does not change the game.',doc="docs/player-conveniences.md")
     add("loot_log_clear","loot","Clear recent pickups","button","lootlogclear","view",
         'Clear the recent pickups list. Items and gold are unchanged.',doc="docs/player-conveniences.md")
+    add("affix_info","loot","Affix shard details","read","affixinfo {id}","read_only",
+        "What an affix shard's affix does: prefix or suffix, level, the item types it rolls on and the game's value text for each tier. Reading it does not change the game.",
+        params=[parameter("id","integer",0,65535)],doc="docs/player-conveniences.md")
     add("pickup_now","loot","Pick up everything now","button","pickupnow","view",
         'Collect every drop the game has loaded right now, ignoring the radius. Your pickup rules, categories, loot filter and inventory space still apply. Runs across several frames.',doc="docs/player-conveniences.md")
     add("damage_session_read","summons","Damage session","read","damagesession","read_only",
@@ -293,6 +296,9 @@ def controls():
     add("tier_color","display","Tier colour","selector","tiercolor {tier} {color}","session",
         "Choose the colour for one affix tier (six hexadecimal digits, for example E0315A).",
         params=[parameter("tier","integer",1,8),parameter("color","single_token")],reset="tiercolor reset",doc="docs/player-conveniences.md")
+    add("tier_rule_color","display","Rule line colour","selector","tiercolor rule {color}","session",
+        "Colour of the loot filter rule line in item tooltips: the colour the item's label has on the ground (label), or one colour you choose (six hexadecimal digits, for example E0315A).",
+        params=[parameter("color","single_token")],reset="tiercolor rule label",doc="docs/player-conveniences.md")
     add("tier_read","display","Tier display status","read","tierread","read_only","Read tier display settings, palette and counters.",doc="docs/player-conveniences.md")
     add("map_settings_read","display","Map display settings","read","mapsettings","read_only","Read minimap and overlay display settings.",doc="docs/player-conveniences.md")
     add("report_read","session","In-game report","read","reportread","read_only","Read the in-game report hotkey and the reports folder.",doc="docs/player-conveniences.md")

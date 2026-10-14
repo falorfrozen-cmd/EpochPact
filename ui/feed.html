@@ -8,9 +8,32 @@
   <button type="button" data-overlay-hide title="Hide this window" aria-label="Hide this window">−</button>
  </header>
  <section class="overlay-options" hidden>
-  <div class="overlay-row">
-   <label><input type="checkbox" id="feed-gold" checked> Gold</label>
-   <label><input type="checkbox" id="feed-materials" checked> Materials</label>
+  <div class="overlay-filter">
+   <div class="overlay-filter-head"><span>Show</span><button type="button" data-feed-all>All</button><button type="button" data-feed-none>None</button></div>
+   <span class="overlay-filter-group">Items</span>
+   <div class="overlay-row">
+    <label class="loot-normal"><input type="checkbox" data-feed-show="normal"> Normal</label>
+    <label class="loot-magic"><input type="checkbox" data-feed-show="magic"> Magic</label>
+    <label class="loot-rare"><input type="checkbox" data-feed-show="rare"> Rare</label>
+    <label class="loot-exalted"><input type="checkbox" data-feed-show="exalted"> Exalted</label>
+    <label class="loot-unique"><input type="checkbox" data-feed-show="unique"> Unique</label>
+    <label class="loot-set"><input type="checkbox" data-feed-show="set"> Set</label>
+    <label class="loot-legendary"><input type="checkbox" data-feed-show="legendary"> Legendary</label>
+   </div>
+   <span class="overlay-filter-group">Resources</span>
+   <div class="overlay-row">
+    <label><input type="checkbox" data-feed-show="gold"> Gold</label>
+    <label><input type="checkbox" data-feed-show="amber"> Memory Amber</label>
+    <label><input type="checkbox" data-feed-show="ember"> Soul Ember</label>
+    <label><input type="checkbox" data-feed-show="xp"> XP motes</label>
+   </div>
+   <span class="overlay-filter-group">Materials</span>
+   <div class="overlay-row">
+    <label><input type="checkbox" data-feed-show="shard"> Affix shards</label>
+    <label><input type="checkbox" data-feed-show="rune"> Runes</label>
+    <label><input type="checkbox" data-feed-show="glyph"> Glyphs</label>
+    <label><input type="checkbox" data-feed-show="material"> Other materials</label>
+   </div>
   </div>
   <label>Background <input type="color" data-overlay="background"></label>
   <label>Background opacity <span class="overlay-range"><input type="range" min="0" max="100" step="5" data-overlay="backgroundOpacity"><output data-overlay-value></output></span></label>

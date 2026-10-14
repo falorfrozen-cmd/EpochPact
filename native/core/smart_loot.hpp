@@ -14,6 +14,7 @@ struct RuleMatch { int number = 0; int outcome = -1; std::string name; int order
 bool RuleFor(void* unpackedItem, RuleMatch* result);
 bool Category(int index);
 std::string Read();
+std::string AffixInfo(int id);
 std::string Set(const std::string& key, const std::string& value);
 #ifdef EPOCHPACT_RESEARCH
 std::string Test(const std::string& id, const std::string& action);

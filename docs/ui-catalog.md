@@ -144,6 +144,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `pickup_interval` — Auto pickup interval | `pickupinterval {value}` | value: 0.25…10 | 0.25 | Oturum |
 | `loot_log` — Recent pickups | `lootlog` | — | — | Okuma |
 | `loot_log_clear` — Clear recent pickups | `lootlogclear` | — | — | Görünüm |
+| `affix_info` — Affix shard details | `affixinfo {id}` | id: 0…65535 | — | Okuma |
 | `pickup_now` — Pick up everything now | `pickupnow` | — | — | Görünüm |
 | `autopickup` — Otomatik pickup | `autopickup {value}` | value: 0…1 | 0 | Oturum |
 | `loot_read` — Akıllı toplama durumu / affix kataloğu | `lootread` | — | — | Okuma |
@@ -432,6 +433,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `tier_rules` — Loot filter rule in tooltips | `tierset rules {value}` | value: 0…1 | 0 | Oturum |
 | `tier_rule_position` — Rule line position | `tierset rulepos {value}` | value: 0/1/2 | 0 | Oturum |
 | `tier_rule_plain` — Rule name only | `tierset ruleplain {value}` | value: 0…1 | 0 | Oturum |
+| `tier_rule_color` — Rule line colour | `tiercolor rule {color}` | color: single_token | — | Oturum |
 | `tier_color` — Tier colour | `tiercolor {tier} {color}` | tier: 1…8; color: single_token | — | Oturum |
 | `tier_read` — Tier display status | `tierread` | — | — | Okuma |
 | `map_settings_read` — Map display settings | `mapsettings` | — | — | Okuma |

@@ -39,6 +39,10 @@ std::array<std::unique_ptr<Root>, 3> ruleLabels;
 uint64_t ruleUpdates = 0;
 std::string lastRuleText;
 uint32_t lastRuleColor = 0;
+// The rule line's colour: the item's label colour on the ground (default) or
+// one colour the player chose (tiercolor rule <RRGGBB|label>).
+std::atomic<bool> ruleCustom{false};
+std::atomic<uint32_t> ruleCustomColor{0xFFFFFF};
 std::map<void*, std::unique_ptr<Root>> labels;  // InventoryItemUI -> our TMP label
 // A tooltip text we changed: its own colour, and for affix lines the game's
 // original text and the affix tier, so it can be re-drawn or restored exactly.
@@ -317,7 +321,7 @@ std::string RuleText(void* itemData, uint32_t* rgb) {
         if (match.name[i] == '<') { const auto end = match.name.find('>', i); if (end != std::string::npos) { i = end; continue; } }
         name += match.name[i];
     }
-    *rgb = RuleColor(itemData, match);
+    *rgb = ruleCustom.load() ? ruleCustomColor.load() : RuleColor(itemData, match);
     const std::string open = "<color=#" + Hex(*rgb) + ">";
     if (rulePlain.load())
         return open + (match.number <= 0 ? std::string("No matching rule") : name.empty() ? "Rule " + std::to_string(match.number) : name) + "</color>";
@@ -371,6 +375,27 @@ void* RuleLabel(void* tooltip, int position) {
     if (!label) return nullptr;
     slot = std::make_unique<Root>(label);
     bool on = true; void* ra[]{&on}; Invoke(Method(label, "set_richText", 1), label, ra);
+    // The item type and affix lines' fonts draw lowercase letters as small
+    // capitals: the rule name is shown as written, in the font of the footer's
+    // "Requires: Level" line (true lowercase), without upper/lower-case or
+    // small-caps styles. Without that line: the affix lines' font.
+    void* ruleFont = nullptr;
+    if (void* requirement = Get<void*>(tooltip, F("UITooltipItem", "requirementLevelText")); requirement && game::IsAlive(requirement))
+        ruleFont = Invoke(Method(requirement, "get_font", 0), requirement);
+    if (!ruleFont) for (const char* list : {"prefixesText", "suffixesText", "uniqueAffixesText"}) {
+        for (void* line : Entries(Get<void*>(tooltip, F("UITooltipItem", list)))) {
+            void* text = line && game::IsAlive(line) ? Get<void*>(line, F("UITooltipItemAffix", "_text")) : nullptr;
+            if (text && game::IsAlive(text)) { ruleFont = Invoke(Method(text, "get_font", 0), text); break; }
+        }
+        if (ruleFont) break;
+    }
+    if (!ruleFont) {  // an item without affixes: the implicit line uses the same font
+        void* implicit = Get<void*>(tooltip, F("UITooltipItem", "implicitText"));
+        if (implicit && game::IsAlive(implicit)) ruleFont = Invoke(Method(implicit, "get_font", 0), implicit);
+    }
+    if (ruleFont) { void* fa[]{ruleFont}; Invoke(Method(label, "set_font", 1), label, fa); }
+    int style = Value<int>(Method(label, "get_fontStyle", 0), label) & ~(8 | 16 | 32);  // LowerCase, UpperCase, SmallCaps
+    void* sa[]{&style}; Invoke(Method(label, "set_fontStyle", 1), label, sa);
     if (position != 0) {
         // In the body: as wide as the lore line, its text indented like the affix lines.
         Root labelRect(TransformOf(label));
@@ -474,7 +499,8 @@ void RefreshIcons(bool searchScene) {
 std::string State() {
     std::ostringstream out;
     out << "{\"ok\":true,\"icons\":" << Boolean(iconsOn.load()) << ",\"tooltips\":" << Boolean(tooltipsOn.load()) << ",\"lines\":" << Boolean(linesOn.load()) << ",\"rules\":" << Boolean(rulesOn.load()) << ",\"rulePosition\":" << rulePosition.load() << ",\"rulePlain\":" << Boolean(rulePlain.load())
-        << ",\"ruleUpdates\":" << ruleUpdates << ",\"lastRuleText\":" << Json(lastRuleText) << ",\"lastRuleColor\":" << Json(Hex(lastRuleColor)) << ",\"palette\":[";
+        << ",\"ruleUpdates\":" << ruleUpdates << ",\"lastRuleText\":" << Json(lastRuleText) << ",\"lastRuleColor\":" << Json(Hex(lastRuleColor))
+        << ",\"ruleColor\":" << Json(ruleCustom.load() ? Hex(ruleCustomColor.load()) : std::string("label")) << ",\"palette\":[";
     for (size_t i = 0; i < palette.size(); ++i) { if (i) out << ','; out << Json(Hex(palette[i])); }
     out << "],\"labels\":" << labels.size() << ",\"coloredTexts\":" << tooltipColors.size() << ",\"iconUpdates\":" << iconUpdates
         << ",\"tooltipUpdates\":" << tooltipUpdates << ",\"tooltipMismatches\":" << tooltipMismatches << ",\"scanned\":" << scanned << ",\"created\":" << created << ",\"noItem\":" << noItem << ",\"noTiers\":" << noTiers << ",\"noQuantityText\":" << noQuantity << ",\"lastTooltipTier\":" << lastTooltipTier << ",\"faults\":" << faults
@@ -544,9 +570,18 @@ std::string Set(const std::string& key, int value) {
     });
 }
 std::string SetColor(const std::string& tier, const std::string& hex) {
-    if (tier == "reset") return Run([] { palette = kDefaultPalette; RefreshIcons(false); RedrawTooltips(); RebuildGameTooltip(); return State(); });
+    if (tier == "reset") return Run([] { palette = kDefaultPalette; ruleCustom = false; RefreshIcons(false); RedrawTooltips(); RebuildGameTooltip(); return State(); });
+    if (tier == "rule") {
+        if (hex != "label" && (hex.size() != 6 || hex.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos))
+            return "{\"ok\":false,\"error\":\"use tiercolor rule <RRGGBB> or tiercolor rule label\"}";
+        return Run([&] {
+            if (hex == "label") ruleCustom = false; else { ruleCustomColor = static_cast<uint32_t>(std::stoul(hex, nullptr, 16)); ruleCustom = true; }
+            if (rulesOn.load()) RebuildGameTooltip();
+            return State();
+        });
+    }
     int index = 0;
-    if (tier.size() != 1 || tier[0] < '1' || tier[0] > '8') return "{\"ok\":false,\"error\":\"use tiercolor <1-8> <RRGGBB> or tiercolor reset\"}";
+    if (tier.size() != 1 || tier[0] < '1' || tier[0] > '8') return "{\"ok\":false,\"error\":\"use tiercolor <1-8> <RRGGBB>, tiercolor rule <RRGGBB|label> or tiercolor reset\"}";
     index = tier[0] - '1';
     if (hex.size() != 6 || hex.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos)
         return "{\"ok\":false,\"error\":\"colour must be six hexadecimal digits, for example E0315A\"}";
@@ -556,7 +591,7 @@ std::string SetColor(const std::string& tier, const std::string& hex) {
 void ReleaseRoots() {
     labels.clear(); tooltipColors.clear();
     for (auto& slot : ruleLabels) slot.reset();
-    iconsOn = false; tooltipsOn = false; linesOn = false; rulesOn = false; rulePlain = false; rulePosition = 0;
+    iconsOn = false; tooltipsOn = false; linesOn = false; rulesOn = false; rulePlain = false; rulePosition = 0; ruleCustom = false;
 }
 
 }  // namespace ep::tiers

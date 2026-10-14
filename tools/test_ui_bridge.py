@@ -243,7 +243,7 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','summonread','inventoryread','inventoryaction ')):
+        if command.startswith(('qolread','qolset ','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','summonread','inventoryread','inventoryaction ','affixinfo ')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})
@@ -390,6 +390,30 @@ class BridgeTests(unittest.TestCase):
         for category in ('materials', 'gold', 'potions', 'xp', 'favor', 'bones', 'amber'):
             self.bridge.execute('loot_category', {'category': category}, 'reset')
             self.assertEqual(self.commands[-1], f'lootcategory {category} 1')
+
+    def test_affix_shard_details_read_one_affix_id_only(self):
+        self.live['affixinfo 501'] = {'ok': True, 'id': 501, 'name': 'Strength', 'type': 'Prefix', 'tiers': []}
+        result = self.bridge.execute('affix_info', {'id': 501}, 'read')
+        self.assertEqual(result['name'], 'Strength')
+        self.assertEqual(self.commands[-1], 'affixinfo 501')
+        for bad in (-1, 65536, 1.5, '501', None, True, '501;status'):
+            with self.subTest(id=bad), self.assertRaises(ValueError):
+                self.bridge.execute('affix_info', {'id': bad}, 'read')
+        with self.assertRaises(ValueError):
+            self.bridge.execute('affix_info', {}, 'read')
+        self.assertEqual([c for c in self.commands if c.startswith('affixinfo')], ['affixinfo 501'])
+
+    def test_rule_line_colour_is_the_label_colour_or_six_hex_digits(self):
+        for value in ('label', 'E0315A', 'e0315a'):
+            self.bridge.execute('tier_rule_color', {'color': value})
+            self.assertEqual(self.commands[-1], f'tiercolor rule {value}')
+        sent = len(self.commands)
+        for bad in ('red', '#E0315A', 'E0315', 'E0315AA', 'label;status', 'LABEL1'):
+            with self.subTest(color=bad), self.assertRaises(ValueError):
+                self.bridge.execute('tier_rule_color', {'color': bad})
+        self.assertEqual(len(self.commands), sent)
+        self.bridge.execute('tier_rule_color', {}, 'reset')
+        self.assertEqual(self.commands[-1], 'tiercolor rule label')
 
     def test_selector_resets_do_not_require_the_old_selection(self):
         for control, command in (('loot_mode', 'lootmode all'), ('loot_affixes', 'lootaffixes none')):

@@ -13,6 +13,11 @@
   <div class="overlay-row">
    <label><input type="checkbox" id="damage-compact" checked> Compact</label>
   </div>
+  <label>Damage type <select id="damage-element"><option value="-1">All damage</option><option value="0">Physical</option><option value="1">Fire</option><option value="2">Cold</option><option value="3">Lightning</option><option value="4">Necrotic</option><option value="5">Void</option><option value="6">Poison</option></select></label>
+  <div class="overlay-filter">
+   <span class="overlay-filter-group">Rows</span>
+   <div class="overlay-row" id="damage-rows"><span class="muted">Rows appear once the session records damage.</span></div>
+  </div>
   <label>Background <input type="color" data-overlay="background"></label>
   <label>Background opacity <span class="overlay-range"><input type="range" min="0" max="100" step="5" data-overlay="backgroundOpacity"><output data-overlay-value></output></span></label>
   <label>Text colour <input type="color" data-overlay="text"></label>

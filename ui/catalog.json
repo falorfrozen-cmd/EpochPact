@@ -1020,6 +1020,33 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "affix_info",
+      "group": "loot",
+      "label": "Affix shard details",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "affixinfo {id}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "What an affix shard's affix does: prefix or suffix, level, the item types it rolls on and the game's value text for each tier. Reading it does not change the game.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "pickup_now",
       "group": "loot",
       "label": "Pick up everything now",
@@ -2693,6 +2720,31 @@
       "resetCommand": "tiercolor reset",
       "lifetime": "session",
       "description": "Choose the colour for one affix tier (six hexadecimal digits, for example E0315A).",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "tier_rule_color",
+      "group": "display",
+      "label": "Rule line colour",
+      "widget": "selector",
+      "availability": "implemented",
+      "commandTemplate": "tiercolor rule {color}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "color",
+          "type": "single_token"
+        }
+      ],
+      "default": null,
+      "resetCommand": "tiercolor rule label",
+      "lifetime": "session",
+      "description": "Colour of the loot filter rule line in item tooltips: the colour the item's label has on the ground (label), or one colour you choose (six hexadecimal digits, for example E0315A).",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -33229,7 +33281,7 @@
     ]
   },
   "counts": {
-    "controls": 160,
+    "controls": 162,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

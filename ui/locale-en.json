@@ -529,6 +529,10 @@
       "Clear recent pickups",
       "Clear the recent pickups list. Items and gold are unchanged."
     ],
+    "affix_info": [
+      "Affix shard details",
+      "What an affix shard's affix does: prefix or suffix, level, the item types it rolls on and the game's value text for each tier. Reading it does not change the game."
+    ],
     "map_minimapsize": [
       "Minimap size",
       "Scale the corner minimap, including its frame. 1 is the game's size."
@@ -560,6 +564,10 @@
     "tier_color": [
       "Tier colour",
       "Choose the colour for one affix tier (six hexadecimal digits, for example E0315A)."
+    ],
+    "tier_rule_color": [
+      "Rule line colour",
+      "Colour of the loot filter rule line in item tooltips: the colour the item's label has on the ground (label), or one colour you choose (six hexadecimal digits, for example E0315A)."
     ],
     "tier_read": [
       "Tier display status",

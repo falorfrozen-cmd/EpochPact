@@ -59,3 +59,53 @@ test('amber, embers and motes show their quantity without a rule',()=>{
 test('rich-text tags from rule descriptions are removed',()=>{
  assert.equal(L.ruleLabel({kind:'item',ruleNumber:1,rule:'<u><color=#FFAA00FF>SHOW</color></u> <color=#E3D157FF>Rare</color> items'}),'Rule 1 · SHOW Rare items');
 });
+
+// Entries as the game's loot log reports them (live test, 0.1.2-dev.28 work).
+const pickups=[
+ {seq:1,kind:'item',name:'Refuge Helmet',rarity:'Normal',type:0,subtype:0},
+ {seq:2,kind:'item',name:'Refuge Helmet',rarity:'Magic',type:0,subtype:0},
+ {seq:3,kind:'item',name:'Fractured Crown',rarity:'Unique',type:0,subtype:22},
+ {seq:4,kind:'material',name:'Strength',rarity:'Material',type:101,subtype:501},
+ {seq:5,kind:'material',name:'Rune of Shattering',rarity:'Material',type:102,subtype:0},
+ {seq:6,kind:'material',name:'Glyph of Hope',rarity:'Material',type:103,subtype:0},
+ {seq:7,kind:'material',name:'Arena Key',rarity:'Material',type:104,subtype:0},
+ {seq:8,kind:'gold',name:'Gold',rarity:'Gold',gold:25,type:-1,subtype:-1},
+ {seq:9,kind:'amber',name:'Memory Amber',rarity:'Amber',gold:10},
+ {seq:10,kind:'amber',name:'Soul Ember',rarity:'Amber',gold:3},
+ {seq:11,kind:'amber',name:'XP mote',rarity:'Amber',gold:1},
+ {seq:12,kind:'item',name:'Old entry',rarity:'Experimental'}];
+test('every pickup has one feed category: rarity, resource or material type',()=>{
+ assert.deepEqual(pickups.map(L.category),['normal','magic','unique','shard','rune','glyph','material','gold','amber','ember','xp','normal']);
+ assert.deepEqual(L.categories.map(c=>c[0]),['normal','magic','rare','exalted','unique','set','legendary','gold','amber','ember','xp','shard','rune','glyph','material']);
+ for(const r of ['Rare','Exalted','Set','Legendary'])assert.equal(L.category({kind:'item',rarity:r}),r.toLowerCase());
+});
+test('categories can be hidden and the old Gold and Materials switches carry over',()=>{
+ const shownSeqs=options=>L.rows(pickups,{...options,group:false}).map(e=>e.seq).reverse();
+ assert.deepEqual(shownSeqs({}),pickups.map(e=>e.seq));
+ assert.deepEqual(shownSeqs({show:{magic:false,unique:false,ember:false}}),[1,4,5,6,7,8,9,11,12]);
+ assert.deepEqual(shownSeqs({materials:false}),[1,2,3,8,9,10,11,12]);
+ assert.deepEqual(shownSeqs({gold:false,show:{gold:true}}),pickups.map(e=>e.seq),'a new choice wins over the old switch');
+ const migrated=L.shown({gold:false,materials:false});
+ assert.equal(migrated.gold,false);assert.equal(migrated.shard,false);assert.equal(migrated.material,false);assert.equal(migrated.amber,true);
+ const none=Object.fromEntries(L.categories.map(([id])=>[id,false]));
+ assert.match(L.compact(pickups,{show:none}),/No pickups in the categories you show/);
+ assert.match(L.compact([],{show:none}),/Waiting for pickups/);
+});
+test('an affix shard shows what its affix does when pointed at',()=>{
+ assert.deepEqual(L.shardIds([...pickups,{seq:13,kind:'material',type:101,subtype:501},{seq:14,kind:'material',type:101,subtype:-1}]),[501]);
+ const info={ok:true,id:501,name:'Strength',type:'Prefix',level:0,rollsOn:['Helmet','Body Armor','Ring'],
+  tiers:[{tier:1,min:'1',max:'1',min2:'',max2:''},{tier:7,min:'14',max:'16',min2:'',max2:''},{tier:8,min:'24',max:'28',min2:'',max2:''}],valuesOn:'Helmet'};
+ assert.equal(L.affixText(info),'Strength · Prefix\nRolls on: Helmet, Body Armor, Ring\nT1  1\nT7  14 – 16\nT8  24 – 28\n(Values for Helmet)');
+ assert.equal(L.affixText({ok:true,name:'Mana and Regen',type:'Prefix',level:20,rollsOn:['Helmet'],tiers:[{tier:1,min:'3%',max:'3%',min2:'10%',max2:'13%'}],valuesOn:'Helmet'}),
+  'Mana and Regen · Prefix · Level 20\nRolls on: Helmet\nT1  3% / 10% – 13%');
+ assert.equal(L.affixText({ok:false,error:'x'}),'');assert.equal(L.affixText(undefined),'');
+ const affixes=new Map([[501,info]]);
+ const feed=L.compact(pickups,{affixes});
+ assert.ok(feed.includes('title="Strength\nStrength · Prefix\nRolls on: Helmet, Body Armor, Ring'),'the feed line title carries the description');
+ const table=L.table(pickups,{affixes,now:0});
+ assert.ok(table.includes('class="loot-material" title="Strength · Prefix'),'the table pickup cell carries it too');
+ assert.equal((table.match(/title=/g)||[]).length,1,'only shards get a description');
+ const hostile={...info,name:'<img src=x>',rollsOn:['"><b>']};
+ const html=L.compact(pickups,{affixes:{501:hostile}});
+ assert.ok(!html.includes('<img'));assert.ok(!html.includes('"><b>'));
+});

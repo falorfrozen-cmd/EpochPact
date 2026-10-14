@@ -129,6 +129,7 @@ std::string Execute(const std::string& line) {
         if(args.size()==2){const auto parsed=std::from_chars(args[1].data(),args[1].data()+args[1].size(),target);if(parsed.ec==std::errc{}&&parsed.ptr==args[1].data()+args[1].size())return crafting::MaximizeMaterials(args[0],target);}
         return "{\"ok\":false,\"error\":\"use craftmaterials save-id target-1-to-1000000\"}";
     }
+    if(cmd=="affixinfo"){int id=-1;if(args.size()==1){const auto r=std::from_chars(args[0].data(),args[0].data()+args[0].size(),id);if(r.ec!=std::errc{}||r.ptr!=args[0].data()+args[0].size())id=-1;}return smartloot::AffixInfo(id);}
     if(cmd=="craftmods")return args.empty()?workshop::Catalog():"{\"ok\":false,\"error\":\"craftmods expects no arguments\"}";
     if(cmd=="craftmix") {
         int templateId=0,perfect=0;

@@ -875,11 +875,19 @@ function summonTable(){
  return `${data.damageSampleClipped?'<p class="note">Damage event capacity was reached. These numbers are a lower bound until a fresh five-second window is collected.</p>':""}<div class="table-scroll"><table class="summon-table"><thead><tr><th>${individual?"Ally":"Ally type"}</th>${columns.map(n=>`<th>${n}</th>`).join("")}</tr></thead><tbody>${rows.map(s=>`<tr><td>${esc(s.label)}${s.count>1?` <span class="muted">×${s.count}</span>`:""}</td>${columns.map(n=>`<td>${cell(s,n)}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="muted">Measured DPS uses damage actually applied in a rolling five-second window (${fmt(data.damageWindowSeconds)} seconds collected), including mitigation and critical hits. Attack a target to measure damage; changing gear alone cannot reveal exact combat DPS. Compare on the same target and encounter. Damage increase remains a separate bonus. ${individual?"":"Grouped rows add damage and health across the group and average armour, damage increase and resistances. "}Updates every two seconds while visible.</p>`;
 }
 const defaultTierPalette=["FFFFFF","2E8BFF","FFD700","FF5500","AA55FF","00FF00","FF0044","00FFFF"];
+// The loot filter rule line: the item's label colour on the ground, or one colour.
+function storedRuleColor(){try{const v=JSON.parse(localStorage.getItem("epochpact.rule-line-color.v1")||'"label"');if(v==="label"||/^[0-9A-F]{6}$/i.test(v))return String(v).toUpperCase()==="LABEL"?"label":String(v).toUpperCase();}catch{}return "label";}
 function storedTierPalette(){try{const p=JSON.parse(localStorage.getItem("epochpact.tier-palette.v1")||"null");if(Array.isArray(p)&&p.length===8&&p.every(x=>/^[0-9A-F]{6}$/i.test(x)))return p.map(x=>x.toUpperCase());}catch{}return defaultTierPalette.slice();}
 function tierPalette(){
  const palette=storedTierPalette(),c=controlById("tier_color");
- return `<section class="panel"><div class="section-head"><h2>Tier colours</h2><button data-tier-reset data-control-id="tier_color">Reset colours</button></div><p class="muted">Used for tier digits on icons and coloured tooltip lines. Your colours are remembered on this device and applied when a character is ready.</p><div class="tier-palette">${palette.map((hex,i)=>`<label>T${i+1}<input type="color" data-tier-color="${i+1}" value="#${hex}" ${c&&!eligible(c)?"disabled":""}></label>`).join("")}</div><div data-id="tier_color" hidden></div></section>`;
+ return `<section class="panel"><div class="section-head"><h2>Tier colours</h2><button data-tier-reset data-control-id="tier_color">Reset colours</button></div><p class="muted">Used for tier digits on icons and coloured tooltip lines. Your colours are remembered on this device and applied when a character is ready.</p><div class="tier-palette">${palette.map((hex,i)=>`<label>T${i+1}<input type="color" data-tier-color="${i+1}" value="#${hex}" ${c&&!eligible(c)?"disabled":""}></label>`).join("")}</div><div data-id="tier_color" hidden></div>${ruleColorRow()}</section>`;
 }
+function ruleColorRow(){
+ const c=controlById("tier_rule_color");if(!c)return "";
+ const rule=storedRuleColor(),custom=rule!=="label",off=!eligible(c)?"disabled":"";
+ return `<div class="rule-color-row"><label>Rule line colour<select data-rule-color-mode ${off}><option value="label" ${custom?"":"selected"}>Like the item's label on the ground</option><option value="custom" ${custom?"selected":""}>One colour for every rule</option></select></label><label>Colour<input type="color" data-rule-color value="#${custom?rule:"FFD27F"}" ${custom&&!off?"":"disabled"}></label></div><p class="muted">The loot filter rule line in item tooltips. Like the label: the rule's own colour when it recolours the item's label, otherwise the item's colour (grey for Hide rules).</p><div data-id="tier_rule_color" hidden></div>`;
+}
+function sendRuleColor(){const v=storedRuleColor();return runTask({type:"control",id:"tier_rule_color",args:{color:v}},{silent:true});}
 const tierPaletteApplied=new Set();
 async function applyTierPalette(force=false){
  const owner=automaticOwner();if(preview||!owner||(!force&&tierPaletteApplied.has(owner)))return;
@@ -888,6 +896,8 @@ async function applyTierPalette(force=false){
   if(owner!==automaticOwner())return;
   try{await job({type:"control",id:"tier_color",operation:"set",args:{expected_session:connected.sessionKey,tier:i+1,color:palette[i]}});}catch{}
  }
+ const rule=storedRuleColor();
+ if((force||rule!=="label")&&owner===automaticOwner()&&controlById("tier_rule_color")){try{await job({type:"control",id:"tier_rule_color",operation:"set",args:{expected_session:connected.sessionKey,color:rule}});}catch{}}
 }
 let filterFiles=null,filterFilesLoading=false;
 function filterFilesPanel(){
@@ -1056,7 +1066,27 @@ function ingameReportPanel(){
 function damagePanel(){
  if(!controlById("damage_session"))return "";
  const s=cache.damage_session_read,D=window.EpochDamage,win=window.pywebview?.api?.open_damage_window?`<button data-damage-window>${overlayOpen.damage?"Hide damage window":"Open damage window"}</button>`:"";
- return `<section class="panel" id="damage-panel"><div class="section-head"><h2>Damage meter</h2><div class="actions"><button class="${s?.active?"":"primary"}" data-damage-action="${s?.active?"stop":"start"}" data-control-id="damage_session">${s?.active?"Stop":"Start"}</button><button data-damage-action="reset" data-control-id="damage_session">Reset</button><button data-damage-csv ${s?.types?.length?"":"disabled"}>Copy as CSV</button>${win}</div></div><p class="muted">Records damage by your allies (grouped by type) and your character only while it runs, so it costs nothing when stopped. Values stay after Stop until Reset, also when you switch windows. The damage window stays on top of a windowed or borderless game.</p><p class="note" id="damage-status">${esc(D?D.status(s):"")}</p><div id="damage-live">${D?D.table(s):""}</div></section>`;
+ return `<section class="panel" id="damage-panel"><div class="section-head"><h2>Damage meter</h2><div class="actions"><button class="${s?.active?"":"primary"}" data-damage-action="${s?.active?"stop":"start"}" data-control-id="damage_session">${s?.active?"Stop":"Start"}</button><button data-damage-action="reset" data-control-id="damage_session">Reset</button><button data-damage-csv ${s?.types?.length?"":"disabled"}>Copy as CSV</button>${win}</div></div><p class="muted">Records damage by your allies (grouped by type) and your character only while it runs, so it costs nothing when stopped. Values stay after Stop until Reset, also when you switch windows. The damage window stays on top of a windowed or borderless game.</p><p class="note" id="damage-status">${esc(D?D.status(s):"")}</p><div id="damage-filters">${damageFilters(s)}</div><div id="damage-live">${D?D.table(s,damageFilter()):""}</div></section>`;
+}
+// Which damage type and rows the Summons page shows (the damage window has its own).
+function damageFilter(){
+ const f=readStored("damage-panel",{});
+ const element=Number.isInteger(f?.element)&&f.element>=-1&&f.element<=6?f.element:-1;
+ return {element,hidden:Array.isArray(f?.hidden)?f.hidden.filter(k=>typeof k==="string").slice(0,100):[]};
+}
+let damageRowKeys="";
+function damageFilters(s){
+ const D=window.EpochDamage;if(!D)return "";
+ const f=damageFilter(),list=D.sources(s);damageRowKeys=JSON.stringify(list.map(r=>r.key));
+ const options=[["-1","All damage"],...D.elements.map((e,i)=>[String(i),e])].map(([v,l])=>`<option value="${v}" ${String(f.element)===v?"selected":""}>${l}</option>`).join("");
+ const rows=list.length?`<div class="damage-rows"><span class="muted">Rows</span>${list.map(r=>`<label><input type="checkbox" data-damage-row="${esc(r.key)}" ${f.hidden.includes(r.key)?"":"checked"}> ${esc(r.label)}</label>`).join("")}</div>`:"";
+ return `<div class="damage-filters"><label>Damage type <select data-damage-element>${options}</select></label>${rows}</div>`;
+}
+// The live table and status every second; the row switches only when the rows change.
+function updateDamageView(s){
+ const D=window.EpochDamage,live=$("#damage-live"),status=$("#damage-status"),filters=$("#damage-filters");
+ if(live)live.innerHTML=D.table(s,damageFilter());if(status)status.textContent=D.status(s);
+ if(filters&&JSON.stringify(D.sources(s).map(r=>r.key))!==damageRowKeys)filters.innerHTML=damageFilters(s);
 }
 function renderDamage(){const node=$("#damage-panel");if(node)node.outerHTML=damagePanel();updateDisabled();}
 async function damageAction(action){
@@ -1076,10 +1106,23 @@ async function refreshOverlayState(){
  const api=window.pywebview?.api;if(!api?.overlay_windows)return;
  try{const s=await api.overlay_windows();overlayOpen={feed:!!s?.feed,damage:!!s?.damage};updateOverlayButtons();}catch{}
 }
-function lootTable(){return window.EpochLootLog?window.EpochLootLog.table(lootEntries):'<p class="empty">No pickups yet.</p>';}
+function lootTable(){return window.EpochLootLog?window.EpochLootLog.table(lootEntries,{affixes:lootAffixes}):'<p class="empty">No pickups yet.</p>';}
+// Affix shard descriptions for the pickups table, read once per affix ID (a
+// failed read is tried again at most three times).
+const lootAffixes=new Map(),lootAffixTries=new Map();
+async function describeLootShards(){
+ if(!controlById("affix_info"))return;
+ const missing=window.EpochLootLog.shardIds(lootEntries).filter(id=>!lootAffixes.has(id)&&(lootAffixTries.get(id)||0)<3).slice(0,4);
+ if(!missing.length)return;
+ for(const id of missing){
+  lootAffixTries.set(id,(lootAffixTries.get(id)||0)+1);
+  try{const r=await job({type:"control",id:"affix_info",operation:"read",args:{id}});if(r?.ok)lootAffixes.set(id,r);}catch{}
+ }
+ const node=$("#loot-log-live");if(node)node.innerHTML=lootTable();
+}
 function lootPanel(){
  const feed=window.pywebview?.api?.open_loot_feed?`<button id="loot-feed-open">${overlayOpen.feed?"Hide loot window":"Open loot window"}</button>`:"";
- return `<section class="panel"><div class="section-head"><h2>Recent pickups</h2><div class="actions">${feed}<button id="loot-log-refresh" data-refresh="loot_log" data-control-id="loot_log">Refresh</button></div></div><p class="muted">Items and gold you or Auto Pickup collect, with the loot filter rule that matched. "Rule" uses the same number as the game's Item rule numbering setting. The loot window stays on top of a windowed or borderless game.</p><div id="loot-log-live">${lootTable()}</div><div class="control-grid">${actionCard(controlById("loot_log_clear"))}</div></section>`;
+ return `<section class="panel"><div class="section-head"><h2>Recent pickups</h2><div class="actions">${feed}<button id="loot-log-refresh" data-refresh="loot_log" data-control-id="loot_log">Refresh</button></div></div><p class="muted">Items and gold you or Auto Pickup collect, with the loot filter rule that matched. "Rule" uses the same number as the game's Item rule numbering setting. The loot window stays on top of a windowed or borderless game. Point at an affix shard to see what its affix does on each tier.</p><div id="loot-log-live">${lootTable()}</div><div data-id="affix_info" hidden></div><div class="control-grid">${actionCard(controlById("loot_log_clear"))}</div></section>`;
 }
 let summonBaseline={};
 let summonBaselineOwner="";
@@ -1107,7 +1150,7 @@ async function pollConveniences(){
  try{
   const r=await job({type:"control",id,operation:"read"});
   if(owner!==automaticOwner())return;
-  if(id==="loot_log"){if(r.ok){if(lootOwner!==owner){lootEntries=[];lootOwner=owner;}lootEntries=window.EpochLootLog.merge(lootEntries,r.entries);const node=$("#loot-log-live");if(node)node.innerHTML=lootTable();}return;}
+  if(id==="loot_log"){if(r.ok){if(lootOwner!==owner){lootEntries=[];lootOwner=owner;}lootEntries=window.EpochLootLog.merge(lootEntries,r.entries);const node=$("#loot-log-live");if(node)node.innerHTML=lootTable();void describeLootShards();}return;}
   if(r.ok){if(!syncLootCraft(id,r))cache[id]=r;}
   else if(id==="summons_read")cache[id]={player:connected.player,readError:true};
   if(page==="summons"){const node=$("#summon-live");if(node)node.innerHTML=summonTable();}
@@ -1116,7 +1159,7 @@ async function pollConveniences(){
  finally{liveReading=false;armAutomatic();}
 }
 setInterval(()=>void pollConveniences(),1000);
-setInterval(()=>{if(page==="summons"&&!preview&&!document.hidden&&!busy&&cache.damage_session_read?.active)void job({type:"control",id:"damage_session_read",operation:"read"}).then(r=>{if(r?.ok&&page==="summons"){cache.damage_session_read=r;const live=$("#damage-live"),status=$("#damage-status");if(live)live.innerHTML=window.EpochDamage.table(r);if(status)status.textContent=window.EpochDamage.status(r);}}).catch(()=>{});},1000);
+setInterval(()=>{if(page==="summons"&&!preview&&!document.hidden&&!busy&&cache.damage_session_read?.active)void job({type:"control",id:"damage_session_read",operation:"read"}).then(r=>{if(r?.ok&&page==="summons"){cache.damage_session_read=r;updateDamageView(r);}}).catch(()=>{});},1000);
 function formArgs(form,c){
  const data=new FormData(form),args={};
  for(const p of c.parameters){if(p.name==="save_id")continue;let v=data.get(p.name);if(p.type==="optional_integer"&&(v===""||v===null))continue;
@@ -1216,7 +1259,7 @@ content.addEventListener("click",async e=>{
   const data=cache.summons_read;if(!window.EpochSession.current(data,connected)||!data.summons?.length){notify("Refresh live summons before saving a damage baseline.",true);return;}
   summonBaselineOwner=automaticOwner();summonBaseline=Object.fromEntries(data.summons.map(s=>[s.instance,s.measuredDps]));$("#summon-live").innerHTML=summonTable();notify("Damage baseline saved for these active allies. Compare against the same target.");
  }
- else if(b.dataset.tierReset!==undefined){try{localStorage.removeItem("epochpact.tier-palette.v1");}catch{}const r=await runTask({type:"control",id:"tier_color",operation:"reset"},{silent:true});if(r?.ok){notify("Tier colours reset.");renderPage();}}
+ else if(b.dataset.tierReset!==undefined){try{localStorage.removeItem("epochpact.tier-palette.v1");localStorage.removeItem("epochpact.rule-line-color.v1");}catch{}const r=await runTask({type:"control",id:"tier_color",operation:"reset"},{silent:true});if(r?.ok){notify("Tier colours reset.");renderPage();}}
  else if(b.dataset.stashRules)await stashRulesAction(b.dataset.stashRules,b.dataset.stashRules==="create"?{hidden:$("#stash-rules-hidden")?.checked?1:0,disabled:$("#stash-rules-disabled")?.checked?1:0}:{});
  else if(b.dataset.reportNow!==undefined){const r=await runTask({type:"control",id:"report_now"},{silent:true});if(r?.ok){notify(`Report saved: ${r.folder.split(/[\\/]/).pop()} (in the game's EpochPact\\reports folder).`);void refreshSection("report_read");}}
  else if(b.dataset.damageAction)await damageAction(b.dataset.damageAction);
@@ -1326,6 +1369,12 @@ content.addEventListener("change",e=>{
   refreshWorkshopSummary();return;
  }
  if(e.target.dataset.reportKey!==undefined){void (async()=>{const r=await runTask({type:"control",id:"report_key",args:{key:e.target.value}},{silent:true});if(r?.ok){cache.report_read=r;notify(r.key==="off"?"In-game report hotkey turned off.":`In-game report hotkey: ${r.key}.`);}})();return;}
+ if(e.target.dataset.damageElement!==undefined||e.target.dataset.damageRow!==undefined){
+  const f=damageFilter();
+  if(e.target.dataset.damageElement!==undefined)f.element=Number(e.target.value);
+  else{const row=e.target.dataset.damageRow;f.hidden=f.hidden.filter(k=>k!==row);if(!e.target.checked)f.hidden.push(row);}
+  writeStored("damage-panel",f);const live=$("#damage-live");if(live&&window.EpochDamage)live.innerHTML=window.EpochDamage.table(cache.damage_session_read,f);return;
+ }
  if(e.target.id==="remember-scroll"){writeStored("remember-scroll",e.target.checked);return;}
  if(e.target.id==="update-check"){writeStored("update-check",e.target.checked);return;}
  if(e.target.dataset.stashRuleLink){
@@ -1333,6 +1382,13 @@ content.addEventListener("change",e=>{
   if(tab)void stashRulesAction("assign",{tab,rule:number});else if(previous!=null)void stashRulesAction("assign",{tab:previous,rule:0});return;
  }
  if(e.target.dataset.fontFamily!==undefined){const family=e.target.value;values.font_family=family;void runTask({type:"control",id:"font_family",args:{family:family.replace(/ /g,"%20")}},{silent:true});return;}
+ if(e.target.dataset.ruleColorMode!==undefined||e.target.dataset.ruleColor!==undefined){
+  const row=e.target.closest(".rule-color-row"),mode=row?.querySelector("[data-rule-color-mode]")?.value,picker=row?.querySelector("[data-rule-color]");
+  const value=mode==="custom"?String(picker?.value||"#FFD27F").replace("#","").toUpperCase():"label";
+  if(picker)picker.disabled=mode!=="custom";
+  try{localStorage.setItem("epochpact.rule-line-color.v1",JSON.stringify(value));}catch{}
+  void sendRuleColor();return;
+ }
  if(e.target.dataset.tierColor){
   const i=Number(e.target.dataset.tierColor)-1,hex=e.target.value.replace("#","").toUpperCase(),palette=storedTierPalette();palette[i]=hex;
   try{localStorage.setItem("epochpact.tier-palette.v1",JSON.stringify(palette));}catch{}

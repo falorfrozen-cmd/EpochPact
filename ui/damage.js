@@ -6,15 +6,28 @@
  'use strict';
  const $=s=>document.querySelector(s);
  const key='epochpact.damage-window.v1';
- let options={compact:true,running:false};
+ let options={compact:true,running:false,element:-1,hidden:[]};
  try{options={...options,...JSON.parse(localStorage.getItem(key)||'{}')};}catch{}
  // The old whole-window opacity becomes the background opacity (overlay.js).
  Object.assign(options,window.EpochOverlay.normalise(options));delete options.opacity;
+ if(!Number.isInteger(options.element)||options.element<-1||options.element>6)options.element=-1;
+ if(!Array.isArray(options.hidden))options.hidden=[];
+ options.hidden=options.hidden.filter(k=>typeof k==='string').slice(0,100);
  const save=()=>{try{localStorage.setItem(key,JSON.stringify(options));}catch{}};
  let state=null,busy=false;
  const transport=window.EpochSession.create({fetch:(...a)=>fetch(...a),sleep:ms=>new Promise(r=>setTimeout(r,ms)),isReadOnly:p=>p.operation==='read'});
+ // One switch per row the session has (ally types, the allies' total, you);
+ // rebuilt only when that list changes, so an open menu keeps its focus.
+ let rowKeys='';
+ function renderRows(){
+  const list=window.EpochDamage.sources(state),keys=JSON.stringify(list.map(r=>r.key));
+  if(!list.length||keys===rowKeys)return;rowKeys=keys;
+  const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  $('#damage-rows').innerHTML=list.map(r=>`<label><input type="checkbox" data-damage-row="${esc(r.key)}" ${options.hidden.includes(r.key)?'':'checked'}> ${esc(r.label)}</label>`).join('');
+ }
  function render(){
-  $('#damage-table').innerHTML=window.EpochDamage.table(state,{compact:options.compact});
+  $('#damage-table').innerHTML=window.EpochDamage.table(state,{compact:options.compact,element:options.element,hidden:options.hidden});
+  renderRows();
   $('#damage-status').textContent=window.EpochDamage.status(state);
   $('#damage-toggle').textContent=state?.active?'Stop':'Start';
  }
@@ -32,6 +45,12 @@
   try{const boot=await (await fetch('/api/bootstrap')).json();transport.setSession(boot);}catch{$('#damage-status').textContent='Open EpochPact first.';return;}
   $('#damage-compact').checked=options.compact;
   $('#damage-compact').addEventListener('change',e=>{options.compact=e.target.checked;save();render();});
+  $('#damage-element').value=String(options.element);
+  $('#damage-element').addEventListener('change',e=>{options.element=Number(e.target.value);save();render();});
+  $('#damage-rows').addEventListener('change',e=>{
+   const row=e.target.dataset?.damageRow;if(row===undefined)return;
+   options.hidden=options.hidden.filter(k=>k!==row);if(!e.target.checked)options.hidden.push(row);save();render();
+  });
   $('#damage-toggle').addEventListener('click',()=>{const action=state?.active?'stop':'start';options.running=action==='start';save();void call(action);});
   $('#damage-reset').addEventListener('click',()=>void call('reset'));
   await call();

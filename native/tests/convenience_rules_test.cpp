@@ -43,5 +43,18 @@ int main(){
     ClassifyBudget slow{0,100};Check(slow.Next(1099));Check(!slow.Next(1100));
     Check(TriggerRetryMs(0)==0&&TriggerRetryMs(1)==2000&&TriggerRetryMs(2)==4000&&TriggerRetryMs(3)==8000);
     Check(TriggerRetryMs(4)==UINT64_MAX&&TriggerRetryMs(100)==UINT64_MAX&&TriggerRetryMs(-1)==0);
-    std::printf("PASS %u scale/window/currency/translation combinations, dedicated lower row, square cells, maximum balances, invalid bounds and budgets\n",cases);
+    // Damage by type: proportional to the hit's own parts, summing to the applied damage.
+    {
+        const float nan=std::numeric_limits<float>::quiet_NaN(),inf=std::numeric_limits<float>::infinity();
+        DamageParts out{};
+        Check(SplitDamage(100,{0,0,0,40,0,0,0},out)&&out[3]==100&&out[0]==0);
+        Check(SplitDamage(90,{10,20,0,0,0,0,30},out)&&std::abs(out[0]-15)<.001f&&std::abs(out[1]-30)<.001f&&std::abs(out[6]-45)<.001f);
+        float sum=0;Check(SplitDamage(1234.5f,{1,2,3,4,5,6,7},out));for(float v:out)sum+=v;Check(std::abs(sum-1234.5f)<.01f);
+        Check(SplitDamage(50,{-5,nan,inf,10,0,0,0},out)&&out[3]==50&&out[0]==0&&out[1]==0&&out[2]==0);
+        for(const DamageParts& none:{DamageParts{},DamageParts{-1,0,0,0,0,0,0},DamageParts{nan,nan,0,0,0,0,0}}){Check(!SplitDamage(10,none,out));for(float v:out)Check(v==0);}
+        for(float damage:{0.f,-3.f,nan,inf}){Check(!SplitDamage(damage,{1,0,0,0,0,0,0},out));for(float v:out)Check(v==0);}
+        const float huge=std::numeric_limits<float>::max();
+        Check(SplitDamage(10,{huge,huge,0,0,0,0,0},out)&&std::abs(out[0]-5)<.001f&&std::abs(out[1]-5)<.001f);
+    }
+    std::printf("PASS %u scale/window/currency/translation combinations, dedicated lower row, square cells, maximum balances, invalid bounds and budgets, damage split by type\n",cases);
 }

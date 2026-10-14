@@ -172,6 +172,62 @@ std::string Read() {
         return state+"]}";
     });
 }
+// What an affix shard's affix does, for the loot feed: name, prefix/suffix,
+// level, the item types it rolls on and the game's own value text per tier
+// (lowest and highest roll) on the first of those item types. Read only.
+std::string AffixInfo(int id) {
+    if (id < 0 || id > 65535) return "{\"ok\":false,\"error\":\"use affixinfo <affix id>\"}";
+    return Run([id] {
+        if (!ready) throw std::runtime_error("smart loot metadata unavailable");
+        Root data(Invoke(getAffixes));
+        Root list(Invoke(Method(data.Get(), "get_AllAffixes", 0), data.Get()));
+        void* affix = nullptr;
+        for (void* a : Entries(list.Get())) if (a && Get<int>(a, Offset("AffixList.Affix", "affixId")) == id) { affix = a; break; }
+        if (!affix || workshop::Owns(id)) throw std::runtime_error("affix is not in this game's catalog");
+        Root pin(affix);
+        // List<EquipmentType>: the enum values sit in the list's array as 32-bit integers.
+        std::vector<int> bases;
+        if (void* rolls = Get<void*>(affix, Offset("AffixList.Affix", "canRollOn"))) {
+            const auto* cls = il2cpp::api().object_get_class(rolls);
+            const int n = Get<int>(rolls, il2cpp::api().field_get_offset(il2cpp::api().class_get_field_from_name(cls, "_size")));
+            void* array = Get<void*>(rolls, il2cpp::api().field_get_offset(il2cpp::api().class_get_field_from_name(cls, "_items")));
+            if (n < 0 || n > 256 || (n && (!array || static_cast<uintptr_t>(n) > Get<uintptr_t>(array, 0x18)))) throw std::runtime_error("invalid affix item type list");
+            for (int i = 0; i < n; ++i) bases.push_back(Get<int>(array, 0x20 + 4 * i));
+        }
+        Root items(Invoke(Resolve("ItemList", "get", 0)));
+        const int type = Get<int>(affix, Offset("AffixList.Affix", "type"));
+        std::ostringstream out;
+        out << "{\"ok\":true,\"id\":" << id << ",\"name\":" << Json(Text(Invoke(Method(affix, "getAffixDisplayName", 0), affix)))
+            << ",\"type\":" << Json(type == 0 ? "Prefix" : type == 1 ? "Suffix" : "Special")
+            << ",\"level\":" << Get<int>(affix, Offset("AffixList.Affix", "levelRequirement")) << ",\"rollsOn\":[";
+        for (size_t i = 0; i < bases.size(); ++i) {
+            int base = bases[i]; void* a[]{&base};
+            if (i) out << ',';
+            out << Json(Text(Invoke(Method(items.Get(), "GetBaseTypeDisplayName", 1), items.Get(), a)));
+        }
+        out << "],\"tiers\":[";
+        if (!bases.empty()) {
+            // A bare item of that type: the value text depends only on its type and subtype.
+            Root item(il2cpp::api().object_new(game::FindClass("LE.dll", "", "ItemDataUnpacked")));
+            *reinterpret_cast<uint8_t*>(static_cast<char*>(item.Get()) + Offset("ItemData", "itemType")) = static_cast<uint8_t>(bases.front());
+            *reinterpret_cast<uint16_t*>(static_cast<char*>(item.Get()) + Offset("ItemData", "subType")) = 0;
+            struct Texts { void* first; void* second; };
+            const auto tiers = Entries(Get<void*>(affix, Offset("AffixList.Affix", "tiers"))).size();
+            const auto values = Resolve("ItemData", "GetDisplayValuesOfAffixAtTier", 3);
+            for (size_t t = 0; t < tiers && t < 8; ++t) {
+                int tier = static_cast<int>(t); uint8_t low = 0, high = 255;
+                void* la[]{affix, &tier, &low}; const auto lo = Value<Texts>(values, item.Get(), la);
+                void* ha[]{affix, &tier, &high}; const auto hi = Value<Texts>(values, item.Get(), ha);
+                if (t) out << ',';
+                out << "{\"tier\":" << t + 1 << ",\"min\":" << Json(Text(lo.first)) << ",\"max\":" << Json(Text(hi.first))
+                    << ",\"min2\":" << Json(Text(lo.second)) << ",\"max2\":" << Json(Text(hi.second)) << '}';
+            }
+            int base = bases.front(); void* a[]{&base};
+            out << "],\"valuesOn\":" << Json(Text(Invoke(Method(items.Get(), "GetBaseTypeDisplayName", 1), items.Get(), a))) << '}';
+        } else out << "],\"valuesOn\":\"\"}";
+        return out.str();
+    });
+}
 std::string Set(const std::string& key, const std::string& value) {
     return Run([=] {
         if (!ready) throw std::runtime_error("smart loot metadata unavailable");

@@ -19,7 +19,29 @@ test('status and csv describe the session for analysis',()=>{
  assert.equal(D.status(null),'Not started.');
  const csv=D.csv(state).trim().split('\n');
  assert.match(csv[0],/^# EpochPact damage session/);
- assert.equal(csv[1],'Source,DPS 10 s,DPS 60 s,DPS 10 min,DPS 60 min,Avg in combat,Avg session,Total damage,Hits,Biggest hit');
- assert.equal(csv[2],'Giant T_Rex Minion,120.0,100.0,64.0,64.0,100.0,64.0,8000.0,12.0,900.0');
+ assert.equal(csv[1],'Source,DPS 10 s,DPS 60 s,DPS 10 min,DPS 60 min,Avg in combat,Avg session,Total damage,Hits,Biggest hit,Physical damage,Fire damage,Cold damage,Lightning damage,Necrotic damage,Void damage,Poison damage');
+ assert.equal(csv[2],'Giant T_Rex Minion,120.0,100.0,64.0,64.0,100.0,64.0,8000.0,12.0,900.0,,,,,,,','a session without damage types leaves those columns empty');
  assert.equal(csv.length,6);
+});
+// Each row also carries its damage per type (the native session splits each hit).
+const el=(total,extra={})=>({total,hits:total.map(v=>v?1:0),maxHit:total,dps10:total.map(v=>v/10),dps60:total.map(v=>v/60),dps600:total.map(v=>v/600),dps3600:total.map(v=>v/3600),...extra});
+const typed={...state,types:[{...state.types[0],elements:el([900,0,0,0,0,0,0])},{...state.types[1],elements:el([1000,0,0,0,4000,0,0])},{...state.types[2],elements:el([0,6000,0,2000,0,0,0])}],
+ allies:{...state.allies,elements:el([1000,6000,0,2000,4000,0,0])}};
+test('one damage type shows that part of every row, with averages from the session time',()=>{
+ const fire=D.rows(typed,{element:1});
+ assert.deepEqual(fire.map(r=>[r.label,r.total]),[['Giant T_Rex Minion',6000],['SummonedSkeleton ×10',0],['Allies total',6000],['You (character)',0]]);
+ const necrotic=D.rows(typed,{element:'4'});
+ assert.equal(necrotic[0].label,'SummonedSkeleton ×10','allies are ordered by the chosen type');
+ assert.equal(necrotic[0].dps60,4000/60);assert.equal(necrotic[0].average,4000/125);assert.equal(necrotic[0].combatAverage,4000/80);
+ assert.ok(D.table(typed,{element:3}).includes('<th>Source · Lightning</th>'));
+ for(const bad of [-1,7,'x',null,undefined,''])assert.equal(D.rows(typed,{element:bad})[0].total,8000,'anything else is all damage');
+ const csv=D.csv(typed).trim().split('\n');
+ assert.equal(csv[2],'Giant T_Rex Minion,120.0,100.0,64.0,64.0,100.0,64.0,8000.0,12.0,900.0,0.0,6000.0,0.0,2000.0,0.0,0.0,0.0');
+});
+test('rows can be hidden by ally type, the allies total or the character',()=>{
+ assert.deepEqual(D.sources(typed).map(r=>r.key),['Giant T_Rex Minion','SummonedSkeleton','__total','You']);
+ assert.deepEqual(D.sources(typed).map(r=>r.label),['Giant T_Rex Minion','SummonedSkeleton','Allies total','You (character)']);
+ assert.deepEqual(D.rows(typed,{hidden:['SummonedSkeleton','__total']}).map(r=>r.label),['Giant T_Rex Minion','You (character)']);
+ const none=D.table(typed,{hidden:D.sources(typed).map(r=>r.key)});
+ assert.match(none,/Every row is hidden/);assert.match(D.table(null,{hidden:['You']}),/No damage recorded/);
 });

@@ -41,13 +41,21 @@ matched. "Rule N" is the same number the game shows with its **Item rule
 numbering** setting (the rule's Order + 1; 0 means no enabled rule matched and
 the item was shown by default). The rule's custom name is shown, otherwise the
 game's own rule description. Items, gold and the filter are never changed by
-reading the list.
+reading the list. Point at an affix shard (in the list or the loot window) to
+see what its affix does: prefix or suffix, level, the item types it rolls on
+and the game's own value text for each tier (lowest and highest roll), read
+once per affix with `affixinfo <affix id>` (values for the first item type the
+affix rolls on; some types such as two-handed weapons scale them).
 
 **Open loot window** (desktop app) opens a small window without a Windows title
 bar. Point at it to see its bar: drag the bar to move the window, drag the
 corner grip to resize it, **−** hides it (the button in EpochPact then reads
-**Hide loot window** / **Open loot window**) and **⚙** opens its options: the
-Gold/Materials filters, background colour and **background opacity** (0–100%;
+**Hide loot window** / **Open loot window**) and **⚙** opens its options: what
+to show (**Items** by rarity: Normal, Magic, Rare, Exalted, Unique, Set,
+Legendary; **Resources**: Gold, Memory Amber, Soul Ember, XP motes;
+**Materials**: Affix shards, Runes, Glyphs, Other materials; **All** / **None**;
+the old Gold and Materials switches carry over), background colour and
+**background opacity** (0–100%;
 only the background becomes see-through — text keeps its full strength and
 gets a dark outline below 60%), text colour, text size, row spacing and
 whether the bar is shown always or only on hover. It stays above the game
@@ -179,6 +187,11 @@ values are re-applied on the next frame after a new area's map loads.
   the filter gives the item's label: the rule's colour preset when the rule
   recolours (`EpochColorManager.GetLootfilterRuleColor`), otherwise the item's
   own colour; Hide rules are grey because hidden items have no label.
+  **Rule line colour** on the Display page can instead give every rule line
+  one colour you choose (`tiercolor rule <RRGGBB>`, back with
+  `tiercolor rule label`). The rule is written exactly as in the filter: the
+  line uses the font of the tooltip's "Requires: Level" line, because the item
+  type and affix lines' fonts draw lowercase letters as small capitals.
   **Rule line position** puts it under the item type (Top), before the affixes
   (Middle) or at the end of the tooltip below the flavour text (Bottom); the
   line is added to the header's or the body's own layout group, so the game
@@ -323,6 +336,14 @@ allies die, until **Reset**. **Copy as CSV** copies the table; **Open damage
 window** shows it in a small always-on-top window (windowed or borderless game)
 with Start/Stop/Reset in its bar and the same window options as the loot
 window. Allies are found once a second.
+
+**Damage type** (on the Summons page and in the damage window's ⚙) shows one
+type only — Physical, Fire, Cold, Lightning, Necrotic, Void or Poison — for
+every row and column. Each hit is split by the damage per type the game passes
+with it (`DamageStats.damage`), in proportion, so the parts add up to the hit's
+applied damage after mitigation; the CSV has every type's total. **Rows**
+hides or shows each ally type, the allies' total and your character; the page
+and the window remember their own choices.
 
 
 Allies are grouped by type by default: one row per type (for example

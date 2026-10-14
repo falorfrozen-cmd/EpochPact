@@ -65,4 +65,19 @@ inline uint64_t TriggerRetryMs(int attempts){
     if(attempts>=MaximumTriggers)return UINT64_MAX;
     return 2000ull<<(attempts-1);
 }
+// The damage meter splits a hit's applied damage by damage type (the game's
+// DamageType order: physical, fire, cold, lightning, necrotic, void, poison)
+// in proportion to the hit's own damage per type. Parts that are not finite
+// and positive count as zero; false when no part is (nothing to split).
+constexpr size_t DamageTypes=7;
+using DamageParts=std::array<float,DamageTypes>;
+inline bool SplitDamage(float damage,const DamageParts& parts,DamageParts& out){
+    out={};
+    if(!std::isfinite(damage)||damage<=0)return false;
+    double sum=0;
+    for(float p:parts)if(std::isfinite(p)&&p>0)sum+=p;
+    if(!(sum>0)||!std::isfinite(sum))return false;
+    for(size_t i=0;i<DamageTypes;++i)if(std::isfinite(parts[i])&&parts[i]>0)out[i]=static_cast<float>(damage*(parts[i]/sum));
+    return true;
+}
 }

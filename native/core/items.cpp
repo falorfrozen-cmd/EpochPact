@@ -88,6 +88,7 @@ struct LootEntry {
     uint64_t seq = 0, time = 0;
     std::string kind, name, rarity, rule, tiers;
     int ruleNumber = 0, gold = 0, outcome = -1;
+    int type = -1, subtype = -1;  // the game's item type/subtype (101 shard: subtype = affix ID, 102 rune, 103 glyph)
     bool automatic = false;
 };
 std::mutex g_logLock;
@@ -247,6 +248,7 @@ bool DescribeItem(void* item, LootEntry* e) {
         const auto uniqueName = Text(Invoke(m_uniqueName, nullptr, a));
         if (!uniqueName.empty()) e->name = uniqueName;
     }
+    e->type = type; e->subtype = sub;
     e->kind = type >= 100 ? "material" : "item";
     e->rarity = type >= 100 ? "Material" : Value<bool>(managed::Method(item, "isLegendary", 0), item) ? "Legendary" :
         Value<bool>(managed::Method(item, "isSet", 0), item) ? "Set" : unique ? "Unique" :
@@ -699,7 +701,7 @@ std::string LootLog(uint64_t since){
         if(comma)out<<',';comma=true;
         out<<"{\"seq\":"<<e.seq<<",\"ageSeconds\":"<<(now-e.time)/1000<<",\"kind\":"<<managed::Json(e.kind)<<",\"name\":"<<managed::Json(e.name)
            <<",\"rarity\":"<<managed::Json(e.rarity)<<",\"gold\":"<<e.gold<<",\"ruleNumber\":"<<e.ruleNumber<<",\"rule\":"<<managed::Json(e.rule)
-           <<",\"outcome\":"<<e.outcome<<",\"tiers\":"<<managed::Json(e.tiers)
+           <<",\"outcome\":"<<e.outcome<<",\"tiers\":"<<managed::Json(e.tiers)<<",\"type\":"<<e.type<<",\"subtype\":"<<e.subtype
            <<",\"automatic\":"<<(e.automatic?"true":"false")<<'}';
     }
     out<<"]}";
