@@ -40,6 +40,12 @@ def minimum_lp(value: int) -> dict:
     return ipc.request(f"lootlp {value}")
 
 
+def minimum_ww(value: int) -> dict:
+    if type(value) is not int or not 0 <= value <= 28:
+        raise ValueError("Weaver's Will alt sınırı 0–28 tam sayı olmalı (0 kapalı).")
+    return ipc.request(f"lootww {value}")
+
+
 def _toggle(value) -> int:
     if type(value) not in (bool, int) or value not in (0, 1):
         raise ValueError("0 veya 1 bekleniyor.")

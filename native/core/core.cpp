@@ -25,6 +25,7 @@
 #include "xp.hpp"
 #include "build_controls.hpp"
 #include "convenience.hpp"
+#include "weaver.hpp"
 #include "item_tiers.hpp"
 #include "fonts.hpp"
 #include "report.hpp"
@@ -123,6 +124,7 @@ void WorkerBody() {
     cof::Init();
     builds::Init();
     convenience::Init();
+    weaver::Init();
     tiers::Init();
     fonts::Init();
     report::Init();

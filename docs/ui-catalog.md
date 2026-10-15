@@ -101,6 +101,11 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `drops` — Genel eşya drop adedi çarpanı | `drops {value}` | value: 1…25 | 1 | Oturum |
 | `density` — Monster density | `density {value}` | value: 1…5 | 1 | Oturum |
 | `rarity` — Temel rarity yükseltme çarpanı | `rarity {value}` | value: 1…10 | 1 | Oturum |
+| `weaverswill` — Weaver's Will çarpanı | `weaverswill {value}` | value: 1…10 | 1 | Oturum |
+| `weaversdrop` — Weaver's Will Unique payı | `weaversdrop {value}` | value: 0…100 | 0 | Oturum |
+| `weaversupgrades` — Weaver's Will yükseltme hızı | `weaversupgrades {value}` | value: 1…10 | 1 | Oturum |
+| `weaver_affixes` — Weaver's Will affix'leri | `weaveraffixes {ids}` | ids: single_token | none | Oturum |
+| `weaver_read` — Weaver's Will ayarları | `weaverread` | — | — | Salt okunur |
 | `speed` — Hareket hızı çarpanı | `speed {value}` | value: 1…5 | 1 | Yüklü aktör |
 | `cooldown` — Cooldown / charge hız çarpanı | `cooldown {value}` | value: 1…10 | 1 | Oturum |
 | `density_read` — Density ölçümü | `densityread` | — | — | Okuma |
@@ -150,6 +155,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `loot_read` — Akıllı toplama durumu / affix kataloğu | `lootread` | — | — | Okuma |
 | `loot_mode` — Toplama modu | `lootmode {mode}` | mode: all/filter/quality/materials | all | Oturum |
 | `loot_lp` — Unique minimum LP | `lootlp {value}` | value: 0…4 | 2 | Oturum |
+| `loot_ww` — Minimum Weaver's Will | `lootww {value}` | value: 0…28 | 0 | Oturum |
 | `loot_t7` — T7 eşya toplama | `loott7 {value}` | value: 0…1 | 1 | Oturum |
 | `loot_filter` — Quality modunda loot filtresine uy | `lootfilter {value}` | value: 0…1 | 1 | Oturum |
 | `loot_affixes` — Aranan T7 affix ID'leri | `lootaffixes {ids}` | ids: liveState.lootread.affixes.id | none | Oturum |

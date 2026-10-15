@@ -1941,6 +1941,134 @@
       "documentation": "GEMINI.md"
     },
     {
+      "id": "weaverswill",
+      "group": "general",
+      "label": "Weaver's Will çarpanı",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "weaverswill {value}",
+      "pythonApi": null,
+      "responseFormat": "text",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10
+        }
+      ],
+      "default": 1,
+      "resetCommand": "weaverswill 1",
+      "lifetime": "session",
+      "description": "ItemData.RollWeaversWill sonucunu çarpar (yuvarlar), oyunun üst sınırı 28'i aşmaz. Tek çağıran RollLegendaryProperties: düşüşler/ödüller (RollBaseItem), açılan cocoon'lar (RevealCocoonedUnique) ve diğer yeniden roll yolları. Mevcut eşyalar değişmez.",
+      "currentSource": "currentValues.weaverswill",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "GEMINI.md"
+    },
+    {
+      "id": "weaversdrop",
+      "group": "general",
+      "label": "Weaver's Will Unique payı",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "weaversdrop {value}",
+      "pythonApi": null,
+      "responseFormat": "text",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      ],
+      "default": 0,
+      "resetCommand": "weaversdrop 0",
+      "lifetime": "session",
+      "description": "Rastgele seçilen Unique'lerin yüzde kaçının Weaver's Will Unique olacağı; aynı eşya türü, seviye ve düşme kurallarına uyan bir Weaver's Will Unique varsa UniqueList.rollUnique önce onu ister. Oyunun kendi payı yaklaşık %4; 0 kapalı.",
+      "currentSource": "currentValues.weaversdrop",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "weaversupgrades",
+      "group": "general",
+      "label": "Weaver's Will yükseltme hızı",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "weaversupgrades {value}",
+      "pythonApi": null,
+      "responseFormat": "text",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10
+        }
+      ],
+      "default": 1,
+      "resetCommand": "weaversupgrades 1",
+      "lifetime": "session",
+      "description": "CharacterMutator.UpgradeRandomWeaversWillItem her çağrıda bu kadar çalışır (küsurat şans olarak). Oyun bu çağrıyı yakındaki bir öldürmenin zarı tutunca, en fazla 15 saniyede bir yapar; her yükseltme 1 Weaver's Will harcar.",
+      "currentSource": "currentValues.weaversupgrades",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "weaver_affixes",
+      "group": "general",
+      "label": "Weaver's Will affix'leri",
+      "widget": "selector",
+      "availability": "implemented",
+      "commandTemplate": "weaveraffixes {ids}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "ids",
+          "type": "single_token",
+          "optionsSource": "liveState.lootread.affixes.id",
+          "maximumLength": 383
+        }
+      ],
+      "default": "none",
+      "resetCommand": "weaveraffixes none",
+      "lifetime": "session",
+      "description": "SpendWeaversWillToUpgrade sırasında T7 altındaki istenmeyen affix'ler geçici olarak T7 tutulur (istenen biri T7 altındaysa) ve GetEligibleAffixes listesi istenenlere süzülür (uyan biri varsa); gerçek tier'lar affix kimliğiyle geri yazılır ve eşya verisi yeniden oluşturulur. En fazla 64 ID; none kapalı.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "weaver_read",
+      "group": "general",
+      "label": "Weaver's Will ayarları",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "weaverread",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "weaverread: pay, hız, istenen affix'ler ve sayaçlar (salt okunur).",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "speed",
       "group": "general",
       "label": "Hareket hızı çarpanı",
@@ -2121,8 +2249,35 @@
       "default": 2,
       "resetCommand": "lootlp 2",
       "lifetime": "session",
-      "description": "Yalnız quality modu; LP eşiği ile T7 koşulu OR olarak birleştirilir. Weaver's Will ayrı bir LP koşulu değildir.",
+      "description": "Yalnız quality modu; LP eşiği, Weaver's Will eşiği (loot_ww) ve T7 koşulu OR olarak birleştirilir.",
       "currentSource": "liveState.lootread.minimumLP",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/loot-crafting.md"
+    },
+    {
+      "id": "loot_ww",
+      "group": "loot",
+      "label": "Minimum Weaver's Will",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "lootww {value}",
+      "pythonApi": "tools.loot_crafting_backend.minimum_ww(value)",
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 28
+        }
+      ],
+      "default": 0,
+      "resetCommand": "lootww 0",
+      "lifetime": "session",
+      "description": "Yalnız quality modu; Weaver's Will'i en az bu kadar olan Unique de toplanır (0 = kapalı). Weaver's Will'li Unique'in LP'si 0'dır; LP eşiği tek başına onu toplamaz. Üst sınır oyunun ItemData.MaxWeaversWill değeridir.",
+      "currentSource": "liveState.lootread.minimumWW",
       "requirements": [
         "offline"
       ],
@@ -20151,6 +20306,7 @@
       "ready": true,
       "mode": "all",
       "minimumLP": 2,
+      "minimumWW": 0,
       "t7": true,
       "respectFilter": true,
       "materials": true,
@@ -24829,6 +24985,32 @@
         "message": "Add an item to craft.",
         "successMessage": "",
         "exactOutcomeKnown": false
+      }
+    },
+    "weaverread": {
+      "ok": true,
+      "ready": true,
+      "share": {
+        "percent": 0,
+        "hook": false,
+        "uniqueRolls": 0,
+        "asked": 0,
+        "converted": 0
+      },
+      "speed": {
+        "multiplier": 1,
+        "hook": false,
+        "grants": 0,
+        "upgrades": 0
+      },
+      "affixes": {
+        "ids": [],
+        "hooks": false,
+        "spends": 0,
+        "upgradesSteered": 0,
+        "addsFiltered": 0,
+        "addsUnfiltered": 0,
+        "faults": 0
       }
     }
   },
@@ -33557,7 +33739,7 @@
     ]
   },
   "counts": {
-    "controls": 172,
+    "controls": 178,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

@@ -16,7 +16,8 @@ using namespace managed;
 using namespace lootcraft::rules;
 Policy policy;
 bool ready = false;
-size_t lp, affixes, affixId, affixTier, filterOffset, actorTracker, trackerData;
+size_t lp, ww, affixes, affixId, affixTier, filterOffset, actorTracker, trackerData;
+int maximumWW = 28;  // ItemData.MaxWeaversWill, read at Init
 game::MethodRef getActor, isOffline, getItem, isUnique, isShard, isRune, isGlyph, match, getAffixes;
 const il2cpp::Field* filterInstance;
 uint64_t accepted = 0, rejected = 0, faults = 0;
@@ -58,13 +59,13 @@ bool Decision(void* label) {
         }
     }
     const bool checkFilter = policy.mode == Mode::Filter || (policy.mode == Mode::Quality && policy.respectFilter);
-    return lootcraft::rules::Accept(policy, {material, Value<bool>(isUnique, item), t7, !checkFilter || Filter(item), Get<uint8_t>(item, lp)});
+    return lootcraft::rules::Accept(policy, {material, Value<bool>(isUnique, item), t7, !checkFilter || Filter(item), Get<uint8_t>(item, lp), Get<uint8_t>(item, ww)});
 }
 std::string State() {
     const char* names[]{"all", "filter", "quality", "materials"};
     std::ostringstream out;
     out << "{\"ok\":true,\"ready\":" << Boolean(ready) << ",\"mode\":" << Json(names[static_cast<int>(policy.mode)])
-        << ",\"minimumLP\":" << policy.minimumLP << ",\"t7\":" << Boolean(policy.t7)
+        << ",\"minimumLP\":" << policy.minimumLP << ",\"minimumWW\":" << policy.minimumWW << ",\"maximumWW\":" << maximumWW << ",\"t7\":" << Boolean(policy.t7)
         << ",\"respectFilter\":" << Boolean(policy.respectFilter) << ",\"materials\":" << Boolean(policy.materials) << ",\"categories\":{";
     const char* categories[]{"gold", "potions", "xp", "favor", "bones", "amber"};
     for (int i=0;i<6;++i) { if(i) out << ','; out << Json(categories[i]) << ':' << Boolean(policy.categories[i]); }
@@ -93,7 +94,18 @@ std::vector<CatalogAffix> AffixCatalog() {
 bool Init() {
     std::string why;
     ready = game::Guarded([] {
-        lp=Offset("ItemData","legendaryPotential"); affixes=Offset("ItemData","affixes");
+        lp=Offset("ItemData","legendaryPotential"); ww=Offset("ItemData","weaversWill"); affixes=Offset("ItemData","affixes");
+        // ItemData.MaxWeaversWill is a const (literal) field; RollWeaversWill also clamps to 28.
+        if (const auto* itemData = game::FindClass("LE.dll", "", "ItemData")) {
+            void* iter = nullptr;
+            while (const auto* f = il2cpp::api().class_get_fields(itemData, &iter)) {
+                if (!(il2cpp::api().field_get_flags(f) & il2cpp::kFieldLiteral) || std::strcmp(il2cpp::api().field_get_name(f), "MaxWeaversWill") != 0) continue;
+                int value = 0; il2cpp::api().field_static_get_value(f, &value);
+                if (value > 0 && value <= 255) maximumWW = value;
+                Log("smart loot: ItemData.MaxWeaversWill %d", value);
+                break;
+            }
+        }
         affixId=Offset("ItemAffix","affixId"); affixTier=Offset("ItemAffix","affixTier");
         filterOffset=Offset("ItemFilterManager","<Filter>k__BackingField","ItemFiltering");
         filterInstance=game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","Instance");
@@ -106,6 +118,7 @@ bool Init() {
     }, &why);
     Log("smart loot: %s%s", ready ? "metadata ready" : "unavailable: ", ready ? "" : why.c_str()); return ready;
 }
+int MaximumWeaversWill() { return maximumWW; }
 bool CanCollect() {
     if (!ready || !game::IsOfflinePlay()) return false;
     bool okay=false;
@@ -238,6 +251,7 @@ std::string Set(const std::string& key, const std::string& value) {
             else if(value=="quality") next.mode=Mode::Quality; else if(value=="materials") next.mode=Mode::Materials;
             else throw std::runtime_error("loot mode must be all/filter/quality/materials");
         } else if(key=="lp") { next.minimumLP=Integer(value); if(next.minimumLP<0||next.minimumLP>4) throw std::runtime_error("LP threshold 0..4"); }
+        else if(key=="ww") { next.minimumWW=Integer(value); if(next.minimumWW<0||next.minimumWW>maximumWW) throw std::runtime_error("Weaver's Will threshold 0.."+std::to_string(maximumWW)); }
         else if(key=="affixes") {
             next.affixes.clear(); std::set<int> available;
             for(const auto& a:AffixCatalog()) available.insert(a.id);
@@ -345,7 +359,7 @@ std::string Test(const std::string& id,const std::string& action) {
                 void* item=Invoke(getItem,label); if(!item) continue;
                 if(!first) out<<','; first=false;
                 out << "{\"id\":" << Json(std::to_string(reinterpret_cast<uintptr_t>(item))) << ",\"selected\":" << Boolean(Decision(label))
-                    << ",\"filterPass\":" << Boolean(Filter(item)) << ",\"lp\":" << static_cast<int>(Get<uint8_t>(item,lp))
+                    << ",\"filterPass\":" << Boolean(Filter(item)) << ",\"lp\":" << static_cast<int>(Get<uint8_t>(item,lp)) << ",\"ww\":" << static_cast<int>(Get<uint8_t>(item,ww))
                     << ",\"unique\":" << Boolean(Value<bool>(isUnique,item))
                     << ",\"material\":" << Boolean(Value<bool>(isShard,item)||Value<bool>(isRune,item)||Value<bool>(isGlyph,item)) << ",\"t7Ids\":[";
                 bool firstAffix=true;

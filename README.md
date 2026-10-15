@@ -18,7 +18,9 @@ controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest changes: [0.1.2-dev.31 interaction areas, steadier auto pickup, hidden parts](docs/patch-notes-0.1.2-dev.31.md),
+Latest changes: [0.1.2-dev.32 Weaver's Will](docs/patch-notes-0.1.2-dev.32.md),
+[dev.32 tests](docs/weavers-will-validation-2026-10-14.md),
+[0.1.2-dev.31 interaction areas, steadier auto pickup, hidden parts](docs/patch-notes-0.1.2-dev.31.md),
 [dev.31 tests](docs/conveniences-validation-2026-10-14.md),
 [0.1.2-dev.30 minion counts and immortal minions](docs/patch-notes-0.1.2-dev.30.md),
 [dev.30 minions](docs/minions-validation-2026-10-14.md),
@@ -118,6 +120,10 @@ with EpochPact completely removed. This release remains an alpha.
 | `drops <1-25>` | The item count of every loot drop (enemy deaths, objectives, arenas, bosses) times the number. |
 | `density <1-5>` | Monsters per pack times the number, for packs rolled from then on. Single spawns (bosses, unique enemies) stay single. |
 | `rarity <1-10>` | Each numeric rarity roll below grade 4 has a (mult-1)/mult chance to increase by one. Exalted/T7 tuning has separate controls; rarity enum IDs are cataloged by type. |
+| `weaverswill <1-10>` | The Weaver's Will the game rolls for a Unique (drops, rewards, opened cocoons), times the number, rounded and at most 28 (the game's maximum). |
+| `weaversdrop <0-100>` | Percent of the Uniques the game picks at random that come as a Weaver's Will Unique where one fits (about 4 % normally). |
+| `weaversupgrades <1-10>` | Every Weaver's Will upgrade a kill grants an equipped item happens that many times (each uses 1 Weaver's Will). |
+| `weaveraffixes <ids\|none>` | The affixes Weaver's Will upgrades raise and add when they can; otherwise the game chooses. |
 | `speed <1-5>` | Movement speed: writes the game's own Movespeed stat (like an item or a buff), so the character sheet, the animation and the movement all scale together. |
 | `cooldown <1-10>` | Charges and cooldowns count down that many times faster. |
 | `autopickup <0/1>` | Every 0.25 s (paused while an item card is pending or open), asks the game to pick up selected items and enabled gold, potion, tome and bone categories. |

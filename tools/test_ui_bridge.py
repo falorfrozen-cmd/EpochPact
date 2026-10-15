@@ -243,7 +243,7 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','qolarea ','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','summonread','inventoryread','inventoryaction ','affixinfo ')):
+        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','summonread','inventoryread','inventoryaction ','affixinfo ')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})
@@ -415,6 +415,48 @@ class BridgeTests(unittest.TestCase):
         self.bridge.execute('tier_rule_color', {}, 'reset')
         self.assertEqual(self.commands[-1], 'tiercolor rule label')
 
+    def test_minimum_weavers_will_is_a_whole_number_from_0_to_28(self):
+        for value in (0, 1, 18, 28):
+            self.bridge.execute('loot_ww', {'value': value})
+            self.assertEqual(self.commands[-1], f'lootww {value}')
+        sent = len(self.commands)
+        for bad in (-1, 29, 1.5, '18', None, True):
+            with self.subTest(value=bad), self.assertRaises(ValueError):
+                self.bridge.execute('loot_ww', {'value': bad})
+        self.assertEqual(len(self.commands), sent)
+        self.bridge.execute('loot_ww', {}, 'reset')
+        self.assertEqual(self.commands[-1], 'lootww 0')
+
+    def test_weavers_will_share_speed_and_affixes_stay_in_range(self):
+        def ww_status(command, **kwargs):
+            if command == 'status':
+                return ('EpochPact; gate: offline play [client only]\n'
+                        'weaversdrop: 25%, hook in, unique rolls 8, asked 2, converted 2\n'
+                        'weaversupgrades: x3, hook in, grants 1, upgrades 3\n'
+                        'weaveraffixes: 2 wanted, hooks in, spends 0, upgrades steered 0, adds filtered 0, faults 0')
+            return self.send(command, **kwargs)
+        with patch.object(ui.le, 'send', side_effect=ww_status):
+            live = self.bridge.connection()
+        self.assertEqual(live['values']['weaversdrop'], 25)
+        self.assertEqual(live['values']['weaversupgrades'], 3)
+        for control, value, command in (('weaversdrop', 0, 'weaversdrop 0'), ('weaversdrop', 100, 'weaversdrop 100'),
+                                        ('weaversupgrades', 1, 'weaversupgrades 1'), ('weaversupgrades', 10, 'weaversupgrades 10')):
+            self.bridge.execute(control, {'value': value})
+            self.assertEqual(self.commands[-1], command)
+        for ids in ('none', '66,12', '7'):
+            self.bridge.execute('weaver_affixes', {'ids': ids})
+            self.assertEqual(self.commands[-1], f'weaveraffixes {ids}')
+        sent = len(self.commands)
+        for control, bad in (('weaversdrop', -1), ('weaversdrop', 101), ('weaversupgrades', 0.5), ('weaversupgrades', 11)):
+            with self.subTest(control=control, value=bad), self.assertRaises(ValueError):
+                self.bridge.execute(control, {'value': bad})
+        for bad in ('66,', 'abc', '1;status', ','.join(['1'] * 65)):
+            with self.subTest(ids=bad), self.assertRaises(ValueError):
+                self.bridge.execute('weaver_affixes', {'ids': bad})
+        self.assertEqual(len(self.commands), sent)
+        self.bridge.execute('weaver_affixes', {}, 'reset')
+        self.assertEqual(self.commands[-1], 'weaveraffixes none')
+
     def test_interaction_area_settings_stay_in_range_and_the_colour_is_six_hex_digits(self):
         for value in ('3FD0FF', 'ff3366'):
             self.bridge.execute('qol_areacolor', {'color': value})
@@ -547,6 +589,26 @@ class BridgeTests(unittest.TestCase):
         with patch.object(ui.le, 'send', side_effect=amber_status):
             live = self.bridge.connection()
         self.assertEqual(live['values']['amber'], 5)
+
+    def test_weavers_will_multiplier_is_read_from_status_and_stays_from_1_to_10(self):
+        def ww_status(command, **kwargs):
+            if command == 'status':  # the rarity line comes first in items::Status
+                return ('EpochPact; gate: offline play [client only]\n'
+                        'rarity: x1, hooks out, boosted 0, refused online 0\n'
+                        'weaverswill: x2.5, hooks in, boosted 3, refused online 0')
+            return self.send(command, **kwargs)
+        with patch.object(ui.le, 'send', side_effect=ww_status):
+            live = self.bridge.connection()
+        self.assertEqual(live['values']['weaverswill'], 2.5)
+        self.assertEqual(live['values']['rarity'], 1)
+        for value in (1, 2, 10):
+            self.bridge.execute('weaverswill', {'value': value})
+            self.assertEqual(self.commands[-1], f'weaverswill {value}')
+        sent = len(self.commands)
+        for bad in (0.5, 11, float('nan'), '2', None):
+            with self.subTest(value=bad), self.assertRaises(ValueError):
+                self.bridge.execute('weaverswill', {'value': bad})
+        self.assertEqual(len(self.commands), sent)
 
     def test_connection_recovers_after_first_unity_frame_timeout_without_mutation(self):
         self.live['sessionread'] = {'ok':False, 'error':'the main thread did not pick the job up'}

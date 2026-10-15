@@ -29,6 +29,7 @@
 #include "fonts.hpp"
 #include "report.hpp"
 #include "convenience.hpp"
+#include "weaver.hpp"
 #include "effects.hpp"
 #include "ipc_protocol.hpp"
 #include <mutex>
@@ -160,7 +161,7 @@ std::string Execute(const std::string& line) {
         if(!args.empty()) {const auto [end,ec]=std::from_chars(args[0].data(),args[0].data()+args[0].size(),offset);if(ec!=std::errc{}||end!=args[0].data()+args[0].size()||offset<0||offset>65536)return error("invalid collection page offset");}
         return collection::Items(offset);
     }
-    if (cmd == "lootread" || cmd == "lootmode" || cmd == "lootlp" || cmd == "loott7" || cmd == "lootfilter" || cmd == "lootaffixes" || cmd == "lootcategory" || cmd == "lootreset" ||
+    if (cmd == "lootread" || cmd == "lootmode" || cmd == "lootlp" || cmd == "lootww" || cmd == "loott7" || cmd == "lootfilter" || cmd == "lootaffixes" || cmd == "lootcategory" || cmd == "lootreset" ||
         cmd == "craftread" || cmd == "craftfp" || cmd == "crafthope" || cmd == "craftdespair" || cmd == "craftshards" || cmd == "craftrunes" || cmd == "craftglyphs" || cmd == "craftlevel" || cmd == "craftt7" || cmd == "craftreset") {
         const auto error=[](const char* message){return "{\"ok\":false,\"error\":"+managed::Json(message)+"}";};
         if(cmd=="lootread" || cmd=="craftread") {
@@ -206,9 +207,18 @@ std::string Execute(const std::string& line) {
     });
     if (cmd == "frameread" || cmd == "framereset") return args.empty() ? mainthread::Telemetry(cmd == "framereset") : "frame: refused: no arguments expected";
 
+    if (cmd == "weaverread") return args.empty() ? weaver::Read() : "{\"ok\":false,\"error\":\"weaverread expects no arguments\"}";
+    if (cmd == "weaveraffixes") return args.size() == 1 ? weaver::SetAffixes(args[0]) : "{\"ok\":false,\"error\":\"use weaveraffixes <id,id,...|none>\"}";
+    if (cmd == "weaversdrop" || cmd == "weaversupgrades") {
+        if (args.empty()) return weaver::Status();
+        char* end = nullptr;
+        const double v = std::strtod(args[0].c_str(), &end);
+        if (args.size() != 1 || end == args[0].c_str() || *end) return cmd + ": refused: not a number: " + (args.empty() ? std::string() : args[0]);
+        return cmd == "weaversdrop" ? weaver::SetShare(v) : weaver::SetSpeed(v);
+    }
     if (cmd == "status") {
         std::string s = std::string("EpochPact ") + kVersion + "; gate: " + game::GateText() + "\n" + xp::Status() + "\n" +
-                        loot::Status() + "\n" + density::Status() + "\n" + monolith::Status() + "\n" + cof::Status() + "\n" + items::Status() + "\n" + player::Status() + "\nframe hook: " +
+                        loot::Status() + "\n" + density::Status() + "\n" + monolith::Status() + "\n" + cof::Status() + "\n" + items::Status() + "\n" + weaver::Status() + "\n" + player::Status() + "\nframe hook: " +
                         (mainthread::HookInstalled() ? "in" : "out (idle)");
 #ifdef EPOCHPACT_RESEARCH
         s += "\n" + research::Status();
@@ -333,11 +343,12 @@ std::string Execute(const std::string& line) {
 #endif
     }
     if (cmd == "xp" || cmd == "gold" || cmd == "drops" || cmd == "rarity" || cmd == "speed" ||
-        cmd == "cooldown" || cmd == "amber") {
+        cmd == "cooldown" || cmd == "amber" || cmd == "weaverswill") {
         if (args.empty()) {
             if (cmd == "xp") return xp::Status();
             if (cmd == "amber") return cof::AmberStatus();
             if (cmd == "rarity") return items::RarityStatus();
+            if (cmd == "weaverswill") return items::WeaversWillStatus();
             if (cmd == "speed" || cmd == "cooldown") return player::Status();
             return loot::Status();
         }
@@ -349,6 +360,7 @@ std::string Execute(const std::string& line) {
         if (cmd == "amber") return cof::AmberMultiplier(m);
         if (cmd == "drops") return loot::SetDrops(m);
         if (cmd == "rarity") return items::SetRarity(m);
+        if (cmd == "weaverswill") return items::SetWeaversWill(m);
         if (cmd == "speed") return player::SetSpeed(m);
         return player::SetCooldown(m);
     }

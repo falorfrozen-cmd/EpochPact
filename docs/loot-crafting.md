@@ -21,9 +21,10 @@ yakın mesafeli toplamasını kapatacağı anlamına gelmez.
 |---|---|
 | `lootmode all` | Mevcut tüm eşya toplama davranışı |
 | `lootmode filter` | Oyunun mevcut loot filtresinden geçen eşya |
-| `lootmode quality` | Unique LP eşiği **veya** aranan T7 affix |
+| `lootmode quality` | Unique LP eşiği **veya** Weaver's Will eşiği **veya** aranan T7 affix |
 | `lootmode materials` | Yalnız affix shard, rune ve glyph; diğer pickup kategorileri ayrıca ayarlanır |
 | `lootlp 2` | Quality için minimum LP, 0–4 |
+| `lootww 0` | Quality için minimum Weaver's Will, 0–28; 0 kapalı |
 | `loott7 1` | Quality için T7 koşulunu aç; 0 kapatır |
 | `lootaffixes 1,2,3` | Aranan T7 affix ID'leri; ID/ad listesi `lootread.affixes` |
 | `lootaffixes none` | Herhangi bir T7 affix; en fazla 64 ayrı ID seçilir |
@@ -41,7 +42,11 @@ Filter modu filtreye daima uyar. Quality modunda filtre ayrıca kapatılabilir.
 Yüklü bir filtre yoksa oyun gibi tüm eşyalar filtreyi geçer. Geçici “filtreyi göster”
 tuşu yerine tanımlı filtre kuralları sorgulanır. Filtre sorgusu başarısızsa eşya
 alınmaz. Seçili affix'lerden **en az birinin** T7 olması yeterlidir. Oyun belleğinde
-T7 sıfır tabanlı `affixTier=6` olarak saklanır. Weaver's Will, LP değildir.
+T7 sıfır tabanlı `affixTier=6` olarak saklanır. Weaver's Will, LP değildir: Weaver's Will'li bir
+Unique'in `legendaryPotential` alanı 0, `weaversWill` alanı 1–28'dir (oyunun
+`ItemData.RollWeaversWill` sonucu 28'de keser). Bu yüzden yalnız LP eşiği onu hiç
+seçmez; `lootww` eşiği ayrı bir OR koşuludur. `lootread` `minimumWW` ve oyunun
+`ItemData.MaxWeaversWill` değerini `maximumWW` olarak bildirir.
 Sayaçtaki `acceptedRequests` seçimden geçen talep sayısıdır; envantere giren eşya
 sayısının garantisi değildir.
 

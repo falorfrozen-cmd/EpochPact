@@ -7,6 +7,7 @@
 #include "smart_loot.hpp"
 #include "managed.hpp"
 #include "pickup_rules.hpp"
+#include "loot_crafting_rules.hpp"
 #include "mainthread.hpp"
 #include <algorithm>
 #include <cmath>
@@ -64,6 +65,30 @@ uint8_t d_rollRarity(int32_t ilvl, float uniqueMultiplier, const Method* m) {
 
 feature::Hook h_rollRarity{"GenerateItems.RollRarity", {}, reinterpret_cast<void*>(&d_rollRarity),
                            reinterpret_cast<void**>(&o_rollRarity)};
+
+// ---- Weaver's Will: ItemData.RollWeaversWill(UniqueList.Entry, int minimum, int ilvl, float corruption) -> int.
+// Its only caller, ItemData.RollLegendaryProperties, stores the result in ItemData.weaversWill
+// for a Unique whose entry has the Weaver's Will legendary type; the game clamps it to 28.
+
+feature::Feature g_weaversWill;
+
+using RollWeaversWillFn = int32_t (*)(void* item, void* entry, int32_t minimum, int32_t ilvl, float corruption, const Method* m);
+RollWeaversWillFn o_rollWeaversWill = nullptr;
+
+int32_t d_rollWeaversWill(void* item, void* entry, int32_t minimum, int32_t ilvl, float corruption, const Method* m) {
+    const int32_t rolled = o_rollWeaversWill(item, entry, minimum, ilvl, corruption, m);
+    double mult = 1.0;
+    if (rolled > 0 && feature::Active(g_weaversWill, &mult)) {
+        const int32_t out = lootcraft::rules::ScaleWeaversWill(rolled, mult, smartloot::MaximumWeaversWill());
+        if (g_weaversWill.firstPending.exchange(false))
+            Log("weaverswill: first boosted roll ilvl %d: %d -> %d (x%g)", ilvl, rolled, out, mult);
+        return out;
+    }
+    return rolled;
+}
+
+feature::Hook h_rollWeaversWill{"ItemData.RollWeaversWill", {}, reinterpret_cast<void*>(&d_rollWeaversWill),
+                                reinterpret_cast<void**>(&o_rollWeaversWill)};
 
 // ---- autopickup: the game's own pickup entry points, called from its per-frame distant
 // pickup handler (the same code that vacuums labels for a held controller button).
@@ -568,6 +593,10 @@ bool Init() {
     g_rarity.max = 10;
     g_rarity.hooks = {&h_rollRarity};
     h_rollRarity.ref = game::FindMethod("LE.dll", "", "GenerateItems", "RollRarity", 2);
+    g_weaversWill.cmd = "weaverswill";
+    g_weaversWill.max = 10;
+    g_weaversWill.hooks = {&h_rollWeaversWill};
+    h_rollWeaversWill.ref = game::FindMethod("LE.dll", "", "ItemData", "RollWeaversWill", 4);
 
     h_distantTick.ref = game::FindMethod("LE.dll", "", "DistantItemPickupHandler", "OnUpdateTick", 1);
     g_labelListField = game::FindStaticField("LE.dll", "", "ItemTooltipOrganizer", "pickableGroundLabelList");
@@ -658,6 +687,8 @@ bool Init() {
 std::string SetRarity(double m) { return feature::Set(g_rarity, m); }
 
 std::string RarityStatus() { return feature::Line(g_rarity); }
+std::string SetWeaversWill(double m) { return feature::Set(g_weaversWill, m); }
+std::string WeaversWillStatus() { return feature::Line(g_weaversWill); }
 
 std::string AutoPickupStatus() { return AutoStatus(); }
 
@@ -687,7 +718,7 @@ std::string SetAuto(double on) {
     return "autopickup -> on (items, gold, potions, tomes and bones; pauses while inspecting an item)";
 }
 
-std::string Status() { return feature::Line(g_rarity) + "\n" + AutoStatus(); }
+std::string Status() { return feature::Line(g_rarity) + "\n" + feature::Line(g_weaversWill) + "\n" + AutoStatus(); }
 
 bool IsInspectingItem(){return InspectingItem();}
 std::string RadiusStatus(){

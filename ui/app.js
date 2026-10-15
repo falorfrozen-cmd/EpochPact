@@ -43,6 +43,14 @@ let connected = {connected:false,offline:false}, values = {}, appliedValues = {}
 const craftingModel=window.EpochCrafting;
 const affixPicker=window.EpochAffixes;
 let wantedAffixes=affixPicker.create();
+let weaverAffixes=affixPicker.create();
+// The two affix pickers: Loot & Pickup → Wanted T7 affixes, and General → Weaver's Will.
+const affixKinds={
+ loot_affixes:{state:()=>wantedAffixes,available:"Available T7 affixes",selected:"Selected wanted T7 affixes",empty:"No selection accepts any T7 affix.",refresh:"Refresh pickup rules for the loaded character before applying this selection."},
+ weaver_affixes:{state:()=>weaverAffixes,available:"Available affixes",selected:"Selected Weaver's Will affixes",empty:"No selection: the game chooses every Weaver's Will upgrade.",refresh:"Use Refresh in Weaver's Will for the loaded character before applying this selection."}
+};
+function affixKind(el){return el?.closest?.('[data-affix-kind]')?.dataset?.affixKind||"loot_affixes";}
+function affixSelector(kind,s){return kind==="loot_affixes"?s:`[data-affix-kind="${kind}"] ${s}`;}
 let craftingSection='forge',workshopAdvanced=false;
 const craftDisclosure={advanced:false,defaults:false};
 let workshopDraft=craftingModel.defaults(),workshopOwner=null;
@@ -106,7 +114,7 @@ function profileSetting(c){return Boolean(c&&["session","actor"].includes(c.life
 function startupChoice(){const v=readStored("startup-profile","__last__");return v===""?"__last__":v;}
 // Choice settings whose exact arguments are replayed with the last used
 // settings (loot mode, wanted affixes, collection categories, font).
-const replaySettings=new Set(["loot_mode","loot_affixes","loot_category","font_family"]);
+const replaySettings=new Set(["loot_mode","loot_affixes","weaver_affixes","loot_category","font_family"]);
 function rememberReplay(payload){
  if(preview||payload.type!=="control"||payload.operation==="read")return;
  const replay=readStored("last-settings-replay",{});
@@ -224,7 +232,7 @@ async function flushAutomatic(force=false){
 }
 function invalidateLive({render=true}={}){
  cancelAutomatic();
- wantedAffixes=affixPicker.create();
+ wantedAffixes=affixPicker.create();weaverAffixes=affixPicker.create();
  cache={};actorValues={};history=[];connected={connected:false,offline:false};
  if(activeStat){activeStat=null;$("#stat-dialog").close();}
  $("#connection").textContent="○ Game disconnected";$("#connection").classList.remove("connected");
@@ -438,7 +446,7 @@ setInterval(()=>void pollConnection(),1000);
 function syncSpeed(){
  const modes=actorValues["9:0:0:0"]?.modes;if(modes){appliedValues.speed=1+(modes.increased||0);if(!dirty.has("speed"))values.speed=appliedValues.speed;}
 }
-function unitFor(c){return c.id==="pickup_radius"||c.id==="qol_arearadius"?" game units":c.id==="pickup_interval"?" s":c.id.startsWith("map_")&&c.id.endsWith("opacity")?"":c.id.startsWith("map_")?"×":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["craft_fp","build_weaverflat","build_projectileflat","build_blessingoptions","build_minionextra","build_totemextra","build_ballistaextra","build_forgedextra","build_companionextra"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
+function unitFor(c){return c.id==="weaversdrop"?"%":c.id==="pickup_radius"||c.id==="qol_arearadius"?" game units":c.id==="pickup_interval"?" s":c.id.startsWith("map_")&&c.id.endsWith("opacity")?"":c.id.startsWith("map_")?"×":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["craft_fp","loot_ww","build_weaverflat","build_projectileflat","build_blessingoptions","build_minionextra","build_totemextra","build_ballistaextra","build_forgedextra","build_companionextra"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
 function settingDisplayValue(id,value){return id==="speed"&&Number.isFinite(value)?Number(value.toFixed(6)):value;}
 function settingCard(c) {
  const p=c.parameters.find(x=>x.name==="value"),v=settingDisplayValue(c.id,values[c.id]??c.default),unit=unitFor(c);
@@ -449,27 +457,35 @@ function settingCard(c) {
 function settingPanel(title,controls){return `<section class="panel"><div class="section-head"><h2>${title}</h2><span class="badge">${controls.every(automaticSetting)?"Changes apply automatically":"Use Apply changes below"}</span></div><div class="control-grid">${controls.map(settingCard).join("")}</div></section>`;}
 function actionCard(c, fields="", extra=""){
  const caption=c.id==="craft_materials"?"Stock all materials":c.id==="craft_forge"?"Craft once":c.id==="craft_reset"?"Restore game defaults":c.id==="mastery_choose"?"Choose Mastery":c.widget==="read"?"Read live":c.lifetime==="game_save"?"Apply action":c.widget==="preview"?"Preview":"Apply";
- return `<article class="control-card ${c.id==='loot_affixes'?'affix-card':''}"><div class="control-top"><h3 class="control-title">${esc(c.label)}</h3><span class="badge ${c.lifetime==="game_save"?"save":""}">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><form class="control-form" data-id="${c.id}"><div class="form-grid">${fields||parameterFields(c)}</div>${extra}<p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" data-control-id="${c.id}" class="${c.lifetime==="game_save"||c.id==="mastery_choose"?"primary":""}">${c.id==='loot_affixes'?'Apply selection':caption}</button></div></form></article>`;
+ return `<article class="control-card ${c.id==='loot_affixes'||c.id==='weaver_affixes'?'affix-card':''}"><div class="control-top"><h3 class="control-title">${esc(c.label)}</h3><span class="badge ${c.lifetime==="game_save"?"save":""}">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><form class="control-form" data-id="${c.id}"><div class="form-grid">${fields||parameterFields(c)}</div>${extra}<p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" data-control-id="${c.id}" class="${c.lifetime==="game_save"||c.id==="mastery_choose"?"primary":""}">${c.id==='loot_affixes'||c.id==='weaver_affixes'?'Apply selection':caption}</button></div></form></article>`;
 }
-function wantedAffixFields(){
- const owner=preview?'preview':automaticOwner();
- if(owner&&owner!==wantedAffixes.owner)affixPicker.receive(wantedAffixes,[],owner);
- const lists=affixPicker.lists(wantedAffixes,cache.loot_read?.affixes);
- return `<div class="affix-picker"><div class="affix-tools"><label>Find an affix<input type="search" data-affix-search value="${esc(wantedAffixes.query)}" placeholder="Search name or ID…"></label><label>Sort<select data-affix-sort><option value="az" ${wantedAffixes.order==='az'?'selected':''}>Name · A–Z</option><option value="za" ${wantedAffixes.order==='za'?'selected':''}>Name · Z–A</option></select></label></div><div class="affix-lists"><div><label>Available affixes <span data-affix-available-count>${lists.available.length}</span><select size="10" data-affix-list="available" aria-label="Available T7 affixes">${options(lists.available)}</select></label><button type="button" data-affix-add>Add selected →</button></div><div><label>Wanted affixes <span data-affix-selected-count>${lists.selected.length} / 64</span><select size="10" data-affix-list="selected" aria-label="Selected wanted T7 affixes">${options(lists.selected)}</select></label><div class="actions"><button type="button" data-affix-remove>← Remove selected</button><button type="button" data-affix-clear>Clear all</button></div></div></div><p class="note" data-affix-status role="status">${wantedAffixes.dirty?'Selection changed · use Apply selection.':wantedAffixes.selected.length?'Selection applied.':'No selection accepts any T7 affix.'} Double-click an affix or press Enter to move it. Search only filters the available list.</p></div>`;
+function wantedAffixFields(kind="loot_affixes"){
+ const k=affixKinds[kind],st=k.state(),owner=preview?'preview':automaticOwner();
+ if(owner&&owner!==st.owner)affixPicker.receive(st,[],owner);
+ const lists=affixPicker.lists(st,cache.loot_read?.affixes);
+ return `<div class="affix-picker" data-affix-kind="${kind}"><div class="affix-tools"><label>Find an affix<input type="search" data-affix-search value="${esc(st.query)}" placeholder="Search name or ID…"></label><label>Sort<select data-affix-sort><option value="az" ${st.order==='az'?'selected':''}>Name · A–Z</option><option value="za" ${st.order==='za'?'selected':''}>Name · Z–A</option></select></label></div><div class="affix-lists"><div><label>Available affixes <span data-affix-available-count>${lists.available.length}</span><select size="10" data-affix-list="available" aria-label="${k.available}">${options(lists.available)}</select></label><button type="button" data-affix-add>Add selected →</button></div><div><label>Wanted affixes <span data-affix-selected-count>${lists.selected.length} / 64</span><select size="10" data-affix-list="selected" aria-label="${k.selected}">${options(lists.selected)}</select></label><div class="actions"><button type="button" data-affix-remove>← Remove selected</button><button type="button" data-affix-clear>Clear all</button></div></div></div><p class="note" data-affix-status role="status">${st.dirty?'Selection changed · use Apply selection.':st.selected.length?'Selection applied.':k.empty} Double-click an affix or press Enter to move it. Search only filters the available list.</p></div>`;
 }
-function updateWantedAffixLists(){
- const lists=affixPicker.lists(wantedAffixes,cache.loot_read?.affixes);
- for(const side of ['available','selected']){const node=$(`[data-affix-list="${side}"]`);if(node)node.innerHTML=options(lists[side]);}
- $('[data-affix-available-count]').textContent=lists.available.length;
- $('[data-affix-selected-count]').textContent=lists.selected.length+' / 64';
- $('[data-affix-status]').textContent=wantedAffixes.dirty?'Selection changed · use Apply selection.':wantedAffixes.selected.length?'Selection applied.':'No selection accepts any T7 affix.';
+function updateWantedAffixLists(kind="loot_affixes"){
+ const k=affixKinds[kind],st=k.state(),lists=affixPicker.lists(st,cache.loot_read?.affixes),at=s=>$(affixSelector(kind,s));
+ for(const side of ['available','selected']){const node=at(`[data-affix-list="${side}"]`);if(node)node.innerHTML=options(lists[side]);}
+ at('[data-affix-available-count]').textContent=lists.available.length;
+ at('[data-affix-selected-count]').textContent=lists.selected.length+' / 64';
+ at('[data-affix-status]').textContent=st.dirty?'Selection changed · use Apply selection.':st.selected.length?'Selection applied.':k.empty;
 }
-function moveWantedAffixes(side,one){
- const select=$(`[data-affix-list="${side}"]`);
+function moveWantedAffixes(side,one,kind="loot_affixes"){
+ const st=affixKinds[kind].state(),select=$(affixSelector(kind,`[data-affix-list="${side}"]`));
  const ids=one!==undefined?[one]:Array.from(select?.selectedOptions||[],x=>x.value);
- if(side==='available'){const known=new Set(affixPicker.lists(wantedAffixes,cache.loot_read?.affixes).available.map(x=>x.id));if(ids.some(x=>!known.has(String(x))))return;}
- if(!affixPicker.move(wantedAffixes,ids,side==='available')){notify('Choose at most 64 wanted affixes.',true);return;}
- updateWantedAffixLists();
+ if(side==='available'){const known=new Set(affixPicker.lists(st,cache.loot_read?.affixes).available.map(x=>x.id));if(ids.some(x=>!known.has(String(x))))return;}
+ if(!affixPicker.move(st,ids,side==='available')){notify('Choose at most 64 wanted affixes.',true);return;}
+ updateWantedAffixLists(kind);
+}
+// General → Weaver's Will: every Weaver's Will setting in one place. Minimum Weaver's Will
+// stays with the auto pickup quality rules.
+const weaverSettings=["weaverswill","weaversdrop","weaversupgrades"];
+function weaverPanel(){
+ const c=controlById("weaver_affixes"),settings=weaverSettings.map(controlById).filter(Boolean);if(!c&&!settings.length)return "";
+ const names=cache.loot_read?.affixes?.length;
+ return `<section class="panel" id="weavers-will"><div class="section-head"><h2>Weaver's Will</h2><button data-refresh="weaver_read" data-control-id="weaver_read">Refresh</button></div><p class="muted">Weaver's Will Uniques: how much Weaver's Will they roll, how often they drop and how their upgrades go. When a kill near you upgrades an equipped Weaver's Will item, the game adds a new affix or raises one by a tier; choose below which affixes it should prefer. Minimum Weaver's Will for auto pickup is under Loot & Pickup → Quality rules.</p><div class="control-grid">${settings.map(settingCard).join("")}</div>${c?`${names?"":'<p class="note">Refresh loads the affix names and the current selection.</p>'}<div class="control-grid">${actionCard(c)}</div>`:""}</section>`;
 }
 function options(list,selected,none=false){const picked=Array.isArray(selected)?selected.map(String):[String(selected)];return (none?`<option value="none" ${selected==null?'selected':''}>Clear selection (none)</option>`:"")+list.map(x=>`<option value="${esc(x.id)}" ${picked.includes(String(x.id))?"selected":""}>${esc(clean(x.uiLabel||x.name||x.id))}</option>`).join("");}
 function workshopModifierEntries(){
@@ -561,7 +577,7 @@ function renderCrafting(){
 }
 function field(name,label,html){return `<label>${esc(label)}${html}</label>`;}
 function parameterFields(c){
- if(c.id==='loot_affixes')return wantedAffixFields();
+ if(c.id==='loot_affixes'||c.id==='weaver_affixes')return wantedAffixFields(c.id);
  return c.parameters.filter(p=>p.name!=="save_id").map(p=>{
   const name=p.name;let html;
   if(name==="timeline")html=`<select name="timeline">${options(cache.monolith_read?.timelines||[],monoTarget.timeline)}</select>`;
@@ -624,7 +640,7 @@ function renderPage(){
  }else if(page==="game_setup"){
   content.innerHTML='';
  }else if(page==="general"){
-  content.innerHTML=settingPanel("General game settings",catalog.controls.filter(c=>c.group==="general"&&["number","toggle"].includes(c.widget)&&!c.id.startsWith("loot_")&&!c.id.startsWith("craft_")&&!c.id.startsWith("map_")));
+  content.innerHTML=settingPanel("General game settings",catalog.controls.filter(c=>c.group==="general"&&["number","toggle"].includes(c.widget)&&!c.id.startsWith("loot_")&&!c.id.startsWith("craft_")&&!c.id.startsWith("map_")&&!weaverSettings.includes(c.id)))+weaverPanel();
  }else if(page==="display"){
   content.innerHTML=settingPanel("Camera",["build_zoom","build_cameraangle"].map(controlById))+settingPanel("Minimap and overlay",["map_minimapsize","map_minimapzoom","map_minimapopacity","map_overlayopacity","map_overlayzoom"].map(controlById))+settingPanel("Item tiers",["tier_icons","tier_tooltips","tier_lines","tier_rules","tier_rule_position","tier_rule_plain"].map(controlById))+tierPalette()+fontPanel()+settingPanel("Graphics effects",catalog.controls.filter(c=>c.group==="display"&&c.id.startsWith("qol_")))+`<p class="note">Graphics overrides last for this character session. Turning them off restores the previous renderer values. Your saved graphics preferences are kept.</p>`;
   content.innerHTML=settingPanel("Buffs & debuffs in game",["effects_enabled","effects_player","effects_target","effects_descriptions","effects_scale","effects_rows"].map(controlById))+`<p class="note">Uses live game icons and descriptions. Effects with no readable timer show —. The panels let clicks pass through and only show effects exposed by the game's native UI.</p>`+content.innerHTML;
@@ -633,7 +649,7 @@ function renderPage(){
  }else if(page==="inventory"){
   content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory shortcuts</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the game's placement: tabs whose stash priority matches an item first, otherwise the selected tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_stash","inventory_vendor","inventory_stashall"].map(id=>actionCard(controlById(id))).join("")}</div></section>`+stashRulesPanel();
  }else if(page==="loot"){
-  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius"),controlById("pickup_interval")])+lootPanel()+`<section class="panel"><h2>Collect now</h2>${cache.pickup_radius_read?.inventoryFull?`<p class="note">Your inventory is full. Equipment pickup is paused until you open and close your inventory; gold, potions, tomes, bones and materials are still collected.</p>`:""}<div class="control-grid">${actionCard(controlById("pickup_now"))}</div></section>`+settingPanel("Quality rules",["loot_lp","loot_t7","loot_filter"].map(controlById))+filterFilesPanel()+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
+  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius"),controlById("pickup_interval")])+lootPanel()+`<section class="panel"><h2>Collect now</h2>${cache.pickup_radius_read?.inventoryFull?`<p class="note">Your inventory is full. Equipment pickup is paused until you open and close your inventory; gold, potions, tomes, bones and materials are still collected.</p>`:""}<div class="control-grid">${actionCard(controlById("pickup_now"))}</div></section>`+settingPanel("Quality rules",["loot_lp","loot_ww","loot_t7","loot_filter"].map(controlById).filter(Boolean))+filterFilesPanel()+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
  }else if(page==="crafting"){
   content.innerHTML=renderCrafting();
  }else if(page==="skills"){
@@ -864,13 +880,18 @@ function syncLootCraft(id,result){
   for(const [key,item] of Object.entries(result.settings||{})){const cid="build_"+key;appliedValues[cid]=item.value;if(!dirty.has(cid)&&!autoManaged(cid))values[cid]=item.value;}
   return true;
  }
+ if(id==="weaver_read"||id==="weaver_affixes"){
+  cache.weaver_read={...cache.weaver_read,...result};
+  if(Array.isArray(result.affixes?.ids))affixPicker.receive(weaverAffixes,result.affixes.ids,preview?'preview':automaticOwner()||null,{force:id==="weaver_affixes"});
+  return true;
+ }
  const readId=id.startsWith("map_")?"map_read":id.startsWith("loot_")?"loot_read":id.startsWith("craft_")?"craft_read":null;
  if(!readId)return false;
  if(id==="craft_forge")result={...result.crafting,...result};
  cache[readId]={...cache[readId],...result};
  if(readId==='loot_read'&&Array.isArray(result.affixIds))affixPicker.receive(wantedAffixes,result.affixIds,preview?'preview':automaticOwner()||null,{force:id==='loot_reset'});
  const toggle=x=>x===undefined?undefined:Number(x);
- const fresh=readId==="map_read"?{map_reveal:toggle(result.enabled)}:readId==="loot_read"?{loot_lp:result.minimumLP,loot_t7:toggle(result.t7),loot_filter:toggle(result.respectFilter)}:
+ const fresh=readId==="map_read"?{map_reveal:toggle(result.enabled)}:readId==="loot_read"?{loot_lp:result.minimumLP,...(result.minimumWW!=null?{loot_ww:result.minimumWW}:{}),loot_t7:toggle(result.t7),loot_filter:toggle(result.respectFilter)}:
   {craft_fp:result.fpFactor,craft_t7:toggle(result.allowT7),craft_shards:toggle(result.preserveShards),craft_runes:toggle(result.preserveRunes),craft_glyphs:toggle(result.preserveGlyphs),craft_level:toggle(result.bypassLevel),craft_hope:result.hopePercent,craft_despair:result.despairPercent};
  for(const [key,value] of Object.entries(fresh))if(value!==undefined){appliedValues[key]=value;if(!dirty.has(key))values[key]=value;}
  return true;
@@ -1215,7 +1236,7 @@ setInterval(()=>{if(page==="summons"&&!preview&&!document.hidden&&!busy&&(cache.
 function formArgs(form,c){
  const data=new FormData(form),args={};
  for(const p of c.parameters){if(p.name==="save_id")continue;let v=data.get(p.name);if(p.type==="optional_integer"&&(v===""||v===null))continue;
-  args[p.name]=c.id==="loot_affixes"?wantedAffixes.selected.join(",")||"none":p.type==="number_or_reset"?(v===""?null:Number(v)):p.type==="integer_or_none"&&v==="none"?null:p.type.includes("integer")||p.type==="number"?Number(v):v;
+  args[p.name]=c.id==="loot_affixes"||c.id==="weaver_affixes"?affixKinds[c.id].state().selected.join(",")||"none":p.type==="number_or_reset"?(v===""?null:Number(v)):p.type==="integer_or_none"&&v==="none"?null:p.type.includes("integer")||p.type==="number"?Number(v):v;
   if(c.id==="craft_custom"&&p.name==="affixes")args.affixes=data.getAll("affixes").join(",")||"keep";
   if(c.id==="craft_custom"&&p.name==="modifiers")args.modifiers=data.getAll("modifiers").join(",")||"none";
  }
@@ -1228,7 +1249,7 @@ function formArgs(form,c){
 }
 async function formAction(form,override){
  const c=controlById(override||form.dataset.id);if(!form.reportValidity())return;
- if(c.id==='loot_affixes'&&wantedAffixes.owner!==(preview?'preview':automaticOwner())){notify('Refresh pickup rules for the loaded character before applying this selection.',true);return;}
+ if((c.id==='loot_affixes'||c.id==='weaver_affixes')&&affixKinds[c.id].state().owner!==(preview?'preview':automaticOwner())){notify(affixKinds[c.id].refresh,true);return;}
  if(c.id==='craft_custom'){
   const problem=craftingModel.problem(workshopDraft,cache.craft_custom_catalog,cache.craft_read?.forgePreview);
   if(problem){notify(problem,true);return;}
@@ -1311,9 +1332,9 @@ content.addEventListener("click",async e=>{
   saveHiddenParts(hidden);renderSettings();return;
  }
  if(b.dataset.go){if(b.dataset.craftTarget)craftingSection=b.dataset.craftTarget;go(b.dataset.go);}
- else if(b.hasAttribute?.('data-affix-add'))moveWantedAffixes('available');
- else if(b.hasAttribute?.('data-affix-remove'))moveWantedAffixes('selected');
- else if(b.hasAttribute?.('data-affix-clear')){affixPicker.move(wantedAffixes,[...wantedAffixes.selected],false);updateWantedAffixLists();}
+ else if(b.hasAttribute?.('data-affix-add'))moveWantedAffixes('available',undefined,affixKind(b));
+ else if(b.hasAttribute?.('data-affix-remove'))moveWantedAffixes('selected',undefined,affixKind(b));
+ else if(b.hasAttribute?.('data-affix-clear')){const kind=affixKind(b),st=affixKinds[kind].state();affixPicker.move(st,[...st.selected],false);updateWantedAffixLists(kind);}
  else if(b.dataset.craftSection){craftingSection=b.dataset.craftSection;renderPage();}
  else if(b.dataset.workshopMore){workshopListLimits[b.dataset.workshopMore]+=40;updateWorkshopUi();}
  else if(b.dataset.workshopRemove){workshopDraft[b.dataset.workshopRemove]=workshopDraft[b.dataset.workshopRemove].filter(x=>x!==b.dataset.choice);updateWorkshopUi();}
@@ -1340,7 +1361,7 @@ content.addEventListener("click",async e=>{
  else if(b.id==="loot-feed-open"){try{await (overlayOpen.feed?window.pywebview.api.hide_loot_feed():window.pywebview.api.open_loot_feed());}catch{notify("Could not open the loot window.",true);}await refreshOverlayState();}
  else if(b.id==="loot-log-refresh"){convenienceNextRead.loot_log=0;await pollConveniences();}
  else if(b.id==="summon-baseline-clear"){summonBaseline={};summonBaselineOwner="";$("#summon-live").innerHTML=summonTable();}
- else if(b.dataset.refresh)await refreshSection(b.dataset.refresh);
+ else if(b.dataset.refresh){if(b.dataset.refresh==="weaver_read"&&!cache.loot_read?.affixes?.length)await refreshSection("loot_read");await refreshSection(b.dataset.refresh);}
  else if(b.dataset.themePick)setTheme(b.dataset.themePick);
  else if(b.dataset.autoRetry){const id=b.dataset.autoRetry;queueAutomatic(id,values[id],0);}
  else if(b.dataset.settingReset){const c=controlById(b.dataset.settingReset);settingChanged(c.id,c.default);}
@@ -1399,7 +1420,7 @@ function rememberMonolithInput(input){
 content.addEventListener("input",e=>{
  const t=e.target;
  if(t.dataset?.workshopRoll){const v=Number(t.value);if(t.value!==''&&Number.isInteger(v))workshopSetting(t.dataset.workshopRoll,{roll:v});else workshopSetting(t.dataset.workshopRoll,{roll:NaN});refreshWorkshopSummary();return;}
- if(t.hasAttribute?.('data-affix-search')){wantedAffixes.query=t.value;updateWantedAffixLists();return;}
+ if(t.hasAttribute?.('data-affix-search')){const kind=affixKind(t);affixKinds[kind].state().query=t.value;updateWantedAffixLists(kind);return;}
  if(t.dataset.workshopSearch){
   const kind=t.dataset.workshopSearch;workshopFilters[kind]=t.value;
   if(kind==='template'){const select=$('[data-workshop-template]');if(select)select.innerHTML=workshopTemplateOptions();}
@@ -1478,7 +1499,7 @@ content.addEventListener("change",e=>{
  if(e.target.dataset.summonOption){saveDisplayPreference("summonOptions",e.target.dataset.summonOption,e.target.checked);$("#summon-live").innerHTML=summonTable();return;}
  if(e.target.dataset.summonColumn){saveDisplayPreference("summonColumns",e.target.dataset.summonColumn,!e.target.checked);$("#summon-live").innerHTML=summonTable();return;}
  const t=e.target;rememberMonolithInput(t);
- if(t.hasAttribute?.('data-affix-sort')){wantedAffixes.order=t.value==='za'?'za':'az';updateWantedAffixLists();return;}
+ if(t.hasAttribute?.('data-affix-sort')){const kind=affixKind(t);affixKinds[kind].state().order=t.value==='za'?'za':'az';updateWantedAffixLists(kind);return;}
  if(t.dataset.craftGlyphMode){settingChanged(t.dataset.craftGlyphMode,t.value==='default'?null:50);return;}
  if(t.hasAttribute?.('data-workshop-kind')){workshopTemplateKind=t.value;const select=$('[data-workshop-template]');if(select)select.innerHTML=workshopTemplateOptions();return;}
  if(t.dataset.workshopPick){const selected=workshopDraft[t.dataset.workshopPick],id=String(t.value);workshopDraft[t.dataset.workshopPick]=t.checked?[...new Set([...selected,id])]:selected.filter(x=>x!==id);updateWorkshopUi();return;}
@@ -1495,8 +1516,8 @@ content.addEventListener("change",e=>{
  else if(t.name==="slot"&&t.closest('form')?.dataset.id==="cof_charges"){t.closest('form').querySelector('[name=value]').value=cache.cof_read?.slots.find(s=>s.index===Number(t.value))?.charges??"";}
  else if(t.name==="slot"&&t.closest('form')?.dataset.id==="cofprophecy"){const s=cache.cof_read?.slots.find(s=>s.index===Number(t.value));for(const name of ['reward','lens']){const select=t.closest('form').querySelector('[name='+name+']');const v=s?.[name==='reward'?'rewardId':'lens'];select.value=v==null?'none':String(v);if(select.selectedIndex<0)select.value='none';}}
 });
-content.addEventListener('dblclick',e=>{const option=e.target.closest('option'),select=e.target.closest('[data-affix-list]');if(select&&!busy)moveWantedAffixes(select.dataset.affixList,option?.value);});
-content.addEventListener('keydown',e=>{if(e.key!=='Enter')return;if(e.target.hasAttribute?.('data-affix-search')){e.preventDefault();return;}const select=e.target.closest('[data-affix-list]');if(select){e.preventDefault();if(!busy)moveWantedAffixes(select.dataset.affixList);}});
+content.addEventListener('dblclick',e=>{const option=e.target.closest('option'),select=e.target.closest('[data-affix-list]');if(select&&!busy)moveWantedAffixes(select.dataset.affixList,option?.value,affixKind(select));});
+content.addEventListener('keydown',e=>{if(e.key!=='Enter')return;if(e.target.hasAttribute?.('data-affix-search')){e.preventDefault();return;}const select=e.target.closest('[data-affix-list]');if(select){e.preventDefault();if(!busy)moveWantedAffixes(select.dataset.affixList,undefined,affixKind(select));}});
 $("#stat-form").addEventListener("submit",e=>{e.preventDefault();void statAction("set");});
 $("#stat-read").onclick=()=>void statAction("read");$("#stat-reset").onclick=()=>void statAction("reset");
 $("#stat-close").onclick=()=>$("#stat-dialog").close();$("#stat-mode").onchange=e=>changeStatMode(e.target.value);

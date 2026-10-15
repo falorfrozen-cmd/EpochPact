@@ -3,6 +3,8 @@
 namespace ep::smartloot {
 bool Init();
 bool CanCollect();
+// ItemData.MaxWeaversWill as read from the game (28 if unreadable).
+int MaximumWeaversWill();
 bool Accept(void* label);
 // Shards, runes and glyphs go to material storage, not the inventory grid.
 bool IsMaterial(void* label);

@@ -814,6 +814,53 @@ test('blank, zero, out-of-range and change-only edits survive loss of live bound
 });
 
 
+test('Quality rules offer Minimum Weaver\'s Will and show the value the game reports',()=>{
+ const h=automaticHarness();
+ h.run(`values={};page='loot';shippingRenderPage()`);
+ const html=h.element('#page-content').innerHTML;
+ assert.ok(html.indexOf('="loot_ww"')>html.indexOf('="loot_lp"')&&html.indexOf('="loot_lp"')>0,'next to Minimum Unique LP');
+ assert.equal(h.calls.length,0,'rendering sends nothing');
+ assert.equal(h.run('unitFor(controlById("loot_ww"))'),'','a threshold, not a multiplier: no × after the value');
+ assert.equal(h.run('unitFor(controlById("weaverswill"))'),'×');
+ h.run(`syncLootCraft('loot_read',{minimumLP:2,minimumWW:18,t7:true,respectFilter:true,affixIds:[],affixes:[]})`);
+ assert.equal(h.run('values.loot_ww'),18);
+ h.run(`syncLootCraft('loot_read',{minimumLP:3,t7:true,respectFilter:true,affixIds:[],affixes:[]})`);
+ assert.equal(h.run('values.loot_ww'),18,'an older core without Weaver\'s Will leaves the value alone');
+});
+test('General offers the Weaver\'s Will multiplier in the Weaver\'s Will panel and applies it like the other multipliers',()=>{
+ const h=automaticHarness();
+ h.run(`page='general';shippingRenderPage()`);
+ const html=h.element('#page-content').innerHTML;
+ assert.ok(html.indexOf('="weaverswill"')>html.indexOf('id="weavers-will"')&&html.indexOf('="rarity"')>0,'in the Weaver\'s Will panel');
+ assert.ok(h.run('automaticSetting(controlById("weaverswill"))'),'kept and applied again like the other multipliers');
+ assert.equal(h.calls.length,0,'rendering sends nothing');
+});
+test('General offers the Weaver\'s Will share, upgrade speed and its own affix picker beside the loot one',async()=>{
+ const h=automaticHarness();
+ h.run(`page='general';connected.sessionKey='123:456';shippingRenderPage()`);
+ let html=h.element('#page-content').innerHTML;
+ const at=id=>html.indexOf(`="${id}"`);
+ const panel=html.indexOf('id="weavers-will"');
+ assert.ok(panel>0&&at('speed')<panel&&at('rarity')<panel,'the other multipliers stay in General game settings');
+ assert.ok(at('weaverswill')>panel&&at('weaversdrop')>at('weaverswill')&&at('weaversupgrades')>at('weaversdrop')&&at('weaver_affixes')>at('weaversupgrades'),'every Weaver\'s Will setting in its own panel');
+ assert.ok(html.includes("<h2>Weaver's Will</h2>")&&html.includes('data-affix-kind="weaver_affixes"')&&html.includes('data-refresh="weaver_read"')&&html.includes('Quality rules'),'one panel that also points to the Minimum WW pickup rule');
+ assert.ok(!html.includes('data-affix-kind="loot_affixes"'),'the loot picker stays on Loot & Pickup');
+ assert.equal(h.run('unitFor(controlById("weaversdrop"))'),'%');assert.equal(h.run('unitFor(controlById("weaversupgrades"))'),'×');
+ assert.ok(h.run('automaticSetting(controlById("weaversdrop"))&&automaticSetting(controlById("weaversupgrades"))'));
+ assert.equal(h.calls.length,0,'rendering sends nothing');
+ // The game's selection arrives; moving an affix and applying sends the Weaver's Will ids only.
+ h.run(`cache.loot_read={affixIds:[2],affixes:[{id:0,name:'Armor'},{id:1,name:'Fire Damage'},{id:2,name:'Cold Damage'}]};syncLootCraft('weaver_read',{affixes:{ids:[1]}})`);
+ assert.equal(h.run(`weaverAffixes.selected.join(',')`),'1');assert.equal(h.run(`wantedAffixes.selected.join(',')`),'','the loot selection is separate');
+ h.element('[data-affix-kind="weaver_affixes"] [data-affix-list="available"]').selectedOptions=[{value:'0'}];
+ h.run(`moveWantedAffixes('available',undefined,'weaver_affixes')`);
+ assert.equal(h.run(`weaverAffixes.selected.join(',')`),'1,0');assert.equal(h.run('weaverAffixes.dirty'),true);
+ assert.match(h.element('[data-affix-kind="weaver_affixes"] [data-affix-list="selected"]').innerHTML,/Armor/);
+ h.context.weaverForm={dataset:{id:'weaver_affixes'},fields:{ids:'9'},reportValidity:()=>true};
+ h.replies.push({ok:true,affixes:{ids:[1,0]}});await h.run(`formAction(weaverForm)`);
+ assert.deepEqual(h.calls.map(x=>[x.id,x.args]),[['weaver_affixes',{ids:'1,0',expected_session:'123:456'}]]);
+ assert.equal(h.run('weaverAffixes.dirty'),false);
+ assert.ok(h.run('replaySettings.has("weaver_affixes")'),'the selection comes back with the last used settings');
+});
 test('wanted affix transfer, search and sorting stay local and submission includes hidden choices',async()=>{
  const h=automaticHarness();h.run(`page='loot';connected.sessionKey='123:456';syncLootCraft('loot_read',{affixIds:[2],affixes:[{id:0,name:'Armor'},{id:1,name:'Fire Damage'},{id:2,name:'Cold Damage'}]});`);
  h.element('[data-affix-list="available"]').selectedOptions=[{value:'0'}];h.run(`moveWantedAffixes('available')`);

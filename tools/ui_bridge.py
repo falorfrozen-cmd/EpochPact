@@ -159,10 +159,13 @@ class UiBridge:
                 offline = "gate: offline play" in status
                 player = None
                 values = {}
-                for name in ("xp", "gold", "amber", "drops", "density", "rarity", "speed", "cooldown"):
+                for name in ("xp", "gold", "amber", "drops", "density", "rarity", "weaverswill", "weaversupgrades", "speed", "cooldown"):
                     match = re.search(rf"(?m)^{name}: x([\d.eE+-]+)", status)
                     if match:
                         values[name] = float(match[1])
+                match = re.search(r"(?m)^weaversdrop: ([\d.]+)%", status)
+                if match:
+                    values["weaversdrop"] = float(match[1])
                 match = re.search(r"(?m)^autopickup: (on|off)", status)
                 if match:
                     values["autopickup"] = int(match[1] == "on")
@@ -255,7 +258,7 @@ class UiBridge:
                     raise ValueError("Enter a colour as six hexadecimal digits, for example 3FD0FF.")
                 if control["id"] == "tier_rule_color" and not re.fullmatch(r"label|[0-9A-Fa-f]{6}", value):
                     raise ValueError("Enter a colour as six hexadecimal digits, or label for the label colour.")
-                if control["id"] == "loot_affixes" and value != "none":
+                if control["id"] in ("loot_affixes", "weaver_affixes") and value != "none":
                     if not re.fullmatch(r"\d+(?:,\d+)*", value) or len(value.split(",")) > 64:
                         raise ValueError("Enter up to 64 comma-separated affix IDs, or none.")
                 if control["id"] == "craft_custom" and name == "affixes" and value != "keep":
@@ -628,7 +631,7 @@ class UiBridge:
             key = "lootread" if cid.startswith("loot_") else "craftread"
             state = self.demo[key]
             if cid == "loot_reset":
-                state.update(mode="all", minimumLP=2, t7=True, respectFilter=True,
+                state.update(mode="all", minimumLP=2, minimumWW=0, t7=True, respectFilter=True,
                              materials=True, affixIds=[], categories={x: True for x in state["categories"]})
             elif cid == "craft_reset":
                 state.update(fpFactor=1, hopePercent=None, despairPercent=None, preserveShards=False, preserveRunes=False, preserveGlyphs=False, bypassLevel=False, allowT7=False)
@@ -645,18 +648,26 @@ class UiBridge:
                 if a["category"] == "materials": state["materials"] = value
                 else: state["categories"][a["category"]] = value
             else:
-                fields = {"loot_lp": "minimumLP", "loot_t7": "t7", "loot_filter": "respectFilter",
+                fields = {"loot_lp": "minimumLP", "loot_ww": "minimumWW", "loot_t7": "t7", "loot_filter": "respectFilter",
                           "craft_t7": "allowT7", "craft_fp": "fpFactor", "craft_shards": "preserveShards", "craft_runes": "preserveRunes", "craft_glyphs": "preserveGlyphs", "craft_level": "bypassLevel",
                           "craft_hope": "hopePercent", "craft_despair": "despairPercent"}
                 value = control["default"] if operation == "reset" else a["value"]
                 if control["widget"] == "toggle": value = bool(value)
                 state[fields[cid]] = None if value == "reset" else value
-            sources = {"loot_lp": ("lootread", "minimumLP"), "loot_t7": ("lootread", "t7"),
+            sources = {"loot_lp": ("lootread", "minimumLP"), "loot_ww": ("lootread", "minimumWW"), "loot_t7": ("lootread", "t7"),
                        "loot_filter": ("lootread", "respectFilter"), "craft_fp": ("craftread", "fpFactor"),
                        "craft_t7": ("craftread", "allowT7"), "craft_shards": ("craftread", "preserveShards"), "craft_runes": ("craftread", "preserveRunes"), "craft_glyphs": ("craftread", "preserveGlyphs"), "craft_level": ("craftread", "bypassLevel")}
             for name, (source, field) in sources.items(): self.demo_values[name] = self.demo[source].get(field, self.controls[name]["default"])
             return self._demo_result(key, state)
-        reads = {"session_read": "sessionread", "progress_read": "progressread", "monolith_read": "monolithread", "cof_read": "cofread", "factions_read": "factionread", "loot_read": "lootread", "craft_read": "craftread"}
+        if cid == "weaver_affixes":
+            state = self.demo.setdefault("weaverread", {"ok": True, "share": {"percent": 0}, "speed": {"multiplier": 1}, "affixes": {"ids": []}})
+            ids = "none" if operation == "reset" else a["ids"]
+            selected = [] if ids == "none" else list(dict.fromkeys(map(int, ids.split(","))))
+            if set(selected) - {x["id"] for x in self.demo.get("lootread", {}).get("affixes", [])}:
+                raise ValueError("Choose an affix from the current catalog.")
+            state.setdefault("affixes", {})["ids"] = selected
+            return self._demo_result("weaverread", state)
+        reads = {"session_read": "sessionread", "progress_read": "progressread", "monolith_read": "monolithread", "cof_read": "cofread", "factions_read": "factionread", "loot_read": "lootread", "craft_read": "craftread", "weaver_read": "weaverread"}
         if cid in reads:
             return self._demo_result(reads[cid], self.demo[reads[cid]])
         if cid == "undo":

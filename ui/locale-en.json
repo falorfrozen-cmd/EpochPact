@@ -31,7 +31,11 @@
     ],
     "loot_lp": [
       "Minimum Unique LP",
-      "Quality mode accepts a Unique at this LP threshold, or an item with a wanted T7 affix."
+      "Quality mode accepts a Unique at this LP threshold, a Unique with the Minimum Weaver's Will, or an item with a wanted T7 affix."
+    ],
+    "loot_ww": [
+      "Minimum Weaver's Will",
+      "Quality mode also accepts a Unique with at least this much Weaver's Will (0 = off). A Weaver's Will Unique has no Legendary Potential, so Minimum Unique LP alone never picks it up."
     ],
     "loot_t7": [
       "Pick up T7 items",
@@ -124,6 +128,26 @@
     "rarity": [
       "Rarity upgrade multiplier",
       "Each normal rarity roll has a (x-1)/x chance of moving up one tier. Exalted and T7 rolls have separate controls."
+    ],
+    "weaverswill": [
+      "Weaver's Will multiplier",
+      "Multiplies the Weaver's Will the game rolls for a Unique (drops, rewards and opened cocoons), up to the game's maximum of 28: at x2 a Unique that would roll 10 gets 20. Items you already have do not change. Offline only; off at 1."
+    ],
+    "weaversdrop": [
+      "Weaver's Will Unique share",
+      "Percent of the Uniques that drop (and other Uniques the game picks at random) that come as a Weaver's Will Unique, where one fits the same item type, level and drop rules. The game's own share is about 4 %; 0 keeps it. Offline only."
+    ],
+    "weaversupgrades": [
+      "Weaver's Will upgrade speed",
+      "When a kill near you gives an equipped Weaver's Will item an upgrade (at most once every 15 seconds), it happens this many times: each upgrade adds an affix or raises one by a tier and uses 1 Weaver's Will. Offline only; off at 1."
+    ],
+    "weaver_affixes": [
+      "Weaver's Will affixes",
+      "Affixes that Weaver's Will upgrades prefer: an upgrade raises one of these when the item has one below T7, and a new affix is one of these when one fits the item. Otherwise the game chooses as usual. None: the game chooses every upgrade."
+    ],
+    "weaver_read": [
+      "Weaver's Will settings",
+      "Read the Weaver's Will Unique share, upgrade speed, wanted affixes and their counters."
     ],
     "speed": [
       "Movement speed",

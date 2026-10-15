@@ -2,6 +2,9 @@
 //
 //   rarity <1-10>      every RollRarity result has a (mult-1)/mult chance to come out one
 //                      tier better (normal -> magic -> rare -> exalted -> unique/set)
+//   weaverswill <1-10> the Weaver's Will a Unique rolls (ItemData.RollWeaversWill) times
+//                      mult, up to the game's maximum (28); every source rolls it there
+//                      (RollBaseItem, RevealCocoonedUnique, ... via RollLegendaryProperties)
 //   autopickup <0|1>   once per ~0.75 s, ask the game to pick up every ground item label
 //                      and every active gold pile, potion, xp tome, favor tome and ancient
 //                      bone in the zone (the same entry points a click uses)
@@ -14,6 +17,8 @@ namespace ep::items {
 bool Init();
 std::string SetRarity(double m);
 std::string RarityStatus();
+std::string SetWeaversWill(double m);
+std::string WeaversWillStatus();
 std::string SetAuto(double on);
 std::string AutoPickupStatus();
 std::string SetRadius(double radius);

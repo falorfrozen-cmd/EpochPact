@@ -1699,27 +1699,38 @@ std::string Test(const std::string& id,const std::string& action){
     }
     if(action.rfind("drop-item-",0)==0){
         // Disposable test character only: one generated item on the ground,
-        // via the game's own generator and drop call. Format drop-item-<distance>-<rarity>[-<affix id>];
-        // the affix id replaces the first affix's id (for loot filter affix rules).
+        // via the game's own generator and drop call. Format drop-item-<distance>-<rarity>[-<affix id>|-w<weaver's will>|-ww];
+        // the affix id replaces the first affix's id (for loot filter affix rules); w<n> gives a Unique
+        // Weaver's Will n instead of Legendary Potential; ww asks the generator for a random Unique of
+        // the Weaver's Will legendary type, so the game rolls its Weaver's Will itself.
         const auto dash=action.find('-',10);if(dash==std::string::npos)throw std::runtime_error("use drop-item-<distance>-<rarity>");
         const auto affixDash=action.find('-',dash+1);
         const int distance=std::stoi(action.substr(10,dash-10));int rarity=std::stoi(action.substr(dash+1,affixDash==std::string::npos?std::string::npos:affixDash-dash-1));
-        const int affixId=affixDash==std::string::npos?-1:std::stoi(action.substr(affixDash+1));
+        const bool rolledWeaver=affixDash!=std::string::npos&&action.substr(affixDash+1)=="ww";
+        const bool anyUnique=affixDash!=std::string::npos&&action.substr(affixDash+1)=="any";
+        const bool weaver=!rolledWeaver&&!anyUnique&&affixDash!=std::string::npos&&action.compare(affixDash+1,1,"w")==0;
+        const int affixId=affixDash==std::string::npos||weaver||rolledWeaver||anyUnique?-1:std::stoi(action.substr(affixDash+1));
+        const int weaversWill=weaver?std::stoi(action.substr(affixDash+2)):-1;
+        if(weaver&&(rarity!=7||weaversWill<1||weaversWill>255))throw std::runtime_error("use drop-item-<distance>-7-w<1..255>");
+        if((rolledWeaver||anyUnique)&&rarity!=7)throw std::runtime_error("use drop-item-<distance>-7-ww or -7-any");
         if(distance<1||distance>80||rarity<0||rarity>7)throw std::runtime_error("Unsupported item fixture.");
         void* generator=Get<void*>(c.actor,F("Actor","generateItems"));if(!generator)throw std::runtime_error("Item generator unavailable.");
-        bool no=false;int level=20,location=0,type=rarity==7?-1:0,subtype=rarity==7?-1:0,sockets=0,unique=rarity==7?1:-1,lp=0,rank=0,legendaryType=0,corrupt=0;
+        bool no=false,requireType=rolledWeaver;int level=rolledWeaver||anyUnique?50:20,location=0,type=rarity==7?-1:0,subtype=rarity==7?-1:0,sockets=0,unique=rarity==7&&!rolledWeaver&&!anyUnique?1:-1,lp=0,rank=0,legendaryType=rolledWeaver?1:0,corrupt=0;
         alignas(8) unsigned char faction[8]{},replacement[8]{},corruption[8]{},effectiveness[8]{},special[8]{},minSpecial[8]{},overrideLP[8]{};
-        void* gen[]{&no,&level,&no,&location,&type,&subtype,&rarity,&sockets,&unique,&no,&lp,faction,&rank,&no,&legendaryType,&no,
+        void* gen[]{&no,&level,&no,&location,&type,&subtype,&rarity,&sockets,&unique,&no,&lp,faction,&rank,&requireType,&legendaryType,&no,
             replacement,corruption,&corrupt,effectiveness,nullptr,nullptr,special,&no,minSpecial,overrideLP};
         Root item(Invoke(M("GenerateItems","initialiseRandomItemData",26),generator,gen));
         if(!item.Get())throw std::runtime_error("The game did not generate an item.");
         if(affixId>=0){auto list=Entries(Get<void*>(item.Get(),F("ItemData","affixes")));if(list.empty()||!list.front())throw std::runtime_error("The generated item has no affix.");
             *reinterpret_cast<uint16_t*>(static_cast<char*>(list.front())+F("ItemAffix","affixId"))=static_cast<uint16_t>(affixId);}
+        if(weaver){*reinterpret_cast<uint8_t*>(static_cast<char*>(item.Get())+F("ItemData","legendaryPotential"))=0;
+            *reinterpret_cast<uint8_t*>(static_cast<char*>(item.Get())+F("ItemData","weaversWill"))=static_cast<uint8_t>(weaversWill);}
         void* manager=game::StaticObject(game::FindStaticField("LE.dll","","GroundItemManager","instance"));
         if(!manager)throw std::runtime_error("Ground item manager unavailable.");
         Vec3 at=Position(c.actor);at.x+=static_cast<float>(distance);bool sound=false;
         void* args[]{c.actor,item.Get(),&at,&sound};Invoke(M("GroundItemManager","dropItemForPlayer",4),manager,args);
-        return "{\"ok\":true,\"distance\":"+std::to_string(distance)+",\"rarity\":"+std::to_string(rarity)+"}";
+        return "{\"ok\":true,\"distance\":"+std::to_string(distance)+",\"rarity\":"+std::to_string(rarity)+
+               ",\"lp\":"+std::to_string(Get<uint8_t>(item.Get(),F("ItemData","legendaryPotential")))+",\"weaversWill\":"+std::to_string(Get<uint8_t>(item.Get(),F("ItemData","weaversWill")))+"}";
     }
     if(action=="woven-join"||action=="woven-read"){
         // Disposable test character only: The Woven membership through the game's
@@ -1874,6 +1885,200 @@ std::string Test(const std::string& id,const std::string& action){
         void* constructor=Get<void*>(source,F("Actor","abilityObjectConstructor"));float delay=0;int castType=1;bool mutate=true;
         void* args[]{constructor,&p,&direction,&delay,&castType,&mutate,nullptr};Invoke(Method(ability.Get(),"CastAfterDelay",7),ability.Get(),args);
         return "{\"ok\":true,\"requested\":true,\"ability\":"+Json(Text(Get<void*>(ability.Get(),F("Ability","abilityName"))))+",\"abilities\":"+std::to_string(abilities.size())+"}";
+    }
+    if(action=="ground-items"){
+        // Disposable test character only: the items on the ground with rarity 7 or more (Unique, Set,
+        // Legendary) and their Legendary Potential and Weaver's Will; other items are only counted.
+        void* labels=game::StaticObject(game::FindStaticField("LE.dll","","ItemTooltipOrganizer","pickableGroundLabelList"));
+        const auto* labelClass=game::FindClass("LE.dll","","GroundItemLabel");
+        std::ostringstream out;out<<"{\"ok\":true,\"items\":[";bool comma=false;int others=0;
+        if(labels&&labelClass){
+            const auto* list=il2cpp::api().class_get_field_from_name(il2cpp::api().object_get_class(labels),"_list");
+            if(!list)throw std::runtime_error("Ground label list layout unavailable.");
+            for(void* label:Entries(Get<void*>(labels,il2cpp::api().field_get_offset(list)))){
+                if(!label||il2cpp::api().object_get_class(label)!=labelClass||!game::IsAlive(label))continue;
+                void* item=Invoke(Method(label,"getItemData",0),label);if(!item)continue;
+                const int rarity=Get<uint8_t>(item,F("ItemData","rarity"));
+                if(rarity<7){++others;continue;}
+                if(comma)out<<',';comma=true;
+                const auto at=Position(label);
+                out<<"{\"rarity\":"<<rarity<<",\"unique\":"<<Get<uint16_t>(item,F("ItemData","uniqueID"))<<",\"x\":"<<static_cast<int>(at.x*10)<<",\"z\":"<<static_cast<int>(at.z*10)
+                   <<",\"lp\":"<<static_cast<int>(Get<uint8_t>(item,F("ItemData","legendaryPotential")))
+                   <<",\"ww\":"<<static_cast<int>(Get<uint8_t>(item,F("ItemData","weaversWill")))<<'}';
+            }
+        }
+        out<<"],\"others\":"<<others<<'}';return out.str();
+    }
+    if(action.rfind("kill-enemies-",0)==0){
+        // Disposable test character only: the nearest n living enemies within 30 game units take
+        // lethal health damage through their own BaseHealth.HealthDamage, so the game's normal death
+        // and loot drops follow.
+        const int limit=std::stoi(action.substr(13));if(limit<1||limit>50)throw std::runtime_error("use kill-enemies-<1..50>");
+        void* alignment=Get<void*>(Get<void*>(c.actor,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
+        const auto start=Position(c.actor);std::vector<std::pair<double,void*>> foes;
+        for(void* target:Find("LE.dll","","Actor")){
+            if(!game::IsAlive(target)||target==c.actor)continue;void* manager=Get<void*>(target,F("Actor","alignmentManager"));if(!manager)continue;
+            void* other=Get<void*>(manager,F("AlignmentManager","alignment"));void* args[]{other};if(!other||!Value<bool>(Method(alignment,"IsFoe",1),alignment,args))continue;
+            void* health=Get<void*>(target,F("Actor","health"));if(!health||Get<float>(health,F("BaseHealth","currentHealth"))<=0)continue;
+            const auto p=Position(target);const double x=p.x-start.x,z=p.z-start.z,d=x*x+z*z;if(d<=900)foes.emplace_back(d,target);
+        }
+        std::sort(foes.begin(),foes.end(),[](const auto& a,const auto& b){return a.first<b.first;});
+        int killed=0;
+        for(const auto& [d,target]:foes){
+            if(killed>=limit)break;if(!game::IsAlive(target))continue;Root pin(target);
+            void* health=Get<void*>(target,F("Actor","health"));if(!health)continue;Root healthPin(health);
+            bool& damageable=*reinterpret_cast<bool*>(static_cast<char*>(health)+F("BaseHealth","damageable"));damageable=true;
+            float hit=Get<float>(health,F("BaseHealth","currentHealth"))+1000.f;void* a[]{&hit};Value<float>(Method(health,"HealthDamage",1),health,a);
+            if(!game::IsAlive(health)||Get<float>(health,F("BaseHealth","currentHealth"))<=0)++killed;
+        }
+        return "{\"ok\":true,\"killed\":"+std::to_string(killed)+",\"near\":"+std::to_string(foes.size())+"}";
+    }
+    if(action.rfind("weaver-",0)==0){
+        // Disposable test character only: Weaver's Will on the equipped items, through the game's own calls.
+        void* containers=Get<void*>(Get<void*>(Get<void*>(c.actor,F("Actor","itemContainersManager")),F("ItemContainersManager","equipment")),F("ItemContainersManager.PaperDollContainer","containers"));
+        std::vector<void*> items;
+        for(void* slot:Entries(containers)){
+            if(!slot||!Value<bool>(Method(slot,"HasContent",0),slot))continue;
+            void* content=Invoke(Method(slot,"GetContent",0),slot);if(!content)continue;
+            const auto entries=Entries(content);if(entries.empty()||!entries.front())continue;
+            if(void* item=Get<void*>(entries.front(),F("ItemContainerEntry","data")))items.push_back(item);
+        }
+        const auto describe=[&](void* item){
+            std::ostringstream o;o<<"{\"rarity\":"<<static_cast<int>(Get<uint8_t>(item,F("ItemData","rarity")))<<",\"unique\":"<<Get<uint16_t>(item,F("ItemData","uniqueID"))
+                <<",\"lp\":"<<static_cast<int>(Get<uint8_t>(item,F("ItemData","legendaryPotential")))<<",\"ww\":"<<static_cast<int>(Get<uint8_t>(item,F("ItemData","weaversWill")))<<",\"affixes\":[";
+            bool first=true;if(void* list=Get<void*>(item,F("ItemData","affixes")))for(void* a:Entries(list))if(a){
+                if(!first)o<<',';first=false;o<<"{\"id\":"<<Get<uint16_t>(a,F("ItemAffix","affixId"))<<",\"tier\":"<<static_cast<int>(Get<uint8_t>(a,F("ItemAffix","affixTier")))<<'}';}
+            o<<"]}";return o.str();
+        };
+        const auto weaverItems=[&]{std::vector<void*> w;for(void* i:items)if(Get<uint8_t>(i,F("ItemData","weaversWill"))>0)w.push_back(i);return w;};
+        if(action.rfind("weaver-equip-",0)==0){
+            // The first equipped Unique (else Legendary) gets Weaver's Will n instead of Legendary Potential.
+            const int ww=std::stoi(action.substr(13));if(ww<1||ww>28)throw std::runtime_error("use weaver-equip-<1..28>");
+            void* chosen=nullptr;
+            for(int wanted:{7,9}){for(void* i:items)if(Get<uint8_t>(i,F("ItemData","rarity"))==wanted){chosen=i;break;}if(chosen)break;}
+            if(!chosen)throw std::runtime_error("No equipped Unique or Legendary item.");
+            *reinterpret_cast<uint8_t*>(static_cast<char*>(chosen)+F("ItemData","legendaryPotential"))=0;
+            *reinterpret_cast<uint8_t*>(static_cast<char*>(chosen)+F("ItemData","weaversWill"))=static_cast<uint8_t>(ww);
+            Invoke(Method(chosen,"RebuildID",0),chosen);Invoke(Method(chosen,"setValuesFromSerialisation",0),chosen);
+            return "{\"ok\":true,\"equipped\":"+std::to_string(items.size())+",\"item\":"+describe(chosen)+"}";
+        }
+        if(action.rfind("weaver-wear-",0)==0){
+            // Replace an equipped item whose base type has Weaver's Will Uniques with a Weaver's Will Unique of
+            // that base type from the game's generator, in the same slot (Clear, then TryAddItemAndSkipContentChecks);
+            // its Weaver's Will is then set to n.
+            const int ww=std::stoi(action.substr(12));if(ww<1||ww>28)throw std::runtime_error("use weaver-wear-<1..28>");
+            void* generator=Get<void*>(c.actor,F("Actor","generateItems"));if(!generator)throw std::runtime_error("Item generator unavailable.");
+            std::vector<void*> slots;
+            for(void* slot:Entries(containers))if(slot&&Value<bool>(Method(slot,"HasContent",0),slot))slots.push_back(slot);
+            for(int base:{2,3,4,20,21,22,14,15,16,18,7,9}){
+                for(void* slot:slots){
+                    void* content=Invoke(Method(slot,"GetContent",0),slot);if(!content)continue;const auto entries=Entries(content);if(entries.empty()||!entries.front())continue;
+                    void* worn=Get<void*>(entries.front(),F("ItemContainerEntry","data"));if(!worn||Get<uint8_t>(worn,F("ItemData","itemType"))!=base)continue;
+                    bool no=false,requireType=true;int level=80,location=0,type=base,subtype=-1,rarity=7,sockets=0,unique=-1,lp=0,rank=0,legendaryType=1,corrupt=0;
+                    alignas(8) unsigned char faction[8]{},replacement[8]{},corruption[8]{},effectiveness[8]{},special[8]{},minSpecial[8]{},overrideLP[8]{};
+                    void* gen[]{&no,&level,&no,&location,&type,&subtype,&rarity,&sockets,&unique,&no,&lp,faction,&rank,&requireType,&legendaryType,&no,
+                        replacement,corruption,&corrupt,effectiveness,nullptr,nullptr,special,&no,minSpecial,overrideLP};
+                    Root item(Invoke(M("GenerateItems","initialiseRandomItemData",26),generator,gen));
+                    if(!item.Get()||Get<uint8_t>(item.Get(),F("ItemData","weaversWill"))==0)continue;
+                    *reinterpret_cast<uint8_t*>(static_cast<char*>(item.Get())+F("ItemData","weaversWill"))=static_cast<uint8_t>(ww);
+                    Invoke(Method(item.Get(),"RebuildID",0),item.Get());Invoke(Method(item.Get(),"setValuesFromSerialisation",0),item.Get());
+                    Invoke(Method(slot,"Clear",0),slot);
+                    int amount=1,context=0;void* args[]{item.Get(),&amount,&context};
+                    const bool added=Value<bool>(Method(slot,"TryAddItemAndSkipContentChecks",3),slot,args);
+                    return "{\"ok\":"+std::string(Boolean(added))+",\"baseType\":"+std::to_string(base)+",\"item\":"+describe(item.Get())+"}";
+                }
+            }
+            throw std::runtime_error("No equipped item of a base type with Weaver's Will Uniques.");
+        }
+        if(action=="weaver-items"){
+            // Each Weaver's Will item, and whether its fields match its serialised data (rebuilt from it).
+            std::ostringstream o;o<<"{\"ok\":true,\"equipped\":"<<items.size()<<",\"items\":[";bool first=true;
+            for(void* i:weaverItems()){
+                const std::string before=describe(i);Invoke(Method(i,"setValuesFromSerialisation",0),i);const std::string after=describe(i);
+                if(!first)o<<',';first=false;o<<"{\"item\":"<<after<<",\"consistent\":"<<Boolean(before==after)<<'}';
+            }
+            o<<"]}";return o.str();
+        }
+        if(action=="weaver-eligible"){
+            const auto w=weaverItems();if(w.empty())throw std::runtime_error("No Weaver's Will item equipped.");
+            int prefixes=0,suffixes=0;void* a[]{&prefixes,&suffixes};Root already(Invoke(Method(w.front(),"AffixIDsAlreadyOnItem",2),w.front(),a));
+            int special=0;void* b[]{already.Get(),&special};Root tuple(Invoke(Method(w.front(),"GetEligibleAffixes",2),w.front(),b));
+            void** lists=static_cast<void**>(il2cpp::api().object_unbox(tuple.Get()));
+            std::ostringstream o;o<<"{\"ok\":true,\"ids\":[";bool first=true;
+            for(int k=0;k<2;++k)if(lists[k])for(void* e:Entries(lists[k]))if(e){if(!first)o<<',';first=false;o<<Get<int>(e,F("AffixList.Affix","affixId"));}
+            o<<"]}";return o.str();
+        }
+        if(action.rfind("weaver-upgrade-",0)==0){
+            // CharacterMutator.UpgradeRandomWeaversWillItem, the call the game makes after a winning kill roll.
+            const int n=std::stoi(action.substr(15));if(n<1||n>50)throw std::runtime_error("use weaver-upgrade-<1..50>");
+            void* mutator=Get<void*>(c.actor,F("Actor","characterMutator"));if(!mutator)throw std::runtime_error("Character mutator unavailable.");
+            int before=0;for(void* i:weaverItems())before+=Get<uint8_t>(i,F("ItemData","weaversWill"));
+            for(int k=0;k<n;++k)Invoke(Method(mutator,"UpgradeRandomWeaversWillItem",0),mutator);
+            int after=0;for(void* i:items)after+=Get<uint8_t>(i,F("ItemData","weaversWill"));
+            return "{\"ok\":true,\"calls\":"+std::to_string(n)+",\"wwBefore\":"+std::to_string(before)+",\"wwAfter\":"+std::to_string(after)+"}";
+        }
+        throw std::runtime_error("unknown weaver fixture");
+    }
+    if(action.rfind("cocoon-reveal-",0)==0){
+        // Disposable test character only: a generated cocooned Unique (the i-th cocooned entry of the
+        // unique list), opened through the game's own ItemData.RevealCocoonedUnique; returns what it became.
+        const int index=std::stoi(action.substr(14));if(index<0)throw std::runtime_error("use cocoon-reveal-<index>");
+        Root uniques(Invoke(M("UniqueList","get",0),nullptr));if(!uniques.Get())throw std::runtime_error("Unique list unavailable.");
+        std::vector<int> cocoons;
+        for(void* e:Entries(Get<void*>(uniques.Get(),F("UniqueList","uniques"))))
+            if(e&&Get<bool>(e,F("UniqueList.Entry","isCocoonedItem")))cocoons.push_back(Get<uint16_t>(e,F("UniqueList.Entry","uniqueID")));
+        if(cocoons.empty())throw std::runtime_error("No cocooned Unique in this game build.");
+        void* generator=Get<void*>(c.actor,F("Actor","generateItems"));if(!generator)throw std::runtime_error("Item generator unavailable.");
+        bool no=false;int level=50,location=0,type=-1,subtype=-1,rarity=7,sockets=0,unique=cocoons[static_cast<size_t>(index)%cocoons.size()],lp=0,rank=0,legendaryType=0,corrupt=0;
+        alignas(8) unsigned char faction[8]{},replacement[8]{},corruption[8]{},effectiveness[8]{},special[8]{},minSpecial[8]{},overrideLP[8]{};
+        void* gen[]{&no,&level,&no,&location,&type,&subtype,&rarity,&sockets,&unique,&no,&lp,faction,&rank,&no,&legendaryType,&no,
+            replacement,corruption,&corrupt,effectiveness,nullptr,nullptr,special,&no,minSpecial,overrideLP};
+        Root item(Invoke(M("GenerateItems","initialiseRandomItemData",26),generator,gen));
+        if(!item.Get())throw std::runtime_error("The game did not generate the cocoon.");
+        const int before=Get<uint16_t>(item.Get(),F("ItemData","uniqueID"));
+        const bool cocooned=Value<bool>(Method(item.Get(),"isCocooned",0),item.Get());
+        void* a[]{c.actor};const bool revealed=Value<bool>(Method(item.Get(),"RevealCocoonedUnique",1),item.Get(),a);
+        return "{\"ok\":true,\"cocoons\":"+std::to_string(cocoons.size())+",\"cocoon\":"+std::to_string(before)+",\"cocooned\":"+Boolean(cocooned)+
+               ",\"revealed\":"+Boolean(revealed)+",\"unique\":"+std::to_string(Get<uint16_t>(item.Get(),F("ItemData","uniqueID")))+
+               ",\"lp\":"+std::to_string(Get<uint8_t>(item.Get(),F("ItemData","legendaryPotential")))+
+               ",\"weaversWill\":"+std::to_string(Get<uint8_t>(item.Get(),F("ItemData","weaversWill")))+"}";
+    }
+    if(action=="unique-types"){
+        // Disposable test character only: the unique list by legendary type and drop flags, and every
+        // Weaver's Will Unique with its flags and name (read-only).
+        Root uniques(Invoke(M("UniqueList","get",0),nullptr));if(!uniques.Get())throw std::runtime_error("Unique list unavailable.");
+        int counts[2][2][2]{};std::ostringstream weaver;bool comma=false;
+        for(void* e:Entries(Get<void*>(uniques.Get(),F("UniqueList","uniques")))){
+            if(!e)continue;
+            const int type=Get<int>(e,F("UniqueList.Entry","legendaryType"))==1?1:0;
+            const bool random=Get<bool>(e,F("UniqueList.Entry","canDropRandomly")),cocooned=Get<bool>(e,F("UniqueList.Entry","isCocoonedItem"));
+            ++counts[type][random?1:0][cocooned?1:0];
+            if(type!=1)continue;
+            const int id=Get<uint16_t>(e,F("UniqueList.Entry","uniqueID"));bool alt=false;
+            uint16_t uid=static_cast<uint16_t>(id);void* args[]{&uid,&alt};
+            if(comma)weaver<<',';comma=true;
+            weaver<<"{\"id\":"<<id<<",\"name\":"<<Json(Text(Invoke(M("UniqueList","getUniqueName",2),nullptr,args)))<<",\"random\":"<<Boolean(random)
+                  <<",\"set\":"<<Boolean(Get<bool>(e,F("UniqueList.Entry","isSetItem")))<<",\"baseType\":"<<static_cast<int>(Get<uint8_t>(e,F("UniqueList.Entry","baseType")))<<'}';
+        }
+        std::ostringstream out;out<<"{\"ok\":true,\"counts\":{";
+        const char* names[2]{"legendaryPotential","weaversWill"};
+        for(int t=0;t<2;++t){if(t)out<<',';out<<Json(names[t])<<":{\"random\":"<<counts[t][1][0]+counts[t][1][1]<<",\"notRandom\":"<<counts[t][0][0]+counts[t][0][1]<<",\"cocooned\":"<<counts[t][0][1]+counts[t][1][1]<<'}';}
+        out<<"},\"weaver\":["<<weaver.str()<<"]}";return out.str();
+    }
+    if(action=="area-level"){
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","","DifficultyManager","instance"));
+        if(!manager)throw std::runtime_error("Difficulty manager unavailable.");
+        return "{\"ok\":true,\"areaLevel\":"+std::to_string(Get<int>(manager,F("DifficultyManager","areaLevel")))+"}";
+    }
+    if(action.rfind("spawner-",0)==0){
+        // Disposable test character only: warp next to the i-th enemy spawner of the scene (in scene
+        // order, wrapping), so a hunt visits every spawner once instead of returning to an emptied one.
+        const int index=std::stoi(action.substr(8));if(index<0)throw std::runtime_error("use spawner-<index>");
+        std::vector<void*> spawners;for(void* spawner:Find("LE.dll","","Spawner"))if(game::IsAlive(spawner))spawners.push_back(spawner);
+        if(spawners.empty())throw std::runtime_error("No enemy spawner in this scene.");
+        auto p=Position(spawners[static_cast<size_t>(index)%spawners.size()]);p.x-=3;void* agent=Get<void*>(c.actor,F("Actor","navMeshAgent"));void* args[]{&p};
+        const bool warped=Value<bool>(Method(agent,"Warp",1),agent,args);
+        return "{\"ok\":true,\"spawners\":"+std::to_string(spawners.size())+",\"warped\":"+Boolean(warped)+"}";
     }
     if(action=="near-spawner"){
         // Enemies spawn when the player comes near: warp next to the nearest enemy spawner.

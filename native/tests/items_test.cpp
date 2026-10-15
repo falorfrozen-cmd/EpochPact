@@ -108,6 +108,7 @@ bool Accept(void*) { return true; }
 bool Category(int) { return true; }
 bool IsMaterial(void*) { return fixture::materialLabels; }
 bool RuleFor(void*, RuleMatch*) { return false; }
+int MaximumWeaversWill() { return 28; }
 }
 namespace mainthread {
 bool RunSteps(std::function<bool()> step, unsigned, std::string*) { for (int i = 0; i < 1000; ++i) if (step()) return true; return false; }

@@ -194,11 +194,23 @@ def controls():
         ("drops", "Genel eşya drop adedi çarpanı", 25, "ItemDrop.itemMultiplier; CoF düşman hook'u ile ortak dispatcher."),
         ("density", "Monster density", 5, "Gelecekteki uygun normal paketlerin ortalama boyutu; mevcut paketler değişmez, boss/özel spawn hariç."),
         ("rarity", "Temel rarity yükseltme çarpanı", 10, "Her normal rarity roll'unu (x−1)/x ihtimalle bir kademe yükseltir; Exalted/T7 kontrolü ayrı."),
+        ("weaverswill", "Weaver's Will çarpanı", 10, "ItemData.RollWeaversWill sonucunu çarpar (yuvarlar), oyunun üst sınırı 28'i aşmaz. Tek çağıran RollLegendaryProperties: düşüşler/ödüller (RollBaseItem), açılan cocoon'lar (RevealCocoonedUnique) ve diğer yeniden roll yolları. Mevcut eşyalar değişmez."),
         ("speed", "Hareket hızı çarpanı", 5, "Movespeed increased katkısı = x−1; movespeed alias/raw stat ile aynı full key'i paylaşır."),
         ("cooldown", "Cooldown / charge hız çarpanı", 10, "Normal charge tick hızını ve cooldown sorgusunu ölçekler."),
     ):
         mult(id, "general", label, id, high, description, current=f"currentValues.{id}",
              lifetime="actor" if id == "speed" else "session", doc="docs/monster-density.md" if id == "density" else "GEMINI.md")
+        if id == "weaverswill":
+            add("weaversdrop", "general", "Weaver's Will Unique payı", "number", "weaversdrop {value}", "session", "Rastgele seçilen Unique'lerin yüzde kaçının Weaver's Will Unique olacağı; aynı eşya türü, seviye ve düşme kurallarına uyan bir Weaver's Will Unique varsa UniqueList.rollUnique önce onu ister. Oyunun kendi payı yaklaşık %4; 0 kapalı.",
+                params=[parameter("value", "number", 0, 100)], default=0, reset="weaversdrop 0", response="text", current="currentValues.weaversdrop", doc="docs/player-conveniences.md")
+            mult("weaversupgrades", "general", "Weaver's Will yükseltme hızı", "weaversupgrades", 10, "CharacterMutator.UpgradeRandomWeaversWillItem her çağrıda bu kadar çalışır (küsurat şans olarak). Oyun bu çağrıyı yakındaki bir öldürmenin zarı tutunca, en fazla 15 saniyede bir yapar; her yükseltme 1 Weaver's Will harcar.",
+                 current="currentValues.weaversupgrades", doc="docs/player-conveniences.md")
+            add("weaver_affixes", "general", "Weaver's Will affix'leri", "selector", "weaveraffixes {ids}", "session", "SpendWeaversWillToUpgrade sırasında T7 altındaki istenmeyen affix'ler geçici olarak T7 tutulur (istenen biri T7 altındaysa) ve GetEligibleAffixes listesi istenenlere süzülür (uyan biri varsa); gerçek tier'lar affix kimliğiyle geri yazılır ve eşya verisi yeniden oluşturulur. En fazla 64 ID; none kapalı.",
+                params=[parameter("ids", "single_token", source="liveState.lootread.affixes.id")], default="none", reset="weaveraffixes none",
+                response="json", doc="docs/player-conveniences.md")
+            items[-1]["parameters"][0]["maximumLength"] = 383
+            add("weaver_read", "general", "Weaver's Will ayarları", "read", "weaverread", "read_only", "weaverread: pay, hız, istenen affix'ler ve sayaçlar (salt okunur).",
+                response="json", doc="docs/player-conveniences.md")
         if id == "speed":
             items[-1]["statBinding"] = dict(sp=9, tags=0, special=0, extra=0, mode="increased", valueTransform="x - 1", readCommand="statraw 9 0 0 0")
     add("autopickup", "loot", "Otomatik pickup", "toggle", "autopickup {value}", "session",
@@ -213,8 +225,11 @@ def controls():
         params=[parameter("mode", "enum", choices=["all", "filter", "quality", "materials"])], default="all", reset="lootmode all",
         api="tools.loot_crafting_backend.loot_mode(mode)", current="liveState.lootread.mode", doc="docs/loot-crafting.md")
     add("loot_lp", "loot", "Unique minimum LP", "number", "lootlp {value}", "session",
-        "Yalnız quality modu; LP eşiği ile T7 koşulu OR olarak birleştirilir. Weaver's Will ayrı bir LP koşulu değildir.", params=[value(0, 4)],
+        "Yalnız quality modu; LP eşiği, Weaver's Will eşiği (loot_ww) ve T7 koşulu OR olarak birleştirilir.", params=[value(0, 4)],
         default=2, reset="lootlp 2", api="tools.loot_crafting_backend.minimum_lp(value)", current="liveState.lootread.minimumLP", doc="docs/loot-crafting.md")
+    add("loot_ww", "loot", "Minimum Weaver's Will", "number", "lootww {value}", "session",
+        "Yalnız quality modu; Weaver's Will'i en az bu kadar olan Unique de toplanır (0 = kapalı). Weaver's Will'li Unique'in LP'si 0'dır; LP eşiği tek başına onu toplamaz. Üst sınır oyunun ItemData.MaxWeaversWill değeridir.", params=[value(0, 28)],
+        default=0, reset="lootww 0", api="tools.loot_crafting_backend.minimum_ww(value)", current="liveState.lootread.minimumWW", doc="docs/loot-crafting.md")
     for id, cmd, label, field, api in (
         ("loot_t7", "loott7", "T7 eşya toplama", "t7", "t7"),
         ("loot_filter", "lootfilter", "Quality modunda loot filtresine uy", "respectFilter", "respect_filter"),

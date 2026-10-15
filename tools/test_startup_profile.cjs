@@ -126,3 +126,17 @@ test('last used settings record only changed session settings',()=>{
  t.run('appliedValues={xp:9,speed:1};rememberLastSettings()');
  assert.deepEqual(JSON.parse(t.store.get('epochpact.last-settings.live')),{xp:4},'nothing is recorded while the option is off');
 });
+
+test('Minimum Weaver\'s Will and the Weaver\'s Will multiplier come back with the last used settings',()=>{
+ const t=load();
+ const real=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8')).controls.filter(c=>['loot_lp','loot_ww','weaverswill'].includes(c.id));
+ assert.equal(real.length,3);
+ t.context.real=real;t.run('catalog.controls.push(...real)');
+ // A session where both were changed: they are remembered with the other settings.
+ t.run('appliedValues={xp:1,speed:1,loot_lp:2,loot_ww:18,weaverswill:2};rememberLastSettings()');
+ assert.deepEqual(JSON.parse(t.store.get('epochpact.last-settings.live')),{loot_ww:18,weaverswill:2},'defaults (LP 2) are not stored');
+ // After a restart the next ready character gets them back.
+ t.run('appliedValues={xp:1,speed:1,loot_lp:2,loot_ww:0,weaverswill:1};values={...appliedValues};startupApplied.clear();applyStartupProfile()');
+ assert.deepEqual(JSON.parse(t.run('JSON.stringify(applied)')),[['loot_ww','weaverswill']]);
+ assert.equal(t.run('values.loot_ww'),18);assert.equal(t.run('values.weaverswill'),2);
+});

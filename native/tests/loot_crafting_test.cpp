@@ -16,6 +16,25 @@ int main() {
     p.mode=Mode::Filter; check(!Accept(p,{false,true,true,false,4}),"filter mode always respects filter");
     check(Accept(p,{false,false,false,true,0}),"filter accepts ordinary gear");
     p.mode=Mode::Materials; check(!Accept(p,highUnique)&&Accept(p,{true,false,false,false,0}),"materials only");
+    {   // Weaver's Will multiplier: times m, rounded, at least the roll, at most the game's maximum.
+        check(ScaleWeaversWill(10,1,28)==10&&ScaleWeaversWill(10,2,28)==20,"Weaver's Will x1 and x2");
+        check(ScaleWeaversWill(18,2,28)==28&&ScaleWeaversWill(5,10,28)==28,"Weaver's Will stops at the maximum");
+        check(ScaleWeaversWill(7,1.5,28)==11&&ScaleWeaversWill(5,1.1,28)==6,"Weaver's Will rounds");
+        check(ScaleWeaversWill(0,2,28)==0,"no Weaver's Will stays none");
+        check(ScaleWeaversWill(30,2,28)==30,"a roll above the maximum is left alone");
+        check(ScaleWeaversWill(10,std::numeric_limits<double>::quiet_NaN(),28)==10&&ScaleWeaversWill(10,0.5,28)==10,"invalid multipliers change nothing");
+    }
+    {   // Weaver's Will: a Unique with Weaver's Will has LP 0, so only the Weaver's Will threshold lets it through.
+        Policy w; w.mode=Mode::Quality; w.t7=false;
+        const Item weaver{false,true,false,true,0,18}, lowWeaver{false,true,false,true,0,17}, plainLP0{false,true,false,true,0,0};
+        check(w.minimumWW==0&&!Accept(w,weaver),"Weaver's Will threshold off by default keeps the LP rule");
+        w.minimumWW=18; check(Accept(w,weaver)&&!Accept(w,lowWeaver),"Weaver's Will boundary");
+        check(!Accept(w,plainLP0),"LP 0 without Weaver's Will stays out");
+        check(Accept(w,highUnique),"LP threshold still accepts in the same rule");
+        check(!Accept(w,{false,false,false,true,0,28}),"Weaver's Will on a non-unique cannot qualify");
+        w.respectFilter=true; check(!Accept(w,{false,true,false,false,0,28}),"filter hides a Weaver's Will Unique");
+        w.minimumWW=1; w.respectFilter=false; check(Accept(w,{false,true,false,true,0,1}),"any Weaver's Will at 1");
+    }
     p.materials=false; check(!Accept(p,{true,false,false,true,0}),"materials disabled");
     p.mode=Mode::All; check(Accept(p,{false,false,false,false,0}),"legacy all behavior");
     for(int old=0;old<=63;++old) for(int requested=0;requested<=old;++requested) {

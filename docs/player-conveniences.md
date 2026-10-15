@@ -17,6 +17,11 @@ next scan continues where the previous one stopped, so every drop is reached
 within a few scans and a long list of unwanted items no longer stops collection
 until the next zone. The work per scan stays the same.
 
+**Quality rules → Minimum Weaver's Will** (0–28, 0 = off): in the Quality pickup
+mode, a Unique with at least this much Weaver's Will is collected too. Such a
+Unique has no Legendary Potential, so **Minimum Unique LP** alone never picks it
+up. The rule is LP threshold **or** Weaver's Will threshold **or** wanted T7.
+
 The radius slider accepts 0–60 game units. `0` preserves collection of all loaded
 drops; a positive value requires a valid player position and only collects drops
 inside that distance. It does not load distant or unloaded objects.
@@ -248,6 +253,44 @@ and what was measured.
 Memory Amber a member of The Woven picks up (`Faction.GainFavor` on The Woven);
 the reputation from that amber rises with it. It shares the hook of the Circle
 of Fortune favor multiplier and is removed when both are 1.
+
+### Weaver's Will multiplier
+
+**Weaver's Will multiplier** (General → Weaver's Will, ×1–×10) multiplies the
+Weaver's Will the game rolls for a Unique (`ItemData.RollWeaversWill`), rounded
+and never above the game's maximum of 28: at ×2 a Unique that would roll 10 gets
+20. The game rolls it in one place for every source — drops and rewards, opened
+cocoons (`RevealCocoonedUnique`), Eternity Cache, Soul Gambling and Unique
+empowering — so the multiplier applies to all of them. Items you already have do
+not change. At ×1 the hook is removed.
+
+### Weaver's Will Unique share, upgrade speed and affixes
+
+The game has 18 Weaver's Will Uniques; 14 of them can drop at random, so about
+4 % of the Uniques it picks at random are Weaver's Will Uniques.
+
+- **Weaver's Will Unique share** (General → Weaver's Will, 0–100 %): that percent of the Uniques
+  the game picks at random (`UniqueList.rollUnique` without a required legendary
+  type: enemy drops, rewards, opened cocoons) is first asked for as a Weaver's
+  Will Unique with the same item type, level and drop rules; when none fits, the
+  game's own pick follows. The four special Weaver's Will Uniques that never drop
+  at random stay that way. 0 removes the hook.
+- **Weaver's Will upgrade speed** (General → Weaver's Will, ×1–×10): after a kill near you, the
+  game rolls a chance (higher with more Weaver's Will items equipped) and, at
+  most once every 15 seconds, upgrades one equipped Weaver's Will item
+  (`CharacterMutator.UpgradeRandomWeaversWillItem`): it adds a new affix or raises
+  one by a tier and spends 1 Weaver's Will. With ×N that upgrade happens N times
+  (a fraction is a chance for one more). A Weaver's Will Unique's first upgrade
+  always adds an affix; up to four affixes the game then adds or raises, after
+  that it only raises, up to T7.
+- **Weaver's Will affixes** (General → Weaver's Will, up to 64): the
+  affixes the upgrades prefer. When the item has one of them below T7, the
+  upgrade raises one of them (the others below T7 are held at T7 while the game
+  picks, then their real tiers are written back and the item's data rebuilt);
+  a new affix is one of them when one fits the item (the game's own list of
+  eligible affixes is narrowed for that pick). When none of them can be raised
+  or added, the game chooses as usual. **Refresh** loads the affix names and the
+  current selection; **Apply selection** sends it; none switches it off.
 
 ## Inventory
 
