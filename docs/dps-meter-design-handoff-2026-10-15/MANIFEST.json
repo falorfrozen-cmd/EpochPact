@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "package": "EpochPact DPS design handoff",
+  "date": "2026-10-15",
+  "repositoryBaseline": "5d78107",
+  "scope": "Design references and offline fixture preview, not a player release",
+  "manifestExcludesItself": true,
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 86,
+      "sha256": "1f6f4071128d8168879b388edf547cf1f2d5661b155ca09c2d3ae592e3814ba7"
+    },
+    {
+      "path": "assets/effects-atlas.webp",
+      "bytes": 286746,
+      "sha256": "8aeaccd008a59fb22b801beaae84ee7eface03e687e819342bd7db3b7f6eb7f3"
+    },
+    {
+      "path": "assets/game-context.png",
+      "bytes": 206548,
+      "sha256": "a43c592fe0bf24017bcaf2e36704d42629d8cc24b1c7a44a0e4ab7747d84f883"
+    },
+    {
+      "path": "CLAUDE-HANDOFF.md",
+      "bytes": 15058,
+      "sha256": "a9dabd854dc6d692316f1244b26872a0d67deb2b2b479f0a8dcf8ccd5f547063"
+    },
+    {
+      "path": "examples/backend-state.json",
+      "bytes": 3863,
+      "sha256": "639f1b697c871127c280cee1fa6dd190cb7a554afdf3ff4993552d7697bd91d6"
+    },
+    {
+      "path": "examples/design-fixture.json",
+      "bytes": 1462,
+      "sha256": "7c353903d9a04f64e02f9598519969001d1ee05e2548dc92ed19a71125cc826a"
+    },
+    {
+      "path": "preview.html",
+      "bytes": 679176,
+      "sha256": "96f082bcdff3fe25472c385838a10b53f9a0f77d4e85daa572f3c3f8be6edb12"
+    },
+    {
+      "path": "references/original-brief.md",
+      "bytes": 11600,
+      "sha256": "2aec0e4f4a0ff6169f54cb932940081d68cab03e41fdf580c12352b9e7d6f3ee"
+    },
+    {
+      "path": "screenshots/01-pact-bars.png",
+      "bytes": 1328888,
+      "sha256": "2b566462b8f489e5c88cd604a646c669ff242b834dedca1e09f5a995e3dc0374"
+    },
+    {
+      "path": "screenshots/02-quiet-hud.png",
+      "bytes": 1380838,
+      "sha256": "5635c29656a08c40275eda383d6204dda43b3375d1042bb64e05e5206619521a"
+    },
+    {
+      "path": "screenshots/03-split-meter.png",
+      "bytes": 1294137,
+      "sha256": "0237a320f6fce4fd3cff11194000102e5b6213c7f168ce1d53568e35a0b16551"
+    },
+    {
+      "path": "source/design-fragment.html",
+      "bytes": 677245,
+      "sha256": "25303763ee2b37d12c42aab11c9b032689370675c5fd7ca63c0823d0bf50beeb"
+    },
+    {
+      "path": "verification/check-preview.cjs",
+      "bytes": 8645,
+      "sha256": "b642815a699dc0633cfc2ba0ef8795ad67cf73f8eacbe935c55f530b82dadfff"
+    },
+    {
+      "path": "verification/package.json",
+      "bytes": 163,
+      "sha256": "88c3c726ddc6dae5883ac46145294ad8653475e896cab0b58e80dcd431838e24"
+    },
+    {
+      "path": "verification/preview-results.json",
+      "bytes": 6270,
+      "sha256": "7832c706875c7bb4db8a5648db9941ae20258a0446456f68235217f64c3005c9"
+    },
+    {
+      "path": "verification/README.md",
+      "bytes": 1362,
+      "sha256": "daf8cc9cd0206a2f5651e963ac4746bd7300a4fa6e09b96326e24ee56aa0d718"
+    }
+  ]
+}

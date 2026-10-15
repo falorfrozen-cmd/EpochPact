@@ -1,0 +1,290 @@
+{
+  "passed": true,
+  "checkedAtUtc": "2026-10-15T00:45:11.238Z",
+  "scope": "Offline fixture preview only",
+  "browser": "155.0.8059.40",
+  "node": "v24.19.0",
+  "layoutCases": 12,
+  "sampleInteractionChecks": 22,
+  "assetChecks": [
+    {
+      "name": "effects-atlas",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "game-context",
+      "width": 1024,
+      "height": 819
+    }
+  ],
+  "restoreSamplesPassed": true,
+  "remoteRequests": [],
+  "pageErrors": [],
+  "geometry": [
+    {
+      "viewport": 1024,
+      "name": "Pact Bars",
+      "visibleDesigns": 1,
+      "width": 300,
+      "height": 323.34375,
+      "types": 7,
+      "overflow": [],
+      "collisions": [],
+      "total": "54,240DPS",
+      "documentOverflow": false
+    },
+    {
+      "viewport": 1024,
+      "name": "Quiet HUD",
+      "visibleDesigns": 1,
+      "width": 264,
+      "height": 198.234375,
+      "types": 7,
+      "overflow": [],
+      "collisions": [],
+      "total": "54,240DPS",
+      "documentOverflow": false
+    },
+    {
+      "viewport": 1024,
+      "name": "Split Meter",
+      "visibleDesigns": 1,
+      "width": 420,
+      "height": 274.75,
+      "types": 7,
+      "overflow": [],
+      "collisions": [],
+      "total": "54,240DPS",
+      "documentOverflow": false
+    },
+    {
+      "viewport": 736,
+      "name": "Pact Bars",
+      "visibleDesigns": 1,
+      "width": 300,
+      "height": 323.34375,
+      "types": 7,
+      "overflow": [],
+      "collisions": [],
+      "total": "54,240DPS",
+      "documentOverflow": false
+    },
+    {
+      "viewport": 736,
+      "name": "Quiet HUD",
+      "visibleDesigns": 1,
+      "width": 264,
+      "height": 198.234375,
+      "types": 7,
+      "overflow": [],
+      "collisions": [],
+      "total": "54,240DPS",
+      "documentOverflow": false
+    },
+    {
+      "viewport": 736,
+      "name": "Split Meter",
+      "visibleDesigns": 1,
+      "width": 420,
+      "height": 274.75,
+      "types": 7,
+      "overflow": [],
+      "collisions": [],
+      "total": "54,240DPS",
+      "documentOverflow": false
+    },
+    {
+      "viewport": 390,
+      "name": "Pact Bars",
+      "visibleDesigns": 1,
+      "width": 300,
+      "height": 323.34375,
+      "types": 7,
+      "overflow": [],
+      "collisions": [],
+      "total": "54,240DPS",
+      "documentOverflow": false
+    },
+    {
+      "viewport": 390,
+      "name": "Quiet HUD",
+      "visibleDesigns": 1,
+      "width": 264,
+      "height": 198.234375,
+      "types": 7,
+      "overflow": [],
+      "collisions": [],
+      "total": "54,240DPS",
+      "documentOverflow": false
+    },
+    {
+      "viewport": 390,
+      "name": "Split Meter",
+      "visibleDesigns": 1,
+      "width": 364,
+      "height": 274.75,
+      "types": 7,
+      "overflow": [],
+      "collisions": [],
+      "total": "54,240DPS",
+      "documentOverflow": false
+    },
+    {
+      "viewport": 320,
+      "name": "Pact Bars",
+      "visibleDesigns": 1,
+      "width": 300,
+      "height": 321.34375,
+      "types": 7,
+      "overflow": [],
+      "collisions": [],
+      "total": "54,240DPS",
+      "documentOverflow": false
+    },
+    {
+      "viewport": 320,
+      "name": "Quiet HUD",
+      "visibleDesigns": 1,
+      "width": 264,
+      "height": 196.234375,
+      "types": 7,
+      "overflow": [],
+      "collisions": [],
+      "total": "54,240DPS",
+      "documentOverflow": false
+    },
+    {
+      "viewport": 320,
+      "name": "Split Meter",
+      "visibleDesigns": 1,
+      "width": 300,
+      "height": 447.5,
+      "types": 7,
+      "overflow": [],
+      "collisions": [],
+      "total": "54,240DPS",
+      "documentOverflow": false
+    }
+  ],
+  "interactions": [
+    {
+      "name": "Pact Bars",
+      "check": "Inspect skeletons without changing total",
+      "passed": true
+    },
+    {
+      "name": "Pact Bars",
+      "check": "Inspect golem without changing total",
+      "passed": true
+    },
+    {
+      "name": "Pact Bars",
+      "check": "Inspect archers without changing total",
+      "passed": true
+    },
+    {
+      "name": "Pact Bars",
+      "check": "Change mock averaging window",
+      "passed": true
+    },
+    {
+      "name": "Pact Bars",
+      "check": "Collapse and restore",
+      "passed": true
+    },
+    {
+      "name": "Pact Bars",
+      "check": "Stop mock recording",
+      "passed": true
+    },
+    {
+      "name": "Pact Bars",
+      "check": "Reset mock values",
+      "passed": true
+    },
+    {
+      "name": "Quiet HUD",
+      "check": "Expand ally roster",
+      "passed": true
+    },
+    {
+      "name": "Quiet HUD",
+      "check": "Inspect skeletons without changing total",
+      "passed": true
+    },
+    {
+      "name": "Quiet HUD",
+      "check": "Inspect golem without changing total",
+      "passed": true
+    },
+    {
+      "name": "Quiet HUD",
+      "check": "Inspect archers without changing total",
+      "passed": true
+    },
+    {
+      "name": "Quiet HUD",
+      "check": "Change mock averaging window",
+      "passed": true
+    },
+    {
+      "name": "Quiet HUD",
+      "check": "Collapse and restore",
+      "passed": true
+    },
+    {
+      "name": "Quiet HUD",
+      "check": "Stop mock recording",
+      "passed": true
+    },
+    {
+      "name": "Quiet HUD",
+      "check": "Reset mock values",
+      "passed": true
+    },
+    {
+      "name": "Split Meter",
+      "check": "Inspect skeletons without changing total",
+      "passed": true
+    },
+    {
+      "name": "Split Meter",
+      "check": "Inspect golem without changing total",
+      "passed": true
+    },
+    {
+      "name": "Split Meter",
+      "check": "Inspect archers without changing total",
+      "passed": true
+    },
+    {
+      "name": "Split Meter",
+      "check": "Change mock averaging window",
+      "passed": true
+    },
+    {
+      "name": "Split Meter",
+      "check": "Collapse and restore",
+      "passed": true
+    },
+    {
+      "name": "Split Meter",
+      "check": "Stop mock recording",
+      "passed": true
+    },
+    {
+      "name": "Split Meter",
+      "check": "Reset mock values",
+      "passed": true
+    }
+  ],
+  "notTested": [
+    "Real backend renderer",
+    "WebView2 host controls",
+    "260 x 120 native window",
+    "All user preferences and DPI scales",
+    "Live Last Epoch damage",
+    "Native/EXE build and shutdown"
+  ]
+}

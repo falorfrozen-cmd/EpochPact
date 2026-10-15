@@ -1,0 +1,6 @@
+{
+  "name": "epochpact-dps-design-checks",
+  "private": true,
+  "scripts": { "test": "node check-preview.cjs" },
+  "devDependencies": { "playwright": "1.62.1" }
+}

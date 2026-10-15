@@ -1,0 +1,85 @@
+{
+  "description": "Visual fixture only. Values are DPS, not cumulative damage or an EpochPact backend state.",
+  "elementOrder": [
+    "Physical",
+    "Fire",
+    "Cold",
+    "Lightning",
+    "Necrotic",
+    "Void",
+    "Poison"
+  ],
+  "sources": [
+    {
+      "id": "you",
+      "name": "You",
+      "live": 1,
+      "art": 13,
+      "dpsByElement": [
+        3210,
+        18420,
+        1570,
+        2410,
+        5860,
+        1180,
+        950
+      ]
+    },
+    {
+      "id": "skeletons",
+      "name": "Skeletons",
+      "live": 4,
+      "art": 11,
+      "dpsByElement": [
+        0,
+        10480,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "golem",
+      "name": "Golem",
+      "live": 1,
+      "art": 7,
+      "dpsByElement": [
+        1080,
+        0,
+        5240,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "archers",
+      "name": "Archers",
+      "live": 2,
+      "art": 10,
+      "dpsByElement": [
+        2880,
+        0,
+        0,
+        0,
+        960,
+        0,
+        0
+      ]
+    }
+  ],
+  "expectedDps10": {
+    "you": 33600,
+    "allies": 20640,
+    "overall": 54240
+  },
+  "demoRangeFactors": {
+    "10s": 1,
+    "60s": 0.84,
+    "Combat": 0.77
+  },
+  "warning": "Range factors, fixed clock, local pause and reset are mock interactions. Replace them for production."
+}
