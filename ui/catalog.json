@@ -1393,6 +1393,32 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "damage_icon",
+      "group": "summons",
+      "label": "Damage window icon",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "damageicon {key}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "key",
+          "type": "single_token",
+          "maximumLength": 40
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "The game's own skill or class icon for one damage window source, as a small PNG. Reading it does not change the game.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "summons_read",
       "group": "summons",
       "label": "Live summoned allies",
@@ -33739,7 +33765,7 @@
     ]
   },
   "counts": {
-    "controls": 178,
+    "controls": 179,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

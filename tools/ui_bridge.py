@@ -258,6 +258,8 @@ class UiBridge:
                     raise ValueError("Enter a colour as six hexadecimal digits, for example 3FD0FF.")
                 if control["id"] == "tier_rule_color" and not re.fullmatch(r"label|[0-9A-Fa-f]{6}", value):
                     raise ValueError("Enter a colour as six hexadecimal digits, or label for the label colour.")
+                if control["id"] == "damage_icon" and not re.fullmatch(r"a:[A-Za-z0-9_]{1,32}|c:\d{1,2}:\d{1,2}", value):
+                    raise ValueError("Unknown damage window icon.")
                 if control["id"] in ("loot_affixes", "weaver_affixes") and value != "none":
                     if not re.fullmatch(r"\d+(?:,\d+)*", value) or len(value.split(",")) > 64:
                         raise ValueError("Enter up to 64 comma-separated affix IDs, or none.")

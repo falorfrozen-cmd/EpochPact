@@ -104,3 +104,22 @@ for(const language of ['tr','ru']){
   assert.deepEqual(Object.keys(i18n.languages),['en','tr','ru']);
  });
 }
+
+test('an attribute whose translation is its own English text is not written again, so the page never loops',()=>{
+ const queue=[];let callback=null;
+ const node=(attrs,children=[])=>{const el={nodeType:1,tagName:'SPAN',attrs,childNodes:children,parentElement:null,
+  hasAttribute:n=>n in attrs,getAttribute:n=>attrs[n],setAttribute(n,v){attrs[n]=v;queue.push({type:'attributes',target:el,attributeName:n});}};
+  for(const c of children)c.parentElement=el;return el;};
+ const voidTile=node({title:'Void'}),fireTile=node({title:'Fire'}),root=node({},[voidTile,fireTile]);
+ const win={document:{documentElement:root,readyState:'complete',title:'',addEventListener(){}},
+  localStorage:{getItem:k=>k==='epochpact.language'?'"tr"':null},addEventListener(){},
+  MutationObserver:class{constructor(cb){callback=cb;}observe(){}},
+  XMLHttpRequest:class{open(){}send(){this.status=200;this.responseText=JSON.stringify({Void:'Void',Fire:'Ateş'});}}};
+ i18n.install(win);
+ assert.equal(fireTile.attrs.title,'Ateş');assert.equal(voidTile.attrs.title,'Void');
+ // A script sets the English title again: translated once, then quiet.
+ voidTile.setAttribute('title','Void');fireTile.setAttribute('title','Fire');
+ let rounds=0;while(queue.length&&rounds<10){callback(queue.splice(0));rounds++;}
+ assert.equal(queue.length,0,'no endless attribute rewrites');assert.ok(rounds<=2);
+ assert.equal(fireTile.attrs.title,'Ateş');assert.equal(voidTile.attrs.title,'Void');
+});

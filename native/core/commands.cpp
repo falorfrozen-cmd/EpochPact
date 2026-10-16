@@ -98,6 +98,7 @@ std::string Execute(const std::string& line) {
     if(cmd=="effectsread")return args.empty()?effects::Read():"{\"ok\":false,\"error\":\"effectsread expects no arguments\"}";
     if(cmd=="effectsset"){double value=0;return args.size()==2&&statedit::Number(args[1],&value)?effects::Set(args[0],value):"{\"ok\":false,\"error\":\"use effectsset setting value\"}";}
     if(cmd=="damagesession")return args.size()<=1?convenience::DamageSession(args.empty()?"":args[0]):"{\"ok\":false,\"error\":\"use damagesession [start|stop|reset]\"}";
+    if(cmd=="damageicon")return args.size()==1?convenience::DamageIcon(args[0]):"{\"ok\":false,\"error\":\"use damageicon a:<skill ID>|c:<class>:<mastery>\"}";
     if(cmd=="summonread")return args.empty()?convenience::Summons():"{\"ok\":false,\"error\":\"summonread expects no arguments\"}";
     if(cmd=="qolarea")return args.size()==2?convenience::SetArea(args[0],args[1]):"{\"ok\":false,\"error\":\"use qolarea radius|shape|show|color value\"}";
     if(cmd=="qolset"){double value=0;return args.size()==2&&statedit::Number(args[1],&value)?convenience::Set(args[0],value):"{\"ok\":false,\"error\":\"use qolset setting value\"}";}

@@ -119,8 +119,8 @@
    const out=translate(node.nodeValue);if(out!==null&&out!==node.nodeValue)node.nodeValue=out;return;
   }
   if(node.nodeType!==1||skipped(node))return;
-  for(const name of attributes)if(node.hasAttribute(name)){const out=translate(node.getAttribute(name));if(out!==null)node.setAttribute(name,out);}
-  if(node.tagName==='INPUT'&&['button','submit'].includes(node.type)&&node.value){const out=translate(node.value);if(out!==null)node.value=out;}
+  for(const name of attributes)if(node.hasAttribute(name)){const value=node.getAttribute(name),out=translate(value);if(out!==null&&out!==value)node.setAttribute(name,out);}
+  if(node.tagName==='INPUT'&&['button','submit'].includes(node.type)&&node.value){const out=translate(node.value);if(out!==null&&out!==node.value)node.value=out;}
   for(const child of [...node.childNodes])translateNode(child,translate);
  }
  function readLanguage(storage){
@@ -142,7 +142,9 @@
    for(const r of records){
     if(r.type==='childList')r.addedNodes.forEach(n=>translateNode(n,translate));
     else if(r.type==='characterData')translateNode(r.target,translate);
-    else if(r.type==='attributes'&&!skipped(r.target)){const out=translate(r.target.getAttribute(r.attributeName));if(out!==null)r.target.setAttribute(r.attributeName,out);}
+    // Only a changed value is written back: writing the same value is a new
+    // mutation, and a translation equal to its source ("Void") would loop.
+    else if(r.type==='attributes'&&!skipped(r.target)){const value=r.target.getAttribute(r.attributeName),out=translate(value);if(out!==null&&out!==value)r.target.setAttribute(r.attributeName,out);}
    }
   });
   observer.observe(doc.documentElement,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:attributes});

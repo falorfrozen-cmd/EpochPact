@@ -406,7 +406,12 @@ window** shows it in a small always-on-top window (windowed or borderless game)
 with Start/Stop/Reset in its bar and the same window options as the loot
 window. A session started or reset in the main window appears in the damage
 window within about three seconds, and the other way round. Allies are found
-once a second.
+once a second, and an ally created since then is added by its first hit (its
+creator chain leads to your character), so a summon that hits and dies within a
+second (a Volatile Zombie) still counts. Damage over time is credited to whoever
+applied the ailment; an ally that died stays in its type for a minute, so its
+ignite, bleed and poison ticks after death still count. The **live** count is
+the allies of that type still alive.
 
 **Damage type** (on the Summons page and in the damage window's ⚙) shows one
 type only — Physical, Fire, Cold, Lightning, Necrotic, Void or Poison — for
@@ -415,6 +420,27 @@ with it (`DamageStats.damage`), in proportion, so the parts add up to the hit's
 applied damage after mitigation; the CSV has every type's total. **Rows**
 hides or shows each ally type, the allies' total and your character; the page
 and the window remember their own choices.
+
+The damage window has four **Styles** (⚙ → Style): **Quiet HUD** (default: the
+selected source's DPS and its seven damage types, the allies on request),
+**Pact Bars** (every source as a ranked bar, the selected source's damage types
+below), **Split Meter** (your damage types on one side, the allies and the
+selected ally's types on the other) and **Table** (the full table as before).
+The selector in the window's bar chooses the averaging window — 10 s, 60 s,
+10 min, 60 min, Session or Combat; Session and Combat values per damage type are
+each type's total divided by that time. **TOTAL DPS** at the bottom is always
+the whole session: You plus every ally type (the allies' sum is not added a
+second time, and "×4" is a count, not a multiplier). Choosing a source only
+changes which damage types are shown; with a Damage type chosen in ⚙ the total
+says which type it counts ("TOTAL DPS · Fire"). Bars are relative to the
+largest source shown. A note appears when some hits could not be split by type.
+Each source shows the game's own name and icon: allies as their health bar names
+them ("Skeleton Warrior", "Skeleton Archer"; the table, CSV and Summons page use
+the same names), the skill that summoned the ally (or the icon the game's minion
+cards use) and your class or mastery icon, read once per source with
+`damageicon` (read only, about 64×64 PNG). Large values are written with three
+significant digits (2.90M, 17.9M, 1.25B). Sizes follow the window's
+text size; at small sizes the details scroll and the total stays visible.
 
 
 Allies are grouped by type by default: one row per type (for example

@@ -7,6 +7,9 @@
  const columns=[['dps10','DPS 10 s'],['dps60','DPS 60 s'],['dps600','DPS 10 min'],['dps3600','DPS 60 min'],['combatAverage','Avg in combat'],['average','Avg session'],['total','Total damage'],['hits','Hits'],['maxHit','Biggest hit']];
  // The game's damage types, in its own order (the native session reports them so).
  const elements=['Physical','Fire','Cold','Lightning','Necrotic','Void','Poison'];
+ // An ally type's name: the game's own name when the core reports one ("Skeleton Archer"),
+ // else its object name made readable ("SummonedSkeletonArcher" -> "Summoned Skeleton Archer").
+ const allyName=t=>{const label=typeof t?.label==='string'?t.label.trim():'';if(label)return label;const n=String(t?.name??'');return /\s/.test(n)?n:n.replace(/_/g,' ').replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g,'$1 $2');};
  const elementOf=e=>{const n=Number(e);return e!==''&&e!==null&&Number.isInteger(n)&&n>=0&&n<elements.length?n:-1;};
  // One damage type's part of a row: each hit is split by its damage per type.
  function part(row,element,state){
@@ -21,14 +24,14 @@
   const types=(state?.types||[]).map(pick);
   const allies=types.filter(t=>t.name!=='You').sort((a,b)=>(b.total||0)-(a.total||0));
   const you=types.find(t=>t.name==='You');
-  const out=allies.map(t=>({...t,key:t.name,label:t.name+(t.live>1?` ×${t.live}`:'')}));
+  const out=allies.map(t=>({...t,key:t.name,display:allyName(t),label:allyName(t)+(t.live>1?` ×${t.live}`:'')}));
   if(allies.length>1&&state.allies)out.push({...pick(state.allies),key:'__total',label:'Allies total',isTotal:true});
   if(you)out.push({...you,key:'You',label:'You (character)'});
   const hide=new Set(hidden||[]);
   return out.filter(r=>!hide.has(r.key));
  }
  // Every row the session has, for the show/hide choices.
- function sources(state){return rows(state).map(r=>({key:r.key,label:r.isTotal||r.key==='You'?r.label:r.key}));}
+ function sources(state){return rows(state).map(r=>({key:r.key,label:r.isTotal||r.key==='You'?r.label:r.display}));}
  function status(state){
   if(!state)return 'Not started.';
   const time=duration(state.elapsedSeconds),combat=duration(state.combatSeconds);
@@ -39,7 +42,7 @@
   if(!list.length)return state?.types?.length?'<p class="empty">Every row is hidden. Choose the rows to show.</p>':'<p class="empty">No damage recorded yet. Start the session and fight.</p>';
   const cols=compact?columns.filter(([k])=>['dps10','dps60','combatAverage','total'].includes(k)):columns;
   const source=el<0?'Source':`Source · ${elements[el]}`;
-  return `<div class="table-scroll"><table class="damage-table"><thead><tr><th>${source}</th>${cols.map(([,l])=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${list.map(r=>`<tr class="${r.isTotal?'damage-total':''}"><td>${esc(r.label)}</td>${cols.map(([k])=>`<td>${fmt(r[k])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-scroll"><table class="damage-table"><thead><tr><th>${source}</th>${cols.map(([,l])=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${list.map(r=>`<tr class="${r.isTotal?'damage-total':''}"><td${r.isTotal||r.key==='You'?'':' data-no-translate'}>${esc(r.label)}</td>${cols.map(([k])=>`<td>${fmt(r[k])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
  }
  // All damage, then each damage type's total, for every row.
  function csv(state){
@@ -50,5 +53,5 @@
   const lines=[`# EpochPact damage session; ${status(state)}`,head.join(','),...list.map(r=>[quote(r.label),...columns.map(([k])=>number(r[k])),...elements.map((_,i)=>number(r.elements?.total?.[i]))].join(','))];
   return lines.join('\n')+'\n';
  }
- return {rows,sources,status,table,csv,duration,fmt,elements};
+ return {rows,sources,status,table,csv,duration,fmt,elements,allyName};
 });

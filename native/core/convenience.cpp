@@ -18,6 +18,7 @@
 #include <functional>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <memory>
 #include <limits>
 #include <set>
@@ -122,18 +123,43 @@ game::Handle damageOwner;
 constexpr size_t kElements=rules::DamageTypes;
 using Elements=rules::DamageParts;
 struct DamageType{std::string name;double total=0;uint64_t hits=0;float maxHit=0;std::array<float,3600> buckets{};std::array<uint32_t,3600> seconds{};
-    std::array<double,kElements> elementTotal{};std::array<uint64_t,kElements> elementHits{};Elements elementMax{};std::vector<Elements> elementBuckets=std::vector<Elements>(3600);};  // on the heap: types are built on the stack
+    std::array<double,kElements> elementTotal{};std::array<uint64_t,kElements> elementHits{};Elements elementMax{};std::vector<Elements> elementBuckets=std::vector<Elements>(3600);  // on the heap: types are built on the stack
+    std::string icon;   // the damage window's icon key: a:<skill ID> for allies, c:<class>:<mastery> for You
+    std::string label;};  // the game's own name for the ally type ("Skeleton Archer"); empty for You or when unknown
 std::vector<DamageType> damageTypes;
-std::unordered_map<void*,size_t> damageActorType;   // live ally (or the player) -> type
+std::unordered_map<void*,size_t> damageActorType;   // ally (or the player) -> type
 std::map<void*,std::unique_ptr<Root>> damageActorRoots;
+// Allies that died, kept for a minute: the ailments they applied keep ticking in their name, and
+// the root keeps the pointer from being reused for another object meanwhile.
+std::unordered_map<void*,uint64_t> damageActorDeadSince;
+constexpr uint64_t kDeadAllyKeepMs=60000;constexpr size_t kDeadAllyMax=512;
+size_t damageSummonedField=0,damageReferencesField=0,damageCreatorField=0;  // resolved when the session starts
 std::atomic<bool> damageSession{false};
 uint64_t damageSessionStart=0,damageSessionEnd=0,damageCombatSeconds=0,damageLastCombatSecond=0,damageAllyRefresh=0,damageHits=0,damageUnsplit=0;
 size_t damageArrayOffset=0;  // DamageStats.damage, resolved when the session starts
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
 uint64_t testDamageCalls=0,testDamageOwned=0;
+// Target dummy (test fixtures dummy-*): its protection, what the session recorded for hits on it
+// and what any attacker applied to it.
+std::unique_ptr<Root> testDummy;void* testDummyProtection=nullptr;double testDummyRecorded=0,testDummyAll=0;uint64_t testDummyHits=0;
+// Measuring targets (dummy-area-<health>): health set before each hit; per session type the recorded
+// damage, the health the hit removed and the hits.
+std::vector<std::unique_ptr<Root>> testTargetRoots;std::unordered_set<void*> testTargets;float testTargetHealth=0;
+std::map<size_t,std::array<double,3>> testTargetByType;uint64_t testTargetOther=0,testTargetMatched=0,testTargetFailed=0,testCallsWhileTargets=0;std::string testTargetError;
+// Health each target had after its last hit; health lost between hits outside the hook; health
+// the game reset by recalculating maximum health; recorded hits by damage source class.
+std::unordered_map<void*,float> testTargetAfter;double testOutsideLoss=0;uint64_t testOutsideEvents=0,testClamps=0;
+std::map<std::string,std::array<double,2>> testSourceKinds;
+// Hits on measuring targets the session did not credit: attacker type / source class, damage, hits.
+std::map<std::string,std::array<double,2>> testOtherKinds;
+std::string AllyType(void* actor);  // below
 float testDamagePrimary=0,testDamageSecondary=0;
 #endif
+size_t F(const char* cls,const char* field,const char* ns);  // below; the test-only measuring targets use it here
+bool ListLateAlly(void* attacker);  // below
 DamageResult ObserveDamage(void* self,void* stats,void* source,float factor,void* attacker,bool leech,MethodInfo method){
+    // An ally created since the last refresh (under a second ago) is listed by its first hit.
+    if(attacker&&damageSession.load(std::memory_order_relaxed)&&!damageActorType.contains(attacker))ListLateAlly(attacker);
     // The hit's damage per type, read before the game applies it.
     Elements parts{};
     if(stats&&damageArrayOffset&&damageSession.load(std::memory_order_relaxed)&&damageActorType.contains(attacker)){
@@ -143,10 +169,51 @@ DamageResult ObserveDamage(void* self,void* stats,void* source,float factor,void
             for(uintptr_t i=0;i<n;++i)parts[i]=values[i];
         }
     }
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+    void* targetHealth=nullptr;float targetBefore=0;
+    if(!testTargets.empty())++testCallsWhileTargets;
+    if(self&&testTargets.contains(self)){
+        ++testTargetMatched;
+        try{
+            void* actor=Get<void*>(self,F("ProtectionClass","actor",""));
+            if(actor&&game::IsAlive(actor)&&(targetHealth=Get<void*>(actor,F("Actor","health","")))){
+                const float now=Get<float>(targetHealth,F("BaseHealth","currentHealth",""));
+                const int max=Get<int>(targetHealth,F("BaseHealth","maxHealth",""));
+                if(auto last=testTargetAfter.find(self);last!=testTargetAfter.end()){
+                    if(max!=static_cast<int>(testTargetHealth))++testClamps;
+                    else if(now<last->second-0.5f){testOutsideLoss+=last->second-now;++testOutsideEvents;}
+                }
+                *reinterpret_cast<int*>(static_cast<char*>(targetHealth)+F("BaseHealth","maxHealth",""))=static_cast<int>(testTargetHealth);
+                *reinterpret_cast<float*>(static_cast<char*>(targetHealth)+F("BaseHealth","currentHealth",""))=testTargetHealth;
+                targetBefore=testTargetHealth;
+            }
+        }catch(const std::exception& e){targetHealth=nullptr;++testTargetFailed;testTargetError=e.what();}
+    }
+#endif
     const auto result=originalDamage(self,stats,source,factor,attacker,leech,method);
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+    if(targetHealth){
+        const float after=Get<float>(targetHealth,F("BaseHealth","currentHealth",""));
+        const double lost=targetBefore-after;
+        testTargetAfter[self]=after;
+        auto type=damageActorType.find(attacker);
+        if(type!=damageActorType.end()&&damageSession.load(std::memory_order_relaxed)){
+            auto& entry=testTargetByType[type->second];
+            if(std::isfinite(result.damage)&&result.damage>0)entry[0]+=result.damage;
+            entry[1]+=lost;++entry[2];
+            const char* kind=source?il2cpp::api().class_get_name(il2cpp::api().object_get_class(source)):"(none)";
+            auto& k=testSourceKinds[kind?kind:"?"];k[0]+=std::isfinite(result.damage)?result.damage:0;++k[1];
+        }else{
+            ++testTargetOther;std::string who="(no attacker)";
+            if(attacker){try{who=game::IsAlive(attacker)?AllyType(attacker):std::string("(destroyed attacker)");}catch(...){who="(unreadable attacker)";}}
+            const char* kind=source?il2cpp::api().class_get_name(il2cpp::api().object_get_class(source)):"(none)";
+            auto& o=testOtherKinds[who+" / "+(kind?kind:"?")+(damageSession.load(std::memory_order_relaxed)?"":" / session off")];
+            o[0]+=std::isfinite(result.damage)?result.damage:0;++o[1];
+        }
+    }
     ++testDamageCalls;if(monitoredAllies.contains(attacker))++testDamageOwned;
     testDamagePrimary=result.damage;testDamageSecondary=result.secondary;
+    if(self&&self==testDummyProtection&&std::isfinite(result.damage)&&result.damage>0)testDummyAll+=result.damage;
 #endif
     // Preserve the authoritative result and all game effects. The supported
     // native tuple's second field is also sent to the game's damage events.
@@ -161,6 +228,9 @@ DamageResult ObserveDamage(void* self,void* stats,void* source,float factor,void
             if(slot!=second){slot=second;type.buckets[bucket]=0;type.elementBuckets[bucket]={};}
             type.buckets[bucket]+=result.damage;
             type.total+=result.damage;++type.hits;type.maxHit=std::max(type.maxHit,result.damage);++damageHits;
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+            if(self==testDummyProtection){testDummyRecorded+=result.damage;++testDummyHits;}
+#endif
             if(Elements shares;rules::SplitDamage(result.damage,parts,shares)){
                 for(size_t e=0;e<kElements;++e)if(shares[e]>0){
                     type.elementBuckets[bucket][e]+=shares[e];type.elementTotal[e]+=shares[e];++type.elementHits[e];type.elementMax[e]=std::max(type.elementMax[e],shares[e]);
@@ -886,16 +956,149 @@ std::string AllyType(void* actor){
     while(!name.empty()&&name.back()==' ')name.pop_back();
     return name.empty()?"Ally":name;
 }
+// The game's own name for an ally, as its health bar shows it ("Skeleton Archer"):
+// the display name; for an ally with a custom name, the base name it had before.
+std::string AllyLabel(void* actor){
+    try{
+        static const auto* cls=game::FindClass("LE.dll","","ActorDisplayInformation");
+        if(!cls)return {};
+        Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(cls)));
+        void* args[]{type.Get()};void* info=Invoke(Signature("Component","GetComponent",{"System.Type"}),actor,args);
+        if(!info)info=Invoke(Signature("Component","GetComponentInChildren",{"System.Type"}),actor,args);
+        if(!info)return {};
+        const bool custom=Get<bool>(info,F("BaseDisplayInformation","CustomNameSet"));
+        std::string name=Text(Get<void*>(info,F("BaseDisplayInformation",custom?"baseDisplayName":"displayName")));
+        if(name.empty())name=Text(Get<void*>(info,F("BaseDisplayInformation",custom?"displayName":"baseDisplayName")));
+        // Rich text tags and control characters are not part of the name.
+        std::string clean;bool tag=false;
+        for(char ch:name){if(ch=='<')tag=true;else if(ch=='>')tag=false;else if(!tag&&static_cast<unsigned char>(ch)>=0x20)clean+=ch;}
+        while(!clean.empty()&&clean.back()==' ')clean.pop_back();
+        while(!clean.empty()&&clean.front()==' ')clean.erase(0,1);
+        return clean.size()<=96?clean:std::string();
+    }catch(const std::exception&){return {};}
+}
+// ---- damage window icons: the game's own skill icon for each ally type (the
+// skill that summoned it, or the one the game's minion cards show instead) and
+// the class or mastery icon for You. Keys are found as allies are seen; the
+// picture is only read when the damage window asks for it (damageicon <key>).
+std::map<std::string,std::unique_ptr<Root>> damageIconSkills;  // a:<skill ID> -> the skill
+std::map<std::string,std::string> damageIcons;                 // key -> PNG, base64
+std::map<void*,std::string> damageIconSkillKeys;              // the skill -> its key
+// A player skill is keyed by its skill ID; a picture-only skill without one (the
+// game's minion cards use such skills, e.g. for skeleton warriors and archers)
+// by its number in this list.
+std::string SkillIconKey(void* skill){
+    if(!skill||!Get<void*>(skill,F("Ability","abilitySpriteSoftRef")))return {};
+    if(auto it=damageIconSkillKeys.find(skill);it!=damageIconSkillKeys.end())return it->second;
+    if(damageIconSkills.size()>=256)return {};
+    const std::string id=Text(Get<void*>(skill,F("Ability","playerAbilityID")));
+    const bool player=!id.empty()&&id.size()<=32&&id.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")==std::string::npos;
+    const std::string key=player?"a:"+id:"a:_"+std::to_string(damageIconSkills.size());
+    if(!damageIconSkills.contains(key))damageIconSkills.emplace(key,std::make_unique<Root>(skill));
+    damageIconSkillKeys.emplace(skill,key);
+    return key;
+}
+// The picture the game's minion cards show for this ally, else the skill that summoned it.
+std::string AllyIconKey(void* summon){
+    try{
+        if(Get<bool>(summon,F("Summoned","overrideMinionSprite")))
+            if(auto key=SkillIconKey(Get<void*>(summon,F("Summoned","minionSpriteAbility")));!key.empty())return key;
+        void* references=Get<void*>(summon,F("Summoned","references"));
+        return references?SkillIconKey(Get<void*>(references,F("CreationReferences","thisAbility"))):std::string();
+    }catch(const std::exception&){return {};}
+}
+std::string PlayerIconKey(void* player){
+    try{
+        void* data=Get<void*>(Get<void*>(player,F("Actor","characterDataTracker")),F("CharacterDataTracker","charData"));
+        const int cls=Value<int>(Method(data,"get_CharacterClass",0),data),mastery=Value<uint8_t>(Method(data,"get_ChosenMastery",0),data);
+        if(cls<0||cls>99||mastery>99)return {};
+        return "c:"+std::to_string(cls)+":"+std::to_string(mastery);
+    }catch(const std::exception&){return {};}
+}
+std::string Base64(const unsigned char* data,size_t size){
+    static const char digits[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string out;out.reserve((size+2)/3*4);
+    for(size_t i=0;i<size;i+=3){
+        const uint32_t v=uint32_t(data[i])<<16|(i+1<size?uint32_t(data[i+1])<<8:0)|(i+2<size?data[i+2]:0);
+        out+=digits[v>>18&63];out+=digits[v>>12&63];out+=i+1<size?digits[v>>6&63]:'=';out+=i+2<size?digits[v&63]:'=';
+    }
+    return out;
+}
+// A sprite as a PNG of at most 64×64. Sprites usually sit in a shared atlas
+// texture the game keeps unreadable, so the atlas is drawn into a temporary
+// render texture, the sprite's rectangle copied out, and that drawn again at
+// the small size. Everything made here is released before returning.
+std::string SpritePng(void* sprite){
+    auto core=[](const char* cls,const char* name,int n){return M(cls,name,n,"UnityEngine","UnityEngine.CoreModule.dll");};
+    void* texture=Invoke(core("Sprite","get_texture",0),sprite);if(!texture)throw std::runtime_error("The icon has no texture.");
+    struct Rect{float x,y,width,height;};
+    const Rect area=Value<Rect>(core("Sprite","get_textureRect",0),sprite);
+    int width=Value<int>(Method(texture,"get_width",0),texture),height=Value<int>(Method(texture,"get_height",0),texture);
+    if(width<1||height<1||width>8192||height>8192||!(area.width>=1&&area.height>=1)||area.x<0||area.y<0||area.x+area.width>width+0.5f||area.y+area.height>height+0.5f)
+        throw std::runtime_error("The icon's size is not readable.");
+    const auto* temporary=Signature("RenderTexture","GetTemporary",{"System.Int32","System.Int32","System.Int32","UnityEngine.RenderTextureFormat","UnityEngine.RenderTextureReadWrite"});
+    const auto* release=Signature("RenderTexture","ReleaseTemporary",{"UnityEngine.RenderTexture"});
+    const auto* blit=Signature("Graphics","Blit",{"UnityEngine.Texture","UnityEngine.RenderTexture"});
+    const auto* create=Signature("Texture2D",".ctor",{"System.Int32","System.Int32","UnityEngine.TextureFormat","System.Boolean"});
+    const auto* read=Signature("Texture2D","ReadPixels",{"UnityEngine.Rect","System.Int32","System.Int32"});
+    const auto* apply=Signature("Texture2D","Apply",{});
+    const auto* destroy=Signature("Object","Destroy",{"UnityEngine.Object"});
+    auto setActive=core("RenderTexture","set_active",1);
+    const auto* texture2d=game::FindClass("UnityEngine.CoreModule.dll","UnityEngine","Texture2D");
+    if(!texture2d)throw std::runtime_error("Texture2D unavailable.");
+    // ARGB32, written as sRGB so the PNG keeps the colours the game shows.
+    int depth=0,format=0,readWrite=2,rgba32=4;bool mipmaps=false;
+    std::vector<void*> renderTextures,textures;
+    void* previous=Invoke(core("RenderTexture","get_active",0));
+    auto cleanup=[&]{
+        try{void* args[]{previous};Invoke(setActive,nullptr,args);}catch(const std::exception&){}
+        for(void* rt:renderTextures)try{void* args[]{rt};Invoke(release,nullptr,args);}catch(const std::exception&){}
+        for(void* t:textures)try{void* args[]{t};Invoke(destroy,nullptr,args);}catch(const std::exception&){}
+    };
+    try{
+        auto target=[&](int w,int h){void* args[]{&w,&h,&depth,&format,&readWrite};void* rt=Invoke(temporary,nullptr,args);if(!rt)throw std::runtime_error("No render texture.");renderTextures.push_back(rt);return rt;};
+        auto copy=[&](void* source,void* rt,Rect from,int w,int h){
+            void* blitArgs[]{source,rt};Invoke(blit,nullptr,blitArgs);
+            void* activeArgs[]{rt};Invoke(setActive,nullptr,activeArgs);
+            void* t=il2cpp::api().object_new(texture2d);if(!t)throw std::runtime_error("No texture.");
+            void* createArgs[]{&w,&h,&rgba32,&mipmaps};Invoke(create,t,createArgs);textures.push_back(t);
+            int zero=0;void* readArgs[]{&from,&zero,&zero};Invoke(read,t,readArgs);Invoke(apply,t);
+            return t;};
+        const int cropW=static_cast<int>(area.width+0.5f),cropH=static_cast<int>(area.height+0.5f);
+        void* crop=copy(texture,target(width,height),Rect{area.x,area.y,float(cropW),float(cropH)},cropW,cropH);
+        const int side=64,w=std::max(1,cropW>=cropH?side:side*cropW/cropH),h=std::max(1,cropH>=cropW?side:side*cropH/cropW);
+        void* small=copy(crop,target(w,h),Rect{0,0,float(w),float(h)},w,h);
+        void* encodeArgs[]{small};
+        void* png=Invoke(M("ImageConversion","EncodeToPNG",1,"UnityEngine","UnityEngine.ImageConversionModule.dll"),nullptr,encodeArgs);
+        if(!png)throw std::runtime_error("The icon could not be encoded.");
+        const auto size=Get<uintptr_t>(png,0x18);if(!size||size>1024*1024)throw std::runtime_error("The icon could not be encoded.");
+        std::string out=Base64(reinterpret_cast<const unsigned char*>(png)+0x20,size);
+        cleanup();return out;
+    }catch(...){cleanup();throw;}
+}
+size_t DamageTypeIndex(const std::string& name){
+    for(size_t i=0;i<damageTypes.size();++i)if(damageTypes[i].name==name)return i;
+    damageTypes.push_back(DamageType{name});return damageTypes.size()-1;
+}
+void ListDamageAlly(void* actor,void* summon){
+    const size_t index=DamageTypeIndex(AllyType(actor));damageActorType[actor]=index;damageActorRoots.emplace(actor,std::make_unique<Root>(actor));
+    if(damageTypes[index].icon.empty())damageTypes[index].icon=AllyIconKey(summon);
+    if(damageTypes[index].label.empty())damageTypes[index].label=AllyLabel(actor);
+}
 // The player and every ally the player's summons created (recursively).
 void RefreshDamageAllies(){
     void* player=Actor();if(!player)return;
+    const auto now=GetTickCount64();
     for(auto it=damageActorRoots.begin();it!=damageActorRoots.end();){
-        if(!game::IsAlive(it->first)){damageActorType.erase(it->first);it=damageActorRoots.erase(it);}else ++it;
+        if(game::IsAlive(it->first)){damageActorDeadSince.erase(it->first);++it;continue;}
+        const auto since=damageActorDeadSince.try_emplace(it->first,now).first->second;
+        if(now-since>=kDeadAllyKeepMs||damageActorDeadSince.size()>kDeadAllyMax){damageActorType.erase(it->first);damageActorDeadSince.erase(it->first);it=damageActorRoots.erase(it);}
+        else ++it;
     }
-    auto typeIndex=[](const std::string& name){
-        for(size_t i=0;i<damageTypes.size();++i)if(damageTypes[i].name==name)return i;
-        damageTypes.push_back(DamageType{name});return damageTypes.size()-1;};
-    if(!damageActorType.contains(player)){damageActorType[player]=typeIndex("You");damageActorRoots.emplace(player,std::make_unique<Root>(player));}
+    if(!damageActorType.contains(player)){
+        const size_t index=DamageTypeIndex("You");damageActorType[player]=index;damageActorRoots.emplace(player,std::make_unique<Root>(player));
+        if(damageTypes[index].icon.empty())damageTypes[index].icon=PlayerIconKey(player);
+    }
     std::vector<void*> creators{player};std::set<void*> seen{player};
     for(size_t ci=0;ci<creators.size()&&seen.size()<=256;++ci){
         void* tracker=Get<void*>(creators[ci],F("Actor","summonTracker"));if(!tracker)continue;
@@ -903,15 +1106,33 @@ void RefreshDamageAllies(){
             if(!summon||!game::IsAlive(summon))continue;
             void* actor=Get<void*>(summon,F("Summoned","actor"));if(!actor||!game::IsAlive(actor)||!seen.insert(actor).second)continue;
             creators.push_back(actor);
-            if(!damageActorType.contains(actor)){damageActorType[actor]=typeIndex(AllyType(actor));damageActorRoots.emplace(actor,std::make_unique<Root>(actor));}
+            if(!damageActorType.contains(actor))ListDamageAlly(actor,summon);
         }
     }
+}
+// An attacker the session has not listed: an ally when its creator chain (Actor.summoned ->
+// references -> creator) reaches the character or a listed ally. Field reads only for anything
+// else (enemies), so the hook stays cheap.
+bool ListLateAlly(void* attacker){
+    if(!damageSummonedField||!damageReferencesField||!damageCreatorField)return false;
+    void* summon=Get<void*>(attacker,damageSummonedField);if(!summon)return false;
+    void* creator=attacker;bool ours=false;
+    for(int depth=0;depth<8&&!ours;++depth){
+        void* summoned=Get<void*>(creator,damageSummonedField);if(!summoned)return false;
+        void* references=Get<void*>(summoned,damageReferencesField);if(!references)return false;
+        creator=Get<void*>(references,damageCreatorField);if(!creator)return false;
+        ours=damageActorType.contains(creator);
+    }
+    if(!ours)return false;
+    bool listed=false;
+    game::Guarded([&]{if(game::IsAlive(attacker)&&game::IsAlive(summon)){ListDamageAlly(attacker,summon);listed=true;}},nullptr);
+    return listed;
 }
 std::string DamageState(){
     const auto now=damageSession.load()?GetTickCount64():damageSessionEnd;
     const double elapsed=damageSessionStart?std::max(0.0,(now-damageSessionStart)/1000.0):0;
     const uint32_t current=static_cast<uint32_t>(elapsed)+1;
-    std::map<size_t,int> live;for(const auto& [actor,index]:damageActorType)++live[index];
+    std::map<size_t,int> live;for(const auto& [actor,index]:damageActorType)if(!damageActorDeadSince.contains(actor)&&game::IsAlive(actor))++live[index];
     auto window=[&](const DamageType& t,uint32_t span){double sum=0;for(size_t i=0;i<t.seconds.size();++i)if(t.seconds[i]&&t.seconds[i]+span>current&&t.seconds[i]<=current)sum+=t.buckets[i];
         const double seconds=std::min<double>(span,std::max(1.0,elapsed));return sum/seconds;};
     // The same windows per damage type.
@@ -931,7 +1152,7 @@ std::string DamageState(){
     for(size_t i=0;i<damageTypes.size();++i){const auto& t=damageTypes[i];if(comma)out<<',';comma=true;
         std::array<double,4> w{};for(size_t k=0;k<4;++k){w[k]=window(t,spans[k]);if(t.name!="You")teamWindows[k]+=w[k];}
         if(t.name!="You"){allyTotal+=t.total;allyHits+=t.hits;allyMax=std::max(allyMax,t.maxHit);}
-        out<<"{\"name\":"<<Json(t.name)<<",\"live\":"<<live[i]<<",\"total\":"<<t.total<<",\"hits\":"<<t.hits<<",\"maxHit\":"<<t.maxHit
+        out<<"{\"name\":"<<Json(t.name)<<",\"label\":"<<Json(t.label)<<",\"icon\":"<<Json(t.icon)<<",\"live\":"<<live[i]<<",\"total\":"<<t.total<<",\"hits\":"<<t.hits<<",\"maxHit\":"<<t.maxHit
            <<",\"dps10\":"<<w[0]<<",\"dps60\":"<<w[1]<<",\"dps600\":"<<w[2]<<",\"dps3600\":"<<w[3]
            <<",\"average\":"<<(elapsed>0?t.total/elapsed:0)<<",\"combatAverage\":"<<(damageCombatSeconds?t.total/damageCombatSeconds:0);
         ElementStats s;
@@ -1089,16 +1310,45 @@ std::string DamageSession(const std::string& action){return Run([=]{
         auto damage=M("ProtectionClass","ApplyDamage",5);std::string why;
         if(!hook::IsInstalled(damage.code)&&!hook::Install(damage.code,reinterpret_cast<void*>(&ObserveDamage),reinterpret_cast<void**>(&originalDamage),&why))throw std::runtime_error(why);
         damageArrayOffset=F("DamageStats","damage");
-        damageTypes.clear();damageActorType.clear();damageActorRoots.clear();damageCombatSeconds=damageLastCombatSecond=damageHits=damageUnsplit=0;
+        damageSummonedField=F("Actor","summoned");damageReferencesField=F("Summoned","references");damageCreatorField=F("CreationReferences","creator");
+        damageTypes.clear();damageActorType.clear();damageActorRoots.clear();damageActorDeadSince.clear();damageCombatSeconds=damageLastCombatSecond=damageHits=damageUnsplit=0;
         damageSessionStart=GetTickCount64();damageSessionEnd=0;RefreshDamageAllies();damageAllyRefresh=GetTickCount64();damageSession=true;
     }else if(action=="stop"){
         if(damageSession.exchange(false))damageSessionEnd=GetTickCount64();
-        damageActorType.clear();damageActorRoots.clear();
+        damageActorType.clear();damageActorRoots.clear();damageActorDeadSince.clear();
     }else if(action=="reset"){
-        const bool was=damageSession.load();damageTypes.clear();damageActorType.clear();damageActorRoots.clear();damageCombatSeconds=damageLastCombatSecond=damageHits=damageUnsplit=0;
+        const bool was=damageSession.load();damageTypes.clear();damageActorType.clear();damageActorRoots.clear();damageActorDeadSince.clear();damageCombatSeconds=damageLastCombatSecond=damageHits=damageUnsplit=0;
         damageSessionStart=GetTickCount64();damageSessionEnd=damageSessionStart;if(was)RefreshDamageAllies();
     }else if(!action.empty())throw std::runtime_error("use damagesession [start|stop|reset]");
     return DamageState();
+});}
+std::string DamageIcon(const std::string& key){return Run([=]{
+    const auto reply=[&](const std::string* png){return "{\"ok\":true,\"key\":"+Json(key)+",\"png\":"+(png?"\""+*png+"\"":std::string("null"))+"}";};
+    if(auto it=damageIcons.find(key);it!=damageIcons.end())return reply(&it->second);
+    void* sprite=nullptr;std::unique_ptr<Root> load;
+    if(key.rfind("a:",0)==0){
+        // A skill seen in this game session: its icon, loaded the way the game's skill bar loads it.
+        auto it=damageIconSkills.find(key);void* skill=it==damageIconSkills.end()?nullptr:it->second->Get();
+        void* soft=skill?Get<void*>(skill,F("Ability","abilitySpriteSoftRef")):nullptr;
+        if(!soft)return reply(nullptr);
+        int line=0;void* args[]{soft,il2cpp::api().string_new("EpochPact damage window"),&line};
+        void* ref=Invoke(M("SoftRefExtensions","CreateLoadRefTypeless",3,"LE.AssetBundles","LE.Addressables.dll"),nullptr,args);
+        if(!ref)return reply(nullptr);
+        load=std::make_unique<Root>(ref);
+        Invoke(Method(ref,"BlockForLoad",0),ref);
+        sprite=Invoke(Method(ref,"get_TypelessAsset",0),ref);
+    }else{
+        int cls=-1,mastery=-1;const auto colon=key.find(':',2);
+        const auto number=[](const std::string& s,int* v){if(s.empty()||s.size()>2||s.find_first_not_of("0123456789")!=std::string::npos)return false;*v=std::stoi(s);return true;};
+        if(key.rfind("c:",0)!=0||colon==std::string::npos||!number(key.substr(2,colon-2),&cls)||!number(key.substr(colon+1),&mastery))
+            throw std::runtime_error("use damageicon a:<skill ID>|c:<class>:<mastery>");
+        void* args[]{&cls,&mastery};sprite=Invoke(M("CharacterClassList","getClassOrMasteryIcon",2),nullptr,args);
+    }
+    if(!sprite||!game::IsAlive(sprite)||std::string(il2cpp::api().class_get_name(il2cpp::api().object_get_class(sprite)))!="Sprite")return reply(nullptr);
+    Root keep(sprite);
+    const std::string png=SpritePng(sprite);
+    if(damageIcons.size()<64)damageIcons[key]=png;
+    return reply(&png);
 });}
 std::string Summons(){return Run([]{
     const auto c=Current();void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));
@@ -1199,6 +1449,18 @@ std::string Test(const std::string& id,const std::string& action){
         const bool ok=result.rfind("travel: normal waypoint transition requested",0)==0;
         return std::string("{\"ok\":")+Boolean(ok)+",\"result\":"+Json(result)+"}";
     }
+    if(action=="player-state")return Run([]{
+        // Read only, needs no loaded character: why the character check refuses (offline play,
+        // session state, the player actor, its health and the offline flag of its data).
+        const auto session=SessionState();void* actor=Invoke(M("PlayerFinder","getPlayerActor",0));
+        const bool alive=actor&&game::IsAlive(actor);void* health=alive?Get<void*>(actor,F("Actor","health")):nullptr;
+        void* tracker=alive?Get<void*>(actor,F("Actor","characterDataTracker")):nullptr;void* data=tracker?Get<void*>(tracker,F("CharacterDataTracker","charData")):nullptr;
+        std::ostringstream out;out<<"{\"ok\":true,\"offlinePlay\":"<<Boolean(game::IsOfflinePlay())<<",\"state\":"<<session.state<<",\"transitioning\":"<<Boolean(session.transitioning)
+           <<",\"actor\":"<<Boolean(actor!=nullptr)<<",\"alive\":"<<Boolean(alive)
+           <<",\"health\":"<<(health?Get<float>(health,F("BaseHealth","currentHealth")):-1.f)<<",\"maxHealth\":"<<(health?Get<int>(health,F("BaseHealth","maxHealth")):-1)
+           <<",\"charData\":"<<Boolean(data!=nullptr)<<",\"offlineData\":"<<Boolean(data&&Value<bool>(Method(data,"get_IsOffline",0),data))<<'}';
+        return out.str();
+    });
     return Run([=]() -> std::string {
     const auto c=Current(id);if(c.name!="EpFeedbackTest")throw std::runtime_error("Convenience checks require the isolated EpFeedbackTest character.");
     void* ui=Ui();
@@ -1468,7 +1730,7 @@ std::string Test(const std::string& id,const std::string& action){
         }
         throw std::runtime_error("No visible inventory item with affixes.");
     }
-    if(action=="panels-close"){bool sound=false;void* a[]{&sound};Invoke(Method(ui,"closeShop",0),ui);Invoke(Method(ui,"closeStash",1),ui,a);Invoke(Method(ui,"closeInventory",0),ui);Invoke(Method(ui,"closeMap",0),ui);return State();}
+    if(action=="panels-close"){bool sound=false;void* a[]{&sound};Invoke(Method(ui,"closeShop",0),ui);Invoke(Method(ui,"closeStash",1),ui,a);Invoke(Method(ui,"closeInventory",0),ui);Invoke(Method(ui,"closeMap",0),ui);Invoke(Method(ui,"CloseAllPanels",0),ui);return State();}
     if(action.rfind("drop-gold-",0)==0){
         // Disposable test character only: one native gold pile at a distance.
         const int distance=std::stoi(action.substr(10));if(distance<1||distance>80)throw std::runtime_error("Unsupported gold distance.");
@@ -1819,6 +2081,29 @@ std::string Test(const std::string& id,const std::string& action){
         }
         throw std::runtime_error("Test map destination unavailable.");
     }
+    if(action=="damage-icon-probe"){
+        // Which skill picture each own summon would show in the damage window.
+        void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));std::ostringstream out;out<<"{\"ok\":true,\"summons\":[";bool comma=false;
+        auto describe=[](void* skill){if(!skill)return std::string("null");return "{\"name\":"+Json(Text(Get<void*>(skill,F("Ability","abilityName"))))+",\"id\":"+Json(Text(Get<void*>(skill,F("Ability","playerAbilityID"))))+",\"sprite\":"+Boolean(Get<void*>(skill,F("Ability","abilitySpriteSoftRef"))!=nullptr)+"}";};
+        for(void* summoned:Entries(Get<void*>(tracker,F("SummonTracker","summons")))){
+            if(!summoned||!game::IsAlive(summoned))continue;void* actor=Get<void*>(summoned,F("Summoned","actor"));void* references=Get<void*>(summoned,F("Summoned","references"));
+            if(comma)out<<',';comma=true;
+            out<<"{\"type\":"<<Json(actor&&game::IsAlive(actor)?AllyType(actor):std::string())<<",\"override\":"<<Boolean(Get<bool>(summoned,F("Summoned","overrideMinionSprite")))
+               <<",\"cardSkill\":"<<describe(Get<void*>(summoned,F("Summoned","minionSpriteAbility")))<<",\"references\":"<<Boolean(references!=nullptr)
+               <<",\"summoningSkill\":"<<describe(references?Get<void*>(references,F("CreationReferences","thisAbility")):nullptr)<<",\"key\":"<<Json(AllyIconKey(summoned))
+               <<",\"label\":"<<Json(actor&&game::IsAlive(actor)?AllyLabel(actor):std::string());
+            if(actor&&game::IsAlive(actor)){
+                Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","ActorDisplayInformation"))));
+                void* ga[]{type.Get()};void* info=Invoke(Signature("Component","GetComponent",{"System.Type"}),actor,ga);
+                if(!info)info=Invoke(Signature("Component","GetComponentInChildren",{"System.Type"}),actor,ga);
+                if(info)out<<",\"displayName\":"<<Json(Text(Get<void*>(info,F("BaseDisplayInformation","displayName"))))<<",\"baseDisplayName\":"<<Json(Text(Get<void*>(info,F("BaseDisplayInformation","baseDisplayName"))))
+                           <<",\"customName\":"<<Boolean(Get<bool>(info,F("BaseDisplayInformation","CustomNameSet")))<<",\"localized\":"<<Json(Text(Invoke(Method(info,"GetLocalizedName",0),info)))
+                           <<",\"hasCustomName\":"<<Boolean(Get<bool>(summoned,F("Summoned","hasCustomName")));
+            }
+            out<<'}';
+        }
+        return out.str()+"]}";
+    }
     if(action=="summon-counts"){
         // The character's own summons, counted by the ability that made them.
         void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));if(!tracker)throw std::runtime_error("Summon tracker unavailable.");
@@ -1832,6 +2117,14 @@ std::string Test(const std::string& id,const std::string& action){
         void* stats=Get<void*>(c.actor,F("Actor","stats"));out<<(stats?Value<int>(Method(stats,"getMaximumCompanions",0),stats):-1)<<",\"byAbility\":{";
         bool comma=false;for(const auto& [name,n]:counts){if(comma)out<<',';comma=true;out<<Json(name)<<':'<<n;}
         return out.str()+"}}";
+    }
+    if(action=="player-heal"){
+        // Disposable test character only: current health back to maximum (a raised maximum health
+        // does not refill it, and the measuring targets cannot die).
+        void* health=Get<void*>(c.actor,F("Actor","health"));if(!health)throw std::runtime_error("Health unavailable.");
+        const float before=Get<float>(health,F("BaseHealth","currentHealth"));const int maximum=Get<int>(health,F("BaseHealth","maxHealth"));
+        *reinterpret_cast<float*>(static_cast<char*>(health)+F("BaseHealth","currentHealth"))=static_cast<float>(maximum);
+        return "{\"ok\":true,\"before\":"+std::to_string(before)+",\"health\":"+std::to_string(maximum)+"}";
     }
     if(action.rfind("minion-hit-",0)==0){
         // Disposable test character only: the first own summon takes this much health damage directly.
@@ -1857,22 +2150,38 @@ std::string Test(const std::string& id,const std::string& action){
         return "{\"ok\":true,\"requested\":true,\"ability\":"+Json(Text(Get<void*>(ability.Get(),F("Ability","abilityName"))))+"}";
     }
     if(action=="combat-clock")return "{\"ok\":true,\"timeScale\":"+std::to_string(Value<float>(M("Time","get_timeScale",0,"UnityEngine","UnityEngine.CoreModule.dll")))+",\"damageCalls\":"+std::to_string(testDamageCalls)+",\"ownedCalls\":"+std::to_string(testDamageOwned)+",\"lastPrimary\":"+std::to_string(testDamagePrimary)+",\"lastSecondary\":"+std::to_string(testDamageSecondary)+"}";
-    if(action=="ally-attack"||action.rfind("player-attack-",0)==0){
-        // player-attack-<n>: the character's own n-th ability, cast at the nearest enemy.
-        const bool player=action!="ally-attack";
+    if(action=="ally-attack"||action.rfind("ally-attack-",0)==0||action.rfind("player-attack-",0)==0||action.rfind("cast-at-",0)==0||action.rfind("player-skill-",0)==0){
+        // player-attack-<n>: the character's own n-th ability, cast at the nearest enemy;
+        // player-skill-<skill ID>: the character's own ability with that save skill ID (its bar skill);
+        // ally-attack[-<k>]: the k-th own summon's attack (default the first);
+        // cast-at-<ability id>: any ability, cast by the character at the nearest enemy.
+        const bool castAt=action.rfind("cast-at-",0)==0,bySkill=action.rfind("player-skill-",0)==0;
+        const bool player=castAt||bySkill||action.rfind("player-attack-",0)==0;
+        const size_t wantedAlly=action.rfind("ally-attack-",0)==0?static_cast<size_t>(std::stoul(action.substr(12))):0;size_t allyIndex=0;
         void* source=player?c.actor:nullptr;void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));
         if(!player)for(void* summoned:Entries(Get<void*>(tracker,F("SummonTracker","summons")))){
             if(!summoned||!game::IsAlive(summoned))continue;
             void* references=Get<void*>(summoned,F("Summoned","references"));
-            if(references&&Get<void*>(references,F("CreationReferences","creator"))==c.actor){source=Get<void*>(summoned,F("Summoned","actor"));break;}
+            if(references&&Get<void*>(references,F("CreationReferences","creator"))==c.actor&&allyIndex++==wantedAlly){source=Get<void*>(summoned,F("Summoned","actor"));break;}
         }
         if(!source||!game::IsAlive(source))throw std::runtime_error("Cast a test ally first.");Root pin(source);
-        Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","AbilityList"))));
-        void* ca[]{type.Get()};Root list(Invoke(Signature("Component","GetComponent",{"System.Type"}),source,ca));
-        if(!list.Get())throw std::runtime_error("This ally has no ability list.");
-        const auto abilities=Entries(Get<void*>(list.Get(),F("AbilityList","abilities")));if(abilities.empty())throw std::runtime_error("This ally has no loaded attack.");
-        const size_t index=player?static_cast<size_t>(std::stoi(action.substr(14)))%abilities.size():0;
-        Root ability(abilities[index]);if(!ability.Get())throw std::runtime_error("Empty ability slot.");void* alignment=Get<void*>(Get<void*>(source,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
+        std::vector<void*> abilities;void* chosen=nullptr;
+        if(castAt){
+            uint16_t abilityId=static_cast<uint16_t>(std::stoi(action.substr(8)));void* a[]{&abilityId};
+            chosen=Invoke(Signature("Ability","getAbility",{"System.UInt16"},"","LE.dll"),nullptr,a);if(!chosen)throw std::runtime_error("Ability unavailable.");
+            abilities.push_back(chosen);
+        }else{
+            Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","AbilityList"))));
+            void* ca[]{type.Get()};Root list(Invoke(Signature("Component","GetComponent",{"System.Type"}),source,ca));
+            if(!list.Get())throw std::runtime_error("This ally has no ability list.");
+            abilities=Entries(Get<void*>(list.Get(),F("AbilityList","abilities")));if(abilities.empty())throw std::runtime_error("This ally has no loaded attack.");
+            if(bySkill){
+                const std::string wanted=action.substr(13);
+                for(void* a:abilities)if(a&&Text(Get<void*>(a,F("Ability","playerAbilityID")))==wanted){chosen=a;break;}
+                if(!chosen)throw std::runtime_error("The character has no ability with that skill ID.");
+            }else chosen=abilities[player?static_cast<size_t>(std::stoi(action.substr(14)))%abilities.size():0];
+        }
+        Root ability(chosen);if(!ability.Get())throw std::runtime_error("Empty ability slot.");void* alignment=Get<void*>(Get<void*>(source,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
         auto start=Position(source);void* nearest=nullptr;double distance=1.e30;
         for(void* target:Find("LE.dll","","Actor")){
             if(!game::IsAlive(target))continue;void* manager=Get<void*>(target,F("Actor","alignmentManager"));if(!manager)continue;
@@ -1881,10 +2190,121 @@ std::string Test(const std::string& id,const std::string& action){
             auto p=Position(target);double x=p.x-start.x,z=p.z-start.z,d=x*x+z*z;if(d<distance){distance=d;nearest=target;}
         }
         if(!nearest)throw std::runtime_error("No test enemy available.");
+        if(!player&&distance>4.0){
+            // A melee ally walks up to its target before it strikes: it is moved 1.5 units from it.
+            if(void* agent=Get<void*>(source,F("Actor","navMeshAgent"))){
+                const auto t=Position(nearest);const double d=std::sqrt(distance);
+                Vec3 beside{static_cast<float>(t.x-(t.x-start.x)/d*1.5),t.y,static_cast<float>(t.z-(t.z-start.z)/d*1.5)};void* wa[]{&beside};
+                if(Value<bool>(Method(agent,"Warp",1),agent,wa)){start=Position(source);const double x=t.x-start.x,z=t.z-start.z;distance=x*x+z*z;}
+            }
+        }
         Vec3 p=Position(nearest),direction{p.x-start.x,p.y-start.y,p.z-start.z};float length=std::sqrt(direction.x*direction.x+direction.y*direction.y+direction.z*direction.z);if(length>0){direction.x/=length;direction.y/=length;direction.z/=length;}
         void* constructor=Get<void*>(source,F("Actor","abilityObjectConstructor"));float delay=0;int castType=1;bool mutate=true;
         void* args[]{constructor,&p,&direction,&delay,&castType,&mutate,nullptr};Invoke(Method(ability.Get(),"CastAfterDelay",7),ability.Get(),args);
-        return "{\"ok\":true,\"requested\":true,\"ability\":"+Json(Text(Get<void*>(ability.Get(),F("Ability","abilityName"))))+",\"abilities\":"+std::to_string(abilities.size())+"}";
+        return "{\"ok\":true,\"requested\":true,\"ability\":"+Json(Text(Get<void*>(ability.Get(),F("Ability","abilityName"))))+",\"abilities\":"+std::to_string(abilities.size())
+              +",\"constructor\":"+Boolean(constructor!=nullptr)+",\"distance\":"+std::to_string(std::sqrt(distance))+"}";
+    }
+    // Ability.CastAfterDelay takes (constructor, cast point, target point, ...); the fixtures above pass a
+    // direction as the target point. The three below pass real points (turrets such as the Ballista).
+    const auto ownSummon=[&](size_t wanted)->void*{
+        // The k-th own summon, counted as ally-attack-<k> counts them.
+        void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));if(!tracker)throw std::runtime_error("Summon tracker unavailable.");size_t index=0;
+        for(void* summoned:Entries(Get<void*>(tracker,F("SummonTracker","summons")))){
+            if(!summoned||!game::IsAlive(summoned))continue;void* references=Get<void*>(summoned,F("Summoned","references"));
+            if(references&&Get<void*>(references,F("CreationReferences","creator"))==c.actor&&index++==wanted)return Get<void*>(summoned,F("Summoned","actor"));
+        }
+        return nullptr;
+    };
+    const auto foesOf=[&](void* actor){
+        std::vector<void*> foes;void* alignment=Get<void*>(Get<void*>(actor,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
+        for(void* target:Find("LE.dll","","Actor")){
+            if(!game::IsAlive(target)||target==actor||target==c.actor)continue;void* manager=Get<void*>(target,F("Actor","alignmentManager"));if(!manager)continue;
+            void* other=Get<void*>(manager,F("AlignmentManager","alignment"));void* args[]{other};if(!other||!Value<bool>(Method(alignment,"IsFoe",1),alignment,args))continue;
+            void* health=Get<void*>(target,F("Actor","health"));if(!health||Get<float>(health,F("BaseHealth","currentHealth"))<=0)continue;
+            foes.push_back(target);
+        }
+        return foes;
+    };
+    const auto flat=[](const Vec3& a,const Vec3& b){return std::sqrt((a.x-b.x)*(a.x-b.x)+(a.z-b.z)*(a.z-b.z));};
+    const auto xyz=[](const Vec3& p){std::ostringstream o;o.setf(std::ios::fixed);o.precision(2);o<<'['<<p.x<<','<<p.y<<','<<p.z<<']';return o.str();};
+    if(action=="summon-where"){
+        // Disposable test character only (read-only): each own summon in ally-attack-<k> order, where its
+        // Actor stands, how far from the character and from the nearest enemy, and the ability that made it.
+        void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));if(!tracker)throw std::runtime_error("Summon tracker unavailable.");
+        std::vector<Vec3> foes;for(void* foe:foesOf(c.actor))foes.push_back(Position(foe));
+        const auto me=Position(c.actor);size_t index=0;bool comma=false;
+        std::ostringstream out;out.setf(std::ios::fixed);out.precision(2);
+        out<<"{\"ok\":true,\"me\":"<<xyz(me)<<",\"foes\":"<<foes.size()<<",\"summons\":[";
+        for(void* summoned:Entries(Get<void*>(tracker,F("SummonTracker","summons")))){
+            if(!summoned||!game::IsAlive(summoned))continue;void* references=Get<void*>(summoned,F("Summoned","references"));
+            if(!references||Get<void*>(references,F("CreationReferences","creator"))!=c.actor)continue;
+            const size_t k=index++;void* actor=Get<void*>(summoned,F("Summoned","actor"));if(!actor||!game::IsAlive(actor))continue;
+            void* ability=Get<void*>(references,F("CreationReferences","thisAbility"));const auto p=Position(actor);
+            double nearest=-1;for(const auto& f:foes){const double d=flat(f,p);if(nearest<0||d<nearest)nearest=d;}
+            if(comma)out<<',';comma=true;
+            out<<"{\"index\":"<<k<<",\"name\":"<<Json(AllyType(actor))<<",\"ability\":"<<Json(ability?Text(Get<void*>(ability,F("Ability","abilityName"))):std::string())
+               <<",\"at\":"<<xyz(p)<<",\"fromMe\":"<<flat(p,me)<<",\"nearestFoe\":"<<nearest<<'}';
+        }
+        return out.str()+"]}";
+    }
+    if(action.rfind("summon-at-",0)==0){
+        // Disposable test character only: summon-at-<ability id> casts that ability, summon-at-<skill ID>
+        // the character's own ability with that save skill ID (its bar skill), from where the character
+        // stands at the point 2 units beside it.
+        const std::string wanted=action.substr(10);void* found=nullptr;
+        if(!wanted.empty()&&std::all_of(wanted.begin(),wanted.end(),[](char ch){return ch>='0'&&ch<='9';})){
+            uint16_t abilityId=static_cast<uint16_t>(std::stoi(wanted));void* a[]{&abilityId};found=Invoke(Signature("Ability","getAbility",{"System.UInt16"},"","LE.dll"),nullptr,a);
+        }else{
+            Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","AbilityList"))));
+            void* ca[]{type.Get()};void* list=Invoke(Signature("Component","GetComponent",{"System.Type"}),c.actor,ca);
+            if(list)for(void* own:Entries(Get<void*>(list,F("AbilityList","abilities"))))if(own&&Text(Get<void*>(own,F("Ability","playerAbilityID")))==wanted){found=own;break;}
+        }
+        if(!found)throw std::runtime_error("Ability unavailable.");Root ability(found);
+        void* constructor=Get<void*>(c.actor,F("Actor","abilityObjectConstructor"));Vec3 from=Position(c.actor),to=from;to.x+=2;float delay=0;int type=1;bool onDeath=false;
+        // As a normal use: the character's target point is the target (Decoy is placed at it, without it at
+        // the world origin), then the character's mutator for the ability moves the target point.
+        std::string aimed="null";
+        {
+            Root uaType(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","UsingAbility"))));
+            void* ua[]{uaType.Get()};void* usingAbility=Invoke(Signature("Component","GetComponent",{"System.Type"}),c.actor,ua);
+            if(usingAbility){
+                const Vec3 before=Value<Vec3>(Method(usingAbility,"getTargetLocation",0),usingAbility);void* ta[]{&to};Invoke(Method(usingAbility,"UpdateTargetLocation",1),usingAbility,ta);
+                aimed="{\"before\":"+xyz(before)+",\"after\":"+xyz(Value<Vec3>(Method(usingAbility,"getTargetLocation",0),usingAbility))+"}";
+            }
+        }
+        std::string drop="null";void* manager=constructor?Get<void*>(constructor,F("AbilityObjectConstructor","mutatorManager")):nullptr;
+        void* ma[]{ability.Get()};void* mutator=manager?Invoke(Method(manager,"getMutator",1),manager,ma):nullptr;
+        if(mutator){
+            void* ta[]{&from,&to,&type};Invoke(Method(mutator,"mutateTargetLocation",3),mutator,ta);
+            if(il2cpp::api().object_get_class(mutator)==game::FindClass("LE.dll","","DecoyMutator"))drop=xyz(Get<Vec3>(mutator,F("DecoyMutator","decoyDropLocation")));
+        }
+        void* args[]{constructor,&from,&to,&delay,&type,&onDeath,nullptr};Invoke(Method(ability.Get(),"CastAfterDelay",7),ability.Get(),args);
+        return "{\"ok\":true,\"requested\":true,\"ability\":"+Json(Text(Get<void*>(ability.Get(),F("Ability","abilityName"))))+",\"from\":"+xyz(from)+",\"to\":"+xyz(to)
+              +",\"aimed\":"+aimed+",\"mutator\":"+Json(mutator?il2cpp::api().class_get_name(il2cpp::api().object_get_class(mutator)):"")+",\"decoyDrop\":"+drop+"}";
+    }
+    if(action.rfind("ally-shoot-",0)==0||action.rfind("ally-aim-",0)==0){
+        // Disposable test character only: the k-th own summon uses its first ability at the nearest enemy
+        // from where it stands, without moving. ally-shoot-<k>: CastAfterDelay(constructor, its position,
+        // the enemy's position); ally-aim-<k>: castAtTargetFromTransformConstructorAfterDelay(constructor,
+        // its transform, the enemy's position, standard offset).
+        const bool aim=action.rfind("ally-aim-",0)==0;void* source=ownSummon(static_cast<size_t>(std::stoul(action.substr(aim?9:11))));
+        if(!source||!game::IsAlive(source))throw std::runtime_error("Cast a test ally first.");Root pin(source);
+        Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","AbilityList"))));
+        void* ca[]{type.Get()};Root list(Invoke(Signature("Component","GetComponent",{"System.Type"}),source,ca));
+        if(!list.Get())throw std::runtime_error("This ally has no ability list.");
+        const auto abilities=Entries(Get<void*>(list.Get(),F("AbilityList","abilities")));if(abilities.empty()||!abilities.front())throw std::runtime_error("This ally has no loaded attack.");
+        Root ability(abilities.front());const Vec3 from=Position(source);void* nearest=nullptr;double distance=1.e30;
+        for(void* foe:foesOf(source)){const double d=flat(Position(foe),from);if(d<distance){distance=d;nearest=foe;}}
+        if(!nearest)throw std::runtime_error("No test enemy available.");
+        Vec3 to=Position(nearest);void* constructor=Get<void*>(source,F("Actor","abilityObjectConstructor"));float delay=0;int useType=1;
+        if(aim){
+            Root transform(Invoke(componentTransform,source));bool standard=true;
+            void* args[]{constructor,transform.Get(),&to,&delay,&useType,&standard};Invoke(Method(ability.Get(),"castAtTargetFromTransformConstructorAfterDelay",6),ability.Get(),args);
+        }else{
+            Vec3 at=from;bool onDeath=false;void* args[]{constructor,&at,&to,&delay,&useType,&onDeath,nullptr};Invoke(Method(ability.Get(),"CastAfterDelay",7),ability.Get(),args);
+        }
+        return "{\"ok\":true,\"requested\":true,\"ally\":"+Json(AllyType(source))+",\"ability\":"+Json(Text(Get<void*>(ability.Get(),F("Ability","abilityName"))))+",\"from\":"+xyz(from)
+              +",\"to\":"+xyz(to)+",\"distance\":"+std::to_string(distance)+",\"constructor\":"+Boolean(constructor!=nullptr)+"}";
     }
     if(action=="ground-items"){
         // Disposable test character only: the items on the ground with rarity 7 or more (Unique, Set,
@@ -1908,6 +2328,114 @@ std::string Test(const std::string& id,const std::string& action){
             }
         }
         out<<"],\"others\":"<<others<<'}';return out.str();
+    }
+    if(action=="dummy-make"||action.rfind("dummy-make-",0)==0||action=="dummy-mark"||action=="dummy-read"){
+        // Disposable test character only. dummy-make[-<health>]: the nearest living regular enemy
+        // within 30 game units (a boss only when there is no other) gets that much health (default a
+        // billion; 2^28 keeps a float health exact to 8 per hit), no regeneration and no ward, so
+        // every hit on it is measurable as health it loses; dummy-mark: counters from now;
+        // dummy-read: its state and the counters.
+        if(action!="dummy-mark"&&action!="dummy-read"){
+            const double wanted=action=="dummy-make"?1.0e9:std::stod(action.substr(11));
+            if(!(wanted>=1000&&wanted<=2.0e9))throw std::runtime_error("use dummy-make-<1000..2000000000>");
+            void* alignment=Get<void*>(Get<void*>(c.actor,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
+            const auto start=Position(c.actor);void* nearest=nullptr;void* boss=nullptr;double best=900,bestBoss=900;
+            for(void* target:Find("LE.dll","","Actor")){
+                if(!game::IsAlive(target)||target==c.actor)continue;void* manager=Get<void*>(target,F("Actor","alignmentManager"));if(!manager)continue;
+                void* other=Get<void*>(manager,F("AlignmentManager","alignment"));void* args[]{other};if(!other||!Value<bool>(Method(alignment,"IsFoe",1),alignment,args))continue;
+                void* health=Get<void*>(target,F("Actor","health"));if(!health||Get<float>(health,F("BaseHealth","currentHealth"))<=0)continue;
+                const bool special=Value<float>(Method(health,"get_EffectiveHealthMultiplier",0),health)>1.01f||AllyType(target).find("Boss")!=std::string::npos;
+                const auto p=Position(target);const double x=p.x-start.x,z=p.z-start.z,d=x*x+z*z;
+                if(special){if(d<bestBoss){bestBoss=d;boss=target;}}else if(d<best){best=d;nearest=target;}
+            }
+            if(!nearest)nearest=boss;
+            if(!nearest)throw std::runtime_error("No test enemy within 30 game units.");
+            void* health=Get<void*>(nearest,F("Actor","health"));
+            auto at=[&](const char* name){return static_cast<char*>(health)+F("BaseHealth",name);};
+            *reinterpret_cast<int*>(at("maxHealth"))=static_cast<int>(wanted);*reinterpret_cast<float*>(at("currentHealth"))=static_cast<float>(wanted);
+            *reinterpret_cast<float*>(at("baseHealthRegenPerSecond"))=0;*reinterpret_cast<float*>(at("addedHealthRegenPerSecond"))=0;
+            *reinterpret_cast<bool*>(at("useHealthCap"))=false;*reinterpret_cast<bool*>(at("damageable"))=true;
+            void* protection=Get<void*>(nearest,F("Actor","protection"));
+            if(protection)*reinterpret_cast<float*>(static_cast<char*>(protection)+F("ProtectionClass","ward"))=0;
+            testDummy=std::make_unique<Root>(nearest);testDummyProtection=protection;
+        }
+        if(action!="dummy-read"){testDummyRecorded=testDummyAll=0;testDummyHits=0;}
+        void* dummy=testDummy?testDummy->Get():nullptr;
+        if(!dummy||!game::IsAlive(dummy))return "{\"ok\":true,\"alive\":false,\"recorded\":"+std::to_string(testDummyRecorded)+",\"all\":"+std::to_string(testDummyAll)+",\"hits\":"+std::to_string(testDummyHits)+"}";
+        void* health=Get<void*>(dummy,F("Actor","health"));void* protection=Get<void*>(dummy,F("Actor","protection"));
+        const auto me=Position(c.actor),it=Position(dummy);
+        std::ostringstream out;out.setf(std::ios::fixed);out.precision(3);
+        out<<"{\"ok\":true,\"alive\":true,\"name\":"<<Json(AllyType(dummy))<<",\"health\":"<<static_cast<double>(Get<float>(health,F("BaseHealth","currentHealth")))
+           <<",\"maxHealth\":"<<Get<int>(health,F("BaseHealth","maxHealth"))<<",\"regen\":"<<Get<float>(health,F("BaseHealth","baseHealthRegenPerSecond"))+Get<float>(health,F("BaseHealth","addedHealthRegenPerSecond"))
+           <<",\"multiplier\":"<<Value<float>(Method(health,"get_EffectiveHealthMultiplier",0),health)<<",\"ward\":"<<(protection?Get<float>(protection,F("ProtectionClass","ward")):0.f)
+           <<",\"distance\":"<<std::sqrt((it.x-me.x)*(it.x-me.x)+(it.z-me.z)*(it.z-me.z))<<",\"recorded\":"<<testDummyRecorded<<",\"all\":"<<testDummyAll<<",\"hits\":"<<testDummyHits<<'}';
+        return out.str();
+    }
+    if(action.rfind("dummy-area-",0)==0||action=="dummy-area-read"){
+        // Disposable test character only. dummy-area-<health>: every living enemy within 30 game units
+        // becomes a measuring target (health set to <health> before each hit on it, so it never dies
+        // and each hit's health loss is exact); dummy-area-read: per damage source type the damage
+        // the session recorded on them, the health those hits removed and the hits; counters restart.
+        if(action!="dummy-area-read"){
+            const double wanted=std::stod(action.substr(11));if(!(wanted>=1000&&wanted<=2.0e9))throw std::runtime_error("use dummy-area-<1000..2000000000>");
+            testTargetRoots.clear();testTargets.clear();testTargetAfter.clear();testTargetHealth=static_cast<float>(wanted);
+            void* alignment=Get<void*>(Get<void*>(c.actor,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
+            const auto start=Position(c.actor);
+            for(void* target:Find("LE.dll","","Actor")){
+                if(!game::IsAlive(target)||target==c.actor)continue;void* manager=Get<void*>(target,F("Actor","alignmentManager"));if(!manager)continue;
+                void* other=Get<void*>(manager,F("AlignmentManager","alignment"));void* args[]{other};if(!other||!Value<bool>(Method(alignment,"IsFoe",1),alignment,args))continue;
+                void* health=Get<void*>(target,F("Actor","health"));if(!health||Get<float>(health,F("BaseHealth","currentHealth"))<=0)continue;
+                const auto p=Position(target);if((p.x-start.x)*(p.x-start.x)+(p.z-start.z)*(p.z-start.z)>900)continue;
+                void* protection=Get<void*>(target,F("Actor","protection"));if(!protection)continue;
+                *reinterpret_cast<int*>(static_cast<char*>(health)+F("BaseHealth","maxHealth"))=static_cast<int>(wanted);
+                *reinterpret_cast<float*>(static_cast<char*>(health)+F("BaseHealth","currentHealth"))=testTargetHealth;
+                *reinterpret_cast<float*>(static_cast<char*>(protection)+F("ProtectionClass","ward"))=0;
+                *reinterpret_cast<float*>(static_cast<char*>(health)+F("BaseHealth","baseHealthRegenPerSecond"))=0;*reinterpret_cast<float*>(static_cast<char*>(health)+F("BaseHealth","addedHealthRegenPerSecond"))=0;
+                testTargetRoots.push_back(std::make_unique<Root>(target));testTargets.insert(protection);testTargetAfter[protection]=testTargetHealth;
+            }
+        }
+        if(action=="dummy-area-read")for(const auto& root:testTargetRoots){
+            void* actor=root->Get();if(!actor||!game::IsAlive(actor))continue;
+            void* protection=Get<void*>(actor,F("Actor","protection"));void* health=Get<void*>(actor,F("Actor","health"));
+            auto last=testTargetAfter.find(protection);if(!health||last==testTargetAfter.end())continue;
+            const float now=Get<float>(health,F("BaseHealth","currentHealth"));
+            if(Get<int>(health,F("BaseHealth","maxHealth"))!=static_cast<int>(testTargetHealth))++testClamps;
+            else if(now<last->second-0.5f){testOutsideLoss+=last->second-now;++testOutsideEvents;last->second=now;}
+        }
+        std::ostringstream out;out.setf(std::ios::fixed);out.precision(3);
+        out<<"{\"ok\":true,\"outsideLoss\":"<<testOutsideLoss<<",\"outsideEvents\":"<<testOutsideEvents<<",\"clamps\":"<<testClamps<<",\"sources\":{";
+        {bool first=true;for(const auto& [kind,v]:testSourceKinds){if(!first)out<<',';first=false;out<<Json(kind)<<":{\"damage\":"<<v[0]<<",\"hits\":"<<static_cast<uint64_t>(v[1])<<'}';}}
+        out<<"},\"otherKinds\":{";
+        {bool first=true;for(const auto& [kind,v]:testOtherKinds){if(!first)out<<',';first=false;out<<Json(kind)<<":{\"damage\":"<<v[0]<<",\"hits\":"<<static_cast<uint64_t>(v[1])<<'}';}}
+        out<<"},\"targets\":"<<testTargets.size()<<",\"otherHits\":"<<testTargetOther<<",\"matched\":"<<testTargetMatched<<",\"failed\":"<<testTargetFailed
+           <<",\"calls\":"<<testCallsWhileTargets<<",\"error\":"<<Json(testTargetError)<<",\"types\":[";bool comma=false;
+        for(const auto& [index,v]:testTargetByType){if(comma)out<<',';comma=true;
+            out<<"{\"name\":"<<Json(index<damageTypes.size()?damageTypes[index].name:std::string("?"))<<",\"recorded\":"<<v[0]<<",\"lost\":"<<v[1]<<",\"hits\":"<<static_cast<uint64_t>(v[2])<<'}';}
+        if(action=="dummy-area-read"){testOutsideLoss=0;testOutsideEvents=testClamps=0;testSourceKinds.clear();testOtherKinds.clear();testTargetByType.clear();testTargetOther=testTargetMatched=testTargetFailed=testCallsWhileTargets=0;testTargetError.clear();}  // counters restart only when read
+        return out.str()+"]}";
+    }
+    if(action.rfind("kill-others-",0)==0){
+        // Disposable test character only: like kill-enemies-<n>, but the target dummy is left alone.
+        const int limit=std::stoi(action.substr(12));if(limit<1||limit>50)throw std::runtime_error("use kill-others-<1..50>");
+        void* dummy=testDummy?testDummy->Get():nullptr;
+        void* alignment=Get<void*>(Get<void*>(c.actor,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
+        const auto start=Position(c.actor);std::vector<std::pair<double,void*>> foes;
+        for(void* target:Find("LE.dll","","Actor")){
+            if(!game::IsAlive(target)||target==c.actor||target==dummy)continue;void* manager=Get<void*>(target,F("Actor","alignmentManager"));if(!manager)continue;
+            void* other=Get<void*>(manager,F("AlignmentManager","alignment"));void* args[]{other};if(!other||!Value<bool>(Method(alignment,"IsFoe",1),alignment,args))continue;
+            void* health=Get<void*>(target,F("Actor","health"));if(!health||Get<float>(health,F("BaseHealth","currentHealth"))<=0)continue;
+            const auto p=Position(target);const double x=p.x-start.x,z=p.z-start.z,d=x*x+z*z;if(d<=2500)foes.emplace_back(d,target);
+        }
+        std::sort(foes.begin(),foes.end(),[](const auto& a,const auto& b){return a.first<b.first;});
+        int killed=0;
+        for(const auto& [d,target]:foes){
+            if(killed>=limit)break;if(!game::IsAlive(target))continue;Root pin(target);
+            void* health=Get<void*>(target,F("Actor","health"));if(!health)continue;Root healthPin(health);
+            bool& damageable=*reinterpret_cast<bool*>(static_cast<char*>(health)+F("BaseHealth","damageable"));damageable=true;
+            float hit=Get<float>(health,F("BaseHealth","currentHealth"))+1000.f;void* a[]{&hit};Value<float>(Method(health,"HealthDamage",1),health,a);
+            if(!game::IsAlive(health)||Get<float>(health,F("BaseHealth","currentHealth"))<=0)++killed;
+        }
+        return "{\"ok\":true,\"killed\":"+std::to_string(killed)+",\"near\":"+std::to_string(foes.size())+"}";
     }
     if(action.rfind("kill-enemies-",0)==0){
         // Disposable test character only: the nearest n living enemies within 30 game units take
@@ -2065,6 +2593,42 @@ std::string Test(const std::string& id,const std::string& action){
         for(int t=0;t<2;++t){if(t)out<<',';out<<Json(names[t])<<":{\"random\":"<<counts[t][1][0]+counts[t][1][1]<<",\"notRandom\":"<<counts[t][0][0]+counts[t][0][1]<<",\"cocooned\":"<<counts[t][0][1]+counts[t][1][1]<<'}';}
         out<<"},\"weaver\":["<<weaver.str()<<"]}";return out.str();
     }
+    if(action=="class-abilities"){
+        // Disposable test character only (read-only): every class's level and mastery abilities with the
+        // playerAbilityID the save uses for its skill tree and ability bar.
+        Root list(Invoke(M("CharacterClassList","get",0),nullptr));if(!list.Get())throw std::runtime_error("Class list unavailable.");
+        const auto ability=[&](void* a){return "{\"name\":"+Json(Text(Get<void*>(a,F("Ability","abilityName"))))+",\"id\":"+Json(Text(Get<void*>(a,F("Ability","playerAbilityID"))))+'}';};
+        std::ostringstream out;out<<"{\"ok\":true,\"classes\":[";bool first=true;
+        for(void* cls:Entries(Get<void*>(list.Get(),F("CharacterClassList","classes")))){
+            if(!cls)continue;if(!first)out<<',';first=false;
+            out<<"{\"name\":"<<Json(Text(Get<void*>(cls,F("CharacterClass","className"))))<<",\"id\":"<<Get<int>(cls,F("CharacterClass","classID"))<<",\"base\":[";
+            bool c1=true;for(void* al:Entries(Get<void*>(cls,F("CharacterClass","unlockableAbilities"))))if(al&&Get<void*>(al,F("AbilityAndLevel","ability"))){if(!c1)out<<',';c1=false;out<<ability(Get<void*>(al,F("AbilityAndLevel","ability")));}
+            out<<"],\"masteries\":[";
+            void* masteries=Get<void*>(cls,F("CharacterClass","masteries"));const auto n=masteries?Get<uintptr_t>(masteries,0x18):0;
+            for(uintptr_t i=0;i<n&&i<8;++i){void* m=Get<void*>(masteries,0x20+sizeof(void*)*i);if(i)out<<',';
+                void* own=m?Get<void*>(m,F("Mastery","masteryAbility")):nullptr;  // the ability choosing the mastery grants (Falconry)
+                out<<"{\"name\":"<<Json(m?Text(Get<void*>(m,F("Mastery","name"))):"")<<",\"masteryAbility\":"<<(own?ability(own):std::string("null"))<<",\"abilities\":[";bool c2=true;
+                if(m)for(void* al:Entries(Get<void*>(m,F("Mastery","abilities"))))if(al&&Get<void*>(al,F("AbilityAndLevel","ability"))){if(!c2)out<<',';c2=false;out<<ability(Get<void*>(al,F("AbilityAndLevel","ability")));}
+                out<<"]}";}
+            out<<"]}";
+        }
+        out<<"]}";return out.str();
+    }
+    if(action=="skill-state"){
+        // Disposable test character only (read-only): the specialised skill trees the game applied and the abilities it knows.
+        void* tree=Get<void*>(c.actor,F("Actor","localTreeData"));if(!tree)throw std::runtime_error("Tree data unavailable.");
+        std::ostringstream out;out<<"{\"ok\":true,\"specialised\":[";bool first=true;
+        for(void* t:Entries(Get<void*>(tree,F("LocalTreeData","specialisedSkillTrees")))){
+            if(!t)continue;if(!first)out<<',';first=false;void* a=Get<void*>(t,F("LocalTreeData.SkillTreeData","ability"));
+            out<<"{\"slot\":"<<static_cast<int>(Get<uint8_t>(t,F("LocalTreeData.SkillTreeData","slot")))<<",\"id\":"<<Json(a?Text(Get<void*>(a,F("Ability","playerAbilityID"))):"")
+               <<",\"level\":"<<static_cast<int>(Get<uint8_t>(t,F("LocalTreeData.SkillTreeData","level")))<<",\"mutator\":"<<Boolean(Get<bool>(t,F("LocalTreeData.SkillTreeData","mutatorSet")))<<'}';
+        }
+        out<<"],\"equipped\":[";
+        Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","AbilityList"))));
+        void* ca[]{type.Get()};Root abilities(Invoke(Signature("Component","GetComponent",{"System.Type"}),c.actor,ca));first=true;
+        if(abilities.Get())for(void* a:Entries(Get<void*>(abilities.Get(),F("AbilityList","abilities")))){if(!first)out<<',';first=false;out<<Json(a?Text(Get<void*>(a,F("Ability","playerAbilityID"))):"");}
+        out<<"]}";return out.str();
+    }
     if(action=="area-level"){
         void* manager=game::StaticObject(game::FindStaticField("LE.dll","","DifficultyManager","instance"));
         if(!manager)throw std::runtime_error("Difficulty manager unavailable.");
@@ -2088,6 +2652,56 @@ std::string Test(const std::string& id,const std::string& action){
         auto p=Position(nearest);p.x-=3;void* agent=Get<void*>(c.actor,F("Actor","navMeshAgent"));void* args[]{&p};
         if(!Value<bool>(Method(agent,"Warp",1),agent,args))throw std::runtime_error("Native NavMesh warp refused.");
         return "{\"ok\":true,\"distance\":"+std::to_string(std::sqrt(distance))+"}";
+    }
+    if(action.rfind("ally-gather-",0)==0){
+        // Disposable test character only: the character and the nearest three enemies are moved next
+        // to the k-th own summon (a turret placed elsewhere), the enemies 3 units in front of it.
+        const size_t wanted=static_cast<size_t>(std::stoul(action.substr(12)));size_t index=0;void* ally=nullptr;
+        void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));
+        for(void* summoned:Entries(Get<void*>(tracker,F("SummonTracker","summons")))){
+            if(!summoned||!game::IsAlive(summoned))continue;void* actor=Get<void*>(summoned,F("Summoned","actor"));
+            if(actor&&game::IsAlive(actor)&&index++==wanted){ally=actor;break;}
+        }
+        if(!ally)throw std::runtime_error("Cast a test ally first.");Root pin(ally);
+        const auto at=Position(ally);void* alignment=Get<void*>(Get<void*>(c.actor,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
+        std::vector<std::pair<double,void*>> enemies;const auto from=Position(c.actor);
+        for(void* actor:Find("LE.dll","","Actor")){
+            if(actor==c.actor||!game::IsAlive(actor))continue;void* manager=Get<void*>(actor,F("Actor","alignmentManager"));if(!manager)continue;
+            void* other=Get<void*>(manager,F("AlignmentManager","alignment"));void* args[]{other};if(!other||!Value<bool>(Method(alignment,"IsFoe",1),alignment,args))continue;
+            void* health=Get<void*>(actor,F("Actor","health"));if(!health||Get<float>(health,F("BaseHealth","currentHealth"))<=0)continue;
+            auto p=Position(actor);enemies.push_back({(p.x-from.x)*(p.x-from.x)+(p.z-from.z)*(p.z-from.z),actor});
+        }
+        std::sort(enemies.begin(),enemies.end(),[](const auto& a,const auto& b){return a.first<b.first;});
+        int moved=0;
+        for(size_t i=0;i<enemies.size()&&moved<3;++i){
+            void* agent=Get<void*>(enemies[i].second,F("Actor","navMeshAgent"));if(!agent)continue;
+            Vec3 p=at;p.x+=3;p.z+=static_cast<float>(moved)-1;void* args[]{&p};
+            if(Value<bool>(Method(agent,"Warp",1),agent,args))++moved;
+        }
+        Vec3 me=at;me.x-=3;void* agent=Get<void*>(c.actor,F("Actor","navMeshAgent"));void* args[]{&me};const bool warped=Value<bool>(Method(agent,"Warp",1),agent,args);
+        return "{\"ok\":true,\"moved\":"+std::to_string(moved)+",\"warped\":"+Boolean(warped)+",\"ally\":["+std::to_string(at.x)+","+std::to_string(at.y)+","+std::to_string(at.z)+"]}";
+    }
+    if(action=="near-enemy-level"){
+        // Disposable test character only: next to the nearest enemy on the same floor (a warp a few
+        // units away can land on a wall or a lower level, where turrets have no line of sight).
+        void* alignment=Get<void*>(Get<void*>(c.actor,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
+        auto start=Position(c.actor);void* nearest=nullptr;double distance=1.e30;
+        for(void* actor:Find("LE.dll","","Actor")){
+            if(actor==c.actor||!game::IsAlive(actor))continue;void* manager=Get<void*>(actor,F("Actor","alignmentManager"));if(!manager)continue;
+            void* other=Get<void*>(manager,F("AlignmentManager","alignment"));void* args[]{other};if(!other||!Value<bool>(Method(alignment,"IsFoe",1),alignment,args))continue;
+            void* health=Get<void*>(actor,F("Actor","health"));if(!health||Get<float>(health,F("BaseHealth","currentHealth"))<=0)continue;
+            auto p=Position(actor);double x=p.x-start.x,z=p.z-start.z,d=x*x+z*z;if(d<distance){distance=d;nearest=actor;}
+        }
+        if(!nearest)throw std::runtime_error("No live enemy in this test scene.");
+        const auto target=Position(nearest);void* agent=Get<void*>(c.actor,F("Actor","navMeshAgent"));
+        const float offsets[][2]{{-3,0},{3,0},{0,-3},{0,3},{-2,-2},{2,2},{-2,2},{2,-2},{-4,0},{4,0},{0,-4},{0,4},{-1.5f,0},{1.5f,0}};
+        for(const auto& o:offsets){
+            Vec3 p=target;p.x+=o[0];p.z+=o[1];void* args[]{&p};
+            if(!Value<bool>(Method(agent,"Warp",1),agent,args))continue;
+            const auto now=Position(c.actor);const double dx=now.x-target.x,dz=now.z-target.z;
+            if(std::abs(now.y-target.y)<0.75&&dx*dx+dz*dz<36)return "{\"ok\":true,\"warped\":true,\"height\":"+std::to_string(now.y-target.y)+",\"distance\":"+std::to_string(std::sqrt(dx*dx+dz*dz))+"}";
+        }
+        throw std::runtime_error("No place on the enemy's floor near it.");
     }
     if(action=="enemies"||action=="near-enemy"){
         void* alignment=Get<void*>(Get<void*>(c.actor,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
@@ -2193,5 +2807,9 @@ std::string Test(const std::string& id,const std::string& action){
     throw std::runtime_error("Unknown convenience check.");
 });}
 #endif
-void ReleaseRoots(){rings.clear();ringMaterial.reset();monitorUntil=0;monitoredAllies.clear();damageOwner.Reset();disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();gridTransform.Reset();ClearInteractions();saved.clear();typeRoots.clear();owner.Reset();active=false;}
+void ReleaseRoots(){rings.clear();ringMaterial.reset();monitorUntil=0;monitoredAllies.clear();damageOwner.Reset();disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();gridTransform.Reset();ClearInteractions();saved.clear();typeRoots.clear();damageIconSkillKeys.clear();
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+    testDummy.reset();testDummyProtection=nullptr;testTargetRoots.clear();testTargets.clear();
+#endif
+    damageIconSkills.clear();damageIcons.clear();owner.Reset();active=false;}
 }

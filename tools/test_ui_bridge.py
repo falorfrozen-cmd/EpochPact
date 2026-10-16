@@ -243,7 +243,7 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','summonread','inventoryread','inventoryaction ','affixinfo ')):
+        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','damageicon ','summonread','inventoryread','inventoryaction ','affixinfo ')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})
@@ -348,6 +348,8 @@ class BridgeTests(unittest.TestCase):
                         args[name] = 'E0315A'
                     elif name == 'family':
                         args[name] = 'Segoe%20UI'
+                    elif cid == 'damage_icon':
+                        args[name] = 'a:sk1'
                     elif kind == 'optional_single_token':
                         args[name] = 'none'
                     elif kind == 'enum' and p.get('choices'):
@@ -456,6 +458,16 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(len(self.commands), sent)
         self.bridge.execute('weaver_affixes', {}, 'reset')
         self.assertEqual(self.commands[-1], 'weaveraffixes none')
+
+    def test_damage_window_icon_reads_only_skill_and_class_keys(self):
+        for key in ('a:sk1', 'a:Summon_Wolf_2', 'c:1:0', 'c:12:3'):
+            self.bridge.execute('damage_icon', {'key': key}, 'read')
+            self.assertEqual(self.commands[-1], f'damageicon {key}')
+        sent = len(self.commands)
+        for bad in ('', 'a:', 'a:x y', 'a:' + 'x' * 33, 'c:1', 'c:1:2:3', 'c:100:1', 'b:1', 'a:sk1;status', 'a:sk1\nstatus'):
+            with self.subTest(key=bad), self.assertRaises(ValueError):
+                self.bridge.execute('damage_icon', {'key': bad}, 'read')
+        self.assertEqual(len(self.commands), sent)
 
     def test_interaction_area_settings_stay_in_range_and_the_colour_is_six_hex_digits(self):
         for value in ('3FD0FF', 'ff3366'):

@@ -7,6 +7,9 @@ std::string Set(const std::string& key,double value);
 std::string Summons();
 // Damage session for summons analysis: damagesession [start|stop|reset].
 std::string DamageSession(const std::string& action);
+// The damage window's icon for a source: damageicon a:<skill ID>|c:<class>:<mastery>
+// (a PNG of at most 64x64, base64; png is null when the source has no icon).
+std::string DamageIcon(const std::string& key);
 // Interaction area: qolarea radius <1-30> | shape <0 circle|1 square> | show <0|1> | color <RRGGBB>.
 std::string SetArea(const std::string& key, const std::string& value);
 std::string InventoryRead();

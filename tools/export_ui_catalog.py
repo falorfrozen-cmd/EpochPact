@@ -144,6 +144,9 @@ def controls():
     add("damage_session","summons","Damage session control","selector","damagesession {action}","view",
         "Start, stop or reset the damage session. Damage is only recorded while it runs; stopped values stay until reset.",
         params=[parameter("action","enum",choices=["start","stop","reset"])],doc="docs/player-conveniences.md")
+    add("damage_icon","summons","Damage window icon","read","damageicon {key}","read_only",
+        "The game's own skill or class icon for one damage window source, as a small PNG. Reading it does not change the game.",
+        params=[{**parameter("key","single_token"),"maximumLength":40}],doc="docs/player-conveniences.md")
     add("summons_read","summons","Live summoned allies","read","summonread","read_only",
         "Read each active player-owned summon: health, armour, uncapped resistances and global damage increase. These are actual live values; damage increase is not skill DPS.",doc="docs/player-conveniences.md")
     add("inventory_read","inventory","Live inventory","read","inventoryread","read_only",

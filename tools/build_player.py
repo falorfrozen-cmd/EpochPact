@@ -62,10 +62,10 @@ def main():
     stage = args.stage.resolve()
     (stage / 'ui/assets').mkdir(parents=True, exist_ok=True)
     for name in ('index.html', 'app.js', 'style.css', 'stat-model.js', 'session.js',
-                 'collection-ui.js', 'collection.css', 'launcher.js', 'preferences.js', 'crafting-model.js', 'affix-picker.js', 'loot-log.js', 'feed.js', 'feed.html', 'damage-meter.js', 'release-notes.js', 'storage-sync.js', 'overlay.js', 'i18n.js', 'i18n-tr.json', 'i18n-ru.json', 'damage.js', 'damage.html', 'locale-en.json', 'supported-game-builds.json'):
+                 'collection-ui.js', 'collection.css', 'launcher.js', 'preferences.js', 'crafting-model.js', 'affix-picker.js', 'loot-log.js', 'feed.js', 'feed.html', 'damage-meter.js', 'damage-styles.js', 'release-notes.js', 'storage-sync.js', 'overlay.js', 'i18n.js', 'i18n-tr.json', 'i18n-ru.json', 'damage.js', 'damage.html', 'locale-en.json', 'supported-game-builds.json'):
         shutil.copy2(ROOT / 'ui' / name, stage / 'ui' / name)
     for name in ('chronoforge-art.png', 'chronoforge-reference.png', 'void-atlas-art.png',
-                 'void-atlas-reference.png', 'inter.ttf', 'inter-OFL.txt', 'monster-density.svg'):
+                 'void-atlas-reference.png', 'inter.ttf', 'inter-OFL.txt', 'monster-density.svg', 'damage-types.png'):
         shutil.copy2(ROOT / 'ui/assets' / name, stage / 'ui/assets' / name)
     catalog = json.loads((ROOT / 'ui/catalog.json').read_text(encoding='utf-8'))
     # Developer snapshots contain player identities, local paths and old live

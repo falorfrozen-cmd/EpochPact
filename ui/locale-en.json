@@ -693,6 +693,10 @@
       "Damage session control",
       "Start, stop or reset the damage session. Damage is only recorded while it runs; stopped values stay until reset."
     ],
+    "damage_icon": [
+      "Damage window icon",
+      "The game's own skill or class icon for one damage window source, as a small PNG. Reading it does not change the game."
+    ],
     "tier_rules": [
       "Loot filter rule in tooltips",
       "Show which loot filter rule matches an item in its tooltip: rule number, Show/Hide/Highlight and the rule name, in the colour the rule gives the item's label."

@@ -18,7 +18,9 @@ controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest changes: [0.1.2-dev.32 Weaver's Will](docs/patch-notes-0.1.2-dev.32.md),
+Latest changes: [0.1.2-dev.33 damage window styles, game icons and names](docs/patch-notes-0.1.2-dev.33.md),
+[dev.33 tests](docs/dps-meter-integration-2026-10-15.md),
+[0.1.2-dev.32 Weaver's Will](docs/patch-notes-0.1.2-dev.32.md),
 [dev.32 tests](docs/weavers-will-validation-2026-10-14.md),
 [0.1.2-dev.31 interaction areas, steadier auto pickup, hidden parts](docs/patch-notes-0.1.2-dev.31.md),
 [dev.31 tests](docs/conveniences-validation-2026-10-14.md),
