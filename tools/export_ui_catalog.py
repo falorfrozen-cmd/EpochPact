@@ -147,6 +147,32 @@ def controls():
     add("damage_icon","summons","Damage window icon","read","damageicon {key}","read_only",
         "The game's own skill or class icon for one damage window source, as a small PNG. Reading it does not change the game.",
         params=[{**parameter("key","single_token"),"maximumLength":40}],doc="docs/player-conveniences.md")
+    # Rage of Morditas (Season 5): the game's own encounter data, scaled in memory while offline play runs.
+    add("rage_read","world","Rage of Morditas settings","read","rageread","read_only",
+        "Read the Rage of Morditas values the game uses now and its own ones: encounter chance, hunt time, kills for Bloodrage charges and hunt buffs, Blood forging potential share.",doc="docs/player-conveniences.md")
+    add("rage_spawn","world","Rage of Morditas chance","number","rageset spawn {value}","session",
+        "Multiplies the chance of a Rage of Morditas Blood Crystal in a zone. In each zone that can have one (many campaign zones and normal Monolith echoes) the game rolls 30 % times the zone's own factor, about 0.9 to 3.3; from 4 every such zone gets one.",
+        params=[parameter("value","number",1,5)],default=1,reset="rageset spawn 1",current="liveState.rageread.settings.spawn.value",doc="docs/player-conveniences.md")
+    add("rage_hunttime","world","Rage of Morditas hunt time","number","rageset hunttime {value}","session",
+        "Multiplies the hunt's starting time (the game's 20–25 s) and the time each kill adds (0.5 / 2 / 3 s for normal, magic and rare monsters, 10 s for a champion). The game itself gives a kill less time the longer the hunt already is.",
+        params=[parameter("value","number",1,5)],default=1,reset="rageset hunttime 1",current="liveState.rageread.settings.hunttime.value",doc="docs/player-conveniences.md")
+    add("rage_charges","world","Kills for Bloodrage charges","number","rageset charges {value}","session",
+        "The share of hunt kills needed for each Bloodrage charge: the game's 20, 50, 90, 140 and 200 kills at 1; 0.5 halves them, 0.2 needs a fifth. There are still five charges.",
+        params=[parameter("value","number",0.2,1)],default=1,reset="rageset charges 1",current="liveState.rageread.settings.charges.value",doc="docs/player-conveniences.md")
+    add("rage_buffs","world","Kills for hunt buffs","number","rageset buffs {value}","session",
+        "The share of hunt kills needed for each random hunt buff: the game's 20, 50, 90 and 140 kills at 1.",
+        params=[parameter("value","number",0.2,1)],default=1,reset="rageset buffs 1",current="liveState.rageread.settings.buffs.value",doc="docs/player-conveniences.md")
+    add("rage_blood","world","Blood forging potential share","number","rageset blood {value}","session",
+        "Every Rage of Morditas reward item gets Ice or Blood forging potential; this is how many get Blood. The game's own share is 50 %. The Rituals of Ice and Blood still give their own type.",
+        params=[parameter("value","integer",-1,100,choices=[-1,0,25,50,75,100])],default=-1,reset="rageset blood -1",current="liveState.rageread.settings.blood.value",doc="docs/player-conveniences.md")
+    items[-1]["parameters"][0]["choiceLabels"]=["The game's own (50 %)","0 % (all Ice)","25 % Blood","50 % Blood","75 % Blood","100 % (all Blood)"]
+    add("death_recap_read","summons","Death recap","read","deathrecap","read_only",
+        "The last deaths since the game started: the hits of the 10 seconds before each (attacker, skill or ailment, damage by type, health and ward after) and the buffs and debuffs shown at the death. Reading it does not change the game.",doc="docs/player-conveniences.md")
+    add("death_recap","summons","Record deaths","toggle","deathrecap {value}","session",
+        "Keep the hits your character takes so the death recap can show the 10 seconds before each death. On by default; the hits are only kept in memory until the game closes.",
+        params=[parameter("value","integer",0,1)],default=1,reset="deathrecap 1",current="liveState.deathrecap.enabled",doc="docs/player-conveniences.md")
+    add("death_recap_clear","summons","Clear the death recap","button","deathrecap clear","view",
+        "Forget the recorded deaths. The game is unchanged.",doc="docs/player-conveniences.md")
     add("summons_read","summons","Live summoned allies","read","summonread","read_only",
         "Read each active player-owned summon: health, armour, uncapped resistances and global damage increase. These are actual live values; damage increase is not skill DPS.",doc="docs/player-conveniences.md")
     add("inventory_read","inventory","Live inventory","read","inventoryread","read_only",
@@ -155,6 +181,24 @@ def controls():
         add("inventory_"+action,"inventory",label,"button","inventoryaction {save_id} "+action,lifetime,
             "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.",
             params=[save_id],doc="docs/player-conveniences.md")
+    add("inventory_sellall","inventory","Sell all inventory items","button","inventoryaction {save_id} sellall","game_save",
+        "Sell every inventory item the vendor buys, with the game's own sale (as Ctrl+click on an item). The vendor opens first when it is not open. What Sell all keeps is chosen below; equipped items are never sold. Sold items are in the vendor's buyback list. Creates a recovery backup.",
+        params=[save_id],doc="docs/player-conveniences.md")
+    add("inventory_tools_read","inventory","Sorting and selling settings","read","invread","read_only",
+        "Read the automatic sorting choices and what Sell all keeps.",doc="docs/player-conveniences.md")
+    add("inventory_autosort","inventory","Sort the inventory automatically","toggle","invset autosort {value}","session",
+        "Each time your inventory opens, the game's own Sort runs on it. Remembered by EpochPact.",
+        params=[parameter("value","integer",0,1)],default=0,reset="invset autosort 0",doc="docs/player-conveniences.md")
+    add("inventory_autosortall","inventory","Sort every stash tab automatically","toggle","invset autosortall {value}","session",
+        "Each time a stash tab is shown, the game's own Sort runs on it. To sort only some tabs, leave this off and tick them in the list. Remembered by EpochPact.",
+        params=[parameter("value","integer",0,1)],default=0,reset="invset autosortall 0",doc="docs/player-conveniences.md")
+    add("inventory_sellkeep","inventory","Sell all keeps","number","invset sellkeep {value}","session",
+        "Which items Sell all leaves in your inventory. Remembered by EpochPact.",
+        params=[parameter("value","integer",0,2,choices=[0,1,2])],default=1,reset="invset sellkeep 1",doc="docs/player-conveniences.md")
+    items[-1]["parameters"][0]["choiceLabels"]=['Sell everything', 'Keep Unique, Set and Legendary', 'Keep Unique, Set, Legendary and Exalted']
+    add("inventory_sorttab","inventory","Sort a stash tab automatically","selector","invsorttab {tab} {value}","session",
+        "Sort this stash tab each time it is shown, with the game's own Sort. Remembered by EpochPact.",
+        params=[parameter("tab","integer",0,999999),parameter("value","integer",0,1)],doc="docs/player-conveniences.md")
     add("stash_rules_read","inventory","Stash tabs from loot filter","read","stashrules {save_id}","read_only",
         "Read the active loot filter's rules, your stash folders and tabs, and which tab belongs to which rule.",
         params=[save_id],doc="docs/player-conveniences.md")
@@ -323,9 +367,19 @@ def controls():
         "Where the loot filter rule line appears in item tooltips: under the item type, before the affixes, or at the end of the tooltip.",
         params=[parameter("value","integer",0,2,choices=[0,1,2])],default=0,reset='tierset rulepos 0',doc="docs/player-conveniences.md")
     items[-1]["parameters"][0]["choiceLabels"]=["Top: under the item type","Middle: before the affixes","Bottom: end of the tooltip"]
-    add('tier_rule_plain',"display",'Rule name only',"toggle",'tierset ruleplain {value}',"session",
-        'Show only the rule name in the rule line, without "Loot filter:", the rule number and Show/Hide/Highlight.',
-        params=[parameter("value","integer",0,1)],default=0,reset='tierset ruleplain 0',doc="docs/player-conveniences.md")
+    add('tier_rule_parts',"display",'Rule line shows',"number",'tierset ruleparts {value}',"session",
+        "What the loot filter rule line in item tooltips shows: the \"Loot filter:\" label, the rule number, Show, Hide or Highlight, and the rule name. For a rule without a name the game's own description is used, without its \"Show All\" or \"Hide All\" words.",
+        params=[parameter("value","integer",2,15,choices=[15, 14, 10, 12, 8, 6, 2])],default=15,reset='tierset ruleparts 15',doc="docs/player-conveniences.md")
+    items[-1]["parameters"][0]["choiceLabels"]=['Everything', 'Number, Show/Hide and name', 'Number and name', 'Show/Hide and name', 'Name only', 'Number and Show/Hide', 'Number only']
+    add('tier_filter_colors',"loot",'More loot filter colours',"toggle",'tierset filtercolors {value}',"session",
+        "26 more colours in the game's loot filter window for label and beam colours (pinks, violets, blues, teals, greens, golds, oranges, reds, browns and greys), after the game's own. A filter saved with one of them shows the game's last colour where EpochPact does not run. Off: the game's own colours.",
+        params=[parameter("value","integer",0,1)],default=0,reset='tierset filtercolors 0',doc="docs/player-conveniences.md")
+    add('tier_name_colors',"loot",'Colours in loot filter rule names',"toggle",'tierset namecolors {value}',"session",
+        "Colour words in your loot filter rule names: put a colour tag before a word and a closing colour tag after it, or bold, italic, underline and strikethrough tags (examples below). Colours: red, blue, green, yellow, orange, purple, white, black or a #RRGGBB code. The game's filter window and the rule line in item tooltips show them; other tags stay plain text. Off: the game's own display.",
+        params=[parameter("value","integer",0,1)],default=1,reset='tierset namecolors 1',doc="docs/player-conveniences.md")
+    add('tier_special',"display",'Mark Personal, Champion and Experimental affixes',"toggle",'tierset special {value}',"session",
+        "Put a small coloured square before Personal (sky blue), Champion (amber) and Experimental (orchid) affix lines in item tooltips, so they stand apart from regular affixes. Shown with the tier tags or tier colours.",
+        params=[parameter("value","integer",0,1)],default=1,reset='tierset special 1',doc="docs/player-conveniences.md")
     add("tier_color","display","Tier colour","selector","tiercolor {tier} {color}","session",
         "Choose the colour for one affix tier (six hexadecimal digits, for example E0315A).",
         params=[parameter("tier","integer",1,8),parameter("color","single_token")],reset="tiercolor reset",doc="docs/player-conveniences.md")
@@ -346,6 +400,9 @@ def controls():
     add("font_scale","display","Interface text size","number","fontset scale {value}","session",
         "Multiply the size of the game's interface text. 1 is the game's size.",
         params=[parameter("value","number",0.7,1.5)],default=1,reset="fontset scale 1",doc="docs/player-conveniences.md")
+    add("font_case","display","Letter case as written","toggle","fontset case {value}","session",
+        "Show names and texts in the letter case they were written in: the game draws many texts in capitals, lower case or small capitals. With the game font lower-case letters still look like small capitals; choose a Windows font above for real lower-case letters. Undone when you switch it off or close EpochPact.",
+        params=[parameter("value","integer",0,1)],default=0,reset="fontset case 0",doc="docs/player-conveniences.md")
     add("font_read","display","Font status","read","fontread","read_only","Read the font choice, Windows font families and counters.",doc="docs/player-conveniences.md")
     for key,label,low,high,default,description in (
         ("enabled","In-game effect HUD",0,1,0,"Show live effect names, game icons, stack counts and available timers while playing. Click-through, offline and session only."),

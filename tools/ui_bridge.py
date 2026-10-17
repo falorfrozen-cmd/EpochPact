@@ -425,7 +425,7 @@ class UiBridge:
                 return progression.undo(Path(args["backup"]))
             save_id = None
             identity = None
-            if (control["group"] == "general" or (control["commandTemplate"] or "").startswith(("buildset ","qolset ","pickupradius ","pickupinterval ","mapset ","tierset ","fontset ","effectsset "))) and control["widget"] in ("number", "toggle") and "expected_id" in supplied:
+            if (control["group"] == "general" or (control["commandTemplate"] or "").startswith(("buildset ","qolset ","pickupradius ","pickupinterval ","mapset ","tierset ","fontset ","effectsset ","deathrecap ","rageset ","invset "))) and control["widget"] in ("number", "toggle") and "expected_id" in supplied:
                 # Delayed auto-applies belong to the actor present at the edit,
                 # never to a character loaded while the request was queued.
                 expected_id = supplied["expected_id"]
@@ -601,7 +601,7 @@ class UiBridge:
 
     def _demo_execute(self, cid, a, supplied, operation):
         control = self.controls[cid]
-        if cid.startswith(("qol_","inventory_")) or cid in ("summons_read","pickup_radius","pickup_radius_read","pickup_interval","pickup_now","loot_log","loot_log_clear","affix_info") or cid.startswith(("map_minimap","map_overlay","map_settings","tier_","font_","stash_rule","report_","damage_")):
+        if cid.startswith(("qol_","inventory_")) or cid in ("summons_read","pickup_radius","pickup_radius_read","pickup_interval","pickup_now","loot_log","loot_log_clear","affix_info") or cid.startswith(("map_minimap","map_overlay","map_settings","tier_","font_","stash_rule","report_","damage_","death_","rage_")):
             raise RuntimeError("Load an offline character to use live convenience controls. Preview does not invent game data.")
         if cid == "build_read" or (control["commandTemplate"] or "").startswith("buildset "):
             state = self.demo.setdefault("buildread", {"ok": True, "settings": {}})

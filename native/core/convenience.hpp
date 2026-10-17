@@ -10,6 +10,8 @@ std::string DamageSession(const std::string& action);
 // The damage window's icon for a source: damageicon a:<skill ID>|c:<class>:<mastery>
 // (a PNG of at most 64x64, base64; png is null when the source has no icon).
 std::string DamageIcon(const std::string& key);
+// The death recap: the last deaths with the hits before each; deathrecap 0|1 turns recording off/on, clear empties it.
+std::string DeathRecap(const std::string& action);
 // Interaction area: qolarea radius <1-30> | shape <0 circle|1 square> | show <0|1> | color <RRGGBB>.
 std::string SetArea(const std::string& key, const std::string& value);
 std::string InventoryRead();

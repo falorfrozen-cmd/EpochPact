@@ -1419,6 +1419,244 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "rage_read",
+      "group": "world",
+      "label": "Rage of Morditas settings",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "rageread",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read the Rage of Morditas values the game uses now and its own ones: encounter chance, hunt time, kills for Bloodrage charges and hunt buffs, Blood forging potential share.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "rage_spawn",
+      "group": "world",
+      "label": "Rage of Morditas chance",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "rageset spawn {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5
+        }
+      ],
+      "default": 1,
+      "resetCommand": "rageset spawn 1",
+      "lifetime": "session",
+      "description": "Multiplies the chance of a Rage of Morditas Blood Crystal in a zone. In each zone that can have one (many campaign zones and normal Monolith echoes) the game rolls 30 % times the zone's own factor, about 0.9 to 3.3; from 4 every such zone gets one.",
+      "currentSource": "liveState.rageread.settings.spawn.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "rage_hunttime",
+      "group": "world",
+      "label": "Rage of Morditas hunt time",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "rageset hunttime {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5
+        }
+      ],
+      "default": 1,
+      "resetCommand": "rageset hunttime 1",
+      "lifetime": "session",
+      "description": "Multiplies the hunt's starting time (the game's 20–25 s) and the time each kill adds (0.5 / 2 / 3 s for normal, magic and rare monsters, 10 s for a champion). The game itself gives a kill less time the longer the hunt already is.",
+      "currentSource": "liveState.rageread.settings.hunttime.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "rage_charges",
+      "group": "world",
+      "label": "Kills for Bloodrage charges",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "rageset charges {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0.2,
+          "maximum": 1
+        }
+      ],
+      "default": 1,
+      "resetCommand": "rageset charges 1",
+      "lifetime": "session",
+      "description": "The share of hunt kills needed for each Bloodrage charge: the game's 20, 50, 90, 140 and 200 kills at 1; 0.5 halves them, 0.2 needs a fifth. There are still five charges.",
+      "currentSource": "liveState.rageread.settings.charges.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "rage_buffs",
+      "group": "world",
+      "label": "Kills for hunt buffs",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "rageset buffs {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0.2,
+          "maximum": 1
+        }
+      ],
+      "default": 1,
+      "resetCommand": "rageset buffs 1",
+      "lifetime": "session",
+      "description": "The share of hunt kills needed for each random hunt buff: the game's 20, 50, 90 and 140 kills at 1.",
+      "currentSource": "liveState.rageread.settings.buffs.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "rage_blood",
+      "group": "world",
+      "label": "Blood forging potential share",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "rageset blood {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": -1,
+          "maximum": 100,
+          "choices": [
+            -1,
+            0,
+            25,
+            50,
+            75,
+            100
+          ],
+          "choiceLabels": [
+            "The game's own (50 %)",
+            "0 % (all Ice)",
+            "25 % Blood",
+            "50 % Blood",
+            "75 % Blood",
+            "100 % (all Blood)"
+          ]
+        }
+      ],
+      "default": -1,
+      "resetCommand": "rageset blood -1",
+      "lifetime": "session",
+      "description": "Every Rage of Morditas reward item gets Ice or Blood forging potential; this is how many get Blood. The game's own share is 50 %. The Rituals of Ice and Blood still give their own type.",
+      "currentSource": "liveState.rageread.settings.blood.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "death_recap_read",
+      "group": "summons",
+      "label": "Death recap",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "deathrecap",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "The last deaths since the game started: the hits of the 10 seconds before each (attacker, skill or ailment, damage by type, health and ward after) and the buffs and debuffs shown at the death. Reading it does not change the game.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "death_recap",
+      "group": "summons",
+      "label": "Record deaths",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "deathrecap {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 1,
+      "resetCommand": "deathrecap 1",
+      "lifetime": "session",
+      "description": "Keep the hits your character takes so the death recap can show the 10 seconds before each death. On by default; the hits are only kept in memory until the game closes.",
+      "currentSource": "liveState.deathrecap.enabled",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "death_recap_clear",
+      "group": "summons",
+      "label": "Clear the death recap",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "deathrecap clear",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "view",
+      "description": "Forget the recorded deaths. The game is unchanged.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "summons_read",
       "group": "summons",
       "label": "Live summoned allies",
@@ -1530,6 +1768,176 @@
       "resetCommand": null,
       "lifetime": "game_save",
       "description": "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "inventory_sellall",
+      "group": "inventory",
+      "label": "Sell all inventory items",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "inventoryaction {save_id} sellall",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "game_save",
+      "description": "Sell every inventory item the vendor buys, with the game's own sale (as Ctrl+click on an item). The vendor opens first when it is not open. What Sell all keeps is chosen below; equipped items are never sold. Sold items are in the vendor's buyback list. Creates a recovery backup.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "inventory_tools_read",
+      "group": "inventory",
+      "label": "Sorting and selling settings",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "invread",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read the automatic sorting choices and what Sell all keeps.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "inventory_autosort",
+      "group": "inventory",
+      "label": "Sort the inventory automatically",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "invset autosort {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "invset autosort 0",
+      "lifetime": "session",
+      "description": "Each time your inventory opens, the game's own Sort runs on it. Remembered by EpochPact.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "inventory_autosortall",
+      "group": "inventory",
+      "label": "Sort every stash tab automatically",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "invset autosortall {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "invset autosortall 0",
+      "lifetime": "session",
+      "description": "Each time a stash tab is shown, the game's own Sort runs on it. To sort only some tabs, leave this off and tick them in the list. Remembered by EpochPact.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "inventory_sellkeep",
+      "group": "inventory",
+      "label": "Sell all keeps",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "invset sellkeep {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2,
+          "choices": [
+            0,
+            1,
+            2
+          ],
+          "choiceLabels": [
+            "Sell everything",
+            "Keep Unique, Set and Legendary",
+            "Keep Unique, Set, Legendary and Exalted"
+          ]
+        }
+      ],
+      "default": 1,
+      "resetCommand": "invset sellkeep 1",
+      "lifetime": "session",
+      "description": "Which items Sell all leaves in your inventory. Remembered by EpochPact.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "inventory_sorttab",
+      "group": "inventory",
+      "label": "Sort a stash tab automatically",
+      "widget": "selector",
+      "availability": "implemented",
+      "commandTemplate": "invsorttab {tab} {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "tab",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999999
+        },
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "session",
+      "description": "Sort this stash tab each time it is shown, with the game's own Sort. Remembered by EpochPact.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -3126,12 +3534,57 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
-      "id": "tier_rule_plain",
+      "id": "tier_rule_parts",
       "group": "display",
-      "label": "Rule name only",
+      "label": "Rule line shows",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "tierset ruleparts {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 15,
+          "choices": [
+            15,
+            14,
+            10,
+            12,
+            8,
+            6,
+            2
+          ],
+          "choiceLabels": [
+            "Everything",
+            "Number, Show/Hide and name",
+            "Number and name",
+            "Show/Hide and name",
+            "Name only",
+            "Number and Show/Hide",
+            "Number only"
+          ]
+        }
+      ],
+      "default": 15,
+      "resetCommand": "tierset ruleparts 15",
+      "lifetime": "session",
+      "description": "What the loot filter rule line in item tooltips shows: the \"Loot filter:\" label, the rule number, Show, Hide or Highlight, and the rule name. For a rule without a name the game's own description is used, without its \"Show All\" or \"Hide All\" words.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "tier_filter_colors",
+      "group": "loot",
+      "label": "More loot filter colours",
       "widget": "toggle",
       "availability": "implemented",
-      "commandTemplate": "tierset ruleplain {value}",
+      "commandTemplate": "tierset filtercolors {value}",
       "pythonApi": null,
       "responseFormat": "json",
       "parameters": [
@@ -3143,9 +3596,63 @@
         }
       ],
       "default": 0,
-      "resetCommand": "tierset ruleplain 0",
+      "resetCommand": "tierset filtercolors 0",
       "lifetime": "session",
-      "description": "Show only the rule name in the rule line, without \"Loot filter:\", the rule number and Show/Hide/Highlight.",
+      "description": "26 more colours in the game's loot filter window for label and beam colours (pinks, violets, blues, teals, greens, golds, oranges, reds, browns and greys), after the game's own. A filter saved with one of them shows the game's last colour where EpochPact does not run. Off: the game's own colours.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "tier_name_colors",
+      "group": "loot",
+      "label": "Colours in loot filter rule names",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "tierset namecolors {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 1,
+      "resetCommand": "tierset namecolors 1",
+      "lifetime": "session",
+      "description": "Colour words in your loot filter rule names: put a colour tag before a word and a closing colour tag after it, or bold, italic, underline and strikethrough tags (examples below). Colours: red, blue, green, yellow, orange, purple, white, black or a #RRGGBB code. The game's filter window and the rule line in item tooltips show them; other tags stay plain text. Off: the game's own display.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "tier_special",
+      "group": "display",
+      "label": "Mark Personal, Champion and Experimental affixes",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "tierset special {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 1,
+      "resetCommand": "tierset special 1",
+      "lifetime": "session",
+      "description": "Put a small coloured square before Personal (sky blue), Champion (amber) and Experimental (orchid) affix lines in item tooltips, so they stand apart from regular affixes. Shown with the tier tags or tier colours.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -3364,6 +3871,33 @@
       "resetCommand": "fontset scale 1",
       "lifetime": "session",
       "description": "Multiply the size of the game's interface text. 1 is the game's size.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "font_case",
+      "group": "display",
+      "label": "Letter case as written",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "fontset case {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "fontset case 0",
+      "lifetime": "session",
+      "description": "Show names and texts in the letter case they were written in: the game draws many texts in capitals, lower case or small capitals. With the game font lower-case letters still look like small capitals; choose a Windows font above for real lower-case letters. Undone when you switch it off or close EpochPact.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -33765,7 +34299,7 @@
     ]
   },
   "counts": {
-    "controls": 179,
+    "controls": 198,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

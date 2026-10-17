@@ -29,6 +29,8 @@
 #include "fonts.hpp"
 #include "report.hpp"
 #include "convenience.hpp"
+#include "inventory_tools.hpp"
+#include "rage.hpp"
 #include "weaver.hpp"
 #include "effects.hpp"
 #include "ipc_protocol.hpp"
@@ -98,12 +100,14 @@ std::string Execute(const std::string& line) {
     if(cmd=="effectsread")return args.empty()?effects::Read():"{\"ok\":false,\"error\":\"effectsread expects no arguments\"}";
     if(cmd=="effectsset"){double value=0;return args.size()==2&&statedit::Number(args[1],&value)?effects::Set(args[0],value):"{\"ok\":false,\"error\":\"use effectsset setting value\"}";}
     if(cmd=="damagesession")return args.size()<=1?convenience::DamageSession(args.empty()?"":args[0]):"{\"ok\":false,\"error\":\"use damagesession [start|stop|reset]\"}";
+    if(cmd=="deathrecap")return args.size()<=1?convenience::DeathRecap(args.empty()?"":args[0]):"{\"ok\":false,\"error\":\"use deathrecap [0|1|clear]\"}";
     if(cmd=="damageicon")return args.size()==1?convenience::DamageIcon(args[0]):"{\"ok\":false,\"error\":\"use damageicon a:<skill ID>|c:<class>:<mastery>\"}";
     if(cmd=="summonread")return args.empty()?convenience::Summons():"{\"ok\":false,\"error\":\"summonread expects no arguments\"}";
     if(cmd=="qolarea")return args.size()==2?convenience::SetArea(args[0],args[1]):"{\"ok\":false,\"error\":\"use qolarea radius|shape|show|color value\"}";
     if(cmd=="qolset"){double value=0;return args.size()==2&&statedit::Number(args[1],&value)?convenience::Set(args[0],value):"{\"ok\":false,\"error\":\"use qolset setting value\"}";}
     if(cmd=="tierread")return args.empty()?tiers::Read():"{\"ok\":false,\"error\":\"tierread expects no arguments\"}";
-    if(cmd=="tierset")return args.size()==2&&args[1].size()==1&&args[1][0]>='0'&&args[1][0]<='2'?tiers::Set(args[0],args[1][0]-'0'):"{\"ok\":false,\"error\":\"use tierset icons|tooltips|lines|rules|ruleplain 0|1 or tierset rulepos 0|1|2\"}";
+    if(cmd=="tierset"){int value=-1;if(args.size()==2){const auto r=std::from_chars(args[1].data(),args[1].data()+args[1].size(),value);if(r.ec!=std::errc{}||r.ptr!=args[1].data()+args[1].size()||value<0||value>15)value=-1;}
+        return value>=0?tiers::Set(args[0],value):"{\"ok\":false,\"error\":\"use tierset icons|tooltips|lines|rules|ruleplain|special|namecolors|filtercolors 0|1, tierset rulepos 0|1|2 or tierset ruleparts 2..15\"}";}
     if(cmd=="tiercolor")return args.size()==1&&args[0]=="reset"?tiers::SetColor("reset",""):args.size()==2?tiers::SetColor(args[0],args[1]):"{\"ok\":false,\"error\":\"use tiercolor <1-8> <RRGGBB> or tiercolor reset\"}";
     if(cmd=="pickupinterval"){double value=0;return args.size()==1&&statedit::Number(args[0],&value)?items::SetInterval(value):"{\"ok\":false,\"error\":\"use pickupinterval 0.25..10\"}";}
     if(cmd=="lootlog"){unsigned long long since=0;if(args.size()>1||(args.size()==1&&std::from_chars(args[0].data(),args[0].data()+args[0].size(),since).ec!=std::errc{}))return "{\"ok\":false,\"error\":\"use lootlog [since]\"}";return items::LootLog(since);}
@@ -114,7 +118,7 @@ std::string Execute(const std::string& line) {
     if(cmd=="reportkey")return args.size()==1?report::SetKey(args[0]):"{\"ok\":false,\"error\":\"use reportkey F5-F12|off\"}";
     if(cmd=="reportnow")return args.empty()?report::Create("app"):"{\"ok\":false,\"error\":\"reportnow expects no arguments\"}";
     if(cmd=="fontread")return args.empty()?fonts::Read():"{\"ok\":false,\"error\":\"fontread expects no arguments\"}";
-    if(cmd=="fontset")return args.size()==2?fonts::Set(args[0],args[1]):"{\"ok\":false,\"error\":\"use fontset family <name|game> | fontset scale 0.7-1.5\"}";
+    if(cmd=="fontset")return args.size()==2?fonts::Set(args[0],args[1]):"{\"ok\":false,\"error\":\"use fontset family <name|game> | fontset scale 0.7-1.5 | fontset case 0|1\"}";
     if(cmd=="stashrules")return args.size()==1?stashrules::Read(args[0]):"{\"ok\":false,\"error\":\"use stashrules save-id\"}";
     if(cmd=="stashrulescreate")return args.size()==3&&(args[1]=="0"||args[1]=="1")&&(args[2]=="0"||args[2]=="1")?stashrules::Create(args[0],args[1]=="1",args[2]=="1"):"{\"ok\":false,\"error\":\"use stashrulescreate save-id hidden(0|1) disabled(0|1)\"}";
     if(cmd=="stashruleassign"){
@@ -122,10 +126,14 @@ std::string Execute(const std::string& line) {
         return args.size()==3&&statedit::Integer(args[1],0,1000000,&tab)&&statedit::Integer(args[2],0,10000,&rule)?stashrules::Assign(args[0],static_cast<int>(tab),static_cast<int>(rule)):"{\"ok\":false,\"error\":\"use stashruleassign save-id tab-id rule-number(0 clears)\"}";
     }
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+    if(cmd=="pickupdiag")return items::PickupDiagnostics();
     if(cmd=="stashrulestest")return args.size()==2?stashrules::Test(args[0],args[1]):"{\"ok\":false,\"error\":\"use stashrulestest save-id action\"}";
 #endif
     if(cmd=="stashrulesort")return args.size()==1?stashrules::Sort(args[0]):"{\"ok\":false,\"error\":\"use stashrulesort save-id\"}";
-    if(cmd=="inventoryaction")return args.size()==2?convenience::Inventory(args[0],args[1]):"{\"ok\":false,\"error\":\"use inventoryaction save-id stash|vendor|stashall\"}";
+    if(cmd=="inventoryaction")return args.size()==2?convenience::Inventory(args[0],args[1]):"{\"ok\":false,\"error\":\"use inventoryaction save-id stash|vendor|stashall|sellall\"}";
+    if(cmd=="invread")return args.empty()?invtools::Read():"{\"ok\":false,\"error\":\"invread expects no arguments\"}";
+    if(cmd=="invset"){long long value=-1;return args.size()==2&&statedit::Integer(args[1],0,2,&value)?invtools::Set(args[0],static_cast<int>(value)):"{\"ok\":false,\"error\":\"use invset autosort|autosortall 0|1 or invset sellkeep 0|1|2\"}";}
+    if(cmd=="invsorttab"){long long tab=-1,on=-1;return args.size()==2&&statedit::Integer(args[0],0,999999,&tab)&&statedit::Integer(args[1],0,1,&on)?invtools::SetTab(static_cast<int>(tab),on==1):"{\"ok\":false,\"error\":\"use invsorttab <tab ID> 0|1\"}";}
     if(cmd=="craftmaterialsread")return args.empty()?crafting::MaterialsRead():"{\"ok\":false,\"error\":\"craftmaterialsread expects no arguments\"}";
     if(cmd=="craftmaterials") {
         int target=0;
@@ -150,6 +158,7 @@ std::string Execute(const std::string& line) {
     }
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
     if(cmd=="effectstest")return args.size()==2?effects::Test(args[0],args[1]):"{\"ok\":false,\"error\":\"use effectstest isolated-id action\"}";
+    if(cmd=="ragetest")return args.size()==2?rage::Test(args[0],args[1]):"{\"ok\":false,\"error\":\"use ragetest isolated-id action\"}";
     if(cmd=="qoltest")return args.size()==2?convenience::Test(args[0],args[1]):"{\"ok\":false,\"error\":\"use qoltest isolated-id action\"}";
     if(cmd=="masterytest")return args.size()==2?progression::TestMastery(args[0],args[1]):"{\"ok\":false,\"error\":\"use masterytest isolated-id read|close|select|confirm|cancel\"}";
     if(cmd=="buildtest")return args.size()==2?builds::Test(args[0],args[1]):"{\"ok\":false,\"error\":\"use buildtest isolated-id action\"}";
@@ -208,6 +217,14 @@ std::string Execute(const std::string& line) {
     });
     if (cmd == "frameread" || cmd == "framereset") return args.empty() ? mainthread::Telemetry(cmd == "framereset") : "frame: refused: no arguments expected";
 
+    // Rage of Morditas (Season 5): rageread; rageset spawn|hunttime|charges|buffs|forging <value>.
+    if (cmd == "rageread") return args.empty() ? rage::Read() : "{\"ok\":false,\"error\":\"rageread expects no arguments\"}";
+    if (cmd == "rageset") {
+        char* end = nullptr;
+        const double v = args.size() == 2 ? std::strtod(args[1].c_str(), &end) : 0;
+        if (args.size() != 2 || end == args[1].c_str() || *end) return "{\"ok\":false,\"error\":\"use rageset spawn|hunttime|charges|buffs|forging <value>\"}";
+        return rage::Set(args[0], v);
+    }
     if (cmd == "weaverread") return args.empty() ? weaver::Read() : "{\"ok\":false,\"error\":\"weaverread expects no arguments\"}";
     if (cmd == "weaveraffixes") return args.size() == 1 ? weaver::SetAffixes(args[0]) : "{\"ok\":false,\"error\":\"use weaveraffixes <id,id,...|none>\"}";
     if (cmd == "weaversdrop" || cmd == "weaversupgrades") {

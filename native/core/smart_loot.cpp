@@ -160,7 +160,7 @@ bool RuleFor(void* unpackedItem, RuleMatch* result) {
             // game's own per-rule results); 0 means no enabled rule matched.
             if (rule <= 0 || order + 1 != rule) continue;
             result->name = Text(Get<void*>(r, Offset("Rule", "nameOverride", "ItemFiltering")));
-            if (result->name.empty()) result->name = Text(Invoke(Method(r, "GetRuleDescription", 0), r));
+            if (result->name.empty()) { result->name = Text(Invoke(Method(r, "GetRuleDescription", 0), r)); result->generated = true; }
         }
     }, nullptr);
 }

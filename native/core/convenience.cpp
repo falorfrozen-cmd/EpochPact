@@ -1,4 +1,5 @@
 #include "convenience.hpp"
+#include "inventory_tools.hpp"
 #include "stat_editor.hpp"
 #include "managed.hpp"
 #include "hook.hpp"
@@ -9,7 +10,10 @@
 #include "convenience_rules.hpp"
 #include "common.hpp"
 #include "effects.hpp"
+#include "rage.hpp"
 #include <array>
+#include <deque>
+#include <cstring>
 #include <fstream>
 #include <atomic>
 #include <cmath>
@@ -137,6 +141,28 @@ size_t damageSummonedField=0,damageReferencesField=0,damageCreatorField=0;  // r
 std::atomic<bool> damageSession{false};
 uint64_t damageSessionStart=0,damageSessionEnd=0,damageCombatSeconds=0,damageLastCombatSecond=0,damageAllyRefresh=0,damageHits=0,damageUnsplit=0;
 size_t damageArrayOffset=0;  // DamageStats.damage, resolved when the session starts
+// ---- Damage the character takes (same hook; the result is unchanged): the last 20 s of hits for the
+// death recap, the last 10 deaths with the 10 s before each, and during a damage session the damage
+// taken per attacker type (the damage window's Taken view).
+using TakenHit=rules::RecapHit;
+struct DeathEffect{std::string name;int stacks=0;bool buff=false;};
+struct DeathRecord{uint64_t tick=0,number=0;float maxHealth=0;std::vector<TakenHit> hits;std::vector<DeathEffect> effects;};
+constexpr uint64_t kTakenKeepMs=20000,kDeathWindowMs=10000;constexpr size_t kTakenMost=600,kDeathsKept=10;
+std::deque<TakenHit> takenRecent;
+std::deque<DeathRecord> deathRecords;
+uint64_t deathCount=0;
+std::atomic<bool> deathRecap{true};          // on by default: the hook stays in while a character is loaded
+void* takenActor=nullptr;void* takenProtection=nullptr;void* takenHealth=nullptr;std::unique_ptr<Root> takenRoot;  // main thread
+struct TakenFields{size_t ward=0,current=0,maximum=0,isHit=0,ailment=0,ailmentName=0,refs=0,thisAbility=0,abilityName=0;bool ready=false;} takenFields;
+std::vector<DamageType> takenTypes;std::vector<double> takenDot;std::unordered_map<std::string,size_t> takenIndex;
+uint64_t takenCombatSeconds=0,takenLastSecond=0,takenTargetCheck=0;
+std::map<void*,std::pair<std::string,std::unique_ptr<Root>>> attackerNames;  // bounded: cleared at 256
+unsigned long mainThreadId=0;  // set by Frame (main thread): names are read only there
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+// Each hit on the character: the damage recorded against the health and ward it removed, per attacker.
+std::map<std::string,std::array<double,4>> testTakenBy;  // recorded, lost, hits, damage over time hits
+uint64_t testTakenZero=0;  // calls on the character that did no damage (avoided, immune)
+#endif
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
 uint64_t testDamageCalls=0,testDamageOwned=0;
 // Target dummy (test fixtures dummy-*): its protection, what the session recorded for hits on it
@@ -157,12 +183,31 @@ float testDamagePrimary=0,testDamageSecondary=0;
 #endif
 size_t F(const char* cls,const char* field,const char* ns);  // below; the test-only measuring targets use it here
 bool ListLateAlly(void* attacker);  // below
+void RecordTaken(void* attacker,void* source,void* stats,const Elements& parts,float damage,float healthBefore,float wardBefore);  // below
+// One hit into a type: totals, its per-second bucket and its split by damage type (false: unsplit).
+bool CreditHit(DamageType& type,float damage,const Elements& parts,uint32_t second){
+    auto& slot=type.seconds[second%type.seconds.size()];
+    const size_t bucket=second%type.buckets.size();
+    if(slot!=second){slot=second;type.buckets[bucket]=0;type.elementBuckets[bucket]={};}
+    type.buckets[bucket]+=damage;
+    type.total+=damage;++type.hits;type.maxHit=std::max(type.maxHit,damage);
+    Elements shares;
+    if(!rules::SplitDamage(damage,parts,shares))return false;
+    for(size_t e=0;e<kElements;++e)if(shares[e]>0){
+        type.elementBuckets[bucket][e]+=shares[e];type.elementTotal[e]+=shares[e];++type.elementHits[e];type.elementMax[e]=std::max(type.elementMax[e],shares[e]);
+    }
+    return true;
+}
 DamageResult ObserveDamage(void* self,void* stats,void* source,float factor,void* attacker,bool leech,MethodInfo method){
     // An ally created since the last refresh (under a second ago) is listed by its first hit.
     if(attacker&&damageSession.load(std::memory_order_relaxed)&&!damageActorType.contains(attacker))ListLateAlly(attacker);
+    // A hit on the character itself (death recap, Taken view): health and ward before it.
+    const bool taken=self&&self==takenProtection&&takenFields.ready&&(deathRecap.load(std::memory_order_relaxed)||damageSession.load(std::memory_order_relaxed));
+    float takenHealthBefore=0,takenWardBefore=0;
+    if(taken){takenHealthBefore=Get<float>(takenHealth,takenFields.current);takenWardBefore=Get<float>(self,takenFields.ward);}
     // The hit's damage per type, read before the game applies it.
     Elements parts{};
-    if(stats&&damageArrayOffset&&damageSession.load(std::memory_order_relaxed)&&damageActorType.contains(attacker)){
+    if(stats&&damageArrayOffset&&(taken||(damageSession.load(std::memory_order_relaxed)&&damageActorType.contains(attacker)))){
         if(void* array=*reinterpret_cast<void**>(static_cast<char*>(stats)+damageArrayOffset)){
             const auto n=std::min<uintptr_t>(*reinterpret_cast<const uintptr_t*>(static_cast<const char*>(array)+0x18),kElements);
             const auto* values=reinterpret_cast<const float*>(static_cast<const char*>(array)+0x20);
@@ -219,23 +264,16 @@ DamageResult ObserveDamage(void* self,void* stats,void* source,float factor,void
     // native tuple's second field is also sent to the game's damage events.
     // Collection has no allocations and expires when the Summons page stops polling.
     const auto now=GetTickCount64();
+    if(taken&&!lifecycle::Stopping())RecordTaken(attacker,source,stats,parts,result.damage,takenHealthBefore,takenWardBefore);
     if(damageSession.load(std::memory_order_relaxed)&&!lifecycle::Stopping()&&std::isfinite(result.damage)&&result.damage>0){
         if(auto it=damageActorType.find(attacker);it!=damageActorType.end()){
             auto& type=damageTypes[it->second];
             const uint32_t second=static_cast<uint32_t>((now-damageSessionStart)/1000)+1;  // 0 = empty bucket
-            auto& slot=type.seconds[second%type.seconds.size()];
-            const size_t bucket=second%type.buckets.size();
-            if(slot!=second){slot=second;type.buckets[bucket]=0;type.elementBuckets[bucket]={};}
-            type.buckets[bucket]+=result.damage;
-            type.total+=result.damage;++type.hits;type.maxHit=std::max(type.maxHit,result.damage);++damageHits;
+            ++damageHits;
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
             if(self==testDummyProtection){testDummyRecorded+=result.damage;++testDummyHits;}
 #endif
-            if(Elements shares;rules::SplitDamage(result.damage,parts,shares)){
-                for(size_t e=0;e<kElements;++e)if(shares[e]>0){
-                    type.elementBuckets[bucket][e]+=shares[e];type.elementTotal[e]+=shares[e];++type.elementHits[e];type.elementMax[e]=std::max(type.elementMax[e],shares[e]);
-                }
-            }else ++damageUnsplit;
+            if(!CreditHit(type,result.damage,parts,second))++damageUnsplit;
             if(second!=damageLastCombatSecond){damageLastCombatSecond=second;++damageCombatSeconds;}
         }
     }
@@ -357,10 +395,25 @@ void ClearShortcuts(){
     for(auto& b:shortcuts)if(game::IsAlive(b.object->Get())){void* a[]{b.object->Get()};Invoke(M("Object","Destroy",1,"UnityEngine","UnityEngine.CoreModule.dll"),nullptr,a);}
     shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();gridTransform.Reset();
 }
+// Sell all asks once more: its first press shows "Confirm sell" for a few seconds.
+uint64_t sellConfirmUntil=0;
+void SetShortcutText(Shortcut& b,const char* text){
+    Root value(il2cpp::api().string_new(text));
+    for(auto& label:b.labels)if(label->Get()&&game::IsAlive(label->Get())){void* a[]{value.Get()};Invoke(Method(label->Get(),"set_text",1),label->Get(),a);}
+}
+void ExpireSellConfirm(){
+    if(!sellConfirmUntil||GetTickCount64()<sellConfirmUntil)return;
+    sellConfirmUntil=0;
+    for(auto& b:shortcuts)if(std::string(b.action)=="sellall")SetShortcutText(b,b.label);
+}
 bool ShortcutClick(void* button){
     auto it=std::find_if(shortcuts.begin(),shortcuts.end(),[&](const Shortcut& s){return s.button->Get()==button;});
     if(it==shortcuts.end())return false;
     if(shortcutBusy)return true;
+    if(std::string(it->action)=="sellall"){
+        if(!sellConfirmUntil||GetTickCount64()>=sellConfirmUntil){sellConfirmUntil=GetTickCount64()+4000;game::Guarded([&]{SetShortcutText(*it,"Confirm sell");},nullptr);return true;}
+        sellConfirmUntil=0;game::Guarded([&]{SetShortcutText(*it,it->label);},nullptr);
+    }
     std::string why;game::Guarded([&]{const auto c=Current();const char* action=it->action;
         shortcutBusy=true;
         if(!commands::SubmitUi("inventoryaction "+c.id+" "+action,[](const std::string& result){Log("inventory shortcut: %s",result.c_str());shortcutBusy=false;}))shortcutBusy=false;
@@ -610,9 +663,9 @@ void InventoryButtons(){
     if(!shortcuts.empty()&&inventoryPanel.Get()){
         bool enabled=!shortcutBusy;if(shortcutEnabled!=enabled){shortcutEnabled=enabled;void* a[]{&enabled};
             for(auto& b:shortcuts)Invoke(Method(b.button->Get(),"set_interactable",1),b.button->Get(),a);}
-        PlaceShortcuts();return;
+        ExpireSellConfirm();PlaceShortcuts();return;
     }
-    ClearShortcuts();
+    ClearShortcuts();sellConfirmUntil=0;
     // Creation profile: one core.log line per creation, so a slow step is visible.
     std::string profile;uint64_t mark=Micros();
     const auto phase=[&](const char* name){const auto now=Micros();profile+=std::string(" ")+name+"="+std::to_string((now-mark)/1000.0).substr(0,6)+"ms";mark=now;};
@@ -643,7 +696,7 @@ void InventoryButtons(){
     Root templateObject(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),source));
     const auto* instantiate=Signature("Object","Instantiate",{"UnityEngine.Object","UnityEngine.Transform","System.Boolean"});
     phase("template");
-    for(auto pair:std::array<std::pair<const char*,const char*>,3>{{{"stash","Stash"},{"stashall","Stash all"},{"vendor","Vendor"}}}){
+    for(auto pair:std::array<std::pair<const char*,const char*>,4>{{{"stash","Stash"},{"stashall","Stash all"},{"vendor","Vendor"},{"sellall","Sell all"}}}){
         bool world=false;void* a[]{templateObject.Get(),parent,&world};Root object(Invoke(instantiate,nullptr,a));
         bool off=false;void* offArgs[]{&off};Invoke(Method(object.Get(),"SetActive",1),object.Get(),offArgs);
         void* bargs[]{bt.Get()};Root button(Invoke(Signature("GameObject","GetComponent",{"System.Type"}),object.Get(),bargs));
@@ -1085,6 +1138,137 @@ void ListDamageAlly(void* actor,void* summon){
     if(damageTypes[index].icon.empty())damageTypes[index].icon=AllyIconKey(summon);
     if(damageTypes[index].label.empty())damageTypes[index].label=AllyLabel(actor);
 }
+// ---- Damage taken. The attacker's name as the game shows it (cached per attacker).
+std::string AttackerName(void* attacker){
+    if(!attacker)return "Unknown";
+    if(auto it=attackerNames.find(attacker);it!=attackerNames.end())return it->second.first;
+    if(!game::IsAlive(attacker))return "Unknown";
+    std::string name=AllyLabel(attacker);if(name.empty())name=AllyType(attacker);
+    if(name.empty()||name=="Ally")name="Unknown";
+    if(attackerNames.size()>=256)attackerNames.clear();
+    attackerNames.emplace(attacker,std::make_pair(name,std::make_unique<Root>(attacker)));
+    return name;
+}
+// What hit: an ailment ticking (its name) or a skill's damage (the skill's name).
+std::string HitWhat(void* source,void* stats,bool* dot){
+    *dot=stats&&takenFields.isHit&&!Get<bool>(stats,takenFields.isHit);
+    if(!source)return {};
+    for(auto* c=il2cpp::api().object_get_class(source);c;c=il2cpp::api().class_get_parent(c)){
+        const char* name=il2cpp::api().class_get_name(c);if(!name)break;
+        if(std::strcmp(name,"ActiveAilment")==0){
+            *dot=true;void* ailment=Get<void*>(source,takenFields.ailment);
+            return ailment?Text(Get<void*>(ailment,takenFields.ailmentName)):std::string();
+        }
+        if(std::strcmp(name,"DamageStatsHolder")==0){
+            void* refs=Get<void*>(source,takenFields.refs);void* ability=refs?Get<void*>(refs,takenFields.thisAbility):nullptr;
+            return ability?Text(Get<void*>(ability,takenFields.abilityName)):std::string();
+        }
+    }
+    return {};
+}
+std::string PlainText(std::string text){
+    std::string out;bool tag=false;for(char ch:text){if(ch=='<')tag=true;else if(ch=='>')tag=false;else if(!tag)out+=ch;}
+    while(!out.empty()&&out.back()==' ')out.pop_back();return out;
+}
+// The character's buffs and debuffs as the game's buff bar shows them.
+std::vector<DeathEffect> PlayerEffects(){
+    std::vector<DeathEffect> out;
+    void* manager=game::StaticObject(game::FindStaticField("LE.dll","","BuffsUIManager","instance"));
+    if(!manager||!game::IsAlive(manager))return out;
+    for(const char* list:{"debuffs","buffs"})for(void* entry:Entries(Get<void*>(manager,F("BuffsUIManager",list)))){
+        if(out.size()>=32)break;
+        if(!entry||!game::IsAlive(entry))continue;const int stacks=Get<int>(entry,F("BuffUIEntry","stacks"));if(stacks<=0)continue;
+        void* definition=Get<void*>(entry,F("BuffUIEntry","uiBuff"));if(!definition)continue;
+        out.push_back({PlainText(Text(Invoke(Method(definition,"getName",0),definition))),stacks,Get<bool>(entry,F("BuffUIEntry","isBuff"))});
+    }
+    return out;
+}
+void RecordDeath(uint64_t tick){
+    DeathRecord death;death.tick=tick;death.number=++deathCount;
+    death.maxHealth=static_cast<float>(Get<int>(takenHealth,takenFields.maximum));
+    for(const auto& h:takenRecent)if(h.tick<=tick&&tick-h.tick<=kDeathWindowMs)death.hits.push_back(h);
+    if(GetCurrentThreadId()==mainThreadId)game::Guarded([&]{death.effects=PlayerEffects();},nullptr);
+    deathRecords.push_back(std::move(death));
+    while(deathRecords.size()>kDeathsKept)deathRecords.pop_front();
+}
+// One row per attacker type; past 64 types (each keeps an hour of seconds) the rest share one row.
+size_t TakenTypeIndex(const std::string& attacker){
+    const std::string name=takenIndex.contains(attacker)||takenTypes.size()<63?attacker:std::string("Other attackers");
+    if(auto it=takenIndex.find(name);it!=takenIndex.end())return it->second;
+    takenTypes.push_back(DamageType{name});takenDot.push_back(0);takenTypes.back().label=name;
+    return takenIndex[name]=takenTypes.size()-1;
+}
+void RecordTaken(void* attacker,void* source,void* stats,const Elements& parts,float damage,float healthBefore,float wardBefore){
+    TakenHit hit;hit.tick=GetTickCount64();hit.damage=std::isfinite(damage)&&damage>0?damage:0;hit.parts=parts;
+    hit.health=Get<float>(takenHealth,takenFields.current);hit.ward=Get<float>(takenProtection,takenFields.ward);
+    if(GetCurrentThreadId()==mainThreadId)game::Guarded([&]{hit.attacker=attacker&&attacker==takenActor?std::string("You"):AttackerName(attacker);hit.what=HitWhat(source,stats,&hit.dot);},nullptr);
+    if(hit.attacker.empty())hit.attacker="Unknown";
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+    if(hit.damage>0){auto& t=testTakenBy[hit.attacker];t[0]+=hit.damage;t[1]+=(healthBefore-hit.health)+(wardBefore-hit.ward);++t[2];if(hit.dot)++t[3];}
+    else ++testTakenZero;
+#else
+    (void)wardBefore;
+#endif
+    if(hit.damage<=0)return;
+    if(damageSession.load(std::memory_order_relaxed)){
+        const size_t index=TakenTypeIndex(hit.attacker);
+        const uint32_t second=static_cast<uint32_t>((hit.tick-damageSessionStart)/1000)+1;
+        CreditHit(takenTypes[index],hit.damage,parts,second);if(hit.dot)takenDot[index]+=hit.damage;
+        if(second!=takenLastSecond){takenLastSecond=second;++takenCombatSeconds;}
+    }
+    const bool died=healthBefore>0&&hit.health<=0;
+    takenRecent.push_back(std::move(hit));
+    rules::TrimRecent(takenRecent,takenRecent.back().tick,kTakenKeepMs,kTakenMost);
+    if(died)RecordDeath(takenRecent.back().tick);
+}
+// The character the damage taken belongs to (main thread, about once a second).
+void RefreshTakenTarget(){
+    void* actor=Actor();
+    if(!actor){takenActor=nullptr;takenProtection=nullptr;takenHealth=nullptr;takenRoot.reset();return;}
+    if(!takenFields.ready){
+        takenFields.ward=F("ProtectionClass","ward");takenFields.current=F("BaseHealth","currentHealth");takenFields.maximum=F("BaseHealth","maxHealth");
+        takenFields.isHit=F("DamageStats","isHit");takenFields.ailment=F("AilmentReceiver.ActiveAilment","ailment");takenFields.ailmentName=F("Ailment","displayName");
+        takenFields.refs=F("DamageStatsHolder","refs");takenFields.thisAbility=F("CreationReferences","thisAbility");takenFields.abilityName=F("Ability","abilityName");
+        if(!damageArrayOffset)damageArrayOffset=F("DamageStats","damage");
+        takenFields.ready=true;
+    }
+    if(actor==takenActor&&takenProtection)return;
+    takenRoot=std::make_unique<Root>(actor);takenActor=actor;
+    takenProtection=Get<void*>(actor,F("Actor","protection"));takenHealth=Get<void*>(actor,F("Actor","health"));
+    if(!takenProtection||!takenHealth){takenProtection=nullptr;takenHealth=nullptr;}
+}
+std::string DeathRecapJson(){
+    std::ostringstream out;out.setf(std::ios::fixed);out.precision(1);
+    const auto now=GetTickCount64();
+    out<<"{\"ok\":true,\"enabled\":"<<Boolean(deathRecap.load())<<",\"recording\":"<<Boolean(takenProtection!=nullptr)<<",\"recentHits\":"<<takenRecent.size()<<",\"deaths\":[";
+    bool firstDeath=true;
+    for(auto d=deathRecords.rbegin();d!=deathRecords.rend();++d){
+        if(!firstDeath)out<<',';firstDeath=false;
+        const auto summary=rules::SummarizeRecap(d->hits,d->tick,kDeathWindowMs);
+        out<<"{\"number\":"<<d->number<<",\"secondsAgo\":"<<(now-d->tick)/1000.0<<",\"maxHealth\":"<<d->maxHealth<<",\"total\":"<<summary.total
+           <<",\"dot\":"<<summary.dot<<",\"unsplit\":"<<summary.unsplit<<",\"byType\":[";
+        for(size_t e=0;e<kElements;++e){if(e)out<<',';out<<summary.byType[e];}
+        out<<"],\"killer\":";
+        if(summary.killer>=0){const auto& k=d->hits[static_cast<size_t>(summary.killer)];
+            out<<"{\"attacker\":"<<Json(k.attacker)<<",\"what\":"<<Json(k.what)<<",\"dot\":"<<Boolean(k.dot)<<",\"damage\":"<<k.damage<<'}';}
+        else out<<"null";
+        out<<",\"attackers\":[";
+        for(size_t i=0;i<summary.attackers.size();++i){const auto& a=summary.attackers[i];if(i)out<<',';
+            out<<"{\"name\":"<<Json(a.name)<<",\"damage\":"<<a.damage<<",\"dot\":"<<a.dot<<",\"hits\":"<<a.hits<<'}';}
+        out<<"],\"hits\":[";
+        bool firstHit=true;
+        for(const auto& h:d->hits){if(!firstHit)out<<',';firstHit=false;
+            out<<"{\"t\":"<<-static_cast<double>(d->tick-h.tick)/1000.0<<",\"attacker\":"<<Json(h.attacker)<<",\"what\":"<<Json(h.what)<<",\"dot\":"<<Boolean(h.dot)
+               <<",\"damage\":"<<h.damage<<",\"health\":"<<h.health<<",\"ward\":"<<h.ward<<",\"parts\":[";
+            for(size_t e=0;e<kElements;++e){if(e)out<<',';out<<h.parts[e];}
+            out<<"]}";}
+        out<<"],\"effects\":[";
+        for(size_t i=0;i<d->effects.size();++i){if(i)out<<',';out<<"{\"name\":"<<Json(d->effects[i].name)<<",\"stacks\":"<<d->effects[i].stacks<<",\"buff\":"<<Boolean(d->effects[i].buff)<<'}';}
+        out<<"]}";
+    }
+    out<<"]}";
+    return out.str();
+}
 // The player and every ally the player's summons created (recursively).
 void RefreshDamageAllies(){
     void* player=Actor();if(!player)return;
@@ -1162,9 +1346,29 @@ std::string DamageState(){
         elements(out,s);out<<'}';}
     out<<"],\"allies\":{\"total\":"<<allyTotal<<",\"hits\":"<<allyHits<<",\"maxHit\":"<<allyMax<<",\"dps10\":"<<teamWindows[0]<<",\"dps60\":"<<teamWindows[1]
        <<",\"dps600\":"<<teamWindows[2]<<",\"dps3600\":"<<teamWindows[3]<<",\"average\":"<<(elapsed>0?allyTotal/elapsed:0)<<",\"combatAverage\":"<<(damageCombatSeconds?allyTotal/damageCombatSeconds:0);
-    elements(out,teamElements);out<<"}}";
+    elements(out,teamElements);out<<'}';
+    // Damage taken during the session, per attacker type (the Taken view).
+    out<<",\"taken\":{\"types\":[";
+    double takenTotal=0;uint64_t takenAllHits=0;float takenMax=0;double takenDotAll=0;std::array<double,4> takenWindows{};ElementStats takenElements;
+    for(size_t i=0;i<takenTypes.size();++i){const auto& t=takenTypes[i];if(i)out<<',';
+        std::array<double,4> w{};for(size_t k=0;k<4;++k){w[k]=window(t,spans[k]);takenWindows[k]+=w[k];}
+        const double dot=i<takenDot.size()?takenDot[i]:0;takenTotal+=t.total;takenAllHits+=t.hits;takenMax=std::max(takenMax,t.maxHit);takenDotAll+=dot;
+        out<<"{\"name\":"<<Json(t.name)<<",\"label\":"<<Json(t.name)<<",\"icon\":\"\",\"live\":0,\"total\":"<<t.total<<",\"hits\":"<<t.hits<<",\"maxHit\":"<<t.maxHit<<",\"dot\":"<<dot
+           <<",\"dps10\":"<<w[0]<<",\"dps60\":"<<w[1]<<",\"dps600\":"<<w[2]<<",\"dps3600\":"<<w[3]
+           <<",\"average\":"<<(elapsed>0?t.total/elapsed:0)<<",\"combatAverage\":"<<(takenCombatSeconds?t.total/takenCombatSeconds:0);
+        ElementStats st;
+        for(size_t e=0;e<kElements;++e){st.total[e]=t.elementTotal[e];st.hits[e]=static_cast<double>(t.elementHits[e]);st.maxHit[e]=t.elementMax[e];}
+        for(size_t k=0;k<4;++k)st.windows[k]=elementWindow(t,spans[k]);
+        for(size_t e=0;e<kElements;++e){takenElements.total[e]+=st.total[e];takenElements.hits[e]+=st.hits[e];takenElements.maxHit[e]=std::max(takenElements.maxHit[e],st.maxHit[e]);for(size_t k=0;k<4;++k)takenElements.windows[k][e]+=st.windows[k][e];}
+        elements(out,st);out<<'}';}
+    out<<"],\"total\":"<<takenTotal<<",\"hits\":"<<takenAllHits<<",\"maxHit\":"<<takenMax<<",\"dot\":"<<takenDotAll<<",\"combatSeconds\":"<<takenCombatSeconds
+       <<",\"dps10\":"<<takenWindows[0]<<",\"dps60\":"<<takenWindows[1]<<",\"dps600\":"<<takenWindows[2]<<",\"dps3600\":"<<takenWindows[3]
+       <<",\"average\":"<<(elapsed>0?takenTotal/elapsed:0)<<",\"combatAverage\":"<<(takenCombatSeconds?takenTotal/takenCombatSeconds:0);
+    elements(out,takenElements);out<<'}';
+    out<<",\"deaths\":"<<deathCount<<",\"deathRecap\":"<<Boolean(deathRecap.load())<<'}';
     return out.str();
 }
+
 void Frame(){
     ++frameUpdates;
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
@@ -1172,6 +1376,7 @@ void Frame(){
 #endif
     if(lifecycle::Stopping())return;
     effects::Frame();
+    rage::Frame();invtools::Frame();
     if(pendingStashPanel.Get()&&!game::Guarded([]{RestoreStashTab();},nullptr)){pendingStashPanel.Reset();++stashRestoreFailures;}
     if(pendingLegacyStash.Get()&&!game::Guarded([]{RestoreLegacyStashTab();},nullptr)){pendingLegacyStash.Reset();++stashRestoreFailures;}
     const auto clock=GetTickCount64();
@@ -1183,11 +1388,21 @@ void Frame(){
         const auto spent=Micros()-started;inventoryMicros+=spent;maximumInventoryMicros=std::max(maximumInventoryMicros,spent);
         if(spent>=1000)EP_NOTE("inventory-buttons",spent);
     }
+    mainThreadId=GetCurrentThreadId();
     if(damageSession.load(std::memory_order_relaxed)&&clock>=damageAllyRefresh+1000){
         damageAllyRefresh=clock;
         if(!game::Guarded([]{RefreshDamageAllies();},nullptr))++faults;
     }
-    if(!damageSession.load(std::memory_order_relaxed)&&clock>monitorUntil+10000&&clock>=damageAllyRefresh+5000){
+    if((deathRecap.load(std::memory_order_relaxed)||damageSession.load(std::memory_order_relaxed))&&clock>=takenTargetCheck+1000){
+        // Damage taken: whose it is, and the hook kept in while the death recap is on.
+        takenTargetCheck=clock;
+        if(!game::Guarded([]{
+            RefreshTakenTarget();
+            if(deathRecap.load()&&takenProtection){auto damage=M("ProtectionClass","ApplyDamage",5);std::string why;
+                if(!hook::IsInstalled(damage.code))hook::Install(damage.code,reinterpret_cast<void*>(&ObserveDamage),reinterpret_cast<void**>(&originalDamage),&why);}
+        },nullptr))++faults;
+    }
+    if(!damageSession.load(std::memory_order_relaxed)&&!deathRecap.load(std::memory_order_relaxed)&&clock>monitorUntil+10000&&clock>=damageAllyRefresh+5000){
         // Nothing reads damage: the hook is removed so it costs nothing.
         damageAllyRefresh=clock;
         game::Guarded([]{auto damage=M("ProtectionClass","ApplyDamage",5);std::string why;if(hook::IsInstalled(damage.code))hook::Remove(damage.code,&why);},nullptr);
@@ -1199,7 +1414,9 @@ void Frame(){
     if(!game::Guarded([&]{
         void* actor=Actor();
         if(!actor)return; // Loading/alt-tab is a pause, not a setting reset.
-        if(owner.Get()&&owner.Get()!=actor){RestoreGraphics();ClearInteractions();for(auto* setting:settings)setting->value=0;owner.Reset();active=false;return;}
+        // Another character (or the same one loaded again): the switches stay as they are for it; only
+        // the one-time portal switch goes off, and the previous scene's objects are let go.
+        if(owner.Get()&&owner.Get()!=actor){RestoreGraphics();ClearInteractions();portals.value=0;owner.Reset();return;}
         if(!owner.Get()){owner.Set(actor);portalGrace=now+10000;}
         if(now>=lastScan+1000){lastScan=now;
             // Once a second: restore switched-off entries and apply the switches
@@ -1312,12 +1529,14 @@ std::string DamageSession(const std::string& action){return Run([=]{
         damageArrayOffset=F("DamageStats","damage");
         damageSummonedField=F("Actor","summoned");damageReferencesField=F("Summoned","references");damageCreatorField=F("CreationReferences","creator");
         damageTypes.clear();damageActorType.clear();damageActorRoots.clear();damageActorDeadSince.clear();damageCombatSeconds=damageLastCombatSecond=damageHits=damageUnsplit=0;
+        takenTypes.clear();takenDot.clear();takenIndex.clear();takenCombatSeconds=takenLastSecond=0;RefreshTakenTarget();
         damageSessionStart=GetTickCount64();damageSessionEnd=0;RefreshDamageAllies();damageAllyRefresh=GetTickCount64();damageSession=true;
     }else if(action=="stop"){
         if(damageSession.exchange(false))damageSessionEnd=GetTickCount64();
         damageActorType.clear();damageActorRoots.clear();damageActorDeadSince.clear();
     }else if(action=="reset"){
         const bool was=damageSession.load();damageTypes.clear();damageActorType.clear();damageActorRoots.clear();damageActorDeadSince.clear();damageCombatSeconds=damageLastCombatSecond=damageHits=damageUnsplit=0;
+        takenTypes.clear();takenDot.clear();takenIndex.clear();takenCombatSeconds=takenLastSecond=0;
         damageSessionStart=GetTickCount64();damageSessionEnd=damageSessionStart;if(was)RefreshDamageAllies();
     }else if(!action.empty())throw std::runtime_error("use damagesession [start|stop|reset]");
     return DamageState();
@@ -1349,6 +1568,12 @@ std::string DamageIcon(const std::string& key){return Run([=]{
     const std::string png=SpritePng(sprite);
     if(damageIcons.size()<64)damageIcons[key]=png;
     return reply(&png);
+});}
+std::string DeathRecap(const std::string& action){return Run([=]{
+    if(action=="0"||action=="1"){deathRecap=action=="1";if(!deathRecap)takenRecent.clear();}
+    else if(action=="clear"){deathRecords.clear();}
+    else if(!action.empty())throw std::runtime_error("use deathrecap [0|1|clear]");
+    return DeathRecapJson();
 });}
 std::string Summons(){return Run([]{
     const auto c=Current();void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));
@@ -1403,6 +1628,42 @@ std::string InventoryRead(){return Run([]{const auto c=Current();void* inventory
     Root content(Invoke(Method(inventory,"GetContent",0),inventory));
     return "{\"ok\":true,\"player\":"+Player(c)+",\"inventoryItems\":"+std::to_string(Entries(content.Get()).size())+"}";
 });}
+// Sell all: every inventory item the vendor buys, through the game's own quick move into
+// the shop (as Ctrl+click sells), after a recovery backup. The vendor is opened first when
+// it is not open. Items the sellkeep setting keeps stay; sold items are in the vendor's
+// buyback list as after a normal sale.
+std::string SellAll(const std::string& id){
+    progression::SnapshotData snapshot;std::string why;
+    if(!mainthread::Run([&]{snapshot=progression::CaptureSnapshotCurrent(id,"sell-all");},5000,&why))return "{\"ok\":false,\"error\":"+Json(why)+"}";
+    const std::string backup=progression::WriteCapturedSnapshot(snapshot);
+    std::string result;std::vector<XY> positions;size_t index=0;int sold=0,kept=0,refused=0,goldBefore=0,waits=0;bool requested=false,planned=false;
+    if(!mainthread::RunSteps([&]{try{
+        const auto c=Current(id);void* ui=Ui();
+        if(!Value<bool>(Method(ui,"IsShopOpen",0),ui)){
+            if(requested){if(++waits>60)throw std::runtime_error("The vendor did not open.");return false;}
+            requested=true;bool show=true,appearances=false,stash=false,sound=false;int tab=0;
+            void* inventoryArgs[]{&show,&appearances,&stash,&tab,&sound};Invoke(Method(ui,"openInventory",5),ui,inventoryArgs);
+            void* a[]{&show};Invoke(Method(ui,"openShop",1),ui,a);return false;
+        }
+        void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
+        void* gold=Get<void*>(c.actor,F("Actor","goldTracker"));
+        if(!planned){planned=true;goldBefore=gold?Get<int>(gold,F("GoldTracker","value")):0;
+            Root content(Invoke(Method(inventory,"GetContent",0),inventory));
+            for(void* entry:Entries(content.Get())){if(!entry)continue;
+                if(invtools::KeepWhenSelling(Get<void*>(entry,F("ItemContainerEntry","data")))){++kept;continue;}
+                positions.push_back(Get<XY>(entry,F("ItemContainerEntry","<Position>k__BackingField")));}}
+        for(int n=0;n<4&&index<positions.size();++n,++index){int source=1,destination=22;bool autoEquip=false,autoStack=false;XY p=positions[index];
+            void* a[]{&source,&destination,&p,&autoEquip,&autoStack};
+            if(Value<bool>(M("ItemContainersManager","TryQuickMove",5),c.manager,a))++sold;else ++refused;}
+        if(index<positions.size())return false;
+        progression::SaveCurrent(id);
+        const int goldAfter=gold?Get<int>(gold,F("GoldTracker","value")):0;
+        result="{\"ok\":true,\"player\":"+Player(c)+",\"sold\":"+std::to_string(sold)+",\"kept\":"+std::to_string(kept)+",\"refused\":"+std::to_string(refused)
+            +",\"gold\":"+std::to_string(goldAfter-goldBefore)+",\"openedVendor\":"+Boolean(requested)+"}";
+    }catch(const std::exception& e){result="{\"ok\":false,\"error\":"+Json(e.what())+",\"sold\":"+std::to_string(sold)+"}";}return true;},8000,&why))result="{\"ok\":false,\"error\":"+Json(why)+"}";
+    if(result.empty())result="{\"ok\":false,\"error\":\"Inventory operation did not complete.\"}";
+    result.pop_back();return result+",\"backup\":"+Json(backup)+"}";
+}
 std::string Inventory(const std::string& id,const std::string& action){
     if(action=="stash"||action=="vendor"){
       bool requested=false,opened=false;std::string result,reason;
@@ -1422,6 +1683,7 @@ std::string Inventory(const std::string& id,const std::string& action){
           return "{\"ok\":false,\"error\":"+Json(reason.empty()?"The window did not finish opening. Refresh and try again.":reason)+"}";
       return result;
     }
+    if(action=="sellall")return SellAll(id);
     if(action!="stashall")return "{\"ok\":false,\"error\":\"Unknown inventory action.\"}";
     progression::SnapshotData snapshot;std::string why;
     if(!mainthread::Run([&]{snapshot=progression::CaptureSnapshotCurrent(id,"stash-all");},5000,&why))return "{\"ok\":false,\"error\":"+Json(why)+"}";
@@ -1460,6 +1722,17 @@ std::string Test(const std::string& id,const std::string& action){
            <<",\"health\":"<<(health?Get<float>(health,F("BaseHealth","currentHealth")):-1.f)<<",\"maxHealth\":"<<(health?Get<int>(health,F("BaseHealth","maxHealth")):-1)
            <<",\"charData\":"<<Boolean(data!=nullptr)<<",\"offlineData\":"<<Boolean(data&&Value<bool>(Method(data,"get_IsOffline",0),data))<<'}';
         return out.str();
+    });
+    if(action=="player-respawn")return Run([]{
+        // Disposable test character only: the dead test character respawns as the game's own respawn does.
+        void* actor=Invoke(M("PlayerFinder","getPlayerActor",0));if(!actor||!game::IsAlive(actor))throw std::runtime_error("No player actor.");
+        void* tracker=Get<void*>(actor,F("Actor","characterDataTracker"));void* data=tracker?Get<void*>(tracker,F("CharacterDataTracker","charData")):nullptr;
+        if(!data||!Value<bool>(Method(data,"get_IsOffline",0),data)||Text(Get<void*>(data,F("CharacterData","<CharacterName>k__BackingField","LE.Data")))!="EpFeedbackTest")
+            throw std::runtime_error("Convenience checks require the isolated EpFeedbackTest character.");
+        void* health=Get<void*>(actor,F("Actor","health"));if(health&&Get<float>(health,F("BaseHealth","currentHealth"))>0)throw std::runtime_error("The test character is alive.");
+        void* dying=Get<void*>(actor,F("Actor","dying"));if(!dying)throw std::runtime_error("Dying state unavailable.");
+        Invoke(Method(dying,"ForceRespawn",0),dying);
+        return std::string("{\"ok\":true,\"requested\":true}");
     });
     return Run([=]() -> std::string {
     const auto c=Current(id);if(c.name!="EpFeedbackTest")throw std::runtime_error("Convenience checks require the isolated EpFeedbackTest character.");
@@ -1527,6 +1800,106 @@ std::string Test(const std::string& id,const std::string& action){
             if(comma)out<<',';comma=true;out<<"{\"action\":"<<Json(b.action)<<",\"visible\":"<<Boolean(Value<bool>(Method(b.object->Get(),"get_activeInHierarchy",0),b.object->Get()))<<",\"insideInventory\":"<<Boolean(rules::Inside(r,menuRect))<<",\"insideFooter\":"<<Boolean(rules::Inside(r,footerRect))<<",\"vanillaControlsOverlap\":"<<Boolean(rules::Overlaps(r,leftRect))<<",\"currencyOverlap\":"<<Boolean(rules::Overlaps(r,currencies))<<",\"labels\":[";
             bool next=false;for(auto& label:b.labels){if(next)out<<',';next=true;out<<Json(Text(Invoke(Method(label->Get(),"get_text",0),label->Get())));}out<<"],\"rect\":["<<r.x<<','<<r.y<<','<<r.w<<','<<r.h<<"]}";}
         return out.str()+"]}";}
+    if(action.rfind("shortcut-press-",0)==0){
+        // Test: our inventory button pressed as a click does (Sell all asks first); the labels after it.
+        InventoryButtons();const std::string wanted=action.substr(15);
+        auto it=std::find_if(shortcuts.begin(),shortcuts.end(),[&](const Shortcut& b){return wanted==b.action;});
+        if(it==shortcuts.end())throw std::runtime_error("Open the inventory first.");
+        ShortcutClick(it->button->Get());
+        std::ostringstream out;out<<"{\"ok\":true,\"busy\":"<<Boolean(shortcutBusy.load())<<",\"labels\":[";bool comma=false;
+        for(auto& label:it->labels){if(comma)out<<',';comma=true;out<<Json(Text(Invoke(Method(label->Get(),"get_text",0),label->Get())));}
+        return out.str()+"]}";}
+    if(action=="inventory-positions"||action=="stash-positions"||action=="inventory-scatter"||action=="stash-scatter"){
+        // Test: where the items of the inventory (or the stash's shown tab) are, in order; scatter moves
+        // the first item to a free far place in the same container (the test clone only), so a sort shows.
+        void* container=nullptr;
+        if(action.rfind("inventory-",0)==0)container=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
+        else{void* holder=Get<void*>(c.manager,F("ItemContainersManager","stash"));void* current=holder?Invoke(Method(holder,"get_CurrentContainer",0),holder):nullptr;
+            if(!current)throw std::runtime_error("The stash has not loaded yet.");
+            const int index=Get<int>(current,F("TabbedItemContainer","currentlyActiveTab"));const auto containers=Entries(Invoke(Method(current,"get_Containers",0),current));
+            if(index<0||static_cast<size_t>(index)>=containers.size())throw std::runtime_error("No stash tab is shown.");container=containers[index];}
+        Root content(Invoke(Method(container,"GetContent",0),container));
+        if(action.find("-scatter")!=std::string::npos){
+            const auto entries=Entries(content.Get());if(entries.empty()||!entries.front())throw std::runtime_error("The container is empty.");
+            for(XY at:{XY{9,0},XY{7,1},XY{5,2},XY{3,3},XY{6,4}}){OptionalXY place{true,at};int context=0;void* a[]{entries.front(),container,&place,&context};
+                if(Value<bool>(Method(container,"MoveItemTo",4),container,a))return "{\"ok\":true,\"moved\":["+std::to_string(at.x)+","+std::to_string(at.y)+"]}";}
+            return std::string("{\"ok\":false,\"error\":\"no free place\"}");}
+        std::ostringstream out;out<<"{\"ok\":true,\"positions\":[";bool comma=false;
+        for(void* entry:Entries(content.Get())){if(!entry)continue;const auto p=Get<XY>(entry,F("ItemContainerEntry","<Position>k__BackingField"));if(comma)out<<',';comma=true;out<<'['<<p.x<<','<<p.y<<']';}
+        return out.str()+"]}";}
+    if(action=="filter-colors"){
+        // Read only: the game's loot filter colour list (count, last colours) and what a colour number gives.
+        void* master=Invoke(M("GlobalAssets","get_MasterColorList",0,"LE.AssetManagement"));if(!master)throw std::runtime_error("No colour list.");
+        void* presets=Get<void*>(master,F("EpochColor","lootFilterColorPresets"));const auto n=Get<uintptr_t>(presets,0x18);
+        void* beams=Get<void*>(master,F("EpochColor","lootFilterBeamColorPresets"));
+        std::ostringstream out;out<<"{\"ok\":true,\"count\":"<<n<<",\"beams\":"<<(beams?Get<uintptr_t>(beams,0x18):0)<<",\"hex\":[";
+        for(uintptr_t i=0;i<n;++i){void* primary=Get<void*>(presets,0x20+16*i);  // EcolorPair values: primary, secondary
+            if(i)out<<',';out<<Json(primary?Text(Get<void*>(primary,F("EpochColor.Ecolor","hexCode"))):"");}
+        out<<"],\"byNumber\":[";bool comma=false;
+        for(int number:{0,static_cast<int>(n)-1,static_cast<int>(n)+5,999}){uint8_t rarity=0;void* a[]{&number,&rarity};void* ecolor=Invoke(M("EpochColorManager","GetLootfilterRuleColor",2),nullptr,a);
+            if(comma)out<<',';comma=true;out<<Json(ecolor?Text(Get<void*>(ecolor,F("EpochColor.Ecolor","hexCode"))):"");}
+        return out.str()+"]}";
+    }
+    if(action.rfind("rule-name-",0)==0){
+        // Test clone only: a rule's own name in memory (the filter file is compared and restored by the test).
+        const auto dash=action.find('-',10);if(dash==std::string::npos)throw std::runtime_error("use rule-name-<index>-<text>");
+        const int index=std::stoi(action.substr(10,dash-10));std::string text=action.substr(dash+1);
+        for(const auto& [code,ch]:std::vector<std::pair<std::string,std::string>>{{"%20"," "},{"%3C","<"},{"%3E",">"},{"%23","#"},{"%3D","="},{"%2F","/"},{"%22","\""}})
+            for(size_t at;(at=text.find(code))!=std::string::npos;)text.replace(at,3,ch);
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","Instance"));
+        void* filter=manager?Invoke(M("ItemFilterManager","get_Filter",0,"ItemFiltering"),manager):nullptr;if(!filter)throw std::runtime_error("No loot filter is active.");
+        const auto rules=Entries(Get<void*>(filter,F("ItemFilter","rules","ItemFiltering")));if(index<0||static_cast<size_t>(index)>=rules.size())throw std::runtime_error("No such rule.");
+        void* rule=rules[index];const auto* field=il2cpp::api().class_get_field_from_name(il2cpp::api().object_get_class(rule),"nameOverride");
+        const std::string before=Text(Get<void*>(rule,F("Rule","nameOverride","ItemFiltering")));
+        Root value(il2cpp::api().string_new(text.c_str()));void* raw=value.Get();il2cpp::api().field_set_value(rule,field,raw);
+        return "{\"ok\":true,\"before\":"+Json(before)+",\"name\":"+Json(text)+",\"description\":"+Json(Text(Invoke(Method(rule,"GetRuleDescription",0),rule)))+"}";
+    }
+    if(action.rfind("rule-editor-open-",0)==0){
+        const int index=std::stoi(action.substr(17));
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","Instance"));
+        void* filter=manager?Invoke(M("ItemFilterManager","get_Filter",0,"ItemFiltering"),manager):nullptr;if(!filter)throw std::runtime_error("No loot filter is active.");
+        const auto rules=Entries(Get<void*>(filter,F("ItemFilter","rules","ItemFiltering")));if(index<0||static_cast<size_t>(index)>=rules.size())throw std::runtime_error("No such rule.");
+        const auto panels=Find("LE.dll","","LootFilterUI");if(panels.empty())throw std::runtime_error("Open the loot filter window first.");
+        int mode=0;void* a[]{rules[index],&mode};Invoke(Method(panels.front(),"OpenRuleEditor",2),panels.front(),a);return "{\"ok\":true}";
+    }
+    if(action=="rule-editor-recolor"){for(void* editor:Find("LE.dll","","RuleUI")){bool on=true;void* a[]{&on};Invoke(Method(editor,"RecolorChanged",1),editor,a);}return "{\"ok\":true}";}
+    if(action=="rule-editor-colors"){for(void* editor:Find("LE.dll","","RuleUI")){void* input=Get<void*>(editor,F("RuleUI","labelsColorInput"));if(input)Invoke(Method(input,"OnButtonClicked",0),input);}return "{\"ok\":true}";}
+    if(action=="rule-editor-close"){for(void* editor:Find("LE.dll","","RuleUI"))Invoke(Method(editor,"CloseNoApplyButton",0),editor);return "{\"ok\":true}";}
+    if(action=="lootfilter-open"){bool sound=false;void* a[]{&sound};Invoke(Method(ui,"openLootFilterPanel",1),ui,a);return "{\"ok\":true}";}
+    if(action=="lootfilter-close"){Invoke(Method(ui,"closeLootFilterPanel",0),ui);return "{\"ok\":true}";}
+    if(action=="text-inputs"){
+        // Read only: the loot filter rule name and stash tab name input fields (inactive ones too), the
+        // rule names the filter window shows, and what the game's name sanitising makes of sample tags.
+        std::ostringstream out;out<<"{\"ok\":true";
+        const auto all=[&](const char* cls){std::vector<void*> found;auto* type=game::FindClass("LE.dll","",cls);if(!type)return found;
+            Root t(il2cpp::api().type_get_object(il2cpp::api().class_get_type(type)));bool inactive=true;void* a[]{t.Get(),&inactive};Root array(Invoke(findObjects,nullptr,a));
+            const auto n=Get<uintptr_t>(array.Get(),0x18);for(uintptr_t i=0;i<n&&i<200;++i)if(void* o=Get<void*>(array.Get(),0x20+8*i))found.push_back(o);return found;};
+        const auto field=[&](void* input){if(!input)return std::string("null");std::ostringstream f;
+            void* text=Invoke(M("TMP_InputField","get_textComponent",0,"TMPro","Unity.TextMeshPro.dll"),input);
+            f<<"{\"validation\":"<<Value<int>(M("TMP_InputField","get_characterValidation",0,"TMPro","Unity.TextMeshPro.dll"),input)
+             <<",\"limit\":"<<Value<int>(M("TMP_InputField","get_characterLimit",0,"TMPro","Unity.TextMeshPro.dll"),input)
+             <<",\"content\":"<<Value<int>(M("TMP_InputField","get_contentType",0,"TMPro","Unity.TextMeshPro.dll"),input)
+             <<",\"rich\":"<<Boolean(Value<bool>(M("TMP_InputField","get_richText",0,"TMPro","Unity.TextMeshPro.dll"),input))
+             <<",\"validator\":"<<Boolean(Invoke(M("TMP_InputField","get_inputValidator",0,"TMPro","Unity.TextMeshPro.dll"),input)!=nullptr)
+             <<",\"style\":"<<(text?Value<int>(Method(text,"get_fontStyle",0),text):-1)<<'}';return f.str();};
+        out<<",\"ruleInputs\":[";bool comma=false;
+        for(void* rule:all("RuleUI")){if(comma)out<<',';comma=true;void* shown=Get<void*>(rule,F("RuleUI","generatedRuleName"));
+            void* colors=Get<void*>(rule,F("RuleUI","labelsColorInput"));void* grid=colors?Get<void*>(colors,F("ColorListInput","_colorListInputGrid")):nullptr;
+            void* options=grid?Get<void*>(grid,F("ColorListInputGrid","_options")):nullptr;
+            out<<"{\"colorOptions\":"<<(options?static_cast<long long>(Entries(options).size()):-1)<<",\"input\":"<<field(Get<void*>(rule,F("RuleUI","nameOverrideField")))<<",\"shown\":"<<Json(shown?Text(Invoke(Method(shown,"get_text",0),shown)).substr(0,160):"")
+               <<",\"shownStyle\":"<<(shown?Value<int>(Method(shown,"get_fontStyle",0),shown):-1)<<'}';}
+        out<<"],\"tabInputs\":[";comma=false;
+        for(void* tab:all("ConfigureTabUI")){if(comma)out<<',';comma=true;out<<field(Get<void*>(tab,F("ConfigureTabUI","nameInputTMP")));}
+        out<<"],\"tabLabels\":[";comma=false;
+        {Root tmp(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("Unity.TextMeshPro.dll","TMPro","TMP_Text"))));int shown=0;
+        for(void* tab:all("StashTabUI")){if(shown++>=4)break;Root object(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),tab));
+            bool inactive=true;void* a[]{tmp.Get(),&inactive};Root texts(Invoke(Signature("GameObject","GetComponentsInChildren",{"System.Type","System.Boolean"}),object.Get(),a));
+            for(uintptr_t i=0;i<Get<uintptr_t>(texts.Get(),0x18)&&i<3;++i){void* label=Get<void*>(texts.Get(),0x20+8*i);if(comma)out<<',';comma=true;
+                out<<"{\"text\":"<<Json(Text(Invoke(Method(label,"get_text",0),label)).substr(0,60))<<",\"style\":"<<Value<int>(Method(label,"get_fontStyle",0),label)<<'}';}}}
+        Root sample(il2cpp::api().string_new("Big <color=#FF0000>red</color> <b>b</b> <size=50>x</size> a<b"));void* sa[]{sample.Get()};
+        out<<"],\"sanitized\":"<<Json(Text(Invoke(M("TMPExtensions","SanitizeUserInputForDisplay",1),nullptr,sa)));
+        return out.str()+"}";
+    }
     if(action=="inventory-open"){bool show=true,appearances=false,stash=false,last=false;int tab=0;void* a[]{&show,&appearances,&stash,&tab,&last};Invoke(Method(ui,"openInventory",5),ui,a);return State();}
     if(action=="skills-open"){Invoke(Method(ui,"SkillsKeyDown",0),ui);return "{\"ok\":true}";}
     if(action=="inventory-open-beside"){bool overlapping=false,cosmetics=false,dontOpen=false,sound=false;int tab=0;void* a[]{&overlapping,&cosmetics,&dontOpen,&tab,&sound};Invoke(Method(ui,"openInventory",5),ui,a);return State();}
@@ -1680,6 +2053,73 @@ std::string Test(const std::string& id,const std::string& action){
             if(footer){Root ft(Invoke(M("GameObject","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),footer));const auto r=RectIn(ft.Get(),tooltipTransform.Get());
                 if(comma)out<<',';comma=true;out<<"{\"what\":\"footer\",\"rect\":["<<r.x<<','<<r.y<<','<<r.w<<','<<r.h<<"]}";}}
         return out.str()+"]}";
+    }
+    if(action.rfind("affix-special-",0)==0){
+        // Disposable test character only: affix-special-<k>-<type> sets the special type (0 standard,
+        // 1 experimental, 2 personal) of the first regular affix of the k-th inventory item with affixes, in
+        // memory, so the tooltip marks can be checked; returns the type it had.
+        const auto dash=action.find('-',14);if(dash==std::string::npos)throw std::runtime_error("use affix-special-<k>-<type>");
+        const size_t wanted=static_cast<size_t>(std::stoul(action.substr(14,dash-14)));const int type=std::stoi(action.substr(dash+1));
+        if(type<0||type>2)throw std::runtime_error("Unsupported special affix type.");
+        size_t index=0;
+        for(void* icon:Find("LE.dll","","InventoryItemUI")){
+            Root go(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),icon));
+            if(!Value<bool>(Method(go.Get(),"get_activeInHierarchy",0),go.Get()))continue;
+            void* entry=Get<void*>(icon,F("InventoryItemUI","<EntryRef>k__BackingField"));void* data=entry?Get<void*>(entry,F("ItemContainerEntry","data")):nullptr;
+            void* affixes=data?Get<void*>(data,F("ItemData","affixes")):nullptr;if(!affixes||Entries(affixes).empty())continue;
+            if(index++!=wanted)continue;
+            for(void* affix:Entries(affixes)){
+                if(!affix||Get<int>(affix,F("ItemAffix","sealedAffixType")))continue;
+                int& special=*reinterpret_cast<int*>(static_cast<char*>(affix)+F("ItemAffix","specialAffixType"));const int before=special;special=type;
+                return "{\"ok\":true,\"before\":"+std::to_string(before)+",\"type\":"+std::to_string(type)+"}";
+            }
+            throw std::runtime_error("No regular affix.");
+        }
+        throw std::runtime_error("No such inventory item with affixes.");
+    }
+    if(action.rfind("tooltip-compare-open-",0)==0||action=="tooltip-compare-close"||action=="tooltip-read-all"){
+        // Disposable test character only. open-<k>: the k-th inventory item with affixes, with the tooltip
+        // manager's comparison flag on in memory (as auto compare); read-all: every open item tooltip's
+        // affix lines; close: tooltip closed and the flag back to what it was.
+        static int savedCompare=-1;
+        auto managers=Find("LE.dll","","TooltipItemManager");if(managers.empty())throw std::runtime_error("Tooltip manager unavailable.");
+        void* manager=managers.front();bool& compare=*reinterpret_cast<bool*>(static_cast<char*>(manager)+F("TooltipItemManager","autoCompareEnabled"));
+        if(action=="tooltip-compare-close"){Invoke(Method(manager,"CloseTooltip",0),manager);if(savedCompare>=0)compare=savedCompare!=0;savedCompare=-1;return std::string("{\"ok\":true,\"compare\":")+Boolean(compare)+"}";}
+        if(action=="tooltip-read-all"){
+            std::ostringstream out;out<<"{\"ok\":true,\"compare\":"<<Boolean(compare)<<",\"tooltips\":[";bool first=true;
+            for(void* tooltip:Find("LE.dll","","UITooltipItem")){
+                Root go(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),tooltip));
+                if(!Value<bool>(Method(go.Get(),"get_activeInHierarchy",0),go.Get()))continue;
+                if(!first)out<<',';first=false;
+                out<<"{\"lines\":[";bool comma=false;
+                // The compare section's lines only while that section is shown.
+                void* compareContent=Get<void*>(tooltip,F("UITooltipItem","compareContent"));
+                const bool compareShown=compareContent&&game::IsAlive(compareContent)&&Value<bool>(Method(compareContent,"get_activeInHierarchy",0),compareContent);
+                for(const char* list:{"prefixesText","suffixesText","comparePrefixes","compareSuffixes"})if(list[0]!='c'||compareShown)for(void* l:Entries(Get<void*>(tooltip,F("UITooltipItem",list)))){
+                    if(!l||!game::IsAlive(l))continue;Root lg(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),l));
+                    if(!Value<bool>(Method(lg.Get(),"get_activeSelf",0),lg.Get()))continue;
+                    void* t=Get<void*>(l,F("UITooltipItemAffix","_text"));const std::string text=t?Text(Invoke(Method(t,"get_text",0),t)):std::string();
+                    if(comma)out<<',';comma=true;out<<"{\"compare\":"<<Boolean(list[0]=='c')<<",\"coloured\":"<<Boolean(text.find("<color=#")!=std::string::npos)<<",\"text\":"<<Json(text.substr(0,90))<<'}';
+                }
+                out<<"]}";
+            }
+            return out.str()+"]}";
+        }
+        if(savedCompare<0)savedCompare=compare?1:0;compare=true;
+        const size_t wanted=static_cast<size_t>(std::stoul(action.substr(21)));size_t index=0;
+        for(void* icon:Find("LE.dll","","InventoryItemUI")){
+            Root go(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),icon));
+            if(!Value<bool>(Method(go.Get(),"get_activeInHierarchy",0),go.Get()))continue;
+            void* entry=Get<void*>(icon,F("InventoryItemUI","<EntryRef>k__BackingField"));void* data=entry?Get<void*>(entry,F("ItemContainerEntry","data")):nullptr;
+            void* affixes=data?Get<void*>(data,F("ItemData","affixes")):nullptr;if(!affixes||Entries(affixes).empty())continue;
+            if(index++!=wanted)continue;
+            Root unpacked(Invoke(Method(data,"getAsUnpacked",0),data));Root t(Invoke(componentTransform,icon));
+            Vec3 at=Value<Vec3>(transformPosition,t.Get());Vec2 size=Value<Vec2>(M("RectTransform","get_sizeDelta",0,"UnityEngine","UnityEngine.CoreModule.dll"),t.Get());
+            int slot=0;Vec2 offset{0,0};void* a[]{unpacked.Get(),&slot,&offset,&at,go.Get(),&size};
+            Invoke(Method(manager,"OpenItemTooltip",6),manager,a);
+            return "{\"ok\":true,\"opened\":"+std::to_string(wanted)+",\"baseType\":"+std::to_string(Get<uint8_t>(data,F("ItemData","itemType")))+"}";
+        }
+        throw std::runtime_error("No such inventory item with affixes.");
     }
     if(action=="tooltip-first"||action=="tooltip-close"){
         // Opens the game's own item tooltip for the first visible inventory item
@@ -2016,6 +2456,44 @@ std::string Test(const std::string& id,const std::string& action){
         void* args[]{&type,c.actor,&at,&value};Invoke(M("PickupableObjectsManager","CreatePickupableObjectForPlayer",4,"LE.Factions"),manager,args);
         return "{\"ok\":true,\"amber\":10,\"distance\":"+std::to_string(distance)+"}";
     }
+    if(action=="ground-count"){
+        // Disposable test character only (read only): drops on the ground (equipment, affix shards, other
+        // materials, gold), the item labels the game shows for them, and what the active loot filter says
+        // for each shard on the ground (shown or hidden).
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","","GroundItemManager","instance"));
+        if(!manager)throw std::runtime_error("Ground item manager unavailable.");
+        void* offline=Get<void*>(manager,F("GroundItemManager","offlineItems"));if(!offline)throw std::runtime_error("Ground item list unavailable.");
+        void* filterManager=game::StaticObject(game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","Instance"));
+        void* filter=filterManager?Get<void*>(filterManager,F("ItemFilterManager","<Filter>k__BackingField","ItemFiltering")):nullptr;
+        std::unique_ptr<Root> filterPin;if(filter)filterPin=std::make_unique<Root>(filter);
+        int equipment=0,shards=0,otherMaterials=0,shardsShown=0,shardsHidden=0;
+        for(void* record:Entries(Get<void*>(offline,F("GroundItemManager.GroundItemList","items")))){
+            void* data=record?Get<void*>(record,F("GroundItemManager.GroundItem","itemData")):nullptr;if(!data)continue;Root pin(data);
+            const int type=Get<uint8_t>(data,F("ItemData","itemType"));
+            if(type==101){
+                ++shards;
+                void* unpackedItem=filter?Invoke(Method(data,"getAsUnpacked",0),data):nullptr;
+                if(unpackedItem){Root unpacked(unpackedItem);
+                    alignas(8) unsigned char color[8]{},emphasize[8]{};int rule=-1,sound=0,icon=0,beamSize=0;bool beam=false;float beamColor[4]{};
+                    void* args[]{unpacked.Get(),color,emphasize,&rule,&sound,&icon,&beam,&beamSize,beamColor};
+                    (Value<int>(Method(filter,"Match",9),filter,args)==1?shardsHidden:shardsShown)++;}
+            }else if(type>=100)++otherMaterials;else ++equipment;
+        }
+        const size_t gold=Entries(Get<void*>(offline,F("GroundItemManager.GroundItemList","gold"))).size();
+        int labels=0,shardLabels=0;
+        if(void* dlist=game::StaticObject(game::FindStaticField("LE.dll","","ItemTooltipOrganizer","pickableGroundLabelList"))){
+            const auto* labelClass=game::FindClass("LE.dll","","GroundItemLabel");
+            void* inner=*reinterpret_cast<void* const*>(static_cast<char*>(dlist)+0x10);
+            for(void* label:Entries(inner)){
+                if(!label||il2cpp::api().object_get_class(label)!=labelClass||!game::IsAlive(label))continue;++labels;
+                void* data=Invoke(Method(label,"getItemData",0),label);if(data&&Get<uint8_t>(data,F("ItemData","itemType"))==101)++shardLabels;
+            }
+        }
+        std::ostringstream out;out<<"{\"ok\":true,\"equipment\":"<<equipment<<",\"shards\":"<<shards<<",\"otherMaterials\":"<<otherMaterials<<",\"gold\":"<<gold
+           <<",\"labels\":"<<labels<<",\"shardLabels\":"<<shardLabels<<",\"filter\":"<<Json(filter?Text(Get<void*>(filter,F("ItemFilter","name","ItemFiltering"))):std::string())
+           <<",\"filterActive\":"<<Boolean(filter!=nullptr)<<",\"shardsShownByFilter\":"<<shardsShown<<",\"shardsHiddenByFilter\":"<<shardsHidden<<'}';
+        return out.str();
+    }
     if(action.rfind("drop-shard-",0)==0){
         // Disposable test character only: one random affix shard at a distance, via the game's own shard spawn.
         const int distance=std::stoi(action.substr(11));if(distance<1||distance>80)throw std::runtime_error("Unsupported shard distance.");
@@ -2125,6 +2603,114 @@ std::string Test(const std::string& id,const std::string& action){
         const float before=Get<float>(health,F("BaseHealth","currentHealth"));const int maximum=Get<int>(health,F("BaseHealth","maxHealth"));
         *reinterpret_cast<float*>(static_cast<char*>(health)+F("BaseHealth","currentHealth"))=static_cast<float>(maximum);
         return "{\"ok\":true,\"before\":"+std::to_string(before)+",\"health\":"+std::to_string(maximum)+"}";
+    }
+    if(action.rfind("player-health-",0)==0){
+        // Disposable test character only: current health set to this much (the next hit can be lethal).
+        const float amount=std::stof(action.substr(14));void* health=Get<void*>(c.actor,F("Actor","health"));if(!health)throw std::runtime_error("Health unavailable.");
+        if(!(amount>=1&&amount<=static_cast<float>(Get<int>(health,F("BaseHealth","maxHealth")))))throw std::runtime_error("Unsupported health.");
+        *reinterpret_cast<float*>(static_cast<char*>(health)+F("BaseHealth","currentHealth"))=amount;
+        return "{\"ok\":true,\"health\":"+std::to_string(amount)+"}";
+    }
+    if(action.rfind("enemy-attack-",0)==0||action.rfind("enemy-ailment-",0)==0){
+        // Disposable test character only. enemy-attack-<k>: the nearest enemy uses its k-th ability at the
+        // character from where it stands; enemy-ailment-<ailment id>-<stacks>: the nearest enemy's stacks of
+        // that ailment on the character (as its hits apply them; 7 = poison, 1 = ignite, 2 = bleed).
+        const auto me=Position(c.actor);void* alignment=Get<void*>(Get<void*>(c.actor,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
+        void* nearest=nullptr;double distance=1.e30;
+        for(void* target:Find("LE.dll","","Actor")){
+            if(!game::IsAlive(target)||target==c.actor)continue;void* manager=Get<void*>(target,F("Actor","alignmentManager"));if(!manager)continue;
+            void* other=Get<void*>(manager,F("AlignmentManager","alignment"));void* args[]{other};if(!other||!Value<bool>(Method(alignment,"IsFoe",1),alignment,args))continue;
+            void* health=Get<void*>(target,F("Actor","health"));if(!health||Get<float>(health,F("BaseHealth","currentHealth"))<=0)continue;
+            auto p=Position(target);double x=p.x-me.x,z=p.z-me.z,d=x*x+z*z;if(d<distance){distance=d;nearest=target;}
+        }
+        if(!nearest)throw std::runtime_error("No test enemy available.");Root pin(nearest);
+        const std::string enemy=AttackerName(nearest);
+        Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","AbilityList"))));
+        void* ca[]{type.Get()};Root list(Invoke(Signature("Component","GetComponent",{"System.Type"}),nearest,ca));
+        if(!list.Get())throw std::runtime_error("This enemy has no ability list.");
+        const auto abilities=Entries(Get<void*>(list.Get(),F("AbilityList","abilities")));if(abilities.empty())throw std::runtime_error("This enemy has no loaded attack.");
+        if(action.rfind("enemy-ailment-",0)==0){
+            // As the enemy's own hits apply it: its stats, its ability and its alignment.
+            const auto dash=action.find('-',14);if(dash==std::string::npos)throw std::runtime_error("use enemy-ailment-<ailment id>-<stacks>");
+            int ailmentId=std::stoi(action.substr(14,dash-14));float stacks=std::stof(action.substr(dash+1));if(ailmentId<0||ailmentId>200||!(stacks>=1&&stacks<=50))throw std::runtime_error("Unsupported ailment.");
+            void* ia[]{&ailmentId};Root ailment(Invoke(Signature("AilmentList","getAilment",{"System.Int32"},"","LE.dll"),nullptr,ia));if(!ailment.Get())throw std::runtime_error("Ailment unavailable.");
+            void* receiver=Get<void*>(c.actor,F("Actor","ailmentReceiver"));if(!receiver)throw std::runtime_error("Ailment receiver unavailable.");
+            void* own=abilities.front();void* stats=Get<void*>(nearest,F("Actor","stats"));
+            void* enemyAlignment=Get<void*>(Get<void*>(nearest,F("Actor","alignmentManager")),F("AlignmentManager","alignment"));
+            float none=0;int useType=9;bool conversions=false;
+            void* args[]{ailment.Get(),nearest,own,own,own,stats,enemyAlignment,&stacks,&none,&none,&useType,&conversions,&none,&none};
+            Invoke(M("AilmentReceiver","ApplyAilment",14),receiver,args);
+            return "{\"ok\":true,\"requested\":true,\"enemy\":"+Json(enemy)+",\"ailment\":"+Json(Text(Get<void*>(ailment.Get(),F("Ailment","displayName"))))+",\"distance\":"+std::to_string(std::sqrt(distance))+"}";
+        }
+        // The enemy is moved next to the character first, so a melee attack reaches.
+        bool moved=false;
+        if(void* agent=Get<void*>(nearest,F("Actor","navMeshAgent"));agent&&distance>2.25){
+            const auto t=Position(nearest);const double d=std::sqrt(distance);
+            Vec3 beside{static_cast<float>(me.x+(t.x-me.x)/d*1.5),me.y,static_cast<float>(me.z+(t.z-me.z)/d*1.5)};void* wa[]{&beside};
+            moved=Value<bool>(Method(agent,"Warp",1),agent,wa);
+        }
+        Root ability(abilities[static_cast<size_t>(std::stoul(action.substr(13)))%abilities.size()]);if(!ability.Get())throw std::runtime_error("Empty ability slot.");
+        Vec3 from=Position(nearest),to=me;void* constructor=Get<void*>(nearest,F("Actor","abilityObjectConstructor"));float delay=0;int useType=1;bool onDeath=false;
+        void* args[]{constructor,&from,&to,&delay,&useType,&onDeath,nullptr};Invoke(Method(ability.Get(),"CastAfterDelay",7),ability.Get(),args);
+        const auto now=Position(nearest);
+        return "{\"ok\":true,\"requested\":true,\"enemy\":"+Json(enemy)+",\"ability\":"+Json(Text(Get<void*>(ability.Get(),F("Ability","abilityName"))))
+              +",\"abilities\":"+std::to_string(abilities.size())+",\"moved\":"+Boolean(moved)+",\"distance\":"+std::to_string(std::sqrt((now.x-me.x)*(now.x-me.x)+(now.z-me.z)*(now.z-me.z)))+"}";
+    }
+    if(action=="player-flags"){
+        // Read only: the character's damage-related flags.
+        void* health=Get<void*>(c.actor,F("Actor","health"));void* protection=Get<void*>(c.actor,F("Actor","protection"));
+        std::ostringstream out;out.setf(std::ios::fixed);out.precision(3);
+        out<<"{\"ok\":true,\"damageable\":"<<Boolean(Get<bool>(health,F("BaseHealth","damageable")))<<",\"canDie\":"<<Boolean(Get<bool>(health,F("BaseHealth","canDie")))
+           <<",\"isDamageable\":"<<Boolean(Value<bool>(Method(health,"isDamageable",0),health))<<",\"cannotDie\":"<<Boolean(Value<bool>(Method(health,"CannotDie",0),health))
+           <<",\"ward\":"<<Get<float>(protection,F("ProtectionClass","ward"))<<",\"fixedDamageReduction\":"<<Get<float>(protection,F("ProtectionClass","fixedDamageReduction"))
+           <<",\"damageTakenStats\":"<<Boolean(Get<bool>(protection,F("ProtectionClass","hasDamageTakenStats")))<<",\"damageTakenModifier\":"<<Get<float>(protection,F("PrecalculatedStatsHolder","untaggedDamageTakenModifier"))<<",\"invulnerable\":"<<Boolean(Value<bool>(Method(protection,"get_IsInvulnerable",0),protection))<<",\"protectionMatches\":"<<Boolean(protection==takenProtection)<<'}';
+        return out.str();
+    }
+    if(action=="damage-taken-entries"||action=="damage-taken-entries-clear"){
+        // Disposable test character only: every Stats.Stat with SP 6 (DamageTaken) in the character's stats and in
+        // its character mutator's list, with its more values; -clear turns a more of -1 into 0.
+        const bool clear=action=="damage-taken-entries-clear";
+        void* mutator=Get<void*>(c.actor,F("Actor","characterMutator"));void* stats=mutator?Get<void*>(mutator,F("CharacterMutator","myStats")):nullptr;
+        if(!stats)throw std::runtime_error("Character stats unavailable.");
+        std::ostringstream out;out.setf(std::ios::fixed);out.precision(3);out<<"{\"ok\":true";int cleared=0;
+        const auto dumpList=[&](const char* name,void* list){
+            out<<",\""<<name<<"\":[";bool comma=false;
+            for(void* e:Entries(list)){
+                if(!e||Get<uint8_t>(e,F("Stats.Stat","property"))!=6)continue;
+                if(comma)out<<',';comma=true;
+                out<<"{\"tags\":"<<Get<int>(e,F("Stats.Stat","tags"))<<",\"special\":"<<static_cast<int>(Get<uint8_t>(e,F("Stats.Stat","specialTag")))<<",\"extra\":"<<Get<int>(e,F("Stats.Stat","extraTag"))
+                   <<",\"added\":"<<Get<float>(e,F("Stats.Stat","addedValue"))<<",\"increased\":"<<Get<float>(e,F("Stats.Stat","increasedValue"))<<",\"more\":[";
+                void* more=Get<void*>(e,F("Stats.Stat","moreValues"));
+                if(more){const int n=Get<int>(more,0x18);void* items=Get<void*>(more,0x10);
+                    for(int i=0;i<n&&i<64&&items;++i){float& v=*reinterpret_cast<float*>(static_cast<char*>(items)+0x20+sizeof(float)*i);if(i)out<<',';out<<v;if(clear&&v<=-0.999f){v=0;++cleared;}}}
+                out<<"]}";
+            }
+            out<<']';
+        };
+        dumpList("stats",Get<void*>(stats,F("Stats","stats")));
+        dumpList("mutator",Get<void*>(mutator,F("CharacterMutator","stats")));
+        dumpList("mutatorOld",Get<void*>(mutator,F("CharacterMutator","oldStats")));
+        if(clear&&cleared)*reinterpret_cast<bool*>(static_cast<char*>(stats)+F("BaseStats","statsNeedToBeUpdatedNextFrame"))=true;
+        out<<",\"cleared\":"<<cleared<<'}';return out.str();
+    }
+    if(action=="player-damageable"){
+        // Disposable test character only: the character can take damage again: the game's own flag, and its
+        // damage taken modifier (0 = takes no damage) back to normal.
+        void* health=Get<void*>(c.actor,F("Actor","health"));const bool before=Get<bool>(health,F("BaseHealth","damageable"));
+        *reinterpret_cast<bool*>(static_cast<char*>(health)+F("BaseHealth","damageable"))=true;
+        void* protection=Get<void*>(c.actor,F("Actor","protection"));float& modifier=*reinterpret_cast<float*>(static_cast<char*>(protection)+F("PrecalculatedStatsHolder","untaggedDamageTakenModifier"));
+        const float modifierBefore=modifier;if(!(modifier>0))modifier=1;
+        return std::string("{\"ok\":true,\"before\":")+Boolean(before)+",\"modifierBefore\":"+std::to_string(modifierBefore)+",\"modifier\":"+std::to_string(modifier)
+            +",\"invulnerable\":"+Boolean(Value<bool>(Method(protection,"get_IsInvulnerable",0),protection))+"}";
+    }
+    if(action=="taken-read"||action=="taken-reset"){
+        // Per attacker: the damage recorded for hits on the character, the health and ward those hits removed,
+        // the hits and how many were damage over time.
+        std::ostringstream out;out.setf(std::ios::fixed);out.precision(2);out<<"{\"ok\":true,\"byAttacker\":{";bool comma=false;
+        for(const auto& [name,t]:testTakenBy){if(comma)out<<',';comma=true;out<<Json(name)<<":{\"recorded\":"<<t[0]<<",\"lost\":"<<t[1]<<",\"hits\":"<<t[2]<<",\"dot\":"<<t[3]<<'}';}
+        out<<"},\"zeroHits\":"<<testTakenZero<<",\"recording\":"<<Boolean(takenProtection!=nullptr)<<",\"recent\":"<<takenRecent.size()<<",\"deaths\":"<<deathCount<<'}';
+        if(action=="taken-reset"){testTakenBy.clear();testTakenZero=0;}
+        return out.str();
     }
     if(action.rfind("minion-hit-",0)==0){
         // Disposable test character only: the first own summon takes this much health damage directly.
@@ -2807,7 +3393,7 @@ std::string Test(const std::string& id,const std::string& action){
     throw std::runtime_error("Unknown convenience check.");
 });}
 #endif
-void ReleaseRoots(){rings.clear();ringMaterial.reset();monitorUntil=0;monitoredAllies.clear();damageOwner.Reset();disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();gridTransform.Reset();ClearInteractions();saved.clear();typeRoots.clear();damageIconSkillKeys.clear();
+void ReleaseRoots(){takenRoot.reset();takenActor=takenProtection=takenHealth=nullptr;attackerNames.clear();rings.clear();ringMaterial.reset();monitorUntil=0;monitoredAllies.clear();damageOwner.Reset();disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();gridTransform.Reset();ClearInteractions();saved.clear();typeRoots.clear();damageIconSkillKeys.clear();
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
     testDummy.reset();testDummyProtection=nullptr;testTargetRoots.clear();testTargets.clear();
 #endif

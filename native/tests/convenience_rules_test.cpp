@@ -21,14 +21,15 @@ int main(){
             Check(Inside(p.grid,menu)&&p.rect.y>=left.y+left.h+4&&p.rect.h==32);
             Check(std::abs(p.grid.y+p.grid.h-grid.y-grid.h)<.001f);
             Check(std::abs(p.grid.w/grid.w-p.grid.h/grid.h)<.001f&&p.grid.w/grid.w>=.9f);
-            for(size_t i=0;i<3;++i){auto b=p.buttons[i];Check(Inside(b,p.rect)&&!Overlaps(b,left)&&!Overlaps(b,currency)&&!Overlaps(b,p.grid)&&!Overlaps(b,neighbour));for(size_t j=0;j<i;++j)Check(!Overlaps(b,p.buttons[j]));}
+            for(size_t i=0;i<p.buttons.size();++i){auto b=p.buttons[i];Check(Inside(b,p.rect)&&!Overlaps(b,left)&&!Overlaps(b,currency)&&!Overlaps(b,p.grid)&&!Overlaps(b,neighbour));for(size_t j=0;j<i;++j)Check(!Overlaps(b,p.buttons[j]));}
         }
         ++cases;
     }
     Rect menu{-768,-540,768,1080},footer{-708.8f,-514.2f,664,27.6f},left{footer.x,footer.y,185.66f,footer.h},currency{-220.6f,footer.y,175.8f,footer.h};
     Rect screen{-1920,-540,1920,1080},grid{-705.6f,-475.8f,657.6f,376.8f};
     auto standard=PlaceToolbar(menu,screen,grid,footer,left,currency);
-    Check(standard.visible&&standard.buttons[0].w==100&&standard.buttons[1].w==118&&standard.rect.y>footer.y+footer.h);
+    Check(standard.visible&&standard.buttons[0].w==100&&standard.buttons[1].w==118&&standard.buttons[3].w==100&&standard.rect.y>footer.y+footer.h);
+    Check(std::abs(standard.buttons[3].x+standard.buttons[3].w-standard.rect.x-standard.rect.w)<.001f);  // the row holds all four
     Rect maximumCurrency{-461.51f,footer.y,416.71f,footer.h};
     auto maximum=PlaceToolbar(menu,screen,grid,footer,left,maximumCurrency);
     Check(maximum.visible&&maximum.rect.x==standard.rect.x&&maximum.rect.y==standard.rect.y);
@@ -64,5 +65,30 @@ int main(){
         const float huge=std::numeric_limits<float>::max();
         Check(SplitDamage(10,{huge,huge,0,0,0,0,0},out)&&std::abs(out[0]-5)<.001f&&std::abs(out[1]-5)<.001f);
     }
-    std::printf("PASS %u scale/window/currency/translation combinations, dedicated lower row, square cells, maximum balances, invalid bounds and budgets, damage split by type\n",cases);
+    // Death recap: recent hits bounded by time and count; a death's sums, attackers and killing blow.
+    {
+        std::deque<RecapHit> recent;
+        for(uint64_t t=0;t<30;++t)recent.push_back({t*1000,"A","Hit",false,10});
+        TrimRecent(recent,29000,20000,600);Check(recent.size()==21&&recent.front().tick==9000);
+        TrimRecent(recent,29000,20000,5);Check(recent.size()==5&&recent.front().tick==25000);
+        TrimRecent(recent,100,20000,600);Check(recent.size()==5);  // a clock behind the hits removes nothing
+        std::vector<RecapHit> hits{
+            {1000,"Skeleton Archer","Bow Attack",false,100,900,0,{100,0,0,0,0,0,0}},
+            {4000,"Skeleton Archer","Bow Attack",false,200,700,0,{1,0,0,0,0,0,1}},
+            {5000,"Plague Rat","Poison",true,50,650,0,{0,0,0,0,0,0,50}},
+            {6000,"Plague Rat","Poison",true,0,650,0,{0,0,0,0,0,0,1}},        // no damage: not counted
+            {6500,"Frost Wraith","Frost Bolt",false,650,0,0,{0,0,1,0,0,0,0}},  // the killing blow
+            {7000,"Late","After death",false,999,0,0,{1,0,0,0,0,0,0}},        // after the death
+            {~0ULL,"Bad","NaN",false,std::numeric_limits<float>::quiet_NaN(),0,0,{}}};
+        auto s=SummarizeRecap(hits,6500,10000);
+        Check(s.hits==4&&std::abs(s.total-1000)<.001&&std::abs(s.dot-50)<.001&&s.unsplit==0);
+        Check(std::abs(s.byType[0]-200)<.001&&std::abs(s.byType[6]-150)<.001&&std::abs(s.byType[2]-650)<.001);
+        Check(s.killer==4&&hits[4].attacker=="Frost Wraith");
+        Check(s.attackers.size()==3&&s.attackers[0].name=="Frost Wraith"&&s.attackers[1].name=="Skeleton Archer"&&s.attackers[1].hits==2&&s.attackers[2].dot==50);
+        auto window=SummarizeRecap(hits,6500,2000);  // only the last two seconds
+        Check(window.hits==2&&std::abs(window.total-700)<.001&&window.killer==4);
+        auto none=SummarizeRecap({},6500,10000);Check(none.hits==0&&none.killer==-1&&none.attackers.empty());
+        auto unsplit=SummarizeRecap({{100,"X","?",false,40,0,0,{}}},100,1000);Check(std::abs(unsplit.unsplit-40)<.001&&unsplit.killer==0);
+    }
+    std::printf("PASS %u scale/window/currency/translation combinations, dedicated lower row, square cells, maximum balances, invalid bounds and budgets, damage split by type, death recap\n",cases);
 }

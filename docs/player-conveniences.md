@@ -48,7 +48,10 @@ category enabled, Auto Pickup and Pick up everything now collect them like gold.
 
 The Loot page lists recent item, gold and amber pickups (up to 300, newest first)
 with rarity, who picked it up (you or Auto Pickup) and the loot filter rule that
-matched. "Rule N" is the same number the game shows with its **Item rule
+matched. When the game takes the nearby affix shards, runes and glyphs along with
+one you pick up, each of them is listed too. The list and the loot window keep
+showing new pickups after the game is started again (each game session is kept
+apart). "Rule N" is the same number the game shows with its **Item rule
 numbering** setting (the rule's Order + 1; 0 means no enabled rule matched and
 the item was shown by default). The rule's custom name is shown, otherwise the
 game's own rule description. Items, gold and the filter are never changed by
@@ -81,6 +84,27 @@ Identical resources picked up one after another share one line: gold and
 amber are added up, the same material is counted; equipment always has its own
 line. The window shows the total gold, and each item shows its affix tiers and
 the full rule (number, Show/Hide/Highlight, name).
+
+### Loot filter window
+
+- **More loot filter colours** (off by default, `tierset filtercolors 0|1`) adds 26
+  colours after the game's own in its label colour list (18 → 44) and beam colour
+  list (22 → 48): pinks, violets, blues, teals, greens, golds, oranges, reds,
+  browns and greys. Each one is a copy of the game's own most saturated colour with
+  every shade (label, button, border, shine, tooltip, beam) moved to the new hue,
+  so labels on the ground look like the game's. The filter stores the colour's
+  number; where EpochPact does not run, the game limits that number to its own
+  list and shows its last colour. Switching it off puts the game's own lists back.
+  Nothing in the saves changes. (Stash tab colours are stored in the character
+  save, so they are not extended.)
+- **Colours in loot filter rule names** (on by default, `tierset namecolors 0|1`):
+  the game shows a rule's own name through `TMPExtensions.SanitizeUserInputForDisplay`,
+  which breaks every tag. Colour (`<color=#FF4040>`, `<color=red>`, `<#40C0FF>`,
+  `</color>`), bold, italic, underline and strikethrough tags (`<b>` `<i>` `<u>`
+  `<s>` and their closing tags) now pass; any other tag (`<size>`, `<sprite>`,
+  `<link>` …) stays plain text as before. The rule name field accepts these
+  characters (no validation, 115 characters). The tooltip rule line keeps the same
+  tags of a name you wrote. Example: `Hide <color=#FF4040>junk</color> <b>rings</b>`.
 
 ### Loot filter files
 
@@ -143,6 +167,44 @@ and switches itself off after use. This prevents immediate return-portal loops.
 Generic portals and the Primal Hunt cave entrance use their existing game
 interaction; no destination, key, quest condition or reward is fabricated.
 
+### Rage of Morditas (Season 5)
+
+Five settings scale the values the game loaded for the Rage of Morditas
+encounter, only while offline play runs; nothing is written to the character or
+the save, and 1 (or the game's own) writes the game's values back. Going online
+puts them back as well. `rageread` reports the values in use and the game's own;
+`rageset spawn|hunttime|charges|buffs|blood <value>` sets them.
+
+- **Rage of Morditas chance** (1–5): the game places a Blood Crystal only in
+  zones it allows (campaign zones outside some chapters, and normal Monolith
+  echoes — not towns, the Arena or Woven echoes) and there rolls 30 % times the
+  zone's own factor (about 0.9 to 3.3; echoes add the Weaver bonus). The
+  setting multiplies the 30 %; from about 4 every allowed zone gets one.
+- **Rage of Morditas hunt time** (1–5): multiplies the hunt's starting time
+  (the game's 20 s, 25 s for the first band) and the time each kill adds (0.5 / 2
+  / 3 s for normal, magic and rare monsters, 10 s for a champion). The game
+  divides a kill's time by its escalation curve (1 up to 25 s of hunt, 2 at 30 s,
+  3 at 40 s, 4 at 50 s …), so long hunts gain less per kill.
+- **Kills for Bloodrage charges** (0.2–1): the share of the game's 20, 50, 90,
+  140 and 200 hunt kills needed for the five charges (0.25: 5, 13, 23, 35, 50).
+- **Kills for hunt buffs** (0.2–1): the same for the game's 20, 50, 90 and 140
+  kills that each grant a random hunt buff.
+- **Blood forging potential share**: every reward item of the encounter gets
+  Ice or Blood forging potential; the game gives Blood to 50 %. Choose 0 %
+  (all Ice) up to 100 % (all Blood). The Rituals of Ice and Blood keep their own
+  type.
+
+Not offered: more reward slots (the five slots are part of the save format),
+anger and Morditas progress (saved with the character).
+
+Measured on a test character (`research/live/rage4`, `rage8`): with the game's
+own chance 3 of 6 allowed zones got a crystal (expected 3.2 from their factors),
+with 4 all 6; a hunt started at 50 s instead of 25 s; with a quarter of the kills
+the game granted the first charge and buff at 9 kills (threshold 5) and the
+second at 15 (threshold 13), and each kill added 0.5 × 2 seconds before the
+game's curve; 400 reward items each gave Blood 53 % (game's own), 100 %, 0 %
+and 24 % (for 100, 0 and 25). Every value was back to the game's own after reset.
+
 ## Display & Camera
 
 Zoom accepts 1–2×. Camera angle accepts 0–85°; `0` uses the normal game angle.
@@ -198,7 +260,9 @@ values are re-applied on the next frame after a new area's map loads.
   carry the game's own colour tag inside the line (for example
   `<color=#ABABFFFF>` for experimental), which would win over the tier colour,
   so the coloured line is written without the game's colour tags; other tags,
-  icons and the corrupted glow stay. Both can be used together or separately. The game's original line text is
+  icons and the corrupted glow stay. Both can be used together or separately. The tooltip of the item it is
+  compared with (shown beside it while comparing) is coloured the same way, through the game's own
+  `updateCompareAffixesText`. The game's original line text is
   remembered and written back exactly when they are switched off. If a tooltip
   shows a different number of affix lines than the item has, that tooltip is
   left unchanged instead of guessing (`tierread` counts it as
@@ -217,11 +281,18 @@ values are re-applied on the next frame after a new area's map loads.
   **Rule line position** puts it under the item type (Top), before the affixes
   (Middle) or at the end of the tooltip below the flavour text (Bottom); the
   line is added to the header's or the body's own layout group, so the game
-  lays it out. **Rule name only** leaves just the rule's name.
-- **Tier colours**: default T1 white `FFFFFF`, T2 blue `2E8BFF`, T3 gold
-  `FFD700`, T4 burnt orange `FF5500`, T5 purple `AA55FF`, T6 green `00FF00`, T7
-  red-pink `FF0044`, T8 cyan `00FFFF` (a player's palette; T2 and T5 slightly
-  lighter so they stay readable on the dark tooltip). Each tier can be changed; your colours are
+  lays it out. **Rule line shows** chooses its parts: everything, number + Show/Hide + name, number + name,
+  Show/Hide + name, name only, number + Show/Hide or number only (`tierset ruleparts`; bits 1 "Loot
+  filter:", 2 number, 4 Show/Hide/Highlight, 8 name). A rule without a name of its own shows the
+  description the game makes for it ("Hide all Normal/Magic items") without its leading "Show all",
+  "Hide all", "Show", "Hide", "Highlight" or "Recolor" words; a name you gave a rule is shown as written.
+- **Mark Personal, Champion and Experimental affixes** (on by default) puts a small square before
+  those affix lines, as the game marks corrupted ones: Personal sky blue `4FC3F7`, Champion amber
+  `FFC107`, Experimental orchid `E040FB` (a TMP `<mark>`), so they stand apart from regular affixes.
+  Shown with the tier tags or tier colours (`tierset special 0|1`).
+- **Tier colours**: by default in the game's rarity order: T1 normal white `FFFFFF`, T2 magic blue
+  `2E8BFF`, T3 rare yellow `FFD700`, T4 exalted purple `AA55FF`, T5 unique orange `FF5500`, T6 set
+  green `00FF00`, T7 legendary red `FF0044`, T8 cyan `00FFFF`. Each tier can be changed; your colours are
   remembered on this device and applied whenever a character is ready. A
   changed colour or setting also rebuilds the game's tooltip
   (`TooltipItemManager.ForceUpdateTooltip`), so an item shown before the change
@@ -230,11 +301,23 @@ values are re-applied on the next frame after a new area's map loads.
 ### Text and font
 
 - **Interface font** replaces the font of the game's interface text with an
-  installed Windows font (the list comes from Windows). Characters the font does
-  not have, such as symbols, still use the game's font. Text keeps its letter
-  case: the game's font shows small capitals for lower-case letters, a Windows
-  font shows them as written.
+  installed Windows font (the list comes from Windows). Every style a family has
+  (Light, Semilight, Semibold, Bold, Black, Italic, Bold Italic …) is listed as
+  "Family — Style" (sent as `fontset family Family%7CStyle`); Windows is asked
+  for 26 common style names once per family (about 1.3 s for 360 families the
+  first time). A family without a Regular face loads with the first style it has.
+  **Search fonts** narrows the list as you type (by name or style); the chosen
+  font stays listed. Characters the font does not have, such as symbols, still
+  use the game's font.
 - **Interface text size** multiplies the size of interface text (0.7–1.5).
+- **Letter case as written** (`fontset case 0|1`) shows names and texts the way
+  they were written: the game draws many texts in capitals, lower case or small
+  capitals through the text style (TMP UpperCase, LowerCase, SmallCaps); those
+  styles are left out, everything else stays. Stash tab names, rule names and item
+  names then keep the capitals, endings and punctuation you typed. The game's own
+  font draws lower-case letters like small capitals, so choose a Windows font for
+  real lower-case letters. Each text's own style is restored exactly when it is
+  switched off.
 - Text in panels opened later gets the same font and size. "Game font" and size
   1 restore every text's own font, material and sizes exactly; closing
   EpochPact does the same. Nothing is written to the game's settings.
@@ -294,8 +377,8 @@ The game has 18 Weaver's Will Uniques; 14 of them can drop at random, so about
 
 ## Inventory
 
-The game inventory gains **Stash**, **Stash all** and **Vendor** buttons. The same
-actions are available on EpochPact's Inventory page. Stash and Vendor open the
+The game inventory gains **Stash**, **Stash all**, **Vendor** and **Sell all**
+buttons. The same actions are available on EpochPact's Inventory page. Stash and Vendor open the
 normal game panels outside town, and pressing them again closes the respective
 window. Shortcuts sit in their own centered row below the item grid, above the
 native Transfer/Sort and currency footer; the grid is scaled uniformly to make
@@ -310,6 +393,24 @@ whose stash priority matches them, otherwise to the current stash tab. Equipment
 items that do not fit stay in inventory. The final result reports moved and
 remaining item counts and tells the player when the stash had no room. Actions are serialized with the normal IPC worker and
 reject a changed loaded-character identity.
+
+**Sell all** sells every inventory item the vendor buys through the game's own
+sale (the quick move into the shop that Ctrl+click uses), after a recovery backup.
+In the game it asks once more: the first press shows "Confirm sell" for four
+seconds, the second sells. The vendor opens first when it is not open. **Sell all
+keeps** (Inventory page, remembered): sell everything, keep Unique, Set and
+Legendary (default), or also keep Exalted items. Equipped items are never sold;
+items the vendor does not buy are counted and stay. Sold items are in the vendor's
+buyback list as after a normal sale. The result reports items sold, kept and gold.
+
+**Automatic sorting** uses the game's own Sort (`ItemContainer.TrySort`, the
+call behind its Sort buttons): **Sort the inventory automatically** sorts the
+inventory each time it opens; **Sort every stash tab automatically**, or the tabs
+ticked under **Stash tabs sorted automatically**, sorts a stash tab each time it is
+shown (the stash opens on it or you switch to it). Only item positions change; the
+game saves them as after its own Sort. The choices are kept in
+`<game>/EpochPact/auto-sort.txt` (`invread`, `invset autosort|autosortall 0|1`,
+`invset sellkeep 0|1|2`, `invsorttab <tab ID> 0|1`).
 
 Stash tab memory: EpochPact remembers the stash tab that was open when the
 stash closed and selects it again when the stash opens after a game restart (the
@@ -388,7 +489,17 @@ once.
   as large (remembered on this device). The loot and damage windows keep their
   own text size in their ⚙.
 - **Game setup** has its own section; Overview shows a one-line status with
-  Launch offline or a link to Game setup when something is needed.
+  Launch offline or a link to Game setup when something is needed. **Launch the
+  game when EpochPact starts** (Game setup, remembered on this device) launches
+  Last Epoch offline right after EpochPact opens, once per app start, when the mod
+  is installed and up to date and the game is not running.
+- **Settings stay as you left them:** with "My last used settings" as the startup choice,
+  every setting you change is remembered at once (a value back at its default is
+  forgotten). When a character is loaded, also after re-entering the game without
+  closing EpochPact, all remembered settings are sent together, waiting while
+  another action runs; one refused setting no longer stops the rest. One message
+  says how many were applied ("Applied your last used settings (N settings).") or how many were
+  refused, instead of a "saved" message per setting.
 
 ## Live summons
 
@@ -441,6 +552,39 @@ cards use) and your class or mastery icon, read once per source with
 `damageicon` (read only, about 64×64 PNG). Large values are written with three
 significant digits (2.90M, 17.9M, 1.25B). Sizes follow the window's
 text size; at small sizes the details scroll and the total stays visible.
+
+### Damage taken and the death recap
+
+**Dealt / Taken** in the damage window's bar switches between the damage you and
+your allies deal and the damage your character takes during the session, one
+bar per attacker type ("Solar Invader", "Skeleton Archer"; "You" is damage you
+did to yourself). Choosing an attacker shows its damage types; **All attackers ↶**
+goes back to all of them; **DAMAGE TAKEN** at the bottom is the whole session per
+second. The Summons page shows the same under **Damage taken**, below the damage
+meter. Damage taken is what the game applied (after armour, resistances, block
+and the like), split by type the same way as damage dealt; ward absorbs part of
+it, so a hit can lower your ward and not your health.
+
+**Death recap** (on by default; **Record deaths** on the Summons page) keeps the
+hits your character took in the last 20 seconds, in memory only. When your
+character dies, the 10 seconds before it are kept with the buffs and debuffs
+the game showed at that moment; the last 10 deaths stay until the game closes
+(**Clear** forgets them). The recap shows who dealt the killing blow and with
+what, the damage taken in those 10 seconds by type and by attacker, damage over
+time (the ailment's name: Poison, Ignite, Bleed …), the last hits with the
+health and ward left after each, and the effects. In the damage window **☠**
+opens it and is marked when a death you have not looked at was recorded. While
+the death recap is on, the damage hook stays in while a character is loaded
+(it only reads; with the recap off and no damage session it is removed again).
+Hits that do no damage (dodged, immune) are not listed. `deathrecap` reads it,
+`deathrecap 0|1` turns it off or on, `deathrecap clear` empties it.
+
+Measured on a test character: every hit and every Poison and Ignite tick was
+recorded with exactly the health and ward it removed (the killing blow records
+the full hit; the health it could remove ends at 0), the Taken totals equal the
+sum of the hits, and a death kept the killing blow, the ailments and the effects
+the game showed (Poison ×30, Ignite ×10, Preparation, Grace Period). Results:
+`research/live/taken2/`.
 
 
 Allies are grouped by type by default: one row per type (for example

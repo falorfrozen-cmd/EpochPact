@@ -4,12 +4,29 @@
  const capacity=300;
  const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const rarityClass=r=>'loot-'+String(r||'normal').toLowerCase().replace(/[^a-z]/g,'');
- // Entries arrive with increasing sequence numbers; keep each once, newest last.
- function merge(existing,incoming,now=Date.now()){
-  const bySeq=new Map((existing||[]).map(e=>[e.seq,e]));
+ // Entries arrive with increasing sequence numbers within one game session; keep each once,
+ // newest last. A restarted game counts from 1 again, so an entry is its session and number.
+ function merge(existing,incoming,now=Date.now(),session=''){
+  const key=e=>`${e.session??''}|${e.seq}`;
+  const byKey=new Map((existing||[]).map(e=>[key(e),e]));
   // The game reports each entry's age at read time; store an absolute time.
-  for(const e of incoming||[])if(e&&Number.isFinite(e.seq)&&!bySeq.has(e.seq))bySeq.set(e.seq,{...e,at:now-(Number(e.ageSeconds)||0)*1000});
-  return [...bySeq.values()].sort((a,b)=>a.seq-b.seq).slice(-capacity);
+  for(const e of incoming||[])if(e&&Number.isFinite(e.seq)){
+   const entry={...e,session:String(session??'')};
+   if(!byKey.has(key(entry)))byKey.set(key(entry),{...entry,at:now-(Number(e.ageSeconds)||0)*1000});
+  }
+  // Sessions in the order they started, then by number.
+  const started=new Map();
+  for(const e of byKey.values())started.set(e.session??'',Math.min(started.get(e.session??'')??Infinity,Number(e.at)||0));
+  return [...byKey.values()].sort((a,b)=>(started.get(a.session??'')-started.get(b.session??''))||a.seq-b.seq).slice(-capacity);
+ }
+ // The game session a loot log reply belongs to. A core without one is recognised by its
+ // counter going back (the game was started again).
+ function sessionOf(reply,state={}){
+  if(reply&&typeof reply.session==='string'&&reply.session)return reply.session;
+  const seq=Number(reply?.seq)||0;
+  if(seq<(state.lastSeq||0))state.epoch=(state.epoch||0)+1;
+  state.lastSeq=seq;
+  return 'epoch-'+(state.epoch||0);
  }
  function newestSeq(entries){return (entries||[]).reduce((m,e)=>Math.max(m,e.seq||0),0);}
  const outcomes=['Show','Hide','Highlight'];
@@ -115,5 +132,5 @@
    return `<li class="${rarityClass(e.rarity)}" data-no-translate title="${escape([item,tiers,rule,shard].filter(Boolean).join('\n'))}"><span>${escape(item)}${piles(e)}${tiers?` <em class="loot-tiers">${escape(tiers)}</em>`:''}</span>${rule?`<small>${escape(rule)}</small>`:''}</li>`;}).join('')}</ul>`;
  }
  function totalGold(entries){return (entries||[]).reduce((t,e)=>t+(e.kind==='gold'?Number(e.gold)||0:0),0);}
- return {merge,newestSeq,ruleLabel,tierLabel,itemLabel,rows,table,compact,totalGold,capacity,categories,category,shown,filter,shardIds,affixText};
+ return {merge,sessionOf,newestSeq,ruleLabel,tierLabel,itemLabel,rows,table,compact,totalGold,capacity,categories,category,shown,filter,shardIds,affixText};
 });

@@ -7,7 +7,9 @@
      multiplier. Choosing a source or hiding a row never changes it.
    - Damage types keep the game's order (Physical … Poison). Session and Combat
      type values are each type's total divided by that time.
-   - Missing or broken values show "—", never NaN. */
+   - Missing or broken values show "—", never NaN.
+   - Damage taken (view.taken) is drawn as Pact Bars: one row per attacker type
+     and the damage types of the chosen attacker, else of all attackers. */
 (function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory(require('./damage-meter.js'));else root.EpochDamageStyles=factory(root.EpochDamage);})(this,function(D){
  'use strict';
  const STYLES=['quiet','bars','split','table'];
@@ -95,22 +97,22 @@
  function structureKey(m,view={}){
   const visible=m.sources.filter(s=>!s.hidden).map(s=>`${s.key}\u0001${s.label}\u0001${s.icon}\u0001${s.live>1?s.live:''}`).join('\u0002');
   const icons=m.sources.map(s=>s.icon&&view.icons?.get?.(s.icon)?1:0).join('');
-  return [styleOf(view.style),m.ok,m.empty,m.error,view.roster?1:0,visible,icons].join('\u0003');
+  return [styleOf(view.style),view.taken?1:0,m.ok,m.empty,m.error,view.roster?1:0,visible,icons].join('\u0003');
  }
- function emptyHtml(m){
+ function emptyHtml(m,view={}){
   if(!m.ok)return `<p class="empty">${m.error?esc(m.error):'Waiting for an offline character…'}</p>`;
-  return '<p class="empty">No damage recorded yet. Start the session and fight.</p>';
+  return view.taken?'<p class="empty">No damage taken yet. Start the session and fight.</p>':'<p class="empty">No damage recorded yet. Start the session and fight.</p>';
  }
  function html(m,view={}){
-  const style=styleOf(view.style),icons=view.icons;
-  if(m.empty)return `<div class="dm dm-empty">${emptyHtml(m)}</div>`;
+  const style=view.taken?'bars':styleOf(view.style),icons=view.icons;
+  if(m.empty)return `<div class="dm dm-empty">${emptyHtml(m,view)}</div>`;
   const visible=m.sources.filter(s=>!s.hidden),allies=m.allies.filter(s=>!s.hidden);
   const youShown=m.you&&!m.you.hidden;
   if(!visible.length)return `<div class="dm dm-empty"><p class="empty">Every row is hidden. Choose the rows to show.</p></div>`;
   if(style==='bars'){
    const ranked=visible.slice().sort((a,b)=>(b.dps??-1)-(a.dps??-1)||a.index-b.index);
-   return `<div class="dm dm-bars"><div class="dm-meta"><span>Damage by source</span><span data-v="clock">—</span></div><div class="dm-rows">${ranked.map(s=>rowHtml(s,icons)).join('')}</div>`+
-    `<div class="dm-caption"><span><span>Damage types</span> · <span data-v="selname" data-no-translate></span></span><button type="button" class="dm-back" data-back hidden><span>You</span> ↶</button></div>${stripHtml()}${unsplitNote}</div>`;
+   return `<div class="dm dm-bars${view.taken?' dm-taken':''}"><div class="dm-meta"><span>${view.taken?'Damage taken by attacker':'Damage by source'}</span><span data-v="clock">—</span></div><div class="dm-rows">${ranked.map(s=>rowHtml(s,icons)).join('')}</div>`+
+    `<div class="dm-caption"><span><span>Damage types</span> · <span data-v="selname" data-no-translate></span></span><button type="button" class="dm-back" data-back hidden><span>${view.taken?'All attackers':'You'}</span> ↶</button></div>${stripHtml()}${unsplitNote}</div>`;
   }
   if(style==='split'){
    return `<div class="dm dm-split">`+
@@ -126,20 +128,22 @@
    `${unsplitNote}</div>`;
  }
  // The footer: the session's total, outside the scrolling part.
- function totalKey(m){return [m.element,m.active].join(':');}
- function totalHtml(m){
-  const label=m.element<0?'<span>TOTAL DPS</span>':`<span>TOTAL DPS</span> · <span>${TYPES[m.element]}</span>`;
-  return `<span class="dm-total-label"><i class="dm-rec${m.active?' dm-on':''}" title="${m.active?'Measuring':'Stopped'}"></i>${label}</span><strong class="dm-total-number"><span data-v="total">—</span><small>DPS</small></strong>`;
+ function totalKey(m,view={}){return [m.element,m.active,view.taken?1:0].join(':');}
+ function totalHtml(m,view={}){
+  const head=view.taken?'<span>DAMAGE TAKEN</span>':'<span>TOTAL DPS</span>';
+  const label=m.element<0?head:`${head} · <span>${TYPES[m.element]}</span>`;
+  return `<span class="dm-total-label"><i class="dm-rec${m.active?' dm-on':''}" title="${m.active?'Measuring':'Stopped'}"></i>${label}</span><strong class="dm-total-number"><span data-v="total">—</span><small>${view.taken?'per s':'DPS'}</small></strong>`;
  }
 
  // Numbers only: row values and bars, the type values, the selection, the total.
  function update(root,m,view={},foot=null){
-  const f=formatter(view.lang),style=styleOf(view.style);
+  const f=formatter(view.lang),style=view.taken?'bars':styleOf(view.style);
   const setText=(node,text)=>{if(node&&node.textContent!==text)node.textContent=text;};
   const q=s=>root.querySelector(s);
   if(foot)setText(foot.querySelector('[data-v="total"]'),f.full(m.total));
   if(m.empty)return;
-  const selected=style==='split'?null:selectedSource(m,view.selected);
+  // Damage taken: the chosen attacker, else all attackers together (no row chosen).
+  const selected=view.taken?m.sources.find(s=>s.key===view.selected&&!s.hidden)||null:style==='split'?null:selectedSource(m,view.selected);
   const target=style==='split'?m.sources.find(s=>!s.you&&!s.hidden&&s.key===view.selected)||null:null;
   const group=style==='bars'?m.sources.filter(s=>!s.hidden):m.allies.filter(s=>!s.hidden);
   const largest=Math.max(0,...group.map(s=>s.dps||0));
@@ -152,17 +156,17 @@
   }
   const strip=style==='split'?m.you:selected;
   for(const node of root.querySelectorAll('[data-tv]')){
-   const i=Number(node.dataset.tv),v=strip?.values?strip.values[i]:null;
+   const i=Number(node.dataset.tv),v=view.taken&&!strip?(m.allyValues?m.allyValues[i]:null):strip?.values?strip.values[i]:null;
    setText(node,style==='split'?f.full(v):f.short(v));
    const cell=node.closest('[data-type]');
    if(cell){cell.classList.toggle('dm-zero',!v);cell.classList.toggle('dm-chosen',m.element===i);}
   }
-  const name=s=>s?(s.you?view.youLabel||'You':s.label):'—';
+  const name=s=>s?(s.you?view.youLabel||'You':s.label):view.taken?view.allLabel||'All attackers':'—';
   setText(q('[data-v="selname"]'),name(selected));
   setText(q('[data-v="seldps"]'),f.full(selected?selected.dps:null));
   setText(q('[data-v="you"]'),f.full(m.you?m.you.dps:null));
   setText(q('[data-v="allies"]'),f.full(m.allyDps));
-  const back=q('[data-back]');if(back)back.hidden=!selected||selected.you||!m.you||m.you.hidden;
+  const back=q('[data-back]');if(back)back.hidden=view.taken?!selected:!selected||selected.you||!m.you||m.you.hidden;
   const clock=q('[data-v="clock"]');
   if(clock){const s=Math.max(0,Math.floor(m.elapsed||0)),h=Math.floor(s/3600),mm=Math.floor(s%3600/60);setText(clock,(h?h+':'+String(mm).padStart(2,'0'):mm)+':'+String(s%60).padStart(2,'0'));}
   const lines=q('[data-v="inspectlines"]');

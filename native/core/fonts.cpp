@@ -26,12 +26,16 @@ using namespace managed;
 using MethodInfo = const il2cpp::Method*;
 auto& api() { return il2cpp::api(); }
 
-struct Saved { std::unique_ptr<Root> text, font, material; float size, min, max; };
+struct Saved { std::unique_ptr<Root> text, font, material; float size, min, max; int style; };
 std::map<void*, Saved> texts;               // TextMeshProUGUI -> its own values
 std::map<std::string, std::unique_ptr<Root>> assets;  // family -> created font asset
 std::set<void*> fallbacksAdded;             // original fonts already added as fallbacks
 std::string family = "game";
 double scale = 1;
+// Letter case as written: the game draws many texts in upper case, lower case or small capitals
+// through the text style; without those styles names show as the player typed them.
+bool keepCase = false;
+constexpr int kCaseStyles = 8 | 16 | 32;  // TMP FontStyles LowerCase, UpperCase, SmallCaps
 std::atomic<bool> active{false};
 uint64_t applied = 0, enables = 0, restored = 0, faults = 0, created = 0;
 game::MethodRef m_enable;
@@ -60,11 +64,40 @@ const il2cpp::Method* Typed(const char* image, const char* ns, const char* cls, 
     }
     throw std::runtime_error(std::string("Font method overload unavailable: ") + cls + "." + name);
 }
-bool Custom() { return family != "game" || scale != 1; }
+bool Custom() { return family != "game" || scale != 1 || keepCase; }
 
+// The styles Windows has for a family (the common style names, probed once per family).
+const std::vector<std::string>& Styles(const std::string& name) {
+    static std::map<std::string, std::vector<std::string>> cache;
+    if (auto it = cache.find(name); it != cache.end()) return it->second;
+    static const char* names[]{"Regular", "Normal", "Book", "Roman", "Medium", "Light", "Semilight", "SemiLight", "Thin", "ExtraLight", "Extra Light",
+        "Semibold", "SemiBold", "Demibold", "Bold", "ExtraBold", "Extra Bold", "Black", "Heavy", "Condensed", "Italic", "Oblique",
+        "Light Italic", "Semibold Italic", "Bold Italic", "Black Italic"};
+    std::vector<std::string> found;
+    if (cache.size() < 4096) {
+        const auto* probe = Typed("UnityEngine.TextCoreFontEngineModule.dll", "UnityEngine.TextCore.LowLevel", "FontEngine", "TryGetSystemFontReference",
+            {"System.String", "System.String", "UnityEngine.TextCore.LowLevel.FontReference&"});
+        Root familyName(api().string_new(name.c_str()));
+        for (const char* style : names) {
+            Root styleName(api().string_new(style));
+            alignas(16) unsigned char reference[64]{};  // FontReference: family, style, face index, file path
+            void* a[]{familyName.Get(), styleName.Get(), reference};
+            if (Value<bool>(probe, nullptr, a)) found.push_back(style);
+        }
+    }
+    return cache.emplace(name, std::move(found)).first->second;
+}
 void* FontAsset(const std::string& name) {
     if (auto it = assets.find(name); it != assets.end() && it->second->Get()) return it->second->Get();
-    Root familyName(api().string_new(name.c_str())), style(api().string_new("Regular"));
+    // "Family|Style": that style; a family alone: Regular, else the first style it has.
+    const auto bar = name.find('|');
+    const std::string familyText = name.substr(0, bar);
+    std::string styleText = bar == std::string::npos ? "Regular" : name.substr(bar + 1);
+    if (bar == std::string::npos) {
+        const auto& styles = Styles(familyText);
+        if (!styles.empty() && std::find(styles.begin(), styles.end(), "Regular") == styles.end()) styleText = styles.front();
+    }
+    Root familyName(api().string_new(familyText.c_str())), style(api().string_new(styleText.c_str()));
     int pointSize = 90;
     void* a[]{familyName.Get(), style.Get(), &pointSize};
     void* asset = Invoke(Typed("Unity.TextMeshPro.dll", "TMPro", "TMP_FontAsset", "CreateFontAsset", {"System.String", "System.String", "System.Int32"}), nullptr, a);
@@ -89,6 +122,7 @@ void Restore(void* text, Saved& saved) {
     void* sa[]{&size}; Invoke(T("TMP_Text", "set_fontSize", 1), text, sa);
     void* mi[]{&min}; Invoke(T("TMP_Text", "set_fontSizeMin", 1), text, mi);
     void* mx[]{&max}; Invoke(T("TMP_Text", "set_fontSizeMax", 1), text, mx);
+    if (Value<int>(T("TMP_Text", "get_fontStyle", 0), text) != saved.style) { int style = saved.style; void* st[]{&style}; Invoke(T("TMP_Text", "set_fontStyle", 1), text, st); }
     ++restored;
 }
 void Apply(void* text) {
@@ -104,7 +138,8 @@ void Apply(void* text) {
         if (!font) return;
         void* material = Invoke(T("TMP_Text", "get_fontSharedMaterial", 0), text);
         Saved saved{std::make_unique<Root>(text), std::make_unique<Root>(font), material ? std::make_unique<Root>(material) : nullptr,
-            Value<float>(T("TMP_Text", "get_fontSize", 0), text), Value<float>(T("TMP_Text", "get_fontSizeMin", 0), text), Value<float>(T("TMP_Text", "get_fontSizeMax", 0), text)};
+            Value<float>(T("TMP_Text", "get_fontSize", 0), text), Value<float>(T("TMP_Text", "get_fontSizeMin", 0), text), Value<float>(T("TMP_Text", "get_fontSizeMax", 0), text),
+            Value<int>(T("TMP_Text", "get_fontStyle", 0), text)};
         it = texts.emplace(text, std::move(saved)).first;
     }
     Saved& saved = it->second;
@@ -124,6 +159,8 @@ void Apply(void* text) {
     void* sa[]{&size}; Invoke(T("TMP_Text", "set_fontSize", 1), text, sa);
     void* mi[]{&min}; Invoke(T("TMP_Text", "set_fontSizeMin", 1), text, mi);
     void* mx[]{&max}; Invoke(T("TMP_Text", "set_fontSizeMax", 1), text, mx);
+    const int style = keepCase ? saved.style & ~kCaseStyles : saved.style;
+    if (Value<int>(T("TMP_Text", "get_fontStyle", 0), text) != style) { int value = style; void* st[]{&value}; Invoke(T("TMP_Text", "set_fontStyle", 1), text, st); }
     ++applied;
 }
 void d_enable(void* self, MethodInfo m) {
@@ -151,7 +188,7 @@ void ApplyAll() {
 }
 std::string State() {
     std::ostringstream out;
-    out << "{\"ok\":true,\"family\":" << Json(family) << ",\"scale\":" << scale << ",\"texts\":" << texts.size() << ",\"applied\":" << applied
+    out << "{\"ok\":true,\"family\":" << Json(family) << ",\"scale\":" << scale << ",\"keepCase\":" << Boolean(keepCase) << ",\"texts\":" << texts.size() << ",\"applied\":" << applied
         << ",\"enables\":" << enables << ",\"restored\":" << restored << ",\"fontsCreated\":" << created << ",\"faults\":" << faults << ",\"families\":[";
     // Windows font families the game can load.
     std::set<std::string> names;
@@ -162,7 +199,19 @@ std::string State() {
     } catch (...) {}
     bool comma = false;
     for (const auto& name : names) { if (comma) out << ','; comma = true; out << Json(name); }
-    return out.str() + "]}";
+    // Each family's styles beyond its regular face, so they can be chosen as "Family|Style".
+    out << "],\"styles\":{";
+    comma = false;
+    for (const auto& name : names) {
+        std::vector<std::string> styles;
+        try { styles = Styles(name); } catch (...) {}
+        if (styles.empty()) continue;
+        if (comma) out << ','; comma = true;
+        out << Json(name) << ":[";
+        for (size_t i = 0; i < styles.size(); ++i) out << (i ? "," : "") << Json(styles[i]);
+        out << ']';
+    }
+    return out.str() + "}}";
 }
 std::string Run(std::function<std::string()> job) {
     std::string result, why;
@@ -183,28 +232,32 @@ std::string Read() { return Run([] { return State(); }); }
 std::string Set(const std::string& key, const std::string& value) {
     std::string decoded = value;
     for (size_t at; (at = decoded.find("%20")) != std::string::npos;) decoded.replace(at, 3, " ");
+    for (size_t at; (at = decoded.find("%7C")) != std::string::npos;) decoded.replace(at, 3, "|");  // Family|Style
     if (key == "family") {
-        if (decoded.empty() || decoded.size() > 64 || decoded.find_first_of("\r\n\t<>") != std::string::npos)
+        if (decoded.empty() || decoded.size() > 96 || decoded.find_first_of("\r\n\t<>") != std::string::npos || std::count(decoded.begin(), decoded.end(), '|') > 1)
             return "{\"ok\":false,\"error\":\"use fontset family <Windows font name | game>\"}";
     } else if (key == "scale") {
         char* end = nullptr; const double v = std::strtod(decoded.c_str(), &end);
         if (!end || *end || !std::isfinite(v) || v < 0.7 || v > 1.5) return "{\"ok\":false,\"error\":\"use fontset scale 0.7-1.5\"}";
-    } else return "{\"ok\":false,\"error\":\"use fontset family <name|game> | fontset scale 0.7-1.5\"}";
+    } else if (key == "case") {
+        if (decoded != "0" && decoded != "1") return "{\"ok\":false,\"error\":\"use fontset case 0|1\"}";
+    } else return "{\"ok\":false,\"error\":\"use fontset family <name|game> | fontset scale 0.7-1.5 | fontset case 0|1\"}";
     return Run([=] {
         if (!game::IsOfflinePlay()) throw std::runtime_error("Font settings work in offline play only.");
         if (!m_enable) throw std::runtime_error("Font settings are unavailable in this game build.");
-        const std::string previousFamily = family; const double previousScale = scale;
+        const std::string previousFamily = family; const double previousScale = scale; const bool previousCase = keepCase;
         if (key == "family") {
             family = decoded == "game" || decoded == "Game" ? "game" : decoded;
             if (family != "game") {
                 try { FontAsset(family); }
                 catch (...) { family = previousFamily; throw; }
             }
-        } else scale = std::strtod(decoded.c_str(), nullptr);
+        } else if (key == "case") keepCase = decoded == "1";
+        else scale = std::strtod(decoded.c_str(), nullptr);
         if (Custom() && !hook::IsInstalled(m_enable.code)) {
             std::string why;
             if (!hook::Install(m_enable.code, reinterpret_cast<void*>(&d_enable), reinterpret_cast<void**>(&o_enable), &why)) {
-                family = previousFamily; scale = previousScale;
+                family = previousFamily; scale = previousScale; keepCase = previousCase;
                 throw std::runtime_error("Font hook refused: " + why);
             }
         }
@@ -213,6 +266,6 @@ std::string Set(const std::string& key, const std::string& value) {
         return State();
     });
 }
-void ReleaseRoots() { texts.clear(); assets.clear(); fallbacksAdded.clear(); active = false; }
+void ReleaseRoots() { texts.clear(); assets.clear(); fallbacksAdded.clear(); active = false; keepCase = false; }
 
 }  // namespace ep::fonts

@@ -452,9 +452,10 @@ test('player pages retain all usable controls and developer pages retain diagnos
 test('camera world and inventory pages expose actual controls without sending mutations',()=>{
  const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
  h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};cache.inventory_read={ok:true,player:{id:'0'},inventoryItems:17};`);
- for(const [target,ids] of [['display',['build_zoom','build_cameraangle','qol_shadows','qol_reflections','qol_bloom','qol_motionblur','qol_occlusion','qol_fog']],['world',['map_reveal','qol_chests','qol_shrines','qol_portals']],['inventory',['inventory_stash','inventory_vendor','inventory_stashall']]]){
+ for(const [target,ids] of [['display',['build_zoom','build_cameraangle','qol_shadows','qol_reflections','qol_bloom','qol_motionblur','qol_occlusion','qol_fog']],['world',['map_reveal','qol_chests','qol_shrines','qol_portals']],['inventory',['inventory_stash','inventory_vendor','inventory_stashall','inventory_sellall','inventory_autosort','inventory_autosortall','inventory_sellkeep']],['loot',['tier_filter_colors','tier_name_colors']],['display',['font_case']]]){
   h.context.target=target;h.run('page=target;shippingRenderPage()');const html=h.element('#page-content').innerHTML;
   for(const id of ids)assert.ok(html.includes(`="${id}"`),id);
+  assert.ok(!html.includes('[object Object]'),target);
  }
  assert.equal(h.calls.length,0);
  assert.ok(h.run('automaticSetting(controlById("pickup_radius"))'));
@@ -884,12 +885,12 @@ test('display page shows minimap, tier controls and the tier palette without sen
  const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
  h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};page='display';shippingRenderPage()`);
  const html=h.element('#page-content').innerHTML;
- for(const id of ['map_minimapsize','map_minimapzoom','map_minimapopacity','map_overlayopacity','map_overlayzoom','tier_icons','tier_tooltips','tier_lines','tier_rules','tier_rule_position','tier_rule_plain','tier_color'])assert.ok(html.includes(`="${id}"`),id);
+ for(const id of ['map_minimapsize','map_minimapzoom','map_minimapopacity','map_overlayopacity','map_overlayzoom','tier_icons','tier_tooltips','tier_lines','tier_rules','tier_rule_position','tier_rule_parts','tier_special','tier_color'])assert.ok(html.includes(`="${id}"`),id);
  const position=html.match(/<select data-setting-choice="tier_rule_position"[^>]*>(.*?)<\/select>/s)?.[1]||'';
  assert.deepEqual([...position.matchAll(/<option value="(\d)"[^>]*>([^<]*)</g)].map(x=>x[1]+' '+x[2]),['0 Top: under the item type','1 Middle: before the affixes','2 Bottom: end of the tooltip']);
  assert.equal([...html.matchAll(/data-tier-color="(\d)"/g)].map(x=>x[1]).join(''),'12345678');
  assert.ok(html.includes('value="#FF0044"'));
- for(const id of ['map_minimapsize','tier_icons','tier_tooltips','tier_rule_position','tier_rule_plain'])assert.ok(h.run(`automaticSetting(controlById("${id}"))`),id);
+ for(const id of ['map_minimapsize','tier_icons','tier_tooltips','tier_rule_position','tier_rule_parts','tier_name_colors','tier_filter_colors','tier_special','font_case'])assert.ok(h.run(`automaticSetting(controlById("${id}"))`),id);
  assert.equal(h.calls.length,0);
 });
 test('effect HUD controls stay explicit, auto-apply and synchronize their native status',()=>{
@@ -917,7 +918,7 @@ test('a customised tier palette is pushed once per character and the default pal
  h.context.localStorage={getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=String(v);},removeItem:k=>{delete store[k];}};
  h.run(`connected.sessionKey='k';automaticOwner=()=>'owner-1'`);
  await h.run('applyTierPalette()');assert.equal(h.calls.length,0);
- h.run(`tierPaletteApplied.clear()`);store['epochpact.tier-palette.v1']=JSON.stringify(['FFFFFF','2E8BFF','FFD700','FF5500','AA55FF','00FF00','123ABC','00FFFF']);
+ h.run(`tierPaletteApplied.clear()`);store['epochpact.tier-palette.v1']=JSON.stringify(['FFFFFF','2E8BFF','FFD700','AA55FF','FF5500','00FF00','123ABC','00FFFF']);
  h.replies.push({ok:true});await h.run('applyTierPalette()');
  assert.deepEqual(h.calls.map(c=>[c.id,c.args.tier,c.args.color]),[['tier_color',7,'123ABC']]);
  await h.run('applyTierPalette()');assert.equal(h.calls.length,1);
@@ -993,6 +994,32 @@ test('stash tabs from loot filter: panel lists rules and tabs, and every change 
  assert.deepEqual(h.calls.map(c=>[c.id,c.operation]),[['stash_rules_read','read'],['stash_rules_create','set'],['stash_rules_sort','set'],['stash_rule_assign','set'],['stash_rule_assign','set']]);
  assert.ok(h.calls.every(c=>c.args.expected_id==='6'&&c.args.expected_name==='Test'));
  assert.deepEqual([h.calls[1].args.hidden,h.calls[1].args.disabled,h.calls[3].args.tab,h.calls[3].args.rule,h.calls[4].args.rule],[1,0,4,9,0]);
+});
+test('font list offers every style, narrows with the search box and sends Family|Style encoded',async()=>{
+ const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
+ h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};page='display';cache.font_read={families:['Arial','Segoe UI'],styles:{'Segoe UI':['Regular','Semibold','Bold Italic'],Arial:['Regular','Bold']}};values.font_family='Arial|Bold'`);
+ let html=h.run('fontPanel()');
+ assert.ok(html.includes('value="Segoe UI|Semibold"')&&html.includes('Segoe UI — Bold Italic')&&html.includes('value="Arial|Bold" selected')&&!html.includes('Segoe UI|Regular'));
+ assert.ok(html.includes('data-font-search')&&html.includes('5 fonts')&&html.includes('data-setting="font_case"'));
+ h.run(`fontFilter='semi'`);const list=h.run(`fontOptions(values.font_family)`);
+ assert.ok(list.html.includes('Segoe UI|Semibold')&&list.html.includes('Arial|Bold')&&!list.html.includes('value="Segoe UI"')&&list.count===2,'the chosen font stays listed');
+ h.replies.push({ok:true});
+ await h.element('#page-content').listeners.change[0]({target:{dataset:{fontFamily:''},value:'Segoe UI|Bold Italic'}});
+ await new Promise(setImmediate);
+ assert.deepEqual([h.calls[0].id,h.calls[0].args.family],['font_family','Segoe%20UI%7CBold%20Italic']);
+});
+test('automatic sorting panel: tab choices come from the stash and each tick is sent once',async()=>{
+ const h=automaticHarness();h.run(`page='inventory';connected.player.id='6';connected.player.name='Test';`);
+ assert.ok(h.run('autoSortPanel()').includes('Read stash tabs'));
+ h.run(`stashRules={ok:true,player:{id:'6'},tabs:[{id:0,name:'Main'},{id:7,name:'Rings <b>'}],rules:[],filter:null};cache.inventory_tools_read={ok:true,autosort:true,autosortAll:false,sellKeep:2,tabs:[7]}`);
+ const html=h.run('autoSortPanel()');
+ assert.ok(html.includes('data-sort-tab="7" data-control-id="inventory_sorttab" checked')&&html.includes('data-sort-tab="0" data-control-id="inventory_sorttab" ')&&html.includes('Rings &lt;b&gt;'));
+ h.replies.push({ok:true,autosort:true,autosortAll:false,sellKeep:2,tabs:[0,7]});
+ await h.element('#page-content').listeners.change[0]({target:{dataset:{sortTab:'0'},checked:true}});
+ await new Promise(setImmediate);
+ assert.deepEqual([h.calls[0].id,h.calls[0].args.tab,h.calls[0].args.value],['inventory_sorttab',0,1]);
+ assert.deepEqual(h.run('cache.inventory_tools_read.tabs'),[0,7]);
+ h.run(`cache.inventory_tools_read.autosortAll=true`);assert.ok(h.run('autoSortTabs()').includes('checked disabled'));
 });
 test('stash rule changes are not sent when the confirmation is declined',async()=>{
  const h=automaticHarness();h.run(`page='inventory';connected.player.id='6';confirmAction=async()=>false;stashRules={ok:true,player:{id:'6'},tabs:[],rules:[],filter:'F'};`);

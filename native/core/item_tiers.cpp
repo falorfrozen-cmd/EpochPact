@@ -29,7 +29,27 @@ using MethodInfo = const il2cpp::Method*;
 struct Color { float r, g, b, a; };
 struct Vec2 { float x, y; };
 struct Vec4 { float x, y, z, w; };
-constexpr std::array<uint32_t, 8> kDefaultPalette{0xFFFFFF, 0x2E8BFF, 0xFFD700, 0xFF5500, 0xAA55FF, 0x00FF00, 0xFF0044, 0x00FFFF};
+// The game's rarity order: T1 normal white, T2 magic blue, T3 rare yellow, T4 exalted purple,
+// T5 unique orange, T6 set green, T7 legendary red (T8 cyan).
+constexpr std::array<uint32_t, 8> kDefaultPalette{0xFFFFFF, 0x2E8BFF, 0xFFD700, 0xAA55FF, 0xFF5500, 0x00FF00, 0xFF0044, 0x00FFFF};
+// Personal, Champion and Experimental affixes: a small square of this colour before the line.
+constexpr std::array<uint32_t, 4> kSpecialColor{0, 0x4FC3F7, 0xFFC107, 0xE040FB};
+std::atomic<bool> specialOn{true};
+std::atomic<int> ruleParts{text::kRuleAll};
+// Item 4: colour, bold, italic, underline and strikethrough tags in loot filter rule names are
+// shown (the game sanitises every tag in names it displays; tierset namecolors 0 keeps that).
+std::atomic<bool> nameColors{true};
+game::MethodRef m_sanitize;
+void* (*o_sanitize)(void*, MethodInfo) = nullptr;
+uint64_t sanitized = 0;
+// Item 6: more loot filter colours. While on, the game's colour list (MasterColorList
+// lootFilterColorPresets) has the extra colours after its own; the filter window offers them and
+// labels on the ground use them. Without EpochPact a rule with one of them shows the game's last
+// colour (the game limits the colour number to its list). Off: the game's own list again.
+std::atomic<bool> filterColorsOn{false};
+// One per colour list: label colours and beam colours.
+struct ColorList { const char* field; std::unique_ptr<Root> original, extended; std::vector<std::unique_ptr<Root>> made; int gameCount = 0; };
+ColorList colorLists[]{{"lootFilterColorPresets"}, {"lootFilterBeamColorPresets"}};  // what the rule line shows (tierset ruleparts; ruleplain 1 = name only)
 std::array<uint32_t, 8> palette = kDefaultPalette;
 std::atomic<bool> iconsOn{false}, tooltipsOn{false}, linesOn{false}, rulesOn{false}, rulePlain{false};
 // Where the loot filter rule line goes: 0 under the item type, 1 before the
@@ -46,11 +66,11 @@ std::atomic<uint32_t> ruleCustomColor{0xFFFFFF};
 std::map<void*, std::unique_ptr<Root>> labels;  // InventoryItemUI -> our TMP label
 // A tooltip text we changed: its own colour, and for affix lines the game's
 // original text and the affix tier, so it can be re-drawn or restored exactly.
-struct SavedColor { std::unique_ptr<Root> text; Color color; std::string original; int tier = 0; };
+struct SavedColor { std::unique_ptr<Root> text; Color color; std::string original; int tier = 0; int kind = 0; };  // kind: 1 personal, 2 champion, 3 experimental
 std::map<void*, SavedColor> tooltipColors;
 uint64_t iconUpdates = 0, tooltipUpdates = 0, faults = 0, scanned = 0, noItem = 0, noTiers = 0, noQuantity = 0, created = 0;
 int lastTooltipTier = -1;
-game::MethodRef m_updateContent, m_affixData, m_enable, m_affixesText, m_affixInit;
+game::MethodRef m_updateContent, m_affixData, m_enable, m_affixesText, m_compareAffixesText, m_affixInit;
 void (*o_update)(void*, MethodInfo) = nullptr;
 void (*o_enable)(void*, MethodInfo) = nullptr;
 void (*o_affixData)(void*, void*, MethodInfo) = nullptr;
@@ -58,8 +78,9 @@ void (*o_affixData)(void*, void*, MethodInfo) = nullptr;
 // UITooltipItemAffix.Init(ValueTuple<string,bool>): both value-type arguments
 // are larger than 8 bytes and arrive by hidden pointer on x64.
 void (*o_affixesText)(void*, void*, void*, MethodInfo) = nullptr;
+void (*o_compareAffixesText)(void*, void*, void*, MethodInfo) = nullptr;  // the compared item's tooltip
 void (*o_affixInit)(void*, void*, MethodInfo) = nullptr;
-uint64_t tooltipMismatches = 0;
+uint64_t tooltipMismatches = 0, compareUpdates = 0;
 bool TooltipHooks() { return m_affixesText && m_affixInit; }
 
 size_t F(const char* cls, const char* field, const char* ns = "") {
@@ -242,7 +263,8 @@ void RestoreColor(void* text, bool restoreText) {
 // line is coloured without them (the original text is kept for restoring).
 std::string Compose(const SavedColor& saved) {
     const std::string hex = Hex(TierColor(saved.tier));
-    std::string out = tooltipsOn.load() ? "<color=#" + hex + ">T" + std::to_string(saved.tier) + "</color> " : "";
+    std::string out = specialOn.load() && saved.kind >= 1 && saved.kind <= 3 ? "<mark=#" + Hex(kSpecialColor[static_cast<size_t>(saved.kind)]) + "FF>  </mark> " : "";
+    out += tooltipsOn.load() ? "<color=#" + hex + ">T" + std::to_string(saved.tier) + "</color> " : "";
     out += linesOn.load() ? "<color=#" + hex + ">" + text::StripColorTags(saved.original) + "</color>" : saved.original;
     return out;
 }
@@ -279,7 +301,7 @@ std::vector<void*> ActiveLines(void* list) {
     }
     return out;
 }
-void MarkLine(void* line, int tier) {
+void MarkLine(void* line, int tier, int kind = 0) {
     void* text = Get<void*>(line, F("UITooltipItemAffix", "_text"));
     if (!text || !game::IsAlive(text) || tier < 1 || tier > 8) return;
     // The game's text is remembered once per Init, so a re-draw never stacks
@@ -290,7 +312,7 @@ void MarkLine(void* line, int tier) {
         it = tooltipColors.emplace(text, SavedColor{std::make_unique<Root>(text), Value<Color>(M("Graphic", "get_color", 0, "UnityEngine.UI", "UnityEngine.UI.dll"), text),
             Text(Invoke(Method(text, "get_text", 0), text)), tier}).first;
     }
-    it->second.tier = tier;
+    it->second.tier = tier; it->second.kind = kind;
     SetText(text, Compose(it->second));
 }
 // The rule line's colour, as the game colours the item's label on the ground:
@@ -317,18 +339,16 @@ std::string RuleText(void* itemData, uint32_t* rgb) {
     smartloot::RuleMatch match;
     if (!smartloot::RuleFor(unpacked.Get(), &match) || match.outcome < 0) return "";
     std::string name;
-    for (size_t i = 0; i < match.name.size(); ++i) {  // the game's descriptions carry rich-text tags
+    if (!match.generated && nameColors.load()) name = text::KeepNameTags(match.name);  // a player's own colours
+    else for (size_t i = 0; i < match.name.size(); ++i) {  // the game's descriptions carry rich-text tags
         if (match.name[i] == '<') { const auto end = match.name.find('>', i); if (end != std::string::npos) { i = end; continue; } }
         name += match.name[i];
     }
     *rgb = ruleCustom.load() ? ruleCustomColor.load() : RuleColor(itemData, match);
-    const std::string open = "<color=#" + Hex(*rgb) + ">";
-    if (rulePlain.load())
-        return open + (match.number <= 0 ? std::string("No matching rule") : name.empty() ? "Rule " + std::to_string(match.number) : name) + "</color>";
-    static const char* kinds[]{"Show", "Hide", "Highlight"};
-    return "<color=#9FB4C7>Loot filter:</color> " + open +
-           (match.number > 0 ? "Rule " + std::to_string(match.number) + " · " + kinds[std::clamp(match.outcome, 0, 2)] + (name.empty() ? "" : " · " + name)
-                             : std::string("no rule matched (shown by default)")) + "</color>";
+    // A description the game made up for an unnamed rule loses its "Show All" words.
+    if (match.generated) name = text::RuleWords(name);
+    return text::RuleLine(rulePlain.load() ? text::kRuleName : ruleParts.load(), match.number, match.outcome, name,
+                          "<color=#" + Hex(*rgb) + ">", "<color=#9FB4C7>Loot filter:</color>");
 }
 void* TransformOf(void* component) { return Invoke(M("Component", "get_transform", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), component); }
 void* ParentOf(void* transform) { return Invoke(M("Transform", "get_parent", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), transform); }
@@ -440,17 +460,27 @@ void SetRuleLine(void* tooltip, void* itemData) {
     }
 }
 bool AnyRuleLabel() { return std::any_of(ruleLabels.begin(), ruleLabels.end(), [](const auto& slot) { return slot != nullptr; }); }
+void ColourTooltip(void* self, void* itemData, bool compare);
 void d_affixesText(void* self, void* itemData, void* info, MethodInfo m) {
     o_affixesText(self, itemData, info, m);
-    if (lifecycle::Stopping()) return;
-    if (rulesOn.load() || AnyRuleLabel()) { if (!game::Guarded([&] { SetRuleLine(self, itemData); }, nullptr)) ++faults; }
+    if (!lifecycle::Stopping()) ColourTooltip(self, itemData, false);
+}
+// The tooltip of the item it is compared with is filled the same way, by its own method.
+void d_compareAffixesText(void* self, void* itemData, void* info, MethodInfo m) {
+    o_compareAffixesText(self, itemData, info, m);
+    ++compareUpdates;
+    if (!lifecycle::Stopping()) ColourTooltip(self, itemData, true);
+}
+// The hovered item's lines, or (compare) the compared item's lines in the tooltip's compare section.
+void ColourTooltip(void* self, void* itemData, bool compare) {
+    if (!compare && (rulesOn.load() || AnyRuleLabel())) { if (!game::Guarded([&] { SetRuleLine(self, itemData); }, nullptr)) ++faults; }
     if ((!tooltipsOn.load() && !linesOn.load()) || !itemData) return;
     ++tooltipUpdates;
     if (!game::Guarded([&] {
         // Regular prefixes and suffixes are listed in the item's own order,
         // each in its own pooled line list; sealed (regular, primordial and
         // corrupted) affixes each have their own line.
-        std::vector<int> prefixes, suffixes; int sealedTier = 0, primordialTier = 0, corruptedTier = 0;
+        std::vector<int> prefixes, suffixes, prefixKinds, suffixKinds; int sealedTier = 0, primordialTier = 0, corruptedTier = 0;
         for (void* affix : Entries(Get<void*>(itemData, F("ItemData", "affixes")))) {
             if (!affix) continue;
             const int tier = Value<int>(M("ItemAffix", "get_DisplayTier", 0), affix);
@@ -461,15 +491,19 @@ void d_affixesText(void* self, void* itemData, void* info, MethodInfo m) {
                 continue;
             }
             const int type = Get<int>(affix, F("ItemAffix", "affixType"));
-            if (type == 0) prefixes.push_back(tier); else if (type == 1) suffixes.push_back(tier);
+            const int kind = Value<bool>(M("ItemAffix", "get_IsPersonal", 0), affix) ? 1 : Value<bool>(M("ItemAffix", "get_IsChampion", 0), affix) ? 2
+                : Value<bool>(M("ItemAffix", "get_IsExperimental", 0), affix) ? 3 : 0;
+            if (type == 0) { prefixes.push_back(tier); prefixKinds.push_back(kind); } else if (type == 1) { suffixes.push_back(tier); suffixKinds.push_back(kind); }
         }
-        const auto prefixLines = ActiveLines(Get<void*>(self, F("UITooltipItem", "prefixesText")));
-        const auto suffixLines = ActiveLines(Get<void*>(self, F("UITooltipItem", "suffixesText")));
+        const auto prefixLines = ActiveLines(Get<void*>(self, F("UITooltipItem", compare ? "comparePrefixes" : "prefixesText")));
+        const auto suffixLines = ActiveLines(Get<void*>(self, F("UITooltipItem", compare ? "compareSuffixes" : "suffixesText")));
         if (prefixLines.size() != prefixes.size() || suffixLines.size() != suffixes.size()) { ++tooltipMismatches; return; }
-        for (size_t i = 0; i < prefixes.size(); ++i) MarkLine(prefixLines[i], prefixes[i]);
-        for (size_t i = 0; i < suffixes.size(); ++i) MarkLine(suffixLines[i], suffixes[i]);
-        lastTooltipTier = prefixes.empty() ? (suffixes.empty() ? lastTooltipTier : suffixes.front()) : prefixes.front();
-        for (const auto& [field, tier] : {std::pair<const char*, int>{"sealedAffix", sealedTier}, {"sealedPrimordialAffix", primordialTier}, {"sealedCorruptedAffix", corruptedTier}}) {
+        for (size_t i = 0; i < prefixes.size(); ++i) MarkLine(prefixLines[i], prefixes[i], prefixKinds[i]);
+        for (size_t i = 0; i < suffixes.size(); ++i) MarkLine(suffixLines[i], suffixes[i], suffixKinds[i]);
+        if (!compare) lastTooltipTier = prefixes.empty() ? (suffixes.empty() ? lastTooltipTier : suffixes.front()) : prefixes.front();
+        const std::pair<const char*, int> sealedLines[]{{compare ? "compareSealedAffix" : "sealedAffix", sealedTier},
+            {compare ? "compareSealedPrimordialAffix" : "sealedPrimordialAffix", primordialTier}, {compare ? "compareSealedCorruptedAffix" : "sealedCorruptedAffix", corruptedTier}};
+        for (const auto& [field, tier] : sealedLines) {
             void* line = tier ? Get<void*>(self, F("UITooltipItem", field)) : nullptr;
             if (!line || !game::IsAlive(line)) continue;
             Root go(Invoke(M("Component", "get_gameObject", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), line));
@@ -498,12 +532,14 @@ void RefreshIcons(bool searchScene) {
 }
 std::string State() {
     std::ostringstream out;
-    out << "{\"ok\":true,\"icons\":" << Boolean(iconsOn.load()) << ",\"tooltips\":" << Boolean(tooltipsOn.load()) << ",\"lines\":" << Boolean(linesOn.load()) << ",\"rules\":" << Boolean(rulesOn.load()) << ",\"rulePosition\":" << rulePosition.load() << ",\"rulePlain\":" << Boolean(rulePlain.load())
+    out << "{\"ok\":true,\"icons\":" << Boolean(iconsOn.load()) << ",\"tooltips\":" << Boolean(tooltipsOn.load()) << ",\"lines\":" << Boolean(linesOn.load()) << ",\"rules\":" << Boolean(rulesOn.load()) << ",\"rulePosition\":" << rulePosition.load() << ",\"rulePlain\":" << Boolean(rulePlain.load()) << ",\"special\":" << Boolean(specialOn.load()) << ",\"ruleParts\":" << ruleParts.load() << ",\"nameColors\":" << Boolean(nameColors.load() && m_sanitize) << ",\"sanitized\":" << sanitized
+        << ",\"filterColors\":" << Boolean(filterColorsOn.load()) << ",\"filterColorsGame\":" << colorLists[0].gameCount << ",\"beamColorsGame\":" << colorLists[1].gameCount
+        << ",\"filterColorsExtra\":" << (colorLists[0].extended ? std::size(text::kExtraFilterColors) : 0)
         << ",\"ruleUpdates\":" << ruleUpdates << ",\"lastRuleText\":" << Json(lastRuleText) << ",\"lastRuleColor\":" << Json(Hex(lastRuleColor))
         << ",\"ruleColor\":" << Json(ruleCustom.load() ? Hex(ruleCustomColor.load()) : std::string("label")) << ",\"palette\":[";
     for (size_t i = 0; i < palette.size(); ++i) { if (i) out << ','; out << Json(Hex(palette[i])); }
     out << "],\"labels\":" << labels.size() << ",\"coloredTexts\":" << tooltipColors.size() << ",\"iconUpdates\":" << iconUpdates
-        << ",\"tooltipUpdates\":" << tooltipUpdates << ",\"tooltipMismatches\":" << tooltipMismatches << ",\"scanned\":" << scanned << ",\"created\":" << created << ",\"noItem\":" << noItem << ",\"noTiers\":" << noTiers << ",\"noQuantityText\":" << noQuantity << ",\"lastTooltipTier\":" << lastTooltipTier << ",\"faults\":" << faults
+        << ",\"tooltipUpdates\":" << tooltipUpdates << ",\"tooltipMismatches\":" << tooltipMismatches << ",\"compareUpdates\":" << compareUpdates << ",\"scanned\":" << scanned << ",\"created\":" << created << ",\"noItem\":" << noItem << ",\"noTiers\":" << noTiers << ",\"noQuantityText\":" << noQuantity << ",\"lastTooltipTier\":" << lastTooltipTier << ",\"faults\":" << faults
         << ",\"available\":" << Boolean(m_updateContent && m_enable && TooltipHooks()) << '}';
     return out.str();
 }
@@ -514,6 +550,115 @@ std::string Run(std::function<std::string()> job) {
         catch (const std::exception& e) { result = "{\"ok\":false,\"error\":" + Json(e.what()) + "}"; }
     }, 5000, &why)) return "{\"ok\":false,\"error\":" + Json(why) + "}";
     return result;
+}
+// TMPExtensions.SanitizeUserInputForDisplay(string), used by Rule.GetRuleDescription for a rule's
+// own name: the allowed tags pass, the rest of the name is sanitised by the game as before.
+void* d_sanitize(void* value, MethodInfo m) {
+    if (!nameColors.load() || !value || lifecycle::Stopping()) return o_sanitize(value, m);
+    void* result = nullptr;
+    game::Guarded([&] {
+        const std::string name = Text(value);
+        if (name.find('<') == std::string::npos) return;
+        const auto parts = text::NameParts(name);
+        if (std::none_of(parts.begin(), parts.end(), [](const text::NamePiece& p) { return p.tag; })) return;
+        std::string out;
+        for (const auto& part : parts) {
+            if (part.tag) { out += part.text; continue; }
+            Root piece(il2cpp::api().string_new(part.text.c_str()));
+            out += Text(o_sanitize(piece.Get(), m));
+        }
+        result = il2cpp::api().string_new(out.c_str());
+        ++sanitized;
+    }, nullptr);
+    return result ? result : o_sanitize(value, m);
+}
+void* PresetsOwner(const char* name, const il2cpp::Field** field) {
+    void* master = Invoke(M("GlobalAssets", "get_MasterColorList", 0, "LE.AssetManagement"));
+    if (!master) throw std::runtime_error("The game's colour list is not loaded yet.");
+    *field = il2cpp::api().class_get_field_from_name(il2cpp::api().object_get_class(master), name);
+    if (!*field) throw std::runtime_error("The loot filter colour list is unavailable in this game build.");
+    return master;
+}
+void* Clone(void* object) { return Invoke(game::FindMethod("mscorlib.dll", "System", "Object", "MemberwiseClone", 0), object); }
+void SetReference(void* object, const char* name, void* value) {
+    const auto* field = il2cpp::api().class_get_field_from_name(il2cpp::api().object_get_class(object), name);
+    if (!field) throw std::runtime_error(std::string("missing colour field: ") + name);
+    il2cpp::api().field_set_value(object, field, value);
+}
+// The list holds EcolorPair values (16 bytes: the primary and secondary colour objects).
+struct ColorPair { void* primary; void* secondary; };
+ColorPair* PairAt(void* array, int i) { return reinterpret_cast<ColorPair*>(static_cast<char*>(array) + 0x20 + sizeof(ColorPair) * static_cast<size_t>(i)); }
+void ExtendColorList(ColorList& list, bool on) {
+    const il2cpp::Field* field = nullptr;
+    void* master = PresetsOwner(list.field, &field);
+    void* current = nullptr; il2cpp::api().field_get_value(master, field, &current);
+    if (!on) {
+        if (list.original && current == (list.extended ? list.extended->Get() : nullptr)) { void* original = list.original->Get(); il2cpp::api().field_set_value(master, field, original); }
+        list.extended.reset(); list.original.reset(); list.made.clear(); list.gameCount = 0;
+        return;
+    }
+    if (list.extended && current == list.extended->Get()) return;
+    if (!current) throw std::runtime_error("The loot filter colour list is empty.");
+    const auto n = static_cast<int>(Get<uintptr_t>(current, 0x18));
+    if (n < 1 || n > 256) throw std::runtime_error("Unexpected loot filter colour count.");
+    const auto* pairClass = game::FindClass("LE.dll", "", "EpochColor.EcolorPair");
+    if (!pairClass || il2cpp::api().class_get_type(pairClass) == nullptr) throw std::runtime_error("The loot filter colour type is unavailable in this game build.");
+    const size_t colorField = F("EpochColor.Ecolor", "color");
+    // The template: the game's most saturated, brightest colour.
+    int best = -1; float score = -1;
+    for (int i = 0; i < n; ++i) {
+        void* primary = PairAt(current, i)->primary;
+        if (!primary) continue;
+        const Color c = Get<Color>(primary, colorField); const auto hsv = text::ToHsv({c.r, c.g, c.b});
+        if (hsv.s * hsv.v > score) { score = hsv.s * hsv.v; best = i; }
+    }
+    if (best < 0) throw std::runtime_error("The loot filter colour list has no colour to copy.");
+    const ColorPair templatePair = *PairAt(current, best);
+    const Color templateColor = Get<Color>(templatePair.primary, colorField);
+    const std::string templateHex = Text(Get<void*>(templatePair.primary, F("EpochColor.Ecolor", "hexCode")));
+    constexpr size_t extra = std::size(text::kExtraFilterColors);
+    // Every colour object made here stays held by EpochPact while the list uses it.
+    std::vector<std::unique_ptr<Root>> made;
+    std::vector<ColorPair> pairs;
+    const char* shades[]{"color", "lightColor", "buttonColor", "highlightColor", "borderColor", "shineColor", "tooltipNameColor", "tooltipBackgroundColor", "tooltipOrnamentationColor", "beamColor"};
+    for (size_t k = 0; k < extra; ++k) {
+        const auto target = text::FromRgb(text::kExtraFilterColors[k]);
+        ColorPair pair{};
+        for (void** side : {&pair.primary, &pair.secondary}) {
+            void* source = side == &pair.primary ? templatePair.primary : templatePair.secondary;
+            if (!source) continue;
+            void* color = Clone(source); made.push_back(std::make_unique<Root>(color));
+            for (const char* shade : shades) {
+                const size_t at = F("EpochColor.Ecolor", shade);
+                Color c = Get<Color>(color, at);
+                const auto moved = text::Recolor({c.r, c.g, c.b}, {templateColor.r, templateColor.g, templateColor.b}, target);
+                c.r = moved.r; c.g = moved.g; c.b = moved.b;
+                *reinterpret_cast<Color*>(static_cast<char*>(color) + at) = c;
+            }
+            Root hex(il2cpp::api().string_new(((templateHex.rfind('#', 0) == 0 ? "#" : "") + Hex(text::kExtraFilterColors[k]) + (templateHex.size() >= 8 ? "FF" : "")).c_str()));
+            SetReference(color, "hexCode", hex.Get());
+            *side = color;
+        }
+        pairs.push_back(pair);
+    }
+    Root array(il2cpp::api().array_new(pairClass, static_cast<uintptr_t>(n) + extra));
+    if (!array.Get() || Get<uintptr_t>(array.Get(), 0x18) != static_cast<uintptr_t>(n) + extra) throw std::runtime_error("The longer colour list could not be made.");
+    made.push_back(std::make_unique<Root>(array.Get()));
+    // The game's own pairs first, then ours; every object written here is held (by the
+    // game's own list or by EpochPact), so the new list never refers to a freed object.
+    for (int i = 0; i < n; ++i) *PairAt(array.Get(), i) = *PairAt(current, i);
+    for (size_t k = 0; k < extra; ++k) *PairAt(array.Get(), n + static_cast<int>(k)) = pairs[k];
+    list.original = std::make_unique<Root>(current);
+    list.extended = std::make_unique<Root>(array.Get());
+    list.made = std::move(made);
+    list.gameCount = n;
+    void* extended = array.Get();
+    il2cpp::api().field_set_value(master, field, extended);
+}
+void ExtendFilterColors(bool on) {
+    if (!on) { for (auto& list : colorLists) ExtendColorList(list, false); return; }
+    try { for (auto& list : colorLists) ExtendColorList(list, true); }
+    catch (...) { for (auto& list : colorLists) game::Guarded([&] { ExtendColorList(list, false); }, nullptr); throw; }
 }
 void Require() {
     if (!game::IsOfflinePlay()) throw std::runtime_error("Tier display works in offline play only.");
@@ -529,17 +674,49 @@ bool Init() {
     m_updateContent = game::FindMethod("LE.dll", "", "InventoryItemUI", "UpdateContent", 0);
     m_affixData = game::FindMethod("LE.dll", "LE.UI.Tooltips", "ItemTooltipAffix", "OnDataUpdate", 1);
     m_affixesText = game::FindMethod("LE.dll", "", "UITooltipItem", "UpdateAffixesText", 2);
+    m_compareAffixesText = game::FindMethod("LE.dll", "", "UITooltipItem", "updateCompareAffixesText", 2);
     m_affixInit = game::FindMethod("LE.dll", "", "UITooltipItemAffix", "Init", 1);
     m_enable = game::FindMethod("LE.dll", "", "InventoryItemUI", "OnEnable", 0);
-    Log("tiers: icon labels %s, tooltip colours %s", m_updateContent ? "ready" : "unavailable", TooltipHooks() ? "ready" : "unavailable");
+    // Installed while the game starts (it is on by default), before any rule name is shown.
+    m_sanitize = game::FindMethod("LE.dll", "", "TMPExtensions", "SanitizeUserInputForDisplay", 1);
+    if (m_sanitize) {
+        std::string why;
+        if (!hook::IsInstalled(m_sanitize.code) && !hook::Install(m_sanitize.code, reinterpret_cast<void*>(&d_sanitize), reinterpret_cast<void**>(&o_sanitize), &why))
+            { Log("tiers: rule name colours unavailable: %s", why.c_str()); m_sanitize = {}; }
+    }
+    Log("tiers: icon labels %s, tooltip colours %s (comparison %s)", m_updateContent ? "ready" : "unavailable", TooltipHooks() ? "ready" : "unavailable",
+        m_compareAffixesText ? "ready" : "unavailable");
     return m_updateContent && TooltipHooks();
 }
 std::string Read() { return Run([] { return State(); }); }
 std::string Set(const std::string& key, int value) {
-    const bool flag = key == "icons" || key == "tooltips" || key == "lines" || key == "rules" || key == "ruleplain";
-    if (!(flag && (value == 0 || value == 1)) && !(key == "rulepos" && value >= 0 && value <= 2))
-        return "{\"ok\":false,\"error\":\"use tierset icons|tooltips|lines|rules|ruleplain 0|1 or tierset rulepos 0|1|2\"}";
+    const bool flag = key == "icons" || key == "tooltips" || key == "lines" || key == "rules" || key == "ruleplain" || key == "special" || key == "namecolors" || key == "filtercolors";
+    if (!(flag && (value == 0 || value == 1)) && !(key == "rulepos" && value >= 0 && value <= 2) && !(key == "ruleparts" && text::ValidRuleParts(value)))
+        return "{\"ok\":false,\"error\":\"use tierset icons|tooltips|lines|rules|ruleplain|special|namecolors|filtercolors 0|1, tierset rulepos 0|1|2 or tierset ruleparts 2..15\"}";
     return Run([&] {
+        if (key == "filtercolors") {
+            if (value && !game::IsOfflinePlay()) throw std::runtime_error("More loot filter colours work in offline play only.");
+            ExtendFilterColors(value != 0);
+            filterColorsOn = value != 0;
+            return State();
+        }
+        if (key == "namecolors") {
+            if (value && !m_sanitize) throw std::runtime_error("Rule name colours are unavailable in this game build.");
+            nameColors = value != 0;
+            if (rulesOn.load()) RebuildGameTooltip();
+            return State();
+        }
+        if (key == "ruleparts") {
+            // What the rule line shows: 1 "Loot filter:", 2 the number, 4 Show/Hide/Highlight, 8 the name.
+            ruleParts = value; rulePlain = false;
+            if (rulesOn.load()) RebuildGameTooltip();
+            return State();
+        }
+        if (key == "special") {
+            // The square before Personal, Champion and Experimental affix lines (shown with tier tooltips or lines).
+            specialOn = value != 0; RedrawTooltips(); RebuildGameTooltip();
+            return State();
+        }
         if (key == "rulepos" || key == "ruleplain") {
             // How the rule line looks; shown only while "rules" is on.
             if (key == "rulepos") rulePosition = value; else rulePlain = value != 0;
@@ -560,6 +737,7 @@ std::string Set(const std::string& key, int value) {
                 // affix view is hooked too when the build has it.
                 EnsureHook(m_affixInit, reinterpret_cast<void*>(&d_affixInit), reinterpret_cast<void**>(&o_affixInit));
                 EnsureHook(m_affixesText, reinterpret_cast<void*>(&d_affixesText), reinterpret_cast<void**>(&o_affixesText));
+                if (m_compareAffixesText) EnsureHook(m_compareAffixesText, reinterpret_cast<void*>(&d_compareAffixesText), reinterpret_cast<void**>(&o_compareAffixesText));
                 if (m_affixData) EnsureHook(m_affixData, reinterpret_cast<void*>(&d_affixData), reinterpret_cast<void**>(&o_affixData));
             }
             (key == "lines" ? linesOn : key == "rules" ? rulesOn : tooltipsOn) = value != 0;
@@ -589,6 +767,9 @@ std::string SetColor(const std::string& tier, const std::string& hex) {
     return Run([&] { palette[static_cast<size_t>(index)] = rgb; RefreshIcons(false); RedrawTooltips(); RebuildGameTooltip(); return State(); });
 }
 void ReleaseRoots() {
+    // The game is closing: the colour list keeps its own references; only ours are let go.
+    for (auto& list : colorLists) { list.extended.reset(); list.original.reset(); list.made.clear(); list.gameCount = 0; }
+    filterColorsOn = false;
     labels.clear(); tooltipColors.clear();
     for (auto& slot : ruleLabels) slot.reset();
     iconsOn = false; tooltipsOn = false; linesOn = false; rulesOn = false; rulePlain = false; rulePosition = 0; ruleCustom = false;

@@ -4,9 +4,11 @@
 <body class="overlay-body">
  <header class="overlay-bar">
   <span class="overlay-drag pywebview-drag-region">Damage</span>
+  <select id="damage-view" class="dm-metric" title="Damage dealt or damage taken" aria-label="Damage dealt or damage taken"><option value="dealt">Dealt</option><option value="taken">Taken</option></select>
   <select id="damage-metric" class="dm-metric" title="DPS averaging window" aria-label="DPS averaging window"><option value="dps10">10 s</option><option value="dps60">60 s</option><option value="dps600">10 min</option><option value="dps3600">60 min</option><option value="average">Session</option><option value="combatAverage">Combat</option></select>
   <button type="button" id="damage-toggle" class="dm-icon-button" title="Start measuring" aria-label="Start measuring">▶</button>
   <button type="button" id="damage-reset" class="dm-icon-button" title="Reset the session" aria-label="Reset the session">↺</button>
+  <button type="button" id="damage-deaths" class="dm-icon-button" title="Death recap" aria-label="Death recap" aria-expanded="false">☠</button>
   <button type="button" data-overlay-options title="Window options" aria-label="Window options">⚙</button>
   <button type="button" data-overlay-hide title="Hide this window" aria-label="Hide this window">−</button>
  </header>
@@ -27,6 +29,10 @@
   <label>Row spacing <select data-overlay="spacing"><option value="compact">Compact</option><option value="normal">Normal</option><option value="roomy">Roomy</option></select></label>
   <label>Top bar <select data-overlay="bar"><option value="hover">On hover</option><option value="always">Always</option></select></label>
  </section>
+ <section class="overlay-options dm-recap" id="damage-recap" hidden>
+  <div class="overlay-filter-head"><span>Death recap</span><button type="button" id="damage-recap-close">Close</button></div>
+  <div id="damage-recap-body"><p class="empty">Waiting…</p></div>
+ </section>
  <p id="damage-status" class="overlay-status muted">Connecting…</p>
  <main class="overlay-content" id="damage-table"><p class="empty">Waiting…</p></main>
  <footer class="dm-total" id="damage-total" hidden></footer>
@@ -36,6 +42,7 @@
  <script src="/ui/session.js"></script>
  <script src="/ui/damage-meter.js"></script>
  <script src="/ui/damage-styles.js"></script>
+ <script src="/ui/death-recap.js"></script>
  <script src="/ui/overlay.js"></script>
  <script src="/ui/damage.js"></script>
 </body>

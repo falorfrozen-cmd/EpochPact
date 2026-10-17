@@ -4,12 +4,15 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
+#include <string>
+#include <vector>
 
 namespace ep::convenience::rules {
 // A dedicated action row below the item grid, above the native footer.
 // Transfer/Sort and currencies never share the EpochPact button row.
 struct Rect { float x,y,w,h; };
-struct Toolbar { bool visible=false; Rect rect{}; std::array<Rect,3> buttons{}; Rect grid{}; };
+struct Toolbar { bool visible=false; Rect rect{}; std::array<Rect,4> buttons{}; Rect grid{}; };
 inline bool Overlaps(Rect a,Rect b) {
     return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
 }
@@ -25,7 +28,7 @@ inline float CurrencyScale(Rect footer,Rect left,float fullWidth) {
 }
 inline Toolbar PlaceToolbar(Rect menu,Rect available,Rect grid,Rect footer,Rect left,Rect currencies) {
     if(!Valid(menu)||!Valid(available)||!Valid(grid)||!Valid(footer)||!Valid(left)||!Valid(currencies))return {};
-    constexpr float gap=4,height=32,width=330;
+    constexpr float gap=4,height=32,width=436;  // Stash 100, Stash all 118, Vendor 100, Sell all 100, 6 apart
     const float bottom=std::max({footer.y+footer.h,left.y+left.h,currencies.y+currencies.h})+gap;
     Rect row{grid.x+(grid.w-width)/2,bottom,width,height};
     // Uniform scaling preserves square cells, item hit targets and the matching
@@ -95,5 +98,35 @@ inline bool SplitDamage(float damage,const DamageParts& parts,DamageParts& out){
     if(!(sum>0)||!std::isfinite(sum))return false;
     for(size_t i=0;i<DamageTypes;++i)if(std::isfinite(parts[i])&&parts[i]>0)out[i]=static_cast<float>(damage*(parts[i]/sum));
     return true;
+}
+
+// ---- Death recap. A hit the character took: when, from whom, with what (a skill, or the ailment
+// for damage over time), the damage the game applied, its parts by type, and health and ward after.
+struct RecapHit{uint64_t tick=0;std::string attacker,what;bool dot=false;float damage=0,health=0,ward=0;DamageParts parts{};};
+// The recent hits: those within keepMs of now, at most `most` (the oldest go first).
+inline void TrimRecent(std::deque<RecapHit>& hits,uint64_t now,uint64_t keepMs,size_t most){
+    while(!hits.empty()&&(hits.size()>most||(now>=hits.front().tick&&now-hits.front().tick>keepMs)))hits.pop_front();
+}
+struct RecapAttacker{std::string name;double damage=0,dot=0;uint64_t hits=0;};
+struct RecapSummary{double total=0,dot=0,unsplit=0;std::array<double,DamageTypes> byType{};std::vector<RecapAttacker> attackers;
+    long long killer=-1;uint64_t hits=0;};  // killer: index of the killing blow in the hits given
+// The hits within windowMs before the death (and not after it): totals by damage type and by
+// attacker (most damage first, then by name), damage over time, and the killing blow (the last
+// hit that did damage). Damage that cannot be split by type is counted apart.
+inline RecapSummary SummarizeRecap(const std::vector<RecapHit>& hits,uint64_t deathTick,uint64_t windowMs){
+    RecapSummary s;
+    for(size_t i=0;i<hits.size();++i){
+        const auto& h=hits[i];
+        if(h.tick>deathTick||deathTick-h.tick>windowMs||!std::isfinite(h.damage)||h.damage<=0)continue;
+        s.total+=h.damage;++s.hits;if(h.dot)s.dot+=h.damage;
+        DamageParts out{};
+        if(SplitDamage(h.damage,h.parts,out))for(size_t e=0;e<DamageTypes;++e)s.byType[e]+=out[e];else s.unsplit+=h.damage;
+        auto it=std::find_if(s.attackers.begin(),s.attackers.end(),[&](const RecapAttacker& a){return a.name==h.attacker;});
+        if(it==s.attackers.end()){s.attackers.push_back({h.attacker});it=s.attackers.end()-1;}
+        it->damage+=h.damage;++it->hits;if(h.dot)it->dot+=h.damage;
+        if(s.killer<0||hits[static_cast<size_t>(s.killer)].tick<=h.tick)s.killer=static_cast<long long>(i);
+    }
+    std::stable_sort(s.attackers.begin(),s.attackers.end(),[](const RecapAttacker& a,const RecapAttacker& b){return a.damage!=b.damage?a.damage>b.damage:a.name<b.name;});
+    return s;
 }
 }

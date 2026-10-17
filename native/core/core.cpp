@@ -25,7 +25,9 @@
 #include "xp.hpp"
 #include "build_controls.hpp"
 #include "convenience.hpp"
+#include "inventory_tools.hpp"
 #include "weaver.hpp"
+#include "rage.hpp"
 #include "item_tiers.hpp"
 #include "fonts.hpp"
 #include "report.hpp"
@@ -124,12 +126,14 @@ void WorkerBody() {
     cof::Init();
     builds::Init();
     convenience::Init();
+    invtools::Init();
+    rage::Init();
     weaver::Init();
     tiers::Init();
     fonts::Init();
     report::Init();
     effects::Init();
-    lifecycle::SetCleanup([]{effects::ReleaseRoots();convenience::ReleaseRoots();builds::ReleaseRoots();tiers::ReleaseRoots();fonts::ReleaseRoots();});
+    lifecycle::SetCleanup([]{rage::ReleaseRoots();effects::ReleaseRoots();convenience::ReleaseRoots();builds::ReleaseRoots();tiers::ReleaseRoots();fonts::ReleaseRoots();});
     Log("ready: command channel at EpochPact\\ipc\\cmd.txt");
     // Detached until a command arrives: IL2CPP waits for attached threads when the game quits.
     if (void* self = a.thread_current()) a.thread_detach(self);

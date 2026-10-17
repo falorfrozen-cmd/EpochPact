@@ -1,4 +1,6 @@
-/* Damage session table and CSV, shared by the Summons page and the damage window. */
+/* Damage session table and CSV, shared by the Summons page and the damage window.
+   With {taken:true} the rows are the attackers of the damage taken (death-recap.js
+   takenState): their total is "All attackers" and You is damage you did to yourself. */
 (function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.EpochDamage=factory();})(this,function(){
  'use strict';
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -19,29 +21,29 @@
  }
  // Allies first (largest damage first), then the allies' total, then the player.
  // Each row has a key for hiding it: the ally type's name, __total or You.
- function rows(state,{element=-1,hidden=[]}={}){
+ function rows(state,{element=-1,hidden=[],taken=false}={}){
   const el=elementOf(element),pick=t=>el<0?t:part(t,el,state);
   const types=(state?.types||[]).map(pick);
   const allies=types.filter(t=>t.name!=='You').sort((a,b)=>(b.total||0)-(a.total||0));
   const you=types.find(t=>t.name==='You');
   const out=allies.map(t=>({...t,key:t.name,display:allyName(t),label:allyName(t)+(t.live>1?` ×${t.live}`:'')}));
-  if(allies.length>1&&state.allies)out.push({...pick(state.allies),key:'__total',label:'Allies total',isTotal:true});
-  if(you)out.push({...you,key:'You',label:'You (character)'});
+  if(allies.length>1&&state.allies)out.push({...pick(state.allies),key:'__total',label:taken?'All attackers':'Allies total',isTotal:true});
+  if(you)out.push({...you,key:'You',label:taken?'You (self-inflicted)':'You (character)'});
   const hide=new Set(hidden||[]);
   return out.filter(r=>!hide.has(r.key));
  }
  // Every row the session has, for the show/hide choices.
- function sources(state){return rows(state).map(r=>({key:r.key,label:r.isTotal||r.key==='You'?r.label:r.display}));}
+ function sources(state,{taken=false}={}){return rows(state,{taken}).map(r=>({key:r.key,label:r.isTotal||r.key==='You'?r.label:r.display}));}
  function status(state){
   if(!state)return 'Not started.';
   const time=duration(state.elapsedSeconds),combat=duration(state.combatSeconds);
   return `${state.active?'Measuring':'Stopped'} · ${time} session · ${combat} in combat · ${fmt(state.hits)} hits`;
  }
- function table(state,{compact=false,element=-1,hidden=[]}={}){
-  const list=rows(state,{element,hidden}),el=elementOf(element);
-  if(!list.length)return state?.types?.length?'<p class="empty">Every row is hidden. Choose the rows to show.</p>':'<p class="empty">No damage recorded yet. Start the session and fight.</p>';
+ function table(state,{compact=false,element=-1,hidden=[],taken=false}={}){
+  const list=rows(state,{element,hidden,taken}),el=elementOf(element);
+  if(!list.length)return state?.types?.length?'<p class="empty">Every row is hidden. Choose the rows to show.</p>':taken?'<p class="empty">No damage taken yet. Start the session and fight.</p>':'<p class="empty">No damage recorded yet. Start the session and fight.</p>';
   const cols=compact?columns.filter(([k])=>['dps10','dps60','combatAverage','total'].includes(k)):columns;
-  const source=el<0?'Source':`Source · ${elements[el]}`;
+  const source=taken?(el<0?'Attacker':`Attacker · ${elements[el]}`):el<0?'Source':`Source · ${elements[el]}`;
   return `<div class="table-scroll"><table class="damage-table"><thead><tr><th>${source}</th>${cols.map(([,l])=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${list.map(r=>`<tr class="${r.isTotal?'damage-total':''}"><td${r.isTotal||r.key==='You'?'':' data-no-translate'}>${esc(r.label)}</td>${cols.map(([k])=>`<td>${fmt(r[k])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
  }
  // All damage, then each damage type's total, for every row.

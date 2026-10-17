@@ -10,6 +10,24 @@ test('entries merge once by sequence and keep the newest capacity',()=>{
  assert.equal(capped.length,L.capacity);assert.equal(capped[0].seq,21);assert.equal(L.newestSeq(capped),L.capacity+20);
 });
 
+test('a restarted game counts from 1 again: its pickups are still shown',()=>{
+ const old=Array.from({length:120},(_,i)=>({seq:i+1,ageSeconds:600,kind:'gold',gold:10}));
+ const fresh=Array.from({length:30},(_,i)=>({seq:i+1,ageSeconds:1,kind:'material',type:101,name:'Shard '+(i+1)}));
+ const shown=list=>list.filter(e=>String(e.name||'').startsWith('Shard')).length;
+ // The core names its game session.
+ let state={},list=L.merge([],old,1e6,L.sessionOf({session:'a',seq:120},state));
+ list=L.merge(list,fresh,2e6,L.sessionOf({session:'b',seq:30},state));
+ assert.equal(shown(list),30);assert.equal(list.at(-1).name,'Shard 30','the new session comes after the old one');
+ assert.equal(L.rows(list)[0].name,'Shard 30');
+ // An older core without a session: its counter going back starts a new one.
+ state={};list=L.merge([],old,1e6,L.sessionOf({seq:120},state));
+ list=L.merge(list,fresh,2e6,L.sessionOf({seq:30},state));
+ assert.equal(shown(list),30);
+ // A normal re-read of the same session adds nothing twice.
+ const again=L.merge(list,fresh,3e6,L.sessionOf({seq:30},state));
+ assert.equal(again.length,list.length);
+});
+
 test('rows are newest first and can hide gold or materials',()=>{
  const list=L.merge([],[{seq:1,kind:'gold',gold:3},{seq:2,kind:'material',name:'Shard'},{seq:3,kind:'item',name:'Helm'}],0);
  assert.deepEqual(L.rows(list).map(e=>e.seq),[3,2,1]);

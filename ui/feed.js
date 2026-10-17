@@ -10,7 +10,7 @@
  // The old Gold and Materials switches become categories.
  options.show=window.EpochLootLog.shown(options);delete options.gold;delete options.materials;
  const save=()=>{try{localStorage.setItem(key,JSON.stringify(options));}catch{}};
- let entries=[],busy=false;
+ let entries=[],busy=false;const logState={};
  // Affix shard descriptions, read once per affix ID and kept for this window
  // (a failed read is tried again at most three times).
  const affixes=new Map(),tries=new Map();
@@ -32,7 +32,7 @@
   if(busy||document.hidden)return;busy=true;
   try{
    const r=await transport.run({type:'control',id:'loot_log',operation:'read'});
-   if(r?.ok){entries=window.EpochLootLog.merge(entries,r.entries);$('#feed-status').textContent=r.ready===false?'Loot log unavailable in this game build':'';render();await describeShards();}
+   if(r?.ok){entries=window.EpochLootLog.merge(entries,r.entries,Date.now(),window.EpochLootLog.sessionOf(r,logState));$('#feed-status').textContent=r.ready===false?'Loot log unavailable in this game build':'';render();await describeShards();}
    else $('#feed-status').textContent=r?.error||'Waiting for an offline character…';
   }catch{$('#feed-status').textContent='EpochPact is not responding.';}
   finally{busy=false;}

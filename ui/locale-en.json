@@ -557,6 +557,30 @@
       "Stash all inventory items",
       "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory."
     ],
+    "inventory_sellall": [
+      "Sell all inventory items",
+      "Sell every inventory item the vendor buys, with the game's own sale (as Ctrl+click on an item). The vendor opens first when it is not open. What Sell all keeps is chosen below; equipped items are never sold. Sold items are in the vendor's buyback list. Creates a recovery backup."
+    ],
+    "inventory_tools_read": [
+      "Sorting and selling settings",
+      "Read the automatic sorting choices and what Sell all keeps."
+    ],
+    "inventory_autosort": [
+      "Sort the inventory automatically",
+      "Each time your inventory opens, the game's own Sort runs on it. Remembered by EpochPact."
+    ],
+    "inventory_autosortall": [
+      "Sort every stash tab automatically",
+      "Each time a stash tab is shown, the game's own Sort runs on it. To sort only some tabs, leave this off and tick them in the list. Remembered by EpochPact."
+    ],
+    "inventory_sellkeep": [
+      "Sell all keeps",
+      "Which items Sell all leaves in your inventory. Remembered by EpochPact."
+    ],
+    "inventory_sorttab": [
+      "Sort a stash tab automatically",
+      "Sort this stash tab each time it is shown, with the game's own Sort. Remembered by EpochPact."
+    ],
     "respec_skills": [
       "Refund all skill points",
       "Reset all specialized skill allocations for free. Skill levels and experience are preserved. Creates a recovery backup before refunding points."
@@ -669,6 +693,10 @@
       "Interface text size",
       "Multiply the size of the game's interface text. 1 is the game's size."
     ],
+    "font_case": [
+      "Letter case as written",
+      "Show names and texts in the letter case they were written in: the game draws many texts in capitals, lower case or small capitals. With the game font lower-case letters still look like small capitals; choose a Windows font above for real lower-case letters. Undone when you switch it off or close EpochPact."
+    ],
     "font_read": [
       "Font status",
       "Read the font choice, Windows font families and counters."
@@ -697,6 +725,42 @@
       "Damage window icon",
       "The game's own skill or class icon for one damage window source, as a small PNG. Reading it does not change the game."
     ],
+    "rage_read": [
+      "Rage of Morditas settings",
+      "Read the Rage of Morditas values the game uses now and its own ones: encounter chance, hunt time, kills for Bloodrage charges and hunt buffs, Blood forging potential share."
+    ],
+    "rage_spawn": [
+      "Rage of Morditas chance",
+      "Multiplies the chance of a Rage of Morditas Blood Crystal in a zone. In each zone that can have one (many campaign zones and normal Monolith echoes) the game rolls 30 % times the zone's own factor, about 0.9 to 3.3; from 4 every such zone gets one."
+    ],
+    "rage_hunttime": [
+      "Rage of Morditas hunt time",
+      "Multiplies the hunt's starting time (the game's 20–25 s) and the time each kill adds (0.5 / 2 / 3 s for normal, magic and rare monsters, 10 s for a champion). The game itself gives a kill less time the longer the hunt already is."
+    ],
+    "rage_charges": [
+      "Kills for Bloodrage charges",
+      "The share of hunt kills needed for each Bloodrage charge: the game's 20, 50, 90, 140 and 200 kills at 1; 0.5 halves them, 0.2 needs a fifth. There are still five charges."
+    ],
+    "rage_buffs": [
+      "Kills for hunt buffs",
+      "The share of hunt kills needed for each random hunt buff: the game's 20, 50, 90 and 140 kills at 1."
+    ],
+    "rage_blood": [
+      "Blood forging potential share",
+      "Every Rage of Morditas reward item gets Ice or Blood forging potential; this is how many get Blood. The game's own share is 50 %. The Rituals of Ice and Blood still give their own type."
+    ],
+    "death_recap_read": [
+      "Death recap",
+      "The last deaths since the game started: the hits of the 10 seconds before each (attacker, skill or ailment, damage by type, health and ward after) and the buffs and debuffs shown at the death. Reading it does not change the game."
+    ],
+    "death_recap": [
+      "Record deaths",
+      "Keep the hits your character takes so the death recap can show the 10 seconds before each death. On by default; the hits are only kept in memory until the game closes."
+    ],
+    "death_recap_clear": [
+      "Clear the death recap",
+      "Forget the recorded deaths. The game is unchanged."
+    ],
     "tier_rules": [
       "Loot filter rule in tooltips",
       "Show which loot filter rule matches an item in its tooltip: rule number, Show/Hide/Highlight and the rule name, in the colour the rule gives the item's label."
@@ -705,9 +769,21 @@
       "Rule line position",
       "Where the loot filter rule line appears in item tooltips: under the item type, before the affixes, or at the end of the tooltip."
     ],
-    "tier_rule_plain": [
-      "Rule name only",
-      "Show only the rule name in the rule line, without \"Loot filter:\", the rule number and Show/Hide/Highlight."
+    "tier_rule_parts": [
+      "Rule line shows",
+      "What the loot filter rule line in item tooltips shows: the \"Loot filter:\" label, the rule number, Show, Hide or Highlight, and the rule name. For a rule without a name the game's own description is used, without its \"Show All\" or \"Hide All\" words."
+    ],
+    "tier_filter_colors": [
+      "More loot filter colours",
+      "26 more colours in the game's loot filter window for label and beam colours (pinks, violets, blues, teals, greens, golds, oranges, reds, browns and greys), after the game's own. A filter saved with one of them shows the game's last colour where EpochPact does not run. Off: the game's own colours."
+    ],
+    "tier_name_colors": [
+      "Colours in loot filter rule names",
+      "Colour words in your loot filter rule names: put a colour tag before a word and a closing colour tag after it, or bold, italic, underline and strikethrough tags (examples below). Colours: red, blue, green, yellow, orange, purple, white, black or a #RRGGBB code. The game's filter window and the rule line in item tooltips show them; other tags stay plain text. Off: the game's own display."
+    ],
+    "tier_special": [
+      "Mark Personal, Champion and Experimental affixes",
+      "Put a small coloured square before Personal (sky blue), Champion (amber) and Experimental (orchid) affix lines in item tooltips, so they stand apart from regular affixes. Shown with the tier tags or tier colours."
     ],
     "effects_enabled": [
       "In-game effect HUD",

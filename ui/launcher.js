@@ -1,13 +1,18 @@
-/* Player setup is explicit. Opening this interface never installs or launches. */
+/* Player setup is explicit. Opening this interface never installs; it launches the game only when the
+   player turned on "Launch the game when EpochPact starts" (once per app start, with the mod installed
+   and the game not running). */
 (function(root){
  'use strict';
  let state=null,run,changed,isBusy,confirm,elevation=false,pickerBusy=false,pathDraft=null,modAfterUpdate=false;
+ // The player's own choice, kept with the other interface choices (storage-sync mirrors it to the file).
+ const autoKey='epochpact.auto-launch.v1';
+ function autoLaunch(){try{return JSON.parse(root.localStorage?.getItem(autoKey)||'false')===true;}catch{return false;}}
  const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function statusText(){return state.updateRequired?'Mod update required':state.melonLoader?(state.installed?'MelonLoader bridge installed':'MelonLoader detected'):state.foreignLoader?'Another mod loader is installed':state.disabled?'Mod disabled':state.installed?'Player mod installed':state.selected?'Ready to install':'Choose your game';}
  function section(){
   if(!state)return '';
   const status=statusText();
-  return `<section class="panel game-setup"><div class="section-head"><h2>Game setup</h2><span class="badge">${status}</span></div><p class="muted">${state.updateRequired?'The installed mod belongs to another EpochPact package. Close Last Epoch and reinstall using this complete download.':'Select your Last Epoch executable once. Install the mod with the game closed, then launch offline.'}</p><label>Game executable<div class="game-path-row"><input data-game-path aria-label="Last Epoch executable path" value="${escape(state.executable)}" placeholder="Select Last Epoch.exe"><button data-game-choose>Browse…</button><button data-game-save>Save path</button></div></label><p data-game-problem class="muted">${escape(state.problem||'The file picker opens in your Steam folder. You can browse to any other installation.')}</p><div class="actions"><button data-game-install> ${state.installed||state.updateRequired?'Reinstall / update mod':'Install mod'}</button>${elevation?'<button data-game-elevate>Install as administrator</button>':''}${state.installed||state.updateRequired?'<button data-game-uninstall>Uninstall mod</button>':''}<button class="primary" data-game-launch>${state.running?'Game running':'Launch offline'}</button></div><p class="muted">${state.running?'Close the game before installing or changing its location.':'Offline characters only. No gameplay settings are applied on startup.'}</p><p data-setup-feedback class="setup-feedback" role="status"></p><p class="muted">Need help? <a href="https://discord.gg/q6aexZZSAf" target="_blank" rel="noopener">EpochPact Discord</a></p></section>`;
+  return `<section class="panel game-setup"><div class="section-head"><h2>Game setup</h2><span class="badge">${status}</span></div><p class="muted">${state.updateRequired?'The installed mod belongs to another EpochPact package. Close Last Epoch and reinstall using this complete download.':'Select your Last Epoch executable once. Install the mod with the game closed, then launch offline.'}</p><label>Game executable<div class="game-path-row"><input data-game-path aria-label="Last Epoch executable path" value="${escape(state.executable)}" placeholder="Select Last Epoch.exe"><button data-game-choose>Browse…</button><button data-game-save>Save path</button></div></label><p data-game-problem class="muted">${escape(state.problem||'The file picker opens in your Steam folder. You can browse to any other installation.')}</p><div class="actions"><button data-game-install> ${state.installed||state.updateRequired?'Reinstall / update mod':'Install mod'}</button>${elevation?'<button data-game-elevate>Install as administrator</button>':''}${state.installed||state.updateRequired?'<button data-game-uninstall>Uninstall mod</button>':''}<button class="primary" data-game-launch>${state.running?'Game running':'Launch offline'}</button></div><label class="inline-check"><input type="checkbox" data-game-autolaunch ${autoLaunch()?'checked':''}> Launch the game when EpochPact starts</label><p class="muted">${state.running?'Close the game before installing or changing its location.':'Offline characters only. No gameplay settings are applied on startup.'}</p><p data-setup-feedback class="setup-feedback" role="status"></p><p class="muted">Need help? <a href="https://discord.gg/q6aexZZSAf" target="_blank" rel="noopener">EpochPact Discord</a></p></section>`;
  }
  // Overview: one line with the state and the next step; the full panel lives on Game setup.
  function summary(){
@@ -75,9 +80,23 @@
   else if(b.hasAttribute('data-setup-done'))document.querySelector('#setup-dialog').close();
  });
  document.addEventListener('input',event=>{if(event.target.matches?.('[data-game-path]'))pathDraft=event.target.value;});
+ document.addEventListener('change',event=>{
+  if(!event.target.matches?.('[data-game-autolaunch]'))return;
+  try{root.localStorage.setItem(autoKey,JSON.stringify(event.target.checked===true));}catch{feedback('This choice could not be saved on this device.',true);return;}
+  feedback(event.target.checked?'Last Epoch will be launched offline each time EpochPact starts.':'EpochPact no longer launches the game when it starts.');
+ });
+ // Once per app start (a reload of the page does not launch again), only when it can launch now.
+ function startGame(tries=0){
+  if(!autoLaunch()||!state?.installed||state.running||state.runningUnknown||state.updateRequired||state.disabled)return;
+  if(isBusy?.()){if(tries<20)root.setTimeout?.(()=>startGame(tries+1),500);return;}
+  try{if(root.sessionStorage?.getItem('epochpact.auto-launched'))return;root.sessionStorage?.setItem('epochpact.auto-launched','1');}catch{}
+  feedback('Launching Last Epoch offline (Launch the game when EpochPact starts).');
+  void action('launch');
+ }
  root.EpochLauncher={
   init(initial,options){state=initial;({run,changed,isBusy,confirm}=options);render();
    if(state&&!state.selected)document.querySelector('#setup-dialog').showModal();
+   startGame();
   },
   update(next){if(next&&JSON.stringify(next)!==JSON.stringify(state)){state=next;render();}finishAppUpdate();},
   state:()=>state,

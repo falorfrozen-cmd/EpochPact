@@ -21,6 +21,9 @@ std::string SetWeaversWill(double m);
 std::string WeaversWillStatus();
 std::string SetAuto(double on);
 std::string AutoPickupStatus();
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+std::string PickupDiagnostics();  // test only: why collection paused or did nothing
+#endif
 std::string SetRadius(double radius);
 std::string RadiusStatus();
 std::string SetInterval(double seconds);

@@ -12,7 +12,7 @@ bool IsMaterial(void* label);
 // game itself shows ("Item rule numbering") and that rule's name (custom name,
 // else the game's rule description). Number 0 means no rule matched.
 // color is the rule's label colour preset; -1 when the rule keeps the item's own colour.
-struct RuleMatch { int number = 0; int outcome = -1; std::string name; int orderMin = 0, orderMax = 0; int color = -1; };
+struct RuleMatch { int number = 0; int outcome = -1; std::string name; int orderMin = 0, orderMax = 0; int color = -1; bool generated = false; };  // generated: the game's own description (the rule has no name)
 bool RuleFor(void* unpackedItem, RuleMatch* result);
 bool Category(int index);
 std::string Read();

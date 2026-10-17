@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 
 // Run the shipping startup-profile functions with a stored-preferences fixture.
-function load(){
+function load(options={}){
  const store=new Map();
  const localStorage={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)};
  const context=vm.createContext({localStorage,document:{querySelector:()=>({addEventListener(){},classList:{toggle(){},remove(){}}}),querySelectorAll:()=>[],addEventListener(){},documentElement:{dataset:{}}},
@@ -22,7 +22,7 @@ function load(){
   profileKey='epochpact.profiles.live';preview=false;
   connected={ok:true,connected:true,offline:true,state:'InGame',transitioning:false,phase:'ready',sessionKey:'10:20',player:{id:'7',name:'Hero'}};
   appliedValues={xp:1,speed:1};values={xp:1,speed:1};
-  var notes=[],applied=[];notify=m=>notes.push(m);applyDraft=async()=>{applied.push([...dirty].sort());};`,context);
+  var notes=[],applied=[];notify=(m,bad)=>notes.push(bad?'!'+m:m);`+(options.realDraft?'':'applyDraft=async()=>{applied.push([...dirty].sort());};'),context);
  return {context,store,run:s=>vm.runInContext(s,context)};
 }
 
@@ -139,4 +139,47 @@ test('Minimum Weaver\'s Will and the Weaver\'s Will multiplier come back with th
  t.run('appliedValues={xp:1,speed:1,loot_lp:2,loot_ww:0,weaverswill:1};values={...appliedValues};startupApplied.clear();applyStartupProfile()');
  assert.deepEqual(JSON.parse(t.run('JSON.stringify(applied)')),[['loot_ww','weaverswill']]);
  assert.equal(t.run('values.loot_ww'),18);assert.equal(t.run('values.weaverswill'),2);
+});
+
+test('a character loaded again gets the last used settings again, even when the interface thinks they are set',()=>{
+ const t=load();
+ t.store.set('epochpact.last-settings.live',JSON.stringify({xp:5}));
+ t.run("connected={...connected,player:{id:'7',name:'Hero',load:1}};appliedValues={xp:1,speed:1};applyStartupProfile()");
+ assert.equal(t.run('applied.length'),1);
+ t.run("appliedValues={xp:5,speed:1};dirty.clear();applyStartupProfile()");
+ assert.equal(t.run('applied.length'),1,'the same load is not applied twice');
+ // Back from the character list: the game may have reset the setting; it is sent again although the last read said 5.
+ t.run("connected={...connected,player:{id:'7',name:'Hero',load:2}};dirty.clear();applyStartupProfile()");
+ assert.deepEqual(JSON.parse(t.run('JSON.stringify(applied)')),[['xp'],['xp']]);
+});
+
+test('the profile waits while another task runs, goes on past a refused setting and says so once',async()=>{
+ const t=load({realDraft:true});
+ t.run('catalog.controls.push({id:"gold",group:"general",lifetime:"session",widget:"number",default:1,requirements:["offline"],parameters:[]})');
+ t.store.set('epochpact.last-settings.live',JSON.stringify({xp:5,speed:2,gold:3}));
+ t.run('var sent=[];runTask=async p=>{sent.push(p.id);return p.id==="speed"?null:{ok:true};};var timers=[];setTimeout=(fn,ms)=>{timers.push(fn);return 0;};renderPage=()=>{};syncLootCraft=()=>false');
+ t.run('applyStartupProfile()');
+ // Another task starts before the profile's turn: it waits instead of being skipped.
+ t.run('busy=true');await t.run('timers.shift()')();
+ assert.equal(t.run('sent.length'),0);assert.equal(t.run('timers.length'),1,'a retry is queued');
+ t.run('busy=false');t.run('timers.shift()')();
+ for(let i=0;i<20;i++)await new Promise(r=>setImmediate(r));
+ assert.deepEqual(JSON.parse(t.run('JSON.stringify(sent)')).sort(),['gold','speed','xp']);
+ const notes=JSON.parse(t.run('JSON.stringify(notes)'));
+ assert.equal(notes.length,1,'one notification');
+ assert.equal(notes[0],'!2 of 3 settings of your last used settings applied; the others were refused and stay in the draft.');
+ assert.equal(t.run('dirty.has("speed")'),true);assert.equal(t.run('appliedValues.xp'),5);
+});
+
+test('changing one setting never drops the others from the last used settings',async()=>{
+ const t=load();
+ t.store.set('epochpact.last-settings.live',JSON.stringify({xp:5,speed:2}));
+ // The game was restarted: the interface reads the defaults until the profile is applied again.
+ t.run("appliedValues={xp:1,speed:1};job=async p=>({ok:true});busy=false;renderPage=()=>{};updateDisabled=()=>{}");
+ await t.run("runTask({type:'control',id:'xp',args:{value:7}},{silent:true})");
+ assert.deepEqual(JSON.parse(t.store.get('epochpact.last-settings.live')),{xp:7,speed:2},'speed stays although it is not applied yet');
+ await t.run("runTask({type:'control',id:'speed',operation:'reset',args:{}},{silent:true})");
+ assert.deepEqual(JSON.parse(t.store.get('epochpact.last-settings.live')),{xp:7},'a reset removes it');
+ await t.run("runTask({type:'control',id:'xp',args:{value:1}},{silent:true})");
+ assert.deepEqual(JSON.parse(t.store.get('epochpact.last-settings.live')),{},'the default removes it');
 });

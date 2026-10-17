@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = ['app.js', 'launcher.js', 'collection-ui.js', 'feed.js', 'damage.js', 'damage-meter.js', 'damage-styles.js', 'loot-log.js',
+SOURCES = ['app.js', 'launcher.js', 'collection-ui.js', 'feed.js', 'damage.js', 'damage-meter.js', 'damage-styles.js', 'death-recap.js', 'loot-log.js',
            'affix-picker.js', 'crafting-model.js', 'session.js', 'stat-model.js', 'preferences.js', 'release-notes.js',
            'index.html', 'feed.html', 'damage.html']
 OUTPUT = ROOT / 'ui/i18n-source.json'

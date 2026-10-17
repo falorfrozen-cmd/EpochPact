@@ -132,6 +132,16 @@ async function replayLastSettings(){
   await runTask({type:"control",id:entry.id,args:entry.args},{silent:true});
  }
 }
+// One successful change of a session or character setting updates its own entry (the default or a
+// reset removes it). Entries of settings the game has not been given again yet stay as they are, so a
+// load or a refused setting part-way through never loses the others.
+function rememberLastSetting(id,value){
+ if(preview||startupChoice()!=="__last__")return;
+ const c=controlById(id);if(!profileSetting(c))return;
+ const last=readStored("last-settings",{});
+ if(value==null||value==="reset"||Object.is(value,c.default))delete last[id];else last[id]=value;
+ writeStored("last-settings",last);
+}
 function rememberLastSettings(){
  if(preview||startupChoice()!=="__last__")return;
  const last={};for(const c of catalog.controls)if(profileSetting(c)&&appliedValues[c.id]!=null&&!Object.is(appliedValues[c.id],c.default))last[c.id]=appliedValues[c.id];
@@ -147,19 +157,21 @@ function applyStartupProfile(){
  const owner=automaticOwner();if(preview||!owner||startupApplied.has(owner)||busy||autoRunning||autoPending.size)return;
  const profile=startupProfile();if(!profile)return;
  startupApplied.add(owner);
- let changes=0;
+ // Every stored value is sent again: a game restart or a character load may have reset it, and the
+ // values the interface last read are no proof the game still has them.
+ const ids=[];
  for(const [id,v] of Object.entries(profile.values||{})){const c=controlById(id);
-  if(profileSetting(c)&&eligible(c)&&!Object.is(appliedValues[id],v)){values[id]=v;dirty.add(id);changes++;}}
+  if(profileSetting(c)&&eligible(c)){values[id]=v;dirty.add(id);ids.push(id);}}
  const replays=profile.replay?Object.keys(readStored("last-settings-replay",{})).length:0;
- if(!changes&&!replays)return;
- notify(changes+replays===1?`Applying ${tr(profile.name)} (1 setting).`:`Applying ${tr(profile.name)} (${changes+replays} settings).`);
- setTimeout(async()=>{if(changes)await applyDraft();if(replays)await replayLastSettings();},0);
+ if(!ids.length&&!replays)return;
+ setTimeout(async()=>{if(ids.length)await applyDraft({profile:true,ids,name:profile.name});if(replays)await replayLastSettings();},0);
 }
-function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|qolarea|pickupradius|pickupinterval|autopickup|mapreveal|mapset|tierset|fontset|effectsset) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
+function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|qolarea|pickupradius|pickupinterval|autopickup|mapreveal|mapset|tierset|fontset|effectsset|deathrecap|rageset|invset) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
 function automaticOwner(){
  if(preview)return "preview";
  const p=connected.player;
- return connected.connected&&connected.offline&&connected.state==="InGame"&&!connected.transitioning&&p?.id!=null?JSON.stringify([String(p.id),p.name??"",connected.sessionKey??null]):null;
+ // The load counter changes with every character load, so a re-entered character is a new owner.
+ return connected.connected&&connected.offline&&connected.state==="InGame"&&!connected.transitioning&&p?.id!=null?JSON.stringify([String(p.id),p.name??"",connected.sessionKey??null,p.load??null]):null;
 }
 function autoManaged(id){return autoPending.has(id)||autoErrors.has(id)||autoSending?.id===id;}
 function cancelAutomatic(){
@@ -291,6 +303,7 @@ function playerResult(payload,result){
   inventory_stash:result.opened===false?"Stash closed in the game.":"Stash opened in the game.",inventory_vendor:result.opened===false?"Vendor closed in the game.":"Vendor opened in the game.",
   loot_log_clear:"Recent pickups cleared. Items and gold are unchanged.",
   pickup_now:`Picked up ${result.picked??0} drops.${result.inventoryFull?" Your inventory is full: equipment waits until you open and close your inventory.":""}`,
+  inventory_sellall:`Sold ${result.sold??0} items for ${(result.gold??0).toLocaleString()} gold. ${result.kept??0} items kept${result.refused?`, ${result.refused} the vendor does not buy`:""}. Sold items are in the vendor's buyback list.`,
   inventory_stashall:(result.remaining??0)>0?`Moved ${result.moved??0} items to your stash. ${result.remaining} items stayed in your inventory: the stash had no room for them. Free stash space or add a stash tab, then try again.`:`Moved ${result.moved??0} items to your stash. Your inventory is empty; equipped items were not moved.`,
   monolith_unlock:"Normal and Empowered timelines unlocked.",monolith_select:`Timeline selected.${where}`,
   cof_rank:`Circle of Fortune rank set to ${a.value}.`,cof_favor:`Favor set to ${a.value}.`,
@@ -387,7 +400,7 @@ async function runTask(payload,{show=false,title="Operation result",silent=false
  if(payload.type==="control"&&connected.sessionKey&&!preview)payload={...payload,args:{expected_session:connected.sessionKey,...payload.args}};
  try{
   const result=await job(payload);
-  if(payload.type==="control"&&result.ok&&profileSetting(controlById(payload.id)))setTimeout(rememberLastSettings,0);
+  if(payload.type==="control"&&result.ok&&profileSetting(controlById(payload.id)))rememberLastSetting(payload.id,payload.operation==="reset"?null:payload.args?.value);
   if(payload.type==="control"&&result.ok)rememberReplay(payload);
   if(payload.type==="control"&&payload.id==="loot_log_clear"&&result.ok){lootEntries=[];const node=$("#loot-log-live");if(node)node.innerHTML=lootTable();}
   if(result.launcher)window.EpochLauncher?.update(result.launcher);
@@ -627,8 +640,10 @@ async function openPage(){
  if(page==="display")await refreshSection("build_read",{refreshConnectionFirst:false});
  if(page==="display"&&controlById("effects_read"))await refreshSection("effects_read",{refreshConnectionFirst:false});
  if(page==="settings"&&!preview&&connected.connected&&controlById("report_read"))await refreshSection("report_read",{refreshConnectionFirst:false});
- if(page==="summons"&&!preview&&connected.connected&&controlById("damage_session_read")){const r=await job({type:"control",id:"damage_session_read",operation:"read"}).catch(()=>null);if(r?.ok){cache.damage_session_read=r;renderDamage();}}
+ if(page==="summons"&&!preview&&connected.connected&&controlById("damage_session_read")){const r=await job({type:"control",id:"damage_session_read",operation:"read"}).catch(()=>null);if(r?.ok){cache.damage_session_read=r;renderDamage();if(Number.isInteger(r.deaths))deathCount=r.deaths;}await refreshDeaths();}
  if(page==="world")await refreshSection("map_read",{refreshConnectionFirst:false});
+ if(page==="world"&&!preview&&controlById("rage_read")&&eligible(controlById("rage_read"))){await refreshSection("rage_read",{refreshConnectionFirst:false});for(const id of ["rage_spawn","rage_hunttime","rage_charges","rage_buffs","rage_blood"])syncSettingUi(id);}
+ if(page==="inventory"&&!preview&&controlById("inventory_tools_read")&&eligible(controlById("inventory_tools_read"))){await refreshSection("inventory_tools_read",{refreshConnectionFirst:false});syncInventoryTools(cache.inventory_tools_read);}
  if(page==="crafting"&&!preview&&eligible(controlById("craft_materials_read")))await refreshSection("craft_materials_read",{refreshConnectionFirst:false});
  if(["general","monolith"].includes(page)&&!cache.build_read&&controlById("build_read")&&eligible(controlById("build_read")))await refreshSection("build_read",{refreshConnectionFirst:false});
  if(rememberScroll()&&scrollPage===page&&pageScroll[page]&&$("#main-scroll").scrollTop<pageScroll[page])$("#main-scroll").scrollTop=pageScroll[page];
@@ -642,14 +657,14 @@ function renderPage(){
  }else if(page==="general"){
   content.innerHTML=settingPanel("General game settings",catalog.controls.filter(c=>c.group==="general"&&["number","toggle"].includes(c.widget)&&!c.id.startsWith("loot_")&&!c.id.startsWith("craft_")&&!c.id.startsWith("map_")&&!weaverSettings.includes(c.id)))+weaverPanel();
  }else if(page==="display"){
-  content.innerHTML=settingPanel("Camera",["build_zoom","build_cameraangle"].map(controlById))+settingPanel("Minimap and overlay",["map_minimapsize","map_minimapzoom","map_minimapopacity","map_overlayopacity","map_overlayzoom"].map(controlById))+settingPanel("Item tiers",["tier_icons","tier_tooltips","tier_lines","tier_rules","tier_rule_position","tier_rule_plain"].map(controlById))+tierPalette()+fontPanel()+settingPanel("Graphics effects",catalog.controls.filter(c=>c.group==="display"&&c.id.startsWith("qol_")))+`<p class="note">Graphics overrides last for this character session. Turning them off restores the previous renderer values. Your saved graphics preferences are kept.</p>`;
+  content.innerHTML=settingPanel("Camera",["build_zoom","build_cameraangle"].map(controlById))+settingPanel("Minimap and overlay",["map_minimapsize","map_minimapzoom","map_minimapopacity","map_overlayopacity","map_overlayzoom"].map(controlById))+settingPanel("Item tiers",["tier_icons","tier_tooltips","tier_lines","tier_special","tier_rules","tier_rule_position","tier_rule_parts"].map(controlById).filter(Boolean))+tierPalette()+fontPanel()+settingPanel("Graphics effects",catalog.controls.filter(c=>c.group==="display"&&c.id.startsWith("qol_")))+`<p class="note">Graphics overrides last for this character session. Turning them off restores the previous renderer values. Your saved graphics preferences are kept.</p>`;
   content.innerHTML=settingPanel("Buffs & debuffs in game",["effects_enabled","effects_player","effects_target","effects_descriptions","effects_scale","effects_rows"].map(controlById))+`<p class="note">Uses live game icons and descriptions. Effects with no readable timer show —. The panels let clicks pass through and only show effects exposed by the game's native UI.</p>`+content.innerHTML;
  }else if(page==="world"){
-  content.innerHTML=settingPanel("Map visibility",[controlById("map_reveal")])+settingPanel("Nearby interactions",["qol_chests","qol_shrines","qol_portals","qol_arearadius","qol_areashape","qol_areashow"].map(controlById).filter(Boolean))+areaColorPanel();
+  content.innerHTML=settingPanel("Map visibility",[controlById("map_reveal")])+settingPanel("Nearby interactions",["qol_chests","qol_shrines","qol_portals","qol_arearadius","qol_areashape","qol_areashow"].map(controlById).filter(Boolean))+areaColorPanel()+ragePanel();
  }else if(page==="inventory"){
-  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory shortcuts</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the game's placement: tabs whose stash priority matches an item first, otherwise the selected tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_stash","inventory_vendor","inventory_stashall"].map(id=>actionCard(controlById(id))).join("")}</div></section>`+stashRulesPanel();
+  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory shortcuts</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the game's placement: tabs whose stash priority matches an item first, otherwise the selected tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_stash","inventory_vendor","inventory_stashall","inventory_sellall"].map(controlById).filter(Boolean).map(c=>actionCard(c)).join("")}</div></section>`+autoSortPanel()+stashRulesPanel();
  }else if(page==="loot"){
-  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius"),controlById("pickup_interval")])+lootPanel()+`<section class="panel"><h2>Collect now</h2>${cache.pickup_radius_read?.inventoryFull?`<p class="note">Your inventory is full. Equipment pickup is paused until you open and close your inventory; gold, potions, tomes, bones and materials are still collected.</p>`:""}<div class="control-grid">${actionCard(controlById("pickup_now"))}</div></section>`+settingPanel("Quality rules",["loot_lp","loot_ww","loot_t7","loot_filter"].map(controlById).filter(Boolean))+filterFilesPanel()+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
+  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius"),controlById("pickup_interval")])+lootPanel()+`<section class="panel"><h2>Collect now</h2>${cache.pickup_radius_read?.inventoryFull?`<p class="note">Your inventory is full. Equipment pickup is paused until you open and close your inventory; gold, potions, tomes, bones and materials are still collected.</p>`:""}<div class="control-grid">${actionCard(controlById("pickup_now"))}</div></section>`+settingPanel("Quality rules",["loot_lp","loot_ww","loot_t7","loot_filter"].map(controlById).filter(Boolean))+filterFilesPanel()+settingPanel("Loot filter window",["tier_filter_colors","tier_name_colors"].map(controlById).filter(Boolean))+(controlById("tier_name_colors")?`<p class="note">${esc(tr("Rule name examples"))}: <code>${esc(nameTagExamples.join("   "))}</code></p>`:"")+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
  }else if(page==="crafting"){
   content.innerHTML=renderCrafting();
  }else if(page==="skills"){
@@ -660,7 +675,7 @@ function renderPage(){
  }else if(page==="summons"){
   const aliases=catalog.characterStats.aliases;
   const summonStats=aliases.map((row,index)=>({row,index})).filter(x=>/^minion|^maxcompanions/.test(x.row.name));
-  content.innerHTML=damagePanel()+`<section class="panel"><div class="section-head"><h2>Live summoned allies</h2><button data-refresh="summons_read" data-control-id="summons_read">Refresh allies</button></div>${summonColumnPicker()}<div class="actions"><button id="summon-baseline">Save damage baseline</button><button id="summon-baseline-clear">Clear baseline</button></div><div id="summon-live">${summonTable()}</div></section>`+settingPanel("Summon lifetime",[controlById("build_summonduration")])+settingPanel("Minion counts",["minionextra","totemextra","ballistaextra","forgedextra","companionextra","immortalminions"].map(key=>controlById("build_"+key)).filter(Boolean))+`<section class="panel"><h2>Minion and companion bonuses</h2><p class="muted">These controls use the existing character stat editor. Minion tags keep these bonuses separate from your own damage and health.</p><div class="control-grid">${summonStats.map(x=>`<button class="settings-card" data-summon-stat="${x.index}"><h3>${esc(ST.name(x.row,"aliases"))}</h3><p class="muted">Edit bonus →</p></button>`).join("")}</div></section>`;
+  content.innerHTML=damagePanel()+deathPanel()+`<section class="panel"><div class="section-head"><h2>Live summoned allies</h2><button data-refresh="summons_read" data-control-id="summons_read">Refresh allies</button></div>${summonColumnPicker()}<div class="actions"><button id="summon-baseline">Save damage baseline</button><button id="summon-baseline-clear">Clear baseline</button></div><div id="summon-live">${summonTable()}</div></section>`+settingPanel("Summon lifetime",[controlById("build_summonduration")])+settingPanel("Minion counts",["minionextra","totemextra","ballistaextra","forgedextra","companionextra","immortalminions"].map(key=>controlById("build_"+key)).filter(Boolean))+`<section class="panel"><h2>Minion and companion bonuses</h2><p class="muted">These controls use the existing character stat editor. Minion tags keep these bonuses separate from your own damage and health.</p><div class="control-grid">${summonStats.map(x=>`<button class="settings-card" data-summon-stat="${x.index}"><h3>${esc(ST.name(x.row,"aliases"))}</h3><p class="muted">Edit bonus →</p></button>`).join("")}</div></section>`;
  }else if(page==="stats")renderStats();
  else if(page==="campaign"){
   const mastery=window.EpochSession.current(cache.progress_read,connected,preview)?cache.progress_read?.mastery:null;
@@ -870,6 +885,14 @@ function syncLootCraft(id,result){
   return true;
  }
  if(["craft_materials","craft_materials_read"].includes(id)){cache.craft_materials_read=result;return true;}
+ if(id==="inventory_tools_read"||inventoryTools.includes(id)||id==="inventory_sorttab"){syncInventoryTools(result);return true;}
+ if(id==="rage_read"||id.startsWith("rage_")){cache.rage_read={...cache.rage_read,...result};
+  for(const [key,item] of Object.entries(result.settings||{})){const cid="rage_"+key;if(!controlById(cid)||item.value==null)continue;appliedValues[cid]=item.value;if(!dirty.has(cid)&&!autoManaged(cid))values[cid]=item.value;}
+  const facts=$("#rage-facts");if(facts)facts.textContent=rageFacts();
+  return true;}
+ if(["death_recap","death_recap_read","death_recap_clear"].includes(id)){cache.death_recap_read={...cache.death_recap_read,...result};
+  if(typeof result.enabled==="boolean"){const v=result.enabled?1:0;appliedValues.death_recap=v;if(!dirty.has("death_recap")&&!autoManaged("death_recap"))values.death_recap=v;}
+  return true;}
  if(id==="craft_custom_catalog"){
   const owner=result.player?.id;
   if(owner!=null&&workshopOwner!=null&&String(owner)!==String(workshopOwner))workshopDraft=craftingModel.defaults();
@@ -929,7 +952,8 @@ function summonTable(){
  const cell=(s,n)=>n==="Measured DPS"?fmt(s.measuredDps):n==="Last damage"?fmt(s.lastDamage):n==="DPS change"?(c=>c==null?"—":`${c>=0?"+":""}${fmt(c)}`)(summonChange(s)):n==="Health"?`${fmt(s.health)} / ${fmt(s.maxHealth)}`:n==="Armour"?fmt(s.armour):n==="Damage increase"?fmt(s.damageIncreased)+"%":fmt(s.resistances?.[n])+"%";
  return `${data.damageSampleClipped?'<p class="note">Damage event capacity was reached. These numbers are a lower bound until a fresh five-second window is collected.</p>':""}<div class="table-scroll"><table class="summon-table"><thead><tr><th>${individual?"Ally":"Ally type"}</th>${columns.map(n=>`<th>${n}</th>`).join("")}</tr></thead><tbody>${rows.map(s=>`<tr><td>${esc(s.label)}${s.count>1?` <span class="muted">×${s.count}</span>`:""}</td>${columns.map(n=>`<td>${cell(s,n)}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="muted">Measured DPS uses damage actually applied in a rolling five-second window (${fmt(data.damageWindowSeconds)} seconds collected), including mitigation and critical hits. Attack a target to measure damage; changing gear alone cannot reveal exact combat DPS. Compare on the same target and encounter. Damage increase remains a separate bonus. ${individual?"":"Grouped rows add damage and health across the group and average armour, damage increase and resistances. "}Updates every two seconds while visible.</p>`;
 }
-const defaultTierPalette=["FFFFFF","2E8BFF","FFD700","FF5500","AA55FF","00FF00","FF0044","00FFFF"];
+// The game's rarity order: normal, magic, rare, exalted, unique, set, legendary (T8 cyan).
+const defaultTierPalette=["FFFFFF","2E8BFF","FFD700","AA55FF","FF5500","00FF00","FF0044","00FFFF"];
 // The loot filter rule line: the item's label colour on the ground, or one colour.
 function storedRuleColor(){try{const v=JSON.parse(localStorage.getItem("epochpact.rule-line-color.v1")||'"label"');if(v==="label"||/^[0-9A-F]{6}$/i.test(v))return String(v).toUpperCase()==="LABEL"?"label":String(v).toUpperCase();}catch{}return "label";}
 function storedTierPalette(){try{const p=JSON.parse(localStorage.getItem("epochpact.tier-palette.v1")||"null");if(Array.isArray(p)&&p.length===8&&p.every(x=>/^[0-9A-F]{6}$/i.test(x)))return p.map(x=>x.toUpperCase());}catch{}return defaultTierPalette.slice();}
@@ -985,7 +1009,27 @@ async function filterAction(action,args={}){
  return r;
 }
 // ---- stash tabs from the loot filter
+// Rule name tags the game shows with "Colours in loot filter rule names" (item 4).
+const nameTagExamples=["<color=#FF4040>red</color>","<color=yellow>yellow</color>","<b>bold</b>","<i>italic</i>","<u>underlined</u>"];
 let stashRules=null;
+// Automatic sorting and Sell all (items 7 and 8): the inventory, every stash tab or the ticked tabs.
+const inventoryTools=["inventory_autosort","inventory_autosortall","inventory_sellkeep"];
+function autoSortTabs(){
+ const s=stashRules&&String(stashRules.player?.id)===String(connected.player?.id)?stashRules:null,chosen=new Set(cache.inventory_tools_read?.tabs||[]);
+ if(!s)return `<p class="empty">Read your stash tabs to choose which ones are sorted.</p><div class="actions"><button data-stash-rules="read" data-control-id="stash_rules_read">Read stash tabs</button></div>`;
+ if(!s.tabs.length)return `<p class="empty">You have no stash tabs yet.</p>`;
+ const all=Boolean(cache.inventory_tools_read?.autosortAll);
+ return `<div class="sort-tabs">${s.tabs.map(t=>`<label class="inline-check"><input type="checkbox" data-sort-tab="${t.id}" data-control-id="inventory_sorttab" ${chosen.has(t.id)||all?"checked":""} ${all?"disabled":""}> ${esc(t.name||`Tab ${t.id}`)}</label>`).join("")}</div>`;
+}
+function autoSortPanel(){
+ const list=inventoryTools.map(controlById).filter(Boolean);if(!list.length)return "";
+ return `<section class="panel" id="auto-sort"><div class="section-head"><h2>Automatic sorting and Sell all</h2></div><p class="muted">Sorting uses the game's own Sort: your inventory each time it opens, a stash tab each time it is shown. These choices are remembered by EpochPact.</p><div class="control-grid">${list.map(settingCard).join("")}</div><h3>Stash tabs sorted automatically</h3><div id="sort-tabs">${autoSortTabs()}</div></section>`;
+}
+function syncInventoryTools(r){
+ if(!r?.ok||!("autosort" in r))return;cache.inventory_tools_read=r;
+ for(const [id,v] of [["inventory_autosort",r.autosort?1:0],["inventory_autosortall",r.autosortAll?1:0],["inventory_sellkeep",r.sellKeep]]){appliedValues[id]=v;if(!dirty.has(id)&&!autoManaged(id))values[id]=v;syncSettingUi(id);}
+ const node=$("#sort-tabs");if(node)node.innerHTML=autoSortTabs();
+}
 const ruleTypes=["Show","Hide","Highlight"];
 function stashRulesArgs(extra={}){return {expected_id:connected.player?.id,expected_name:connected.player?.name,...extra};}
 function stashRulesPanel(){
@@ -999,7 +1043,7 @@ function stashRulesPanel(){
  const rows=s.rules.map(r=>`<tr class="${r.enabled?"":"muted"}"><td>${r.number}</td><td>${ruleTypes[r.type]??r.type}${r.enabled?"":" · off"}</td><td>${esc(r.name||"—")}</td><td><select data-stash-rule-link="${r.number}" data-control-id="stash_rule_assign" aria-label="Tab for rule ${r.number}">${tabOptions(r.tab)}</select></td><td>${r.unmapped.length?`<span class="badge" title="${esc(r.unmapped.join(", "))}">Sort only: ${esc(r.unmapped.join(", "))}</span>`:r.mapped.length?"Tab priority":"—"}</td></tr>`).join("");
  return head+`<p class="note">Filter: <b>${esc(s.filter)}</b> · ${s.rules.length} rules · ${s.tabs.length} stash tabs${s.canAddTab?"":" · the game's tab limit is reached"}.</p><div class="table-wrap"><table class="stash-rules-table"><thead><tr><th>Rule</th><th>Type</th><th>Name</th><th>Stash tab</th><th>Matching</th></tr></thead><tbody>${rows}</tbody></table></div><div class="actions"><label class="inline-check"><input type="checkbox" id="stash-rules-hidden"> Include Hide rules</label><label class="inline-check"><input type="checkbox" id="stash-rules-disabled"> Include disabled rules</label></div><div class="actions"><button class="primary" data-stash-rules="create" data-control-id="stash_rules_create">Create tabs for rules without a tab</button><button data-stash-rules="sort" data-control-id="stash_rules_sort">Sort inventory by filter rule</button></div></section>`;
 }
-function renderStashRules(){const node=$("#stash-rules");if(node)node.outerHTML=stashRulesPanel();updateDisabled();}
+function renderStashRules(){const node=$("#stash-rules");if(node)node.outerHTML=stashRulesPanel();const tabs=$("#sort-tabs");if(tabs)tabs.innerHTML=autoSortTabs();updateDisabled();}
 async function stashRulesAction(kind,extra={}){
  const id={read:"stash_rules_read",create:"stash_rules_create",sort:"stash_rules_sort",assign:"stash_rule_assign"}[kind];
  if(kind!=="read"){
@@ -1018,11 +1062,21 @@ async function stashRulesAction(kind,extra={}){
  renderStashRules();
 }
 // ---- interface font
+// Every Windows font face: each family, then its other styles ("Segoe UI — Semibold", sent as Family|Style).
+let fontFilter="";
+function fontFaces(){
+ const families=cache.font_read?.families||[],styles=cache.font_read?.styles||{},out=[];
+ for(const f of families){out.push([f,f]);for(const s of styles[f]||[])if(!/^(regular|normal|book|roman)$/i.test(s))out.push([`${f}|${s}`,`${f} — ${s}`]);}
+ return out;
+}
+function fontOptions(current){
+ const q=fontFilter.trim().toLowerCase(),faces=fontFaces().filter(([v,l])=>!q||l.toLowerCase().includes(q)||v===current);
+ return {count:faces.length,html:[`<option value="game" ${current==="game"?"selected":""}>Game font</option>`,...faces.map(([v,l])=>`<option value="${esc(v)}" ${current===v?"selected":""}>${esc(l)}</option>`)].join("")};
+}
 function fontPanel(){
  const c=controlById("font_family");if(!c)return "";
- const families=cache.font_read?.families||[],current=values.font_family??"game";
- const options=[`<option value="game" ${current==="game"?"selected":""}>Game font</option>`,...families.map(f=>`<option value="${esc(f)}" ${current===f?"selected":""}>${esc(f)}</option>`)].join("");
- return `<section class="panel"><div class="section-head"><h2>Text and font</h2>${families.length?"":`<button data-refresh="font_read" data-control-id="font_read">Load Windows fonts</button>`}</div><p class="muted">${esc(c.description)} The choice is undone when you choose Game font or close EpochPact.</p><label>Interface font<select data-font-family data-control-id="font_family" ${families.length?"":"disabled"}>${options}</select></label></section>`+settingPanel("Text size",[controlById("font_scale")]);
+ const families=cache.font_read?.families||[],current=values.font_family??"game",list=fontOptions(current);
+ return `<section class="panel"><div class="section-head"><h2>Text and font</h2>${families.length?"":`<button data-refresh="font_read" data-control-id="font_read">Load Windows fonts</button>`}</div><p class="muted">${esc(c.description)} Every style a font has (Bold, Light, Semibold, Italic …) is listed. The choice is undone when you choose Game font or close EpochPact.</p><label>Search fonts<input type="search" data-font-search placeholder="Font name or style" value="${esc(fontFilter)}" ${families.length?"":"disabled"}></label><label>Interface font <small class="muted" data-font-count>${families.length?`${list.count} fonts`:""}</small><select data-font-family data-control-id="font_family" ${families.length?"":"disabled"}>${list.html}</select></label></section>`+settingPanel("Text size and letter case",["font_scale","font_case"].map(controlById).filter(Boolean));
 }
 // ---- version, update notice and Install update: one read of the latest GitHub release.
 let appVersion="",updateInfo=null,updatePoll=null;
@@ -1136,7 +1190,31 @@ function ingameReportPanel(){
 function damagePanel(){
  if(!controlById("damage_session"))return "";
  const s=cache.damage_session_read,D=window.EpochDamage,win=window.pywebview?.api?.open_damage_window?`<button data-damage-window>${overlayOpen.damage?"Hide damage window":"Open damage window"}</button>`:"";
- return `<section class="panel" id="damage-panel"><div class="section-head"><h2>Damage meter</h2><div class="actions"><button class="${s?.active?"":"primary"}" data-damage-action="${s?.active?"stop":"start"}" data-control-id="damage_session">${s?.active?"Stop":"Start"}</button><button data-damage-action="reset" data-control-id="damage_session">Reset</button><button data-damage-csv ${s?.types?.length?"":"disabled"}>Copy as CSV</button>${win}</div></div><p class="muted">Records damage by your allies (grouped by type) and your character only while it runs, so it costs nothing when stopped. Values stay after Stop until Reset, also when you switch windows. The damage window stays on top of a windowed or borderless game.</p><p class="note" id="damage-status">${esc(D?D.status(s):"")}</p><div id="damage-filters">${damageFilters(s)}</div><div id="damage-live">${D?D.table(s,damageFilter()):""}</div></section>`;
+ return `<section class="panel" id="damage-panel"><div class="section-head"><h2>Damage meter</h2><div class="actions"><button class="${s?.active?"":"primary"}" data-damage-action="${s?.active?"stop":"start"}" data-control-id="damage_session">${s?.active?"Stop":"Start"}</button><button data-damage-action="reset" data-control-id="damage_session">Reset</button><button data-damage-csv ${s?.types?.length?"":"disabled"}>Copy as CSV</button>${win}</div></div><p class="muted">Records damage by your allies (grouped by type) and your character only while it runs, so it costs nothing when stopped. Values stay after Stop until Reset, also when you switch windows. The damage window stays on top of a windowed or borderless game.</p><p class="note" id="damage-status">${esc(D?D.status(s):"")}</p><div id="damage-filters">${damageFilters(s)}</div><div id="damage-live">${D?D.table(s,damageFilter()):""}</div><h3>Damage taken</h3><div id="damage-taken-live">${takenTable(s)}</div></section>`;
+}
+// Damage your character took during the session, per attacker type (the damage window's Taken view).
+// Rage of Morditas (Season 5): the game's own encounter values, scaled while offline play runs.
+function rageFacts(){
+ const now=cache.rage_read?.game;if(!now)return "";
+ return `Now: hunt ${esc(String(now.configs?.[0]?.huntSeconds??"—"))} s · Bloodrage charges at ${esc((now.chargeKills||[]).join(", "))} kills · hunt buffs at ${esc((now.buffKills||[]).join(", "))} kills.`;
+}
+function ragePanel(){
+ const list=["rage_spawn","rage_hunttime","rage_charges","rage_buffs","rage_blood"].map(controlById).filter(Boolean);if(!list.length)return "";
+ return `<section class="panel" id="rage-panel"><div class="section-head"><h2>Rage of Morditas (Season 5)</h2><span class="badge">${list.every(automaticSetting)?"Changes apply automatically":"Use Apply changes below"}</span></div><p class="muted">These change only the values the game loaded, while you play offline; nothing is saved to your character. 1 (or the game's own) puts the game's values back.</p><p class="note" id="rage-facts">${rageFacts()}</p><div class="control-grid">${list.map(settingCard).join("")}</div></section>`;
+}
+function takenTable(s){const D=window.EpochDamage,R=window.EpochDeathRecap;return D&&R?D.table(R.takenState(s),{compact:true,taken:true}):"";}
+// ---- Death recap: the deaths since the game started (newest first), each with the 10 s before it.
+let deathIndex=0,deathCount=null;
+function deathPanel(){
+ const c=controlById("death_recap");if(!c||!controlById("death_recap_read"))return "";
+ return `<section class="panel" id="death-panel"><div class="section-head"><h2>Death recap</h2><div class="actions"><button data-death-refresh data-control-id="death_recap_read">Refresh</button><button data-death-clear data-control-id="death_recap_clear">Clear</button></div></div><p class="muted">When your character dies, the hits of the 10 seconds before it are kept: who hit, with which skill or ailment, the damage by type and the health left after each hit, with the buffs and debuffs you had. Kept until the game closes; the damage window shows it under ☠.</p><div class="control-grid">${settingCard(c)}</div><div id="death-live">${deathView()}</div></section>`;
+}
+function deathView(){const R=window.EpochDeathRecap;return R?R.html(cache.death_recap_read,{index:deathIndex,lang:document.documentElement?.lang||"en"}):"";}
+function renderDeath(){const node=$("#death-live");if(node)node.innerHTML=deathView();}
+async function refreshDeaths(){
+ if(!controlById("death_recap_read")||!eligible(controlById("death_recap_read")))return;
+ const r=await job({type:"control",id:"death_recap_read",operation:"read"}).catch(()=>null);
+ if(r?.ok&&page==="summons"){syncLootCraft("death_recap_read",r);deathIndex=0;renderDeath();syncSettingUi("death_recap");}
 }
 // Which damage type and rows the Summons page shows (the damage window has its own).
 function damageFilter(){
@@ -1155,7 +1233,12 @@ function damageFilters(s){
 // The live table and status every second; the row switches only when the rows change.
 function updateDamageView(s){
  const D=window.EpochDamage,live=$("#damage-live"),status=$("#damage-status"),filters=$("#damage-filters");
+ // A session started or stopped in the damage window: Start/Stop follows it.
+ const toggle=$("#damage-panel")?.querySelector("[data-damage-action]");if(toggle&&toggle.dataset.damageAction!==(s?.active?"stop":"start")){renderDamage();return;}
  if(live)live.innerHTML=D.table(s,damageFilter());if(status)status.textContent=D.status(s);
+ const taken=$("#damage-taken-live");if(taken)taken.innerHTML=takenTable(s);
+ // A new death (or a new game), or not read yet (the character was not ready): the recap is read again.
+ if(Number.isInteger(s?.deaths)&&(s.deaths!==deathCount||!cache.death_recap_read?.ok)){deathCount=s.deaths;void refreshDeaths();}
  if(filters&&JSON.stringify(D.sources(s).map(r=>r.key))!==damageRowKeys)filters.innerHTML=damageFilters(s);
 }
 function renderDamage(){const node=$("#damage-panel");if(node)node.outerHTML=damagePanel();updateDisabled();}
@@ -1163,7 +1246,7 @@ async function damageAction(action){
  const r=await runTask({type:"control",id:"damage_session",args:{action}},{silent:true});
  if(r?.ok){cache.damage_session_read=r;renderDamage();}
 }
-let lootEntries=[],lootOwner=null;
+let lootEntries=[],lootOwner=null;const lootLogState={};
 // Loot and damage windows: the buttons read Open or Hide from the windows'
 // real state (a window can also be hidden from its own − button).
 let overlayOpen={feed:false,damage:false};
@@ -1220,7 +1303,7 @@ async function pollConveniences(){
  try{
   const r=await job({type:"control",id,operation:"read"});
   if(owner!==automaticOwner())return;
-  if(id==="loot_log"){if(r.ok){if(lootOwner!==owner){lootEntries=[];lootOwner=owner;}lootEntries=window.EpochLootLog.merge(lootEntries,r.entries);const node=$("#loot-log-live");if(node)node.innerHTML=lootTable();void describeLootShards();}return;}
+  if(id==="loot_log"){if(r.ok){if(lootOwner!==owner){lootEntries=[];lootOwner=owner;}lootEntries=window.EpochLootLog.merge(lootEntries,r.entries,Date.now(),window.EpochLootLog.sessionOf(r,lootLogState));const node=$("#loot-log-live");if(node)node.innerHTML=lootTable();void describeLootShards();}return;}
   if(r.ok){if(!syncLootCraft(id,r))cache[id]=r;}
   else if(id==="summons_read")cache[id]={player:connected.player,readError:true};
   if(page==="summons"){const node=$("#summon-live");if(node)node.innerHTML=summonTable();}
@@ -1292,16 +1375,20 @@ function settingChanged(id,value,delay=0){
  if(automaticSetting(c)){queueAutomatic(id,value,delay);return;}
  values[id]=value;dirty.add(id);renderPage();
 }
-async function applyDraft(){
- if(busy||!dirty.size)return;
- for(const input of document.querySelectorAll('[data-setting-number]'))if(!input.reportValidity())return;
- const ids=[...dirty].filter(id=>!autoManaged(id)),expected_session=connected.sessionKey;let applied=0;
+// options.profile: the startup profile's own settings (options.ids). It waits while another task
+// runs, does not depend on the page's number fields and goes on past a refused setting.
+async function applyDraft(options={}){
+ const profile=options.profile===true;
+ if(!dirty.size)return;
+ if(busy){if(profile&&(options.tries??0)<40)setTimeout(()=>void applyDraft({...options,tries:(options.tries??0)+1}),500);return;}
+ if(!profile)for(const input of document.querySelectorAll('[data-setting-number]'))if(!input.reportValidity())return;
+ const ids=(profile?options.ids||[]:[...dirty]).filter(id=>dirty.has(id)&&!autoManaged(id)),expected_session=connected.sessionKey;let applied=0,refused=0;
  let refreshForge=false;
  for(const id of ids){
   const c=controlById(id);if(!c||!["actor","session"].includes(c.lifetime))continue;
   const submitted=values[id],args={value:submitted??"reset"};if(expected_session&&!preview)args.expected_session=expected_session;
   const r=await runTask({type:"control",id,args},{silent:true});
-  if(!r){notify(`${applied} settings applied; stopped after an error. Remaining drafts are kept.`,true);renderPage();return;}
+  if(!r){if(profile){refused++;continue;}notify(`${applied} settings applied; stopped after an error. Remaining drafts are kept.`,true);renderPage();return;}
   syncLootCraft(id,r);
   if(id.startsWith("craft_"))refreshForge=true;
   appliedValues[id]=submitted;if(values[id]===submitted)dirty.delete(id);applied++;
@@ -1309,7 +1396,9 @@ async function applyDraft(){
  // A changed level/cost control changes normal forge eligibility. Read it once
  // after this batch; never invoke Forge while applying session settings.
  if(refreshForge)await refreshSection("craft_read",{refreshConnectionFirst:false});
- notify(preview?`${applied} settings simulated in preview.`:`${applied} settings applied in order.`);renderPage();
+ if(profile)notify(refused?`${applied} of ${applied+refused} settings of ${tr(options.name)} applied; the others were refused and stay in the draft.`:applied===1?`Applied ${tr(options.name)} (1 setting).`:`Applied ${tr(options.name)} (${applied} settings).`,refused>0);
+ else notify(preview?`${applied} settings simulated in preview.`:`${applied} settings applied in order.`);
+ renderPage();
 }
 function setTheme(theme){
  if(!["chronoforge","void-atlas"].includes(theme))theme="chronoforge";
@@ -1346,6 +1435,9 @@ content.addEventListener("click",async e=>{
  else if(b.dataset.stashRules)await stashRulesAction(b.dataset.stashRules,b.dataset.stashRules==="create"?{hidden:$("#stash-rules-hidden")?.checked?1:0,disabled:$("#stash-rules-disabled")?.checked?1:0}:{});
  else if(b.dataset.reportNow!==undefined){const r=await runTask({type:"control",id:"report_now"},{silent:true});if(r?.ok){notify(`Report saved: ${r.folder.split(/[\\/]/).pop()} (in the game's EpochPact\\reports folder).`);void refreshSection("report_read");}}
  else if(b.dataset.damageAction)await damageAction(b.dataset.damageAction);
+ else if(b.dataset.deathRefresh!==undefined)await refreshDeaths();
+ else if(b.dataset.deathClear!==undefined){const r=await runTask({type:"control",id:"death_recap_clear",args:{}},{silent:true});if(r?.ok){syncLootCraft("death_recap_clear",r);deathIndex=0;renderDeath();}}
+ else if(b.dataset.deathStep!==undefined){deathIndex=Math.max(0,deathIndex+Number(b.dataset.deathStep||0));renderDeath();}
  else if(b.dataset.damageCsv!==undefined){const text=window.EpochDamage.csv(cache.damage_session_read);try{await navigator.clipboard.writeText(text);notify("Damage table copied as CSV.");}catch{const area=document.createElement("textarea");area.value=text;document.body.appendChild(area);area.select();document.execCommand("copy");area.remove();notify("Damage table copied as CSV.");}}
  else if(b.dataset.damageWindow!==undefined){try{await (overlayOpen.damage?window.pywebview.api.hide_damage_window():window.pywebview.api.open_damage_window());}catch{notify("Could not open the damage window.",true);}await refreshOverlayState();}
  else if(b.id==="report-create"){
@@ -1418,6 +1510,13 @@ function rememberMonolithInput(input){
  if(preview||monoDraftOwner)monoDrafts[monoDraftKey(form.dataset.id)]=input.value;
 }
 content.addEventListener("input",e=>{
+ if(e.target.dataset?.fontSearch!==undefined){
+  // The list narrows as you type; the chosen font stays in it.
+  fontFilter=e.target.value;const list=fontOptions(values.font_family??"game");
+  const select=$("[data-font-family]");if(select)select.innerHTML=list.html;
+  const count=$("[data-font-count]");if(count)count.textContent=`${list.count} fonts`;
+  return;
+ }
  const t=e.target;
  if(t.dataset?.workshopRoll){const v=Number(t.value);if(t.value!==''&&Number.isInteger(v))workshopSetting(t.dataset.workshopRoll,{roll:v});else workshopSetting(t.dataset.workshopRoll,{roll:NaN});refreshWorkshopSummary();return;}
  if(t.hasAttribute?.('data-affix-search')){const kind=affixKind(t);affixKinds[kind].state().query=t.value;updateWantedAffixLists(kind);return;}
@@ -1461,11 +1560,12 @@ content.addEventListener("change",e=>{
  if(e.target.id==="text-scale"){try{localStorage.setItem("epochpact.text-scale.v1",JSON.stringify(Number(e.target.value)));}catch{}applyTextScale();return;}
  if(e.target.id==="remember-scroll"){writeStored("remember-scroll",e.target.checked);return;}
  if(e.target.id==="update-check"){writeStored("update-check",e.target.checked);return;}
+ if(e.target.dataset.sortTab){void runTask({type:"control",id:"inventory_sorttab",args:{tab:Number(e.target.dataset.sortTab),value:e.target.checked?1:0}},{silent:true}).then(syncInventoryTools);return;}
  if(e.target.dataset.stashRuleLink){
   const number=Number(e.target.dataset.stashRuleLink),tab=Number(e.target.value),previous=stashRules?.rules.find(r=>r.number===number)?.tab;
   if(tab)void stashRulesAction("assign",{tab,rule:number});else if(previous!=null)void stashRulesAction("assign",{tab:previous,rule:0});return;
  }
- if(e.target.dataset.fontFamily!==undefined){const family=e.target.value;values.font_family=family;void runTask({type:"control",id:"font_family",args:{family:family.replace(/ /g,"%20")}},{silent:true});return;}
+ if(e.target.dataset.fontFamily!==undefined){const family=e.target.value;values.font_family=family;void runTask({type:"control",id:"font_family",args:{family:family.replace(/ /g,"%20").replace(/\|/g,"%7C")}},{silent:true});return;}
  if(e.target.dataset.areaColor!==undefined){
   const color=String(e.target.value||"#3FD0FF").replace("#","").toUpperCase();
   try{localStorage.setItem("epochpact.area-color.v1",JSON.stringify(color));}catch{}

@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 
-function harness(initial={selected:false,installed:false,running:false,executable:''}){
+function harness(initial={selected:false,installed:false,running:false,executable:''},extra={}){
  const listeners={},calls=[],changes=[],inserted=[];let shown=0,closed=0,busy=false;
  const input={value:'',defaultValue:''},panel={
   querySelector(){return input;},
@@ -11,7 +11,7 @@ function harness(initial={selected:false,installed:false,running:false,executabl
  const document={addEventListener(type,fn){listeners[type]=fn;},
   querySelector:s=>s==='#setup-dialog'?dialog:{insertAdjacentHTML(_,value){inserted.push(value);}},
   querySelectorAll:s=>s==='[data-launcher-panel]'?[panel]:s==='[data-game-path]'?[input]:s==='[data-setup-feedback]'?[feedback]:[]};
- const window={},ctx=vm.createContext({window,document});
+ const window={...extra},ctx=vm.createContext({window,document});
  vm.runInContext(fs.readFileSync(path.join(__dirname,'../ui/launcher.js'),'utf8'),ctx);
  const api=window.EpochLauncher;
  api.init(initial,{isBusy:()=>busy,run:async payload=>{
@@ -109,4 +109,24 @@ test('without an app update a mod mismatch is never installed automatically',()=
  const h=harness({selected:true,installed:false,updateRequired:true,running:false,executable:'C:/LE/Last Epoch.exe'});
  h.api.update({selected:true,installed:false,updateRequired:true,running:false,executable:'C:/LE/Last Epoch.exe',revision:2});
  assert.deepEqual(h.calls,[]);
+});
+
+function storage(values={}){const m=new Map(Object.entries(values));return {getItem:k=>m.has(k)?m.get(k):null,setItem:(k,v)=>m.set(k,String(v)),map:m};}
+test('the game is launched at start only when the player turned it on, the mod is installed and the game is closed',async()=>{
+ const ready={selected:true,installed:true,running:false,executable:'C:/LE/Last Epoch.exe'};
+ const off=harness(ready,{localStorage:storage(),sessionStorage:storage()});
+ assert.equal(off.calls.length,0,'off by default');assert.match(off.panel.html,/data-game-autolaunch >/);
+ const on=harness(ready,{localStorage:storage({'epochpact.auto-launch.v1':'true'}),sessionStorage:storage()});
+ await new Promise(r=>setImmediate(r));
+ assert.deepEqual(on.calls.map(c=>c.action),['launch']);assert.match(on.panel.html,/data-game-autolaunch checked/);
+ for(const state of [{...ready,running:true},{...ready,installed:false},{...ready,updateRequired:true},{...ready,disabled:true}]){
+  const h=harness(state,{localStorage:storage({'epochpact.auto-launch.v1':'true'}),sessionStorage:storage()});
+  await new Promise(r=>setImmediate(r));
+  assert.equal(h.calls.length,0,JSON.stringify(state));
+ }
+ // A reload of the page within the same app start does not launch again.
+ const session=storage({'epochpact.auto-launched':'1'});
+ const reloaded=harness(ready,{localStorage:storage({'epochpact.auto-launch.v1':'true'}),sessionStorage:session});
+ await new Promise(r=>setImmediate(r));
+ assert.equal(reloaded.calls.length,0);
 });

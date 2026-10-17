@@ -243,7 +243,7 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','damageicon ','summonread','inventoryread','inventoryaction ','affixinfo ')):
+        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','damageicon ','deathrecap','rageread','rageset ','invread','invset ','invsorttab ','summonread','inventoryread','inventoryaction ','affixinfo ')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})
@@ -467,6 +467,41 @@ class BridgeTests(unittest.TestCase):
         for bad in ('', 'a:', 'a:x y', 'a:' + 'x' * 33, 'c:1', 'c:1:2:3', 'c:100:1', 'b:1', 'a:sk1;status', 'a:sk1\nstatus'):
             with self.subTest(key=bad), self.assertRaises(ValueError):
                 self.bridge.execute('damage_icon', {'key': bad}, 'read')
+        self.assertEqual(len(self.commands), sent)
+
+    def test_death_recap_reads_switches_and_clears_with_fixed_commands(self):
+        self.bridge.execute('death_recap_read', {}, 'read')
+        self.assertEqual(self.commands[-1], 'deathrecap')
+        for value in (0, 1):
+            self.bridge.execute('death_recap', {'value': value})
+            self.assertEqual(self.commands[-1], f'deathrecap {value}')
+        self.bridge.execute('death_recap', {}, 'reset')
+        self.assertEqual(self.commands[-1], 'deathrecap 1')
+        self.bridge.execute('death_recap_clear', {})
+        self.assertEqual(self.commands[-1], 'deathrecap clear')
+        sent = len(self.commands)
+        for bad in (2, -1, 0.5, 'clear', '1;status'):
+            with self.subTest(value=bad), self.assertRaises(ValueError):
+                self.bridge.execute('death_recap', {'value': bad})
+        with self.assertRaises(ValueError):
+            self.bridge.execute('death_recap_clear', {'value': 1})
+        self.assertEqual(len(self.commands), sent)
+
+    def test_rage_of_morditas_settings_send_only_values_in_their_ranges(self):
+        self.bridge.execute('rage_read', {}, 'read')
+        self.assertEqual(self.commands[-1], 'rageread')
+        for cid, key, values in (('rage_spawn', 'spawn', (1, 2.5, 5)), ('rage_hunttime', 'hunttime', (1, 3, 5)),
+                                 ('rage_charges', 'charges', (0.2, 0.5, 1)), ('rage_buffs', 'buffs', (0.2, 1)), ('rage_blood', 'blood', (-1, 0, 25, 100))):
+            for value in values:
+                self.bridge.execute(cid, {'value': value})
+                self.assertEqual(self.commands[-1], f'rageset {key} {value:.9g}')
+            self.bridge.execute(cid, {}, 'reset')
+            self.assertEqual(self.commands[-1], f'rageset {key} {"-1" if key == "blood" else "1"}')
+        sent = len(self.commands)
+        for cid, bad in (('rage_spawn', 0.5), ('rage_spawn', 6), ('rage_hunttime', 0), ('rage_charges', 0.1), ('rage_charges', 1.5),
+                         ('rage_buffs', 2), ('rage_blood', 101), ('rage_blood', 33), ('rage_blood', '1;status')):
+            with self.subTest(control=cid, value=bad), self.assertRaises(ValueError):
+                self.bridge.execute(cid, {'value': bad})
         self.assertEqual(len(self.commands), sent)
 
     def test_interaction_area_settings_stay_in_range_and_the_colour_is_six_hex_digits(self):

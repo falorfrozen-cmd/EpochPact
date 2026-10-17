@@ -106,6 +106,13 @@ std::atomic<unsigned> g_intervalMs{250};
 std::atomic<bool> g_inventoryFull{false};
 bool g_inventoryWasOpen = false;
 std::atomic<uint64_t> g_fullEvents{0}, g_fullSkipped{0};
+// Why collection paused or did nothing: the check that stopped the last paused tick (0 none, 1 hover
+// metadata missing, 2 highlighted item, 3 UI gone, 4 tooltip lock, 5 item tooltip open, 6 pending
+// hover, 7 item card open, 8 tooltip unreadable), tick counters and the last scan's numbers.
+std::atomic<int> g_inspectReason{0};
+std::atomic<uint64_t> g_ticks{0}, g_pausedInspecting{0}, g_pausedNoCharacter{0}, g_missedRecords{0};
+struct ScanNumbers { int labelsSeen = 0, labels = 0, materials = 0, gold = 0, others = 0, calls = 0, skippedFull = 0; bool stoppedInspecting = false; };
+ScanNumbers g_lastScanNumbers;  // main thread
 
 // ---- loot log: every item and gold pickup, by EpochPact or by the player.
 // The game's own pickup methods are observed; their results are unchanged.
@@ -122,6 +129,9 @@ uint64_t g_logSeq = 0;
 std::atomic<uint64_t> g_logFaults{0};
 std::atomic<int> g_ruleOrderMin{0}, g_ruleOrderMax{0};
 thread_local bool t_autoPickup = false;  // set around EpochPact's own pickup calls
+thread_local uint32_t t_pickupId = 0;    // the item pickupItem is taking now (it logs that one itself)
+// Every game start numbers the log from 1 again; the session tells a reader which game it reads.
+uint64_t g_logSession = 0;
 constexpr size_t kLogCapacity = 300;
 
 // ItemTooltipOrganizer keeps every live pickable label in a static DList; ground item
@@ -174,39 +184,40 @@ void TrackInventoryFull() {
 
 bool InspectingItem() {
     // A failed/missing hover read must pause collection, not dismiss a tooltip.
-    if (!g_hoveredItemField || !g_uiField || !g_tooltipSystemOffset || !m_activeTooltipItem || !g_tooltipCardOffset || !g_tooltipManagerOffset || !g_legacyActiveOffset || !g_tooltipLockOffset || !m_componentObject || !m_activeHierarchy) return true;
+    if (!g_hoveredItemField || !g_uiField || !g_tooltipSystemOffset || !m_activeTooltipItem || !g_tooltipCardOffset || !g_tooltipManagerOffset || !g_legacyActiveOffset || !g_tooltipLockOffset || !m_componentObject || !m_activeHierarchy) { g_inspectReason = 1; return true; }
     void* hovered = nullptr;
-    if (!game::TryStaticObject(g_hoveredItemField, &hovered)) return true;
+    if (!game::TryStaticObject(g_hoveredItemField, &hovered)) { g_inspectReason = 8; return true; }
     bool inspecting = false;
-    if (!game::TryIsAlive(hovered, &inspecting)) return true;
-    if (inspecting) return true;
+    if (!game::TryIsAlive(hovered, &inspecting)) { g_inspectReason = 8; return true; }
+    if (inspecting) { g_inspectReason = 2; return true; }
     // Container-hover and the V2 tooltip system do not set highlightedTooltipItem.
     // Use the game's unified getter: it handles both V2 and the legacy manager.
     // This is a cached native getter, with no per-frame reflection or boxed result.
     void* ui = nullptr;
-    if (!game::TryStaticObject(g_uiField, &ui)) return true;
+    if (!game::TryStaticObject(g_uiField, &ui)) { g_inspectReason = 8; return true; }
     bool alive = false;
-    if (!game::TryIsAlive(ui, &alive) || !alive) return true;
+    if (!game::TryIsAlive(ui, &alive) || !alive) { g_inspectReason = 3; return true; }
     void* active = nullptr;
+    int reason = 0;
     const bool readable = game::Guarded([&] {
         void* system = *reinterpret_cast<void* const*>(static_cast<char*>(ui) + g_tooltipSystemOffset);
         bool systemAlive = false;
         if (!game::TryIsAlive(system, &systemAlive) || !systemAlive)
             throw std::runtime_error("item tooltip system unavailable");
-        if (*reinterpret_cast<const bool*>(static_cast<char*>(system)+g_tooltipLockOffset)) { active=system; return; }
+        if (*reinterpret_cast<const bool*>(static_cast<char*>(system)+g_tooltipLockOffset)) { active=system; reason=4; return; }
         // This build can render through the legacy manager while the V2 card is
         // inactive. Its active flag, unlike ActiveItemTooltipItem, is cleared by
         // CloseAllTooltips and covers comparison/controller cards as well.
         void* manager=*reinterpret_cast<void* const*>(static_cast<char*>(system)+g_tooltipManagerOffset);
         bool managerAlive=false;
         if(!game::TryIsAlive(manager,&managerAlive))throw std::runtime_error("tooltip manager unreadable");
-        if(managerAlive && *reinterpret_cast<const bool*>(static_cast<char*>(manager)+g_legacyActiveOffset)){active=manager;return;}
+        if(managerAlive && *reinterpret_cast<const bool*>(static_cast<char*>(manager)+g_legacyActiveOffset)){active=manager;reason=5;return;}
         // Pending tooltips have a hovered rect before their asynchronous item
         // card becomes ready. Do not pick that item up during this gap.
         if (g_hoverRectOffset) {
             void* rect = *reinterpret_cast<void* const*>(static_cast<char*>(system) + g_hoverRectOffset);
             if (!game::TryIsAlive(rect, &inspecting)) throw std::runtime_error("tooltip hover unreadable");
-            if (inspecting) { active = rect; return; }
+            if (inspecting) { active = rect; reason = 6; return; }
         }
         active = reinterpret_cast<void* (*)(void*, const Method*)>(m_activeTooltipItem.code)(system, m_activeTooltipItem.info);
         if(active){
@@ -217,8 +228,10 @@ bool InspectingItem() {
             if(!cardAlive){active=nullptr;return;}
             void* object=reinterpret_cast<void* (*)(void*,const Method*)>(m_componentObject.code)(card,m_componentObject.info);
             if(!reinterpret_cast<bool (*)(void*,const Method*)>(m_activeHierarchy.code)(object,m_activeHierarchy.info))active=nullptr;
+            else reason=7;
         }
     }, nullptr);
+    g_inspectReason = !readable ? 8 : active ? reason : 0;
     return !readable || active != nullptr;
 }
 
@@ -232,7 +245,7 @@ void Pickup(void* object,game::MethodRef method,int kind){
     AutoScope automatic;
     if(!g_vacuumReady){managed::Invoke(method,object);return;}
     void* manager=game::StaticObject(g_managerField),*actor=managed::Invoke(m_getActor);
-    if(!manager||!actor||!game::IsAlive(actor))return;
+    if(!manager||!actor||!game::IsAlive(actor)){g_missedRecords.fetch_add(1,std::memory_order_relaxed);return;}
     const auto id=kind==0?managed::Get<uint32_t>(managed::Get<void*>(object,g_labelVisuals),g_visualId):managed::Get<uint32_t>(object,g_pickupId);
     void* list=managed::Get<void*>(managed::Get<void*>(manager,g_offlineItems),g_ground[kind].list);
     void* array=managed::Get<void*>(list,kListItems);int n=managed::Get<int>(list,kListSize);
@@ -245,6 +258,7 @@ void Pickup(void* object,game::MethodRef method,int kind){
         rules::BorrowLocation borrow(location,player);
         managed::Invoke(method,object);return;
     }
+    g_missedRecords.fetch_add(1,std::memory_order_relaxed);  // no ground record with this id: nothing was asked
 }
 size_t g_groundItemData = 0, g_goldValue = 0, g_itemTypeOffset = 0, g_subTypeOffset = 0, g_uniqueIdOffset = 0;
 game::MethodRef m_itemListGet, m_uniqueName, m_unpack, m_pickupItem, m_pickupGold;
@@ -331,13 +345,45 @@ void d_pickupItem(void* self, void* list, void* actor, uint32_t id, int flags, c
         void* item = record ? managed::Get<void*>(record, g_groundItemData) : nullptr;
         if (item) described = DescribeItem(item, &entry);
     }, nullptr)) g_logFaults.fetch_add(1, std::memory_order_relaxed);
+    const uint32_t previousId = t_pickupId;
+    t_pickupId = id;
     o_pickupItem(self, list, actor, id, flags, m);
+    t_pickupId = previousId;
     if (!described) return;
     // A refused pickup (for example a full inventory) leaves the record behind.
     bool picked = false;
     if (game::Guarded([&] { picked = FindRecord(list, 0, id) == nullptr; }, nullptr) && picked) {
         entry.automatic = automatic;
         PushLoot(std::move(entry));
+    }
+}
+// Picking up an affix shard, rune or glyph makes the game take the nearby ones too
+// (vacuumNearbyStackableItems). They do not pass through pickupItem: the records of the
+// materials on the ground are read before the call, and the ones it removed are logged.
+using VacuumFn = void (*)(void* self, void* actor, void* list, Position position, int flags, const Method* m);
+VacuumFn o_vacuum = nullptr;
+void d_vacuum(void* self, void* actor, void* list, Position position, int flags, const Method* m) {
+    const bool automatic = t_autoPickup;
+    std::vector<std::pair<uint32_t, std::unique_ptr<managed::Root>>> before;
+    if (!game::Guarded([&] {
+        void* records = list ? managed::Get<void*>(list, g_ground[0].list) : nullptr;
+        if (!records) return;
+        for (void* record : managed::Entries(records)) {
+            void* item = record ? managed::Get<void*>(record, g_groundItemData) : nullptr;
+            if (!item || managed::Get<uint8_t>(item, g_itemTypeOffset) < 100) continue;
+            const uint32_t id = managed::Get<uint32_t>(record, g_ground[0].id);
+            if (id != t_pickupId) before.emplace_back(id, std::make_unique<managed::Root>(item));
+        }
+    }, nullptr)) g_logFaults.fetch_add(1, std::memory_order_relaxed);
+    o_vacuum(self, actor, list, position, flags, m);
+    for (auto& [id, item] : before) {
+        LootEntry entry;
+        bool taken = false;
+        if (!game::Guarded([&] { taken = FindRecord(list, 0, id) == nullptr && DescribeItem(item->Get(), &entry); }, nullptr)) {
+            g_logFaults.fetch_add(1, std::memory_order_relaxed);
+            continue;
+        }
+        if (taken) { entry.automatic = automatic; PushLoot(std::move(entry)); }
     }
 }
 using PickupGoldFn = bool (*)(void* self, void* list, void* actor, uint32_t id, const Method* m);
@@ -542,6 +588,12 @@ PickResult PickAll(int maxCalls = 8, bool everywhere = false) {
         if (located) calls += PickPickupables(maxCalls - calls, everywhere, player);
     }
     if (result.skippedFull) g_fullSkipped.fetch_add(static_cast<uint64_t>(result.skippedFull));
+    {
+        int materials = 0;
+        for (int i = 0; i < labelCount; ++i) materials += labelMaterial[i] ? 1 : 0;
+        g_lastScanNumbers = {labelSeen, labelCount, materials, goldCount, potionCount + xpCount + favorCount + boneCount, calls, result.skippedFull,
+                             calls < maxCalls && InspectingItem()};
+    }
     result.calls = calls;
     if (calls) g_calls.fetch_add(static_cast<uint64_t>(calls));
     if (g_autoFirst.exchange(false))
@@ -554,8 +606,10 @@ using TickFn = void (*)(void* self, float deltaTime, const Method* m);
 TickFn o_distantTick = nullptr;
 
 void d_distantTick(void* self, float deltaTime, const Method* m) {
+    g_ticks.fetch_add(1, std::memory_order_relaxed);
     const bool active = g_auto.load(std::memory_order_relaxed) != 0.0 && game::IsOfflinePlay();
     const bool inspectingBeforeTick = active && InspectingItem();
+    if (inspectingBeforeTick) g_pausedInspecting.fetch_add(1, std::memory_order_relaxed);
     // This native handler does only queued distant item pickups. Its own
     // requestPickup calls also close tooltips, even when OUR scan is paused.
     // Leave queued labels untouched until inspection ends. ClickedItem and the
@@ -564,8 +618,8 @@ void d_distantTick(void* self, float deltaTime, const Method* m) {
     o_distantTick(self, deltaTime, m);  // the game's own distant pickup stays in charge
     if (!active) return;
     TrackInventoryFull();
-    if (inspectingBeforeTick || InspectingItem()) return;  // Leave both the tooltip and scan timer alone.
-    if (!smartloot::CanCollect()) return;
+    if (inspectingBeforeTick || InspectingItem()) { g_pausedInspecting.fetch_add(1, std::memory_order_relaxed); return; }  // Leave both the tooltip and scan timer alone.
+    if (!smartloot::CanCollect()) { g_pausedNoCharacter.fetch_add(1, std::memory_order_relaxed); return; }
     const unsigned long now = GetTickCount();
     unsigned long last = g_lastScan.load(std::memory_order_relaxed);
     if (now - last < g_intervalMs.load(std::memory_order_relaxed)) return;
@@ -666,6 +720,11 @@ bool Init() {
     m_uniqueName = game::FindMethod("LE.dll", "", "UniqueList", "getUniqueName", 2);
     m_unpack = game::FindMethod("LE.dll", "", "ItemData", "getAsUnpacked", 0);
     m_pickupItem = ListOverload("GroundItemManager", "pickupItem", 4);
+    {
+        LARGE_INTEGER counter{};
+        QueryPerformanceCounter(&counter);
+        g_logSession = (static_cast<uint64_t>(GetCurrentProcessId()) << 32) ^ static_cast<uint64_t>(counter.QuadPart);
+    }
     m_pickupGold = ListOverload("GroundItemManager", "pickupGold", 3);
     std::string logWhy = "metadata unavailable";
     const bool logReady = g_vacuumReady && g_groundItemData && g_goldValue && g_itemTypeOffset && g_subTypeOffset && g_uniqueIdOffset &&
@@ -673,6 +732,11 @@ bool Init() {
         (hook::IsInstalled(m_pickupItem.code) || hook::Install(m_pickupItem.code, reinterpret_cast<void*>(&d_pickupItem), reinterpret_cast<void**>(&o_pickupItem), &logWhy)) &&
         (hook::IsInstalled(m_pickupGold.code) || hook::Install(m_pickupGold.code, reinterpret_cast<void*>(&d_pickupGold), reinterpret_cast<void**>(&o_pickupGold), &logWhy));
     Log("items: loot log %s%s", logReady ? "ready" : "unavailable: ", logReady ? "" : logWhy.c_str());
+    const auto vacuum = game::FindMethod("LE.dll", "", "GroundItemManager", "vacuumNearbyStackableItems", 4);
+    std::string vacuumWhy = "method not found";
+    const bool vacuumReady = logReady && vacuum &&
+        (hook::IsInstalled(vacuum.code) || hook::Install(vacuum.code, reinterpret_cast<void*>(&d_vacuum), reinterpret_cast<void**>(&o_vacuum), &vacuumWhy));
+    Log("items: loot log of nearby materials taken along %s%s", vacuumReady ? "ready" : "unavailable: ", vacuumReady ? "" : vacuumWhy.c_str());
 
     Log("items: RollRarity %s; autopickup: tick %s, label list %s, manager %s, GroundItemLabel %s, requestPickup %s, hover guard %s; active lists "
         "gold %d potion %d xp %d favor %d bone %d",
@@ -691,6 +755,22 @@ std::string SetWeaversWill(double m) { return feature::Set(g_weaversWill, m); }
 std::string WeaversWillStatus() { return feature::Line(g_weaversWill); }
 
 std::string AutoPickupStatus() { return AutoStatus(); }
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+std::string PickupDiagnostics() {
+    const auto n = g_lastScanNumbers;
+    char buf[640];
+    std::snprintf(buf, sizeof buf,
+                  "{\"ok\":true,\"on\":%s,\"hook\":%s,\"ticks\":%llu,\"scans\":%llu,\"calls\":%llu,\"pausedInspecting\":%llu,\"inspectReason\":%d,"
+                  "\"pausedNoCharacter\":%llu,\"missedRecords\":%llu,\"inventoryFull\":%s,\"fullSkipped\":%llu,\"intervalMs\":%u,\"radius\":%.2f,"
+                  "\"last\":{\"labelsSeen\":%d,\"labels\":%d,\"materials\":%d,\"gold\":%d,\"others\":%d,\"calls\":%d,\"skippedFull\":%d,\"stoppedInspecting\":%s}}",
+                  g_auto.load() > 0.5 ? "true" : "false", h_distantTick.ref && hook::IsInstalled(h_distantTick.ref.code) ? "true" : "false",
+                  static_cast<unsigned long long>(g_ticks.load()), static_cast<unsigned long long>(g_scans.load()), static_cast<unsigned long long>(g_calls.load()),
+                  static_cast<unsigned long long>(g_pausedInspecting.load()), g_inspectReason.load(), static_cast<unsigned long long>(g_pausedNoCharacter.load()),
+                  static_cast<unsigned long long>(g_missedRecords.load()), g_inventoryFull.load() ? "true" : "false", static_cast<unsigned long long>(g_fullSkipped.load()),
+                  g_intervalMs.load(), g_radius.load(), n.labelsSeen, n.labels, n.materials, n.gold, n.others, n.calls, n.skippedFull, n.stoppedInspecting ? "true" : "false");
+    return buf;
+}
+#endif
 
 std::string SetAuto(double on) {
     if (!h_distantTick.ref) return "autopickup: refused: DistantItemPickupHandler.OnUpdateTick was not found in this game build";
@@ -731,7 +811,9 @@ std::string LootLog(uint64_t since){
     std::ostringstream out;
     std::lock_guard<std::mutex> hold(g_logLock);
     const auto now=GetTickCount64();
-    out<<"{\"ok\":true,\"ready\":"<<(o_pickupItem&&o_pickupGold?"true":"false")<<",\"seq\":"<<g_logSeq<<",\"faults\":"<<g_logFaults.load()
+    char session[24];
+    std::snprintf(session, sizeof session, "%016llx", static_cast<unsigned long long>(g_logSession));
+    out<<"{\"ok\":true,\"ready\":"<<(o_pickupItem&&o_pickupGold?"true":"false")<<",\"session\":\""<<session<<"\",\"seq\":"<<g_logSeq<<",\"faults\":"<<g_logFaults.load()
        <<",\"ruleOrderMin\":"<<g_ruleOrderMin.load()<<",\"ruleOrderMax\":"<<g_ruleOrderMax.load()<<",\"entries\":[";
     bool comma=false;
     for(const auto& e:g_log){

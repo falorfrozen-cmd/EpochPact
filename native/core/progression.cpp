@@ -572,8 +572,12 @@ std::string Identity() {
         void* scene = Invoke(m_currentScene);
         const auto sceneName = scene ? Text(Get<void*>(scene, Offset("SceneDetails", "Name"))) : std::string();
         if (sceneName.empty()) throw std::runtime_error("Enter a zone with an offline character and wait for loading to finish.");
+        // load: changes with every new player actor (each character load, also of the same character),
+        // so the interface knows to give its settings again.
+        static void* lastActor = nullptr; static uint64_t loads = 0;
+        if (player.actor != lastActor) { lastActor = player.actor; ++loads; }
         return "{\"ok\":true,\"offline\":true,\"player\":{\"id\":" + Json(player.id) +
-            ",\"name\":" + Json(player.name) + ",\"scene\":" + Json(sceneName) + "}}";
+            ",\"name\":" + Json(player.name) + ",\"scene\":" + Json(sceneName) + ",\"load\":" + std::to_string(loads) + "}}";
     });
 }
 

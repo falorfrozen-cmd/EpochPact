@@ -13,7 +13,7 @@ JSON yüklemek hiçbir ayarı oyuna uygulamaz; kayıtlı mod profili oluşturmaz
 
 | Katalog | Adet |
 |---|---:|
-| Panel kontrolü / işlem | 160 |
+| Panel kontrolü / işlem | 198 |
 | SP stat türü | 134 |
 | Hazır stat adı | 72 |
 | Doğrulanmış C satırı | 206 |
@@ -104,8 +104,8 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `weaverswill` — Weaver's Will çarpanı | `weaverswill {value}` | value: 1…10 | 1 | Oturum |
 | `weaversdrop` — Weaver's Will Unique payı | `weaversdrop {value}` | value: 0…100 | 0 | Oturum |
 | `weaversupgrades` — Weaver's Will yükseltme hızı | `weaversupgrades {value}` | value: 1…10 | 1 | Oturum |
-| `weaver_affixes` — Weaver's Will affix'leri | `weaveraffixes {ids}` | ids: single_token | none | Oturum |
-| `weaver_read` — Weaver's Will ayarları | `weaverread` | — | — | Salt okunur |
+| `weaver_affixes` — Weaver's Will affix'leri | `weaveraffixes {ids}` | ids: liveState.lootread.affixes.id | none | Oturum |
+| `weaver_read` — Weaver's Will ayarları | `weaverread` | — | — | Okuma |
 | `speed` — Hareket hızı çarpanı | `speed {value}` | value: 1…5 | 1 | Yüklü aktör |
 | `cooldown` — Cooldown / charge hız çarpanı | `cooldown {value}` | value: 1…10 | 1 | Oturum |
 | `density_read` — Density ölçümü | `densityread` | — | — | Okuma |
@@ -116,6 +116,11 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Genel eşya drop adedi çarpanı:** ItemDrop.itemMultiplier; CoF düşman hook'u ile ortak dispatcher. Reset: `drops 1`.
 - **Monster density:** Gelecekteki uygun normal paketlerin ortalama boyutu; mevcut paketler değişmez, boss/özel spawn hariç. Reset: `density 1`.
 - **Temel rarity yükseltme çarpanı:** Her normal rarity roll'unu (x−1)/x ihtimalle bir kademe yükseltir; Exalted/T7 kontrolü ayrı. Reset: `rarity 1`.
+- **Weaver's Will çarpanı:** ItemData.RollWeaversWill sonucunu çarpar (yuvarlar), oyunun üst sınırı 28'i aşmaz. Tek çağıran RollLegendaryProperties: düşüşler/ödüller (RollBaseItem), açılan cocoon'lar (RevealCocoonedUnique) ve diğer yeniden roll yolları. Mevcut eşyalar değişmez. Reset: `weaverswill 1`.
+- **Weaver's Will Unique payı:** Rastgele seçilen Unique'lerin yüzde kaçının Weaver's Will Unique olacağı; aynı eşya türü, seviye ve düşme kurallarına uyan bir Weaver's Will Unique varsa UniqueList.rollUnique önce onu ister. Oyunun kendi payı yaklaşık %4; 0 kapalı. Reset: `weaversdrop 0`.
+- **Weaver's Will yükseltme hızı:** CharacterMutator.UpgradeRandomWeaversWillItem her çağrıda bu kadar çalışır (küsurat şans olarak). Oyun bu çağrıyı yakındaki bir öldürmenin zarı tutunca, en fazla 15 saniyede bir yapar; her yükseltme 1 Weaver's Will harcar. Reset: `weaversupgrades 1`.
+- **Weaver's Will affix'leri:** SpendWeaversWillToUpgrade sırasında T7 altındaki istenmeyen affix'ler geçici olarak T7 tutulur (istenen biri T7 altındaysa) ve GetEligibleAffixes listesi istenenlere süzülür (uyan biri varsa); gerçek tier'lar affix kimliğiyle geri yazılır ve eşya verisi yeniden oluşturulur. En fazla 64 ID; none kapalı. Reset: `weaveraffixes none`.
+- **Weaver's Will ayarları:** weaverread: pay, hız, istenen affix'ler ve sayaçlar (salt okunur).
 - **Hareket hızı çarpanı:** Movespeed increased katkısı = x−1; movespeed alias/raw stat ile aynı full key'i paylaşır. Reset: `speed 1`.
 - **Cooldown / charge hız çarpanı:** Normal charge tick hızını ve cooldown sorgusunu ölçekler. Reset: `cooldown 1`.
 - **Density ölçümü:** Paket/generator/planlanan-gözlenen spawn ve dışlama sayaçları.
@@ -161,22 +166,28 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `loot_affixes` — Aranan T7 affix ID'leri | `lootaffixes {ids}` | ids: liveState.lootread.affixes.id | none | Oturum |
 | `loot_category` — Toplama kategorisi | `lootcategory {category} {value}` | category: materials/gold/potions/xp/favor/bones/amber; value: 0…1 | 1 | Oturum |
 | `loot_reset` — Toplama seçimlerini sıfırla | `lootreset` | — | — | Oturum |
+| `tier_filter_colors` — More loot filter colours | `tierset filtercolors {value}` | value: 0…1 | 0 | Oturum |
+| `tier_name_colors` — Colours in loot filter rule names | `tierset namecolors {value}` | value: 0…1 | 1 | Oturum |
 
-- **Auto pickup radius:** Limit automatic collection to 1–60 game units. Zero collects all loaded drops, as in earlier versions. Item tooltips pause collection. Reset: `pickupradius 0`.
+- **Auto pickup radius:** Limits auto pickup to 1–60 game units around your character. At 0, every drop the game has loaded in the current area is collected. Auto pickup pauses while an item tooltip is shown. Reset: `pickupradius 0`.
 - **Pickup radius status:** Read the current pickup radius.
-- **Auto pickup interval:** How often automatic collection scans for drops: 0.25 s (default) up to 10 s. Longer intervals do less work per second. When the game reports a full inventory, equipment waits until you open and close your inventory; gold, potions, tomes, bones and materials continue. Reset: `pickupinterval 0.25`.
+- **Auto pickup interval:** How often auto pickup scans for drops: from 0.25 s (default) to 10 s. Longer intervals reduce system load. When the game reports a full inventory, equipment pickup pauses until you open and close your inventory; gold, potions, tomes, bones, materials and everything else continue to be collected. Reset: `pickupinterval 0.25`.
 - **Recent pickups:** Recent item and gold pickups, by you or Auto Pickup: name, rarity and the loot filter rule that matched (the same number the game shows with Item rule numbering). Reading it does not change the game.
 - **Clear recent pickups:** Clear the recent pickups list. Items and gold are unchanged.
+- **Affix shard details:** What an affix shard's affix does: prefix or suffix, level, the item types it rolls on and the game's value text for each tier. Reading it does not change the game.
 - **Pick up everything now:** Collect every drop the game has loaded right now, ignoring the radius. Your pickup rules, categories, loot filter and inventory space still apply. Runs across several frames.
 - **Otomatik pickup:** Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0,25 saniye. Reset: `autopickup 0`.
 - **Akıllı toplama durumu / affix kataloğu:** Seçimler ve sayaçlar; runtime affix ID/ad listesi. acceptedRequests envantere giriş garantisi değildir. API: `tools.loot_crafting_backend.loot_read()`.
 - **Toplama modu:** all: tüm eşyalar; filter: mevcut loot filtresi; quality: Unique LP veya seçilen T7; materials: shard/rune/glyph. autopickup ayrıca açılır. API: `tools.loot_crafting_backend.loot_mode(mode)`. Reset: `lootmode all`.
-- **Unique minimum LP:** Yalnız quality modu; LP eşiği ile T7 koşulu OR olarak birleştirilir. Weaver's Will ayrı bir LP koşulu değildir. API: `tools.loot_crafting_backend.minimum_lp(value)`. Reset: `lootlp 2`.
+- **Unique minimum LP:** Yalnız quality modu; LP eşiği, Weaver's Will eşiği (loot_ww) ve T7 koşulu OR olarak birleştirilir. API: `tools.loot_crafting_backend.minimum_lp(value)`. Reset: `lootlp 2`.
+- **Minimum Weaver's Will:** Yalnız quality modu; Weaver's Will'i en az bu kadar olan Unique de toplanır (0 = kapalı). Weaver's Will'li Unique'in LP'si 0'dır; LP eşiği tek başına onu toplamaz. Üst sınır oyunun ItemData.MaxWeaversWill değeridir. API: `tools.loot_crafting_backend.minimum_ww(value)`. Reset: `lootww 0`.
 - **T7 eşya toplama:** Quality moduna aittir; filter modu filtreye her zaman uyar. API: `tools.loot_crafting_backend.t7(value)`. Reset: `loott7 1`.
 - **Quality modunda loot filtresine uy:** Quality moduna aittir; filter modu filtreye her zaman uyar. API: `tools.loot_crafting_backend.respect_filter(value)`. Reset: `lootfilter 1`.
 - **Aranan T7 affix ID'leri:** Virgülle ayrılmış en fazla 64 runtime affix ID; none herhangi bir T7 demektir. T7 açık olmalı. API: `tools.loot_crafting_backend.affixes_csv(ids)`. Reset: `lootaffixes none`.
 - **Toplama kategorisi:** Crafting materyali, altın, potion, XP/Favor tome ve bone ayrı seçilir; kategori ayarı auto pickup'ı açmaz. API: `tools.loot_crafting_backend.category(category, value)`. Reset: `lootcategory {category} 1`.
 - **Toplama seçimlerini sıfırla:** Seçimler all/default olur; autopickup açık/kapalı durumu ayrıca kontrol edilir. API: `tools.loot_crafting_backend.reset_loot()`.
+- **More loot filter colours:** 26 more colours in the game's loot filter window for label and beam colours (pinks, violets, blues, teals, greens, golds, oranges, reds, browns and greys), after the game's own. A filter saved with one of them shows the game's last colour where EpochPact does not run. Off: the game's own colours. Reset: `tierset filtercolors 0`.
+- **Colours in loot filter rule names:** Colour words in your loot filter rule names: put a colour tag before a word and a closing colour tag after it, or bold, italic, underline and strikethrough tags (examples below). Colours: red, blue, green, yellow, orange, purple, white, black or a #RRGGBB code. The game's filter window and the rule line in item tooltips show them; other tags stay plain text. Off: the game's own display. Reset: `tierset namecolors 1`.
 
 ## Crafting
 
@@ -416,6 +427,9 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `damage_session_read` — Damage session | `damagesession` | — | — | Okuma |
 | `damage_session` — Damage session control | `damagesession {action}` | action: start/stop/reset | — | Görünüm |
 | `damage_icon` — Damage window icon | `damageicon {key}` | key: single_token | — | Okuma |
+| `death_recap_read` — Death recap | `deathrecap` | — | — | Okuma |
+| `death_recap` — Record deaths | `deathrecap {value}` | value: 0…1 | 1 | Oturum |
+| `death_recap_clear` — Clear the death recap | `deathrecap clear` | — | — | Görünüm |
 | `summons_read` — Live summoned allies | `summonread` | — | — | Okuma |
 
 - **Summon lifetime multiplier:** Extend player-owned summon expiry timers and slow native health decay, including Wraith/Abomination paths. AI, attacks and combat damage remain normal. Permanent minions remain permanent. Reset: `buildset summonduration 1`.
@@ -428,6 +442,9 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Damage session:** Read the damage session: per ally type and your character, DPS over 10 s, 60 s, 10 min and 60 min, averages, totals and hits.
 - **Damage session control:** Start, stop or reset the damage session. Damage is only recorded while it runs; stopped values stay until reset.
 - **Damage window icon:** The game's own skill or class icon for one damage window source, as a small PNG. Reading it does not change the game.
+- **Death recap:** The last deaths since the game started: the hits of the 10 seconds before each (attacker, skill or ailment, damage by type, health and ward after) and the buffs and debuffs shown at the death. Reading it does not change the game.
+- **Record deaths:** Keep the hits your character takes so the death recap can show the 10 seconds before each death. On by default; the hits are only kept in memory until the game closes. Reset: `deathrecap 1`.
+- **Clear the death recap:** Forget the recorded deaths. The game is unchanged.
 - **Live summoned allies:** Read each active player-owned summon: health, armour, uncapped resistances and global damage increase. These are actual live values; damage increase is not skill DPS.
 
 ## Display & Camera
@@ -452,13 +469,15 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `tier_lines` — Colour affix lines by tier | `tierset lines {value}` | value: 0…1 | 0 | Oturum |
 | `tier_rules` — Loot filter rule in tooltips | `tierset rules {value}` | value: 0…1 | 0 | Oturum |
 | `tier_rule_position` — Rule line position | `tierset rulepos {value}` | value: 0/1/2 | 0 | Oturum |
-| `tier_rule_plain` — Rule name only | `tierset ruleplain {value}` | value: 0…1 | 0 | Oturum |
-| `tier_rule_color` — Rule line colour | `tiercolor rule {color}` | color: single_token | — | Oturum |
+| `tier_rule_parts` — Rule line shows | `tierset ruleparts {value}` | value: 15/14/10/12/8/6/2 | 15 | Oturum |
+| `tier_special` — Mark Personal, Champion and Experimental affixes | `tierset special {value}` | value: 0…1 | 1 | Oturum |
 | `tier_color` — Tier colour | `tiercolor {tier} {color}` | tier: 1…8; color: single_token | — | Oturum |
+| `tier_rule_color` — Rule line colour | `tiercolor rule {color}` | color: single_token | — | Oturum |
 | `tier_read` — Tier display status | `tierread` | — | — | Okuma |
 | `map_settings_read` — Map display settings | `mapsettings` | — | — | Okuma |
 | `font_family` — Interface font | `fontset family {family}` | family: single_token | game | Oturum |
 | `font_scale` — Interface text size | `fontset scale {value}` | value: 0.7…1.5 | 1 | Oturum |
+| `font_case` — Letter case as written | `fontset case {value}` | value: 0…1 | 0 | Oturum |
 | `font_read` — Font status | `fontread` | — | — | Okuma |
 | `effects_enabled` — In-game effect HUD | `effectsset enabled {value}` | value: 0…1 | 0 | Oturum |
 | `effects_player` — Show effects on you | `effectsset player {value}` | value: 0…1 | 1 | Oturum |
@@ -486,12 +505,15 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Colour affix lines by tier:** Colour each affix line in item tooltips with its tier colour. The original text returns when switched off. Reset: `tierset lines 0`.
 - **Loot filter rule in tooltips:** Show which loot filter rule matches an item in its tooltip: rule number, Show/Hide/Highlight and the rule name, in the colour the rule gives the item's label. Reset: `tierset rules 0`.
 - **Rule line position:** Where the loot filter rule line appears in item tooltips: under the item type, before the affixes, or at the end of the tooltip. Reset: `tierset rulepos 0`.
-- **Rule name only:** Show only the rule name in the rule line, without "Loot filter:", the rule number and Show/Hide/Highlight. Reset: `tierset ruleplain 0`.
+- **Rule line shows:** What the loot filter rule line in item tooltips shows: the "Loot filter:" label, the rule number, Show, Hide or Highlight, and the rule name. For a rule without a name the game's own description is used, without its "Show All" or "Hide All" words. Reset: `tierset ruleparts 15`.
+- **Mark Personal, Champion and Experimental affixes:** Put a small coloured square before Personal (sky blue), Champion (amber) and Experimental (orchid) affix lines in item tooltips, so they stand apart from regular affixes. Shown with the tier tags or tier colours. Reset: `tierset special 1`.
 - **Tier colour:** Choose the colour for one affix tier (six hexadecimal digits, for example E0315A). Reset: `tiercolor reset`.
+- **Rule line colour:** Colour of the loot filter rule line in item tooltips: the colour the item's label has on the ground (label), or one colour you choose (six hexadecimal digits, for example E0315A). Reset: `tiercolor rule label`.
 - **Tier display status:** Read tier display settings, palette and counters.
 - **Map display settings:** Read minimap and overlay display settings.
 - **Interface font:** Use a Windows font for the game's interface text; game restores the original fonts. Characters the font lacks use the game's font. Reset: `fontset family game`.
 - **Interface text size:** Multiply the size of the game's interface text. 1 is the game's size. Reset: `fontset scale 1`.
+- **Letter case as written:** Show names and texts in the letter case they were written in: the game draws many texts in capitals, lower case or small capitals. With the game font lower-case letters still look like small capitals; choose a Windows font above for real lower-case letters. Undone when you switch it off or close EpochPact. Reset: `fontset case 0`.
 - **Font status:** Read the font choice, Windows font families and counters.
 - **In-game effect HUD:** Show live effect names, game icons, stack counts and available timers while playing. Click-through, offline and session only. Reset: `effectsset enabled 0`.
 - **Show effects on you:** Show the buffs and debuffs exposed by the game's own player effect UI. Reset: `effectsset player 1`.
@@ -507,19 +529,35 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 |---|---|---|---|---|
 | `qol_read` — Convenience settings | `qolread` | — | — | Okuma |
 | `qol_arearadius` — Interaction radius | `qolarea radius {value}` | value: 1…30 | 3 | Oturum |
-| `qol_areashape` — Interaction area shape | `qolarea shape {value}` | value: 0…1 | 0 | Oturum |
+| `qol_areashape` — Interaction area shape | `qolarea shape {value}` | value: 0/1 | 0 | Oturum |
 | `qol_areashow` — Show interaction areas | `qolarea show {value}` | value: 0…1 | 0 | Oturum |
 | `qol_areacolor` — Interaction area colour | `qolarea color {color}` | color: single_token | 3FD0FF | Oturum |
 | `qol_chests` — Open nearby chests | `qolset chests {value}` | value: 0…1 | 0 | Oturum |
 | `qol_shrines` — Activate nearby shrines | `qolset shrines {value}` | value: 0…1 | 0 | Oturum |
 | `qol_portals` — Use the next nearby portal | `qolset portals {value}` | value: 0…1 | 0 | Oturum |
+| `rage_read` — Rage of Morditas settings | `rageread` | — | — | Okuma |
+| `rage_spawn` — Rage of Morditas chance | `rageset spawn {value}` | value: 1…5 | 1 | Oturum |
+| `rage_hunttime` — Rage of Morditas hunt time | `rageset hunttime {value}` | value: 1…5 | 1 | Oturum |
+| `rage_charges` — Kills for Bloodrage charges | `rageset charges {value}` | value: 0.2…1 | 1 | Oturum |
+| `rage_buffs` — Kills for hunt buffs | `rageset buffs {value}` | value: 0.2…1 | 1 | Oturum |
+| `rage_blood` — Blood forging potential share | `rageset blood {value}` | value: -1/0/25/50/75/100 | -1 | Oturum |
 | `map_reveal` — Reveal zone map | `mapreveal {value}` | value: 0…1 | 0 | Oturum |
 | `map_read` — Map display status | `mapread` | — | — | Okuma |
 
 - **Convenience settings:** Read the current world and display controls.
+- **Interaction radius:** How near a chest, shrine or portal must be before it is used: this many game units around it (3 is the earlier fixed distance). The height may differ by up to the same distance, at least 3, so objects on another floor stay out. Reset: `qolarea radius 3`.
+- **Interaction area shape:** The area around each chest, shrine or portal: a circle, or a square. Reset: `qolarea shape 0`.
+- **Show interaction areas:** Draw the area around each chest, shrine and portal that will still be used, within 60 game units. An outline disappears once the object is used. Reset: `qolarea show 0`.
+- **Interaction area colour:** Colour of the drawn areas (six hexadecimal digits, for example 3FD0FF). Reset: `qolarea color 3FD0FF`.
 - **Open nearby chests:** Open eligible world chests within the interaction radius, through the normal interaction. Locked and used chests are skipped. Reset: `qolset chests 0`.
 - **Activate nearby shrines:** Activate eligible shrines within the interaction radius. Native conditions and the normal shrine buff are kept. Reset: `qolset shrines 0`.
 - **Use the next nearby portal:** Arm a single automatic portal interaction within the interaction radius. Waits 10 seconds after loading and turns off after use to prevent travel loops. Reset: `qolset portals 0`.
+- **Rage of Morditas settings:** Read the Rage of Morditas values the game uses now and its own ones: encounter chance, hunt time, kills for Bloodrage charges and hunt buffs, Blood forging potential share.
+- **Rage of Morditas chance:** Multiplies the chance of a Rage of Morditas Blood Crystal in a zone. In each zone that can have one (many campaign zones and normal Monolith echoes) the game rolls 30 % times the zone's own factor, about 0.9 to 3.3; from 4 every such zone gets one. Reset: `rageset spawn 1`.
+- **Rage of Morditas hunt time:** Multiplies the hunt's starting time (the game's 20–25 s) and the time each kill adds (0.5 / 2 / 3 s for normal, magic and rare monsters, 10 s for a champion). The game itself gives a kill less time the longer the hunt already is. Reset: `rageset hunttime 1`.
+- **Kills for Bloodrage charges:** The share of hunt kills needed for each Bloodrage charge: the game's 20, 50, 90, 140 and 200 kills at 1; 0.5 halves them, 0.2 needs a fifth. There are still five charges. Reset: `rageset charges 1`.
+- **Kills for hunt buffs:** The share of hunt kills needed for each random hunt buff: the game's 20, 50, 90 and 140 kills at 1. Reset: `rageset buffs 1`.
+- **Blood forging potential share:** Every Rage of Morditas reward item gets Ice or Blood forging potential; this is how many get Blood. The game's own share is 50 %. The Rituals of Ice and Blood still give their own type. Reset: `rageset blood -1`.
 - **Reveal zone map:** Display the whole minimap/overlay using a fog shader substitution. Does not change exploration saves or spawn enemies. Off restores the current native fog texture. API: `tools.loot_crafting_backend.reveal_map(value)`. Reset: `mapreveal 0`.
 - **Map display status:** Read map visibility and active hooks. API: `tools.loot_crafting_backend.map_read()`.
 
@@ -531,6 +569,12 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `inventory_stash` — Toggle stash | `inventoryaction {save_id} stash` | — | — | Görünüm |
 | `inventory_vendor` — Toggle vendor | `inventoryaction {save_id} vendor` | — | — | Görünüm |
 | `inventory_stashall` — Stash all inventory items | `inventoryaction {save_id} stashall` | — | — | Oyun kaydı |
+| `inventory_sellall` — Sell all inventory items | `inventoryaction {save_id} sellall` | — | — | Oyun kaydı |
+| `inventory_tools_read` — Sorting and selling settings | `invread` | — | — | Okuma |
+| `inventory_autosort` — Sort the inventory automatically | `invset autosort {value}` | value: 0…1 | 0 | Oturum |
+| `inventory_autosortall` — Sort every stash tab automatically | `invset autosortall {value}` | value: 0…1 | 0 | Oturum |
+| `inventory_sellkeep` — Sell all keeps | `invset sellkeep {value}` | value: 0/1/2 | 1 | Oturum |
+| `inventory_sorttab` — Sort a stash tab automatically | `invsorttab {tab} {value}` | tab: 0…999999; value: 0…1 | — | Oturum |
 | `stash_rules_read` — Stash tabs from loot filter | `stashrules {save_id}` | — | — | Okuma |
 | `stash_rules_create` — Create tabs from loot filter | `stashrulescreate {save_id} {hidden} {disabled}` | hidden: 0…1; disabled: 0…1 | — | Oyun kaydı |
 | `stash_rule_assign` — Link a tab to a rule | `stashruleassign {save_id} {tab} {rule}` | tab: 0…1000000; rule: 0…10000 | — | Oyun kaydı |
@@ -540,6 +584,12 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Toggle stash:** Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.
 - **Toggle vendor:** Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.
 - **Stash all inventory items:** Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.
+- **Sell all inventory items:** Sell every inventory item the vendor buys, with the game's own sale (as Ctrl+click on an item). The vendor opens first when it is not open. What Sell all keeps is chosen below; equipped items are never sold. Sold items are in the vendor's buyback list. Creates a recovery backup.
+- **Sorting and selling settings:** Read the automatic sorting choices and what Sell all keeps.
+- **Sort the inventory automatically:** Each time your inventory opens, the game's own Sort runs on it. Remembered by EpochPact. Reset: `invset autosort 0`.
+- **Sort every stash tab automatically:** Each time a stash tab is shown, the game's own Sort runs on it. To sort only some tabs, leave this off and tick them in the list. Remembered by EpochPact. Reset: `invset autosortall 0`.
+- **Sell all keeps:** Which items Sell all leaves in your inventory. Remembered by EpochPact. Reset: `invset sellkeep 1`.
+- **Sort a stash tab automatically:** Sort this stash tab each time it is shown, with the game's own Sort. Remembered by EpochPact.
 - **Stash tabs from loot filter:** Read the active loot filter's rules, your stash folders and tabs, and which tab belongs to which rule.
 - **Create tabs from loot filter:** Create one stash tab per loot filter rule, free of gold, in a folder named after the filter. Each tab takes the rule's rarity, type, class, level, potential, faction, unique and corruption conditions as its stash priority. Creates a recovery backup.
 - **Link a tab to a rule:** Give an existing stash tab the conditions of one loot filter rule as its stash priority, or 0 to clear it. Creates a recovery backup.
