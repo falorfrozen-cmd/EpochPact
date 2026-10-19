@@ -33,6 +33,7 @@
 #include "rage.hpp"
 #include "weaver.hpp"
 #include "effects.hpp"
+#include "ingame_panel.hpp"
 #include "ipc_protocol.hpp"
 #include <mutex>
 #ifdef EPOCHPACT_RESEARCH
@@ -97,6 +98,8 @@ std::string Execute(const std::string& line) {
     if(cmd=="treerespec")return args.size()==2?builds::Respec(args[0],args[1]):"{\"ok\":false,\"error\":\"use treerespec save-id skills|passives|weaver\"}";
     if(cmd=="inventoryread")return args.empty()?convenience::InventoryRead():"{\"ok\":false,\"error\":\"inventoryread expects no arguments\"}";
     if(cmd=="qolread")return args.empty()?convenience::Read():"{\"ok\":false,\"error\":\"qolread expects no arguments\"}";
+    if(cmd=="panel")return args.size()==1?ingame::Panel(args[0]):"{\"ok\":false,\"error\":\"use panel read|0|1\"}";
+    if(cmd=="panelkey")return args.size()==1?ingame::SetKey(args[0]):"{\"ok\":false,\"error\":\"use panelkey F5-F12|off\"}";
     if(cmd=="effectsread")return args.empty()?effects::Read():"{\"ok\":false,\"error\":\"effectsread expects no arguments\"}";
     if(cmd=="effectsset"){double value=0;return args.size()==2&&statedit::Number(args[1],&value)?effects::Set(args[0],value):"{\"ok\":false,\"error\":\"use effectsset setting value\"}";}
     if(cmd=="damagesession")return args.size()<=1?convenience::DamageSession(args.empty()?"":args[0]):"{\"ok\":false,\"error\":\"use damagesession [start|stop|reset]\"}";

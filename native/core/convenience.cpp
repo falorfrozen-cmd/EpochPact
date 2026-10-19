@@ -10,6 +10,7 @@
 #include "convenience_rules.hpp"
 #include "common.hpp"
 #include "effects.hpp"
+#include "ingame_panel.hpp"
 #include "rage.hpp"
 #include <array>
 #include <deque>
@@ -1376,7 +1377,7 @@ void Frame(){
 #endif
     if(lifecycle::Stopping())return;
     effects::Frame();
-    rage::Frame();invtools::Frame();
+    rage::Frame();invtools::Frame();ingame::Frame();
     if(pendingStashPanel.Get()&&!game::Guarded([]{RestoreStashTab();},nullptr)){pendingStashPanel.Reset();++stashRestoreFailures;}
     if(pendingLegacyStash.Get()&&!game::Guarded([]{RestoreLegacyStashTab();},nullptr)){pendingLegacyStash.Reset();++stashRestoreFailures;}
     const auto clock=GetTickCount64();

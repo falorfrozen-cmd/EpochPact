@@ -32,6 +32,7 @@
 #include "fonts.hpp"
 #include "report.hpp"
 #include "effects.hpp"
+#include "ingame_panel.hpp"
 #include <atomic>
 #ifdef EPOCHPACT_RESEARCH
 #include "dumper.hpp"
@@ -133,7 +134,8 @@ void WorkerBody() {
     fonts::Init();
     report::Init();
     effects::Init();
-    lifecycle::SetCleanup([]{rage::ReleaseRoots();effects::ReleaseRoots();convenience::ReleaseRoots();builds::ReleaseRoots();tiers::ReleaseRoots();fonts::ReleaseRoots();});
+    ingame::Init();
+    lifecycle::SetCleanup([]{rage::ReleaseRoots();effects::ReleaseRoots();ingame::ReleaseRoots();convenience::ReleaseRoots();builds::ReleaseRoots();tiers::ReleaseRoots();fonts::ReleaseRoots();});
     Log("ready: command channel at EpochPact\\ipc\\cmd.txt");
     // Detached until a command arrives: IL2CPP waits for attached threads when the game quits.
     if (void* self = a.thread_current()) a.thread_detach(self);
