@@ -46,7 +46,7 @@ def verify(archive: Path, native_host: Path, assembly: Path):
         (game / 'Last Epoch_Data').mkdir()
         shutil.copytree(extracted / 'Manual Installation', game, dirs_exist_ok=True)
         ipc = game / 'EpochPact/ipc'
-        ipc.mkdir()
+        ipc.mkdir(parents=True)
         announcement = ipc / 'protocol.json'
         announcement.write_text('{"version":2,"pid":1}', encoding='utf-8')
         os.utime(announcement, (1, 1))
@@ -124,7 +124,7 @@ def verify(archive: Path, native_host: Path, assembly: Path):
             report['checks'].append('same compiled backend reconnects after process restart; separate slow reads finish beyond seven seconds')
             stop_host()
             host = start_host()
-            core = game / 'EpochPact/EpochPact.Core.dll'
+            core = game / 'version.dll'  # the loader carries the core: it is the owned file to mismatch
             expected = core.read_bytes()
             core.write_bytes(expected + b'isolated wrong-package fixture')
             mismatch = job({'type': 'connection'}, token)
@@ -132,7 +132,7 @@ def verify(archive: Path, native_host: Path, assembly: Path):
             core.write_bytes(expected)
             ready = job({'type': 'connection'}, token)
             assert ready['phase'] == 'ready' and ready['offline']
-            report['checks'].append('owned core mismatch blocks connection explicitly; matching bytes restore readiness')
+            report['checks'].append('owned loader (core linked in) mismatch blocks connection explicitly; matching bytes restore readiness')
             for asset in ('app.js', 'style.css', 'session.js', 'launcher.js', 'crafting-model.js', 'affix-picker.js', 'assets/chronoforge-art.png', 'assets/inter.ttf'):
                 assert request('/ui/' + asset) == (app.parent / '_internal/ui' / asset).read_bytes()
             assert announcement.stat().st_mtime_ns == 1_000_000_000

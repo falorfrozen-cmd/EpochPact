@@ -20,12 +20,13 @@ class ReviewBundleTests(unittest.TestCase):
         core = resources / 'native/build/player/EpochPact.Core.dll'
         core.parent.mkdir(parents=True)
         core.write_bytes(b'MZ non-runnable player fixture')
-        loader = resources / 'native/build/version.dll'
+        loader = resources / 'native/build/player/version.dll'
         loader.write_bytes(b'MZ non-runnable loader fixture')
         bridge = resources / 'native/build/melon/EpochPact.MelonBridge.dll'
         bridge.parent.mkdir()
         bridge.write_bytes(b'MZ non-runnable managed bridge fixture')
-        (core.parent / 'build-info.json').write_text(json.dumps({'flavor': 'player', 'sha256': sha(core.read_bytes())}))
+        (core.parent / 'build-info.json').write_text(json.dumps({'flavor': 'player', 'sha256': sha(core.read_bytes()),
+                                                                'loaderSha256': sha(loader.read_bytes())}))
         (resources / 'ui/assets').mkdir(parents=True)
         (resources / 'ui/catalog.json').write_text(json.dumps({'liveState': {}, 'currentValues': {}}))
         (resources / 'ui/supported-game-builds.json').write_text('{"builds":[]}')
@@ -72,9 +73,8 @@ class ReviewBundleTests(unittest.TestCase):
             self.assertNotIn('ManualReview', archive.name)
             self.assertFalse(any(name.startswith('CopyToGame/') for name in entries.namelist()))
             self.assertEqual(entries.read('Manual Installation/version.dll'),
-                             entries.read('EpochPact/_internal/native/build/version.dll'))
-            self.assertEqual(entries.read('Manual Installation/EpochPact/EpochPact.Core.dll'),
-                             entries.read('EpochPact/_internal/native/build/player/EpochPact.Core.dll'))
+                             entries.read('EpochPact/_internal/native/build/player/version.dll'))
+            self.assertNotIn('Manual Installation/EpochPact/EpochPact.Core.dll', entries.namelist())
             self.assertEqual(entries.read('EpochPact/' + NAME), (self.bundle / NAME).read_bytes())
             self.assertNotIn(b'{{VERSION}}', entries.read('README.md'))
             self.assertEqual(json.loads(entries.read('runtime-manifest.json'))['kind'], 'Player')

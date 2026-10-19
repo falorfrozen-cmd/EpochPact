@@ -46,8 +46,8 @@ class SetupTests(unittest.TestCase):
     def test_owned_dll_from_another_package_requires_update_then_clears_after_install(self):
         self.setup.select(str(self.exe))
         self.assertTrue(self.setup.install()['ok'])
-        core=self.exe.parent/'EpochPact/EpochPact.Core.dll'
-        core.write_bytes(core.read_bytes()+b'isolated previous release fixture')
+        loader=self.exe.parent/'version.dll'
+        loader.write_bytes(loader.read_bytes()+b'isolated previous release fixture')
         state=self.setup.status()
         self.assertFalse(state['installed']);self.assertTrue(state['updateRequired'])
         self.assertTrue(self.setup.install()['ok'])
@@ -56,8 +56,7 @@ class SetupTests(unittest.TestCase):
 
     def test_owned_core_mismatch_is_explicit_even_when_loader_is_missing(self):
         self.setup.select(str(self.exe)); self.setup.install()
-        core = self.exe.parent / 'EpochPact/EpochPact.Core.dll'
-        core.write_bytes(core.read_bytes() + b'previous package fixture')
+        self.legacy_core(b'previous package core EpochPact_Start\x00')
         (self.exe.parent / 'version.dll').unlink()
         state = self.setup.status()
         self.assertFalse(state['installed']); self.assertTrue(state['updateRequired'])
@@ -124,9 +123,11 @@ class SetupTests(unittest.TestCase):
     def test_actual_install_in_custom_folder_verifies_player_dll(self):
         self.setup.select(str(self.exe))
         self.assertTrue(self.setup.install()['launcher']['installed'])
-        self.assertEqual((self.exe.parent / 'EpochPact/EpochPact.Core.dll').read_bytes(), le.build_artifact()[0].read_bytes())
+        self.assertEqual((self.exe.parent / 'version.dll').read_bytes(), le.loader_artifact()[0].read_bytes())
+        self.assertFalse((self.exe.parent / 'EpochPact/EpochPact.Core.dll').exists(), 'the loader carries the core')
         record = json.loads((self.exe.parent / 'EpochPact/installed-build.json').read_text())
         self.assertEqual(record['flavor'], 'player')
+        self.assertTrue(record['coreLinked']); self.assertEqual(record['loaderSha256'], le.loader_artifact()[1])
         self.assertFalse((self.exe.parent / 'EpochPact/ipc').exists())
         self.assertFalse((self.exe.parent / 'EpochPact/dump').exists())
 
@@ -153,7 +154,7 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(len(owned), le.INSTALL_BACKUPS_KEPT)
         self.assertEqual((foreign / 'notes.txt').read_text(), 'mine')
         for backup in owned:
-            self.assertTrue((backup / 'EpochPact.Core.dll').is_file())
+            self.assertTrue((backup / 'version.dll').is_file())
 
     def test_uninstall_leaves_a_foreign_loader_untouched(self):
         self.setup.select(str(self.exe))
@@ -163,8 +164,7 @@ class SetupTests(unittest.TestCase):
 
     def test_failed_staging_keeps_every_installed_file_unchanged(self):
         self.setup.select(str(self.exe)); self.setup.install()
-        paths = [self.exe.parent / 'version.dll', self.exe.parent / 'EpochPact/EpochPact.Core.dll',
-                 self.exe.parent / 'EpochPact/installed-build.json']
+        paths = self.installed_files()
         before = {path: path.read_bytes() for path in paths}
         real_copy = le._copy_install_file
         def denied_loader(source, destination, *args, **kwargs):
@@ -177,8 +177,13 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(list((self.exe.parent / 'EpochPact').glob('.install-*')), [])
 
     def installed_files(self):
-        return [self.exe.parent / 'version.dll', self.exe.parent / 'EpochPact/EpochPact.Core.dll',
-                self.exe.parent / 'EpochPact/installed-build.json']
+        return [self.exe.parent / 'version.dll', self.exe.parent / 'EpochPact/installed-build.json']
+
+    def legacy_core(self, data=b'previous player core EpochPact_Start\x00'):
+        """The separate core an install from before the linked loader left beside version.dll."""
+        path = self.exe.parent / 'EpochPact/EpochPact.Core.dll'
+        path.write_bytes(data)
+        return path
 
     def mark_readonly(self, path):
         # Real Windows file attributes, not a mocked PermissionError. Cleanup
@@ -191,11 +196,12 @@ class SetupTests(unittest.TestCase):
         bundle = self.root / 'readonly bundle'
         (bundle / 'player').mkdir(parents=True)
         source_core, digest = le.build_artifact()
+        source_loader, loader_digest = le.loader_artifact()
         core = bundle / 'player/EpochPact.Core.dll'
-        loader = bundle / 'version.dll'
+        loader = bundle / 'player/version.dll'
         core.write_bytes(source_core.read_bytes())
-        loader.write_bytes((le.BUILD / 'version.dll').read_bytes())
-        (bundle / 'player/build-info.json').write_text(json.dumps({'flavor': 'player', 'sha256': digest}))
+        loader.write_bytes(source_loader.read_bytes())
+        (bundle / 'player/build-info.json').write_text(json.dumps({'flavor': 'player', 'sha256': digest, 'loaderSha256': loader_digest}))
         self.mark_readonly(core); self.mark_readonly(loader)
         self.setup.select(str(self.exe))
         with patch.object(le, 'BUILD', bundle):
@@ -206,15 +212,15 @@ class SetupTests(unittest.TestCase):
                 for installed in self.installed_files():
                     self.assertFalse(installed.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY)
                 self.assertEqual(self.installed_files()[0].read_bytes(), loader.read_bytes())
-                self.assertEqual(self.installed_files()[1].read_bytes(), core.read_bytes())
+                self.assertFalse((self.exe.parent / 'EpochPact/EpochPact.Core.dll').exists())
                 self.assertEqual(list((self.exe.parent / 'EpochPact').glob('.install-*')), [])
         for source in (core, loader):
             self.assertTrue(source.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY)
 
     def test_update_readonly_owned_files_preserves_recovery_bytes(self):
         self.setup.select(str(self.exe)); self.setup.install()
-        paths = self.installed_files()
-        paths[1].write_bytes(b'previous EpochPact_Start\x00 player core')
+        core = self.legacy_core(b'previous EpochPact_Start\x00 player core')
+        paths = self.installed_files() + [core]
         before = {path.name: path.read_bytes() for path in paths}
         for path in paths: self.mark_readonly(path)
         result = self.setup.install()
@@ -223,13 +229,14 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(len(backups), 1)
         for path in paths:
             self.assertEqual((backups[0] / path.name).read_bytes(), before[path.name])
+        for path in self.installed_files():
             self.assertFalse(path.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY)
+        self.assertFalse(core.exists(), 'the linked loader replaces the older separate core')
         self.assertEqual(list((self.exe.parent / 'EpochPact').glob('.install-*')), [])
 
     def test_failed_update_restores_readonly_owned_files_and_flags(self):
         self.setup.select(str(self.exe)); self.setup.install()
-        paths = self.installed_files()
-        paths[1].write_bytes(b'previous EpochPact_Start\x00 player core')
+        paths = self.installed_files() + [self.legacy_core(b'previous EpochPact_Start\x00 player core')]
         before = {path: path.read_bytes() for path in paths}
         for path in paths: self.mark_readonly(path)
         real_replace = le.os.replace
@@ -255,7 +262,7 @@ class SetupTests(unittest.TestCase):
             result = self.setup.install()
         self.assertFalse(result['ok']); self.assertTrue(result['requiresElevation'])
         self.assertIn('original-source.dll', result['error'])
-        self.assertIn('copy the core DLL', result['error'])
+        self.assertIn('copy version.dll', result['error'])
         self.assertNotIn('cleanup-only-error', result['error'])
         self.assertIn('cleanup-only-error', logs.output[0])
         self.assertFalse((self.exe.parent / 'version.dll').exists())
@@ -281,7 +288,8 @@ class SetupTests(unittest.TestCase):
 
     def test_uninstall_readonly_owned_dlls_keeps_saves_and_other_mod_files(self):
         self.setup.select(str(self.exe)); self.setup.install()
-        files = self.installed_files()
+        loader, record = self.installed_files()
+        files = [loader, self.legacy_core(), record]
         for path in files: self.mark_readonly(path)
         unrelated = self.exe.parent / 'other-mod.dll'; unrelated.write_bytes(b'keep other mod')
         saves = self.root / 'player saves'; saves.mkdir()
@@ -293,14 +301,14 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(unrelated.read_bytes(), b'keep other mod')
         self.assertEqual(save.read_bytes(), b'keep player save')
 
-    def test_corrupted_staged_core_refused_before_publishing(self):
+    def test_corrupted_staged_loader_refused_before_publishing(self):
         self.setup.select(str(self.exe)); self.setup.install()
         before = {path: path.read_bytes() for path in self.installed_files()}
         real_copy = le._copy_install_file
         def corrupt(source, destination):
             real_copy(source, destination)
-            if Path(destination).name == 'new-0':
-                Path(destination).write_bytes(b'corrupted staged core')
+            if Path(destination).name == 'new-2':
+                Path(destination).write_bytes(b'corrupted staged loader')
         with patch.object(le, '_copy_install_file', side_effect=corrupt):
             with self.assertRaisesRegex(ValueError, 'SHA-256'):
                 self.setup.install()
@@ -470,12 +478,12 @@ class SetupTests(unittest.TestCase):
             self.setup.launch()
         self.assertTrue(launch.call_args.args[0].offline)
 
-    def test_tampered_core_and_disabled_marker_block_launch(self):
+    def test_tampered_loader_and_disabled_marker_block_launch(self):
         self.setup.select(str(self.exe)); self.setup.install()
         marker = self.exe.parent / 'EpochPact/disabled'; marker.touch()
         with self.assertRaisesRegex(RuntimeError, 'disabled'): self.setup.require_ready()
         marker.unlink()
-        (self.exe.parent / 'EpochPact/EpochPact.Core.dll').write_bytes(b'tampered')
+        (self.exe.parent / 'version.dll').write_bytes(b'tampered')
         with self.assertRaisesRegex(RuntimeError, 'update'): self.setup.require_ready()
 
     def test_regular_game_control_gate_does_not_spawn_a_process_scan(self):

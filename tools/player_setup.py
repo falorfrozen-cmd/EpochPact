@@ -159,18 +159,26 @@ class PlayerSetup:
             validate_executable(str(self.executable))
             result['selected'] = True
             _, digest = le.build_artifact('player')
+            _, bundled_loader_digest = le.loader_artifact('player')
             loader = le.GAME / 'version.dll'
             core = le.GAME / 'EpochPact/EpochPact.Core.dll'
             result['foreignLoader'] = loader.exists() and not le.is_ours(loader)
             result['melonLoader'] = result['foreignLoader'] and melon_compat.detected(le.GAME)
             bridge = le.GAME / 'Mods' / melon_compat.BRIDGE_NAME
             bundled_bridge = le.BUILD / 'melon' / melon_compat.BRIDGE_NAME
-            loader_ready = le.is_ours(loader) or (result['melonLoader'] and melon_compat.owned_bridge(bridge) and
-                bundled_bridge.is_file() and hashlib.sha256(bridge.read_bytes()).digest() == hashlib.sha256(bundled_bridge.read_bytes()).digest())
             result['disabled'] = (le.GAME / 'EpochPact/disabled').exists()
             core_matches = core.is_file() and hashlib.sha256(core.read_bytes()).hexdigest() == digest
-            result['installed'] = loader_ready and core_matches
-            result['updateRequired'] = le.is_ours_core(core) and not core_matches
+            if result['melonLoader']:
+                # MelonLoader owns version.dll: the bridge starts the separate core beside it.
+                bridge_ready = (melon_compat.owned_bridge(bridge) and bundled_bridge.is_file() and
+                    hashlib.sha256(bridge.read_bytes()).digest() == hashlib.sha256(bundled_bridge.read_bytes()).digest())
+                result['installed'] = bridge_ready and core_matches
+                result['updateRequired'] = le.is_ours_core(core) and not core_matches
+            else:
+                # The loader carries the core, so the installed loader must be this package's.
+                loader_matches = le.is_ours(loader) and hashlib.sha256(loader.read_bytes()).hexdigest() == bundled_loader_digest
+                result['installed'] = loader_matches
+                result['updateRequired'] = not loader_matches and (le.is_ours(loader) or le.is_ours_core(core))
         except (OSError, ValueError):
             result['problem'] = 'The game location or bundled mod files are unavailable. Select the game again or restore the EpochPact download.'
         return result
@@ -198,7 +206,7 @@ class PlayerSetup:
         # Elevation cannot repair unreadable or quarantined bundled files.
         try:
             le.build_artifact('player')
-            (le.BUILD / 'version.dll').read_bytes()
+            le.loader_artifact('player')
         except PermissionError as exc:
             return {'ok': False, 'requiresElevation': False,
                     'error': 'Windows denied access to the downloaded mod files. Check the security protection history and restore a verified EpochPact download. ' + english_exception(exc),

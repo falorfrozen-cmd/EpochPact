@@ -52,14 +52,15 @@ def read_bundle(bundle):
     resources = bundle / '_internal'
     native = resources / 'native/build'
     native_names = {p.relative_to(native).as_posix() for p in native.rglob('*') if p.is_file()}
-    if native_names != {'version.dll', 'player/EpochPact.Core.dll', 'player/build-info.json', 'melon/EpochPact.MelonBridge.dll'}:
+    if native_names != {'player/version.dll', 'player/EpochPact.Core.dll', 'player/build-info.json', 'melon/EpochPact.MelonBridge.dll'}:
         raise ValueError('Unexpected native artifact in bundle')
     core = native / 'player/EpochPact.Core.dll'
     core_info = json.loads((core.parent / 'build-info.json').read_text())
     if core_info['flavor'] != 'player' or core_info['sha256'] != sha(core.read_bytes()) \
             or info['nativePlayerSHA256'] != core_info['sha256']:
         raise ValueError('Player core mismatch')
-    if sha((native / 'version.dll').read_bytes()) != info['loaderSHA256']:
+    loader = native / 'player/version.dll'
+    if sha(loader.read_bytes()) != info['loaderSHA256'] or core_info.get('loaderSha256') != info['loaderSHA256']:
         raise ValueError('Loader mismatch')
     catalog = json.loads((resources / 'ui/catalog.json').read_text(encoding='utf-8'))
     if catalog['liveState'] or catalog['currentValues']:
@@ -75,8 +76,7 @@ def package(bundle, output):
     payload = {'EpochPactUI/' + n: p.read_bytes() for n, p in files.items()}
     resource = bundle / '_internal'
     additions = {
-        'CopyToGame/version.dll': resource / 'native/build/version.dll',
-        'CopyToGame/EpochPact/EpochPact.Core.dll': resource / 'native/build/player/EpochPact.Core.dll',
+        'CopyToGame/version.dll': resource / 'native/build/player/version.dll',
         'README-MANUAL.md': ROOT / 'docs/security/README-REVIEW-MANUAL.md',
         'DISTRIBUTION-PERMISSIONS.txt': ROOT / 'docs/nexus/DISTRIBUTION-PERMISSIONS.txt',
         'THIRD-PARTY-NOTICES.txt': resource / 'THIRD-PARTY-NOTICES.txt',

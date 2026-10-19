@@ -15,6 +15,13 @@ def stamp(flavor, build_dir=None):
     target.parent.mkdir(exist_ok=True)
     shutil.copy2(source, target)
     metadata = {'flavor': flavor, 'sha256': hashlib.sha256(target.read_bytes()).hexdigest()}
+    if flavor == 'player':
+        # The loader players install carries this same core (native/build.bat player); its
+        # hash is recorded so the installer can verify it like the separate core.
+        loader = target.parent / 'version.dll'
+        if not loader.is_file():
+            raise ValueError('The player build has no merged loader (player/version.dll).')
+        metadata['loaderSha256'] = hashlib.sha256(loader.read_bytes()).hexdigest()
     (target.parent / 'build-info.json').write_text(json.dumps(metadata) + '\n', encoding='utf-8')
     print(f'Build artifact: {flavor} | SHA256 {metadata["sha256"]} | {target}')
 

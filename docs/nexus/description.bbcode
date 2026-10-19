@@ -25,25 +25,25 @@ Weaver and Merchant's Guild management are [b]not implemented[/b]; informational
 [list]
 [*]A legitimate Steam installation of the exact supported Last Epoch build above.
 [*]Windows 10/11 x64, Microsoft Edge WebView2 Runtime and .NET Framework 4.8.
-[*]Both included runtime files: [b]version.dll[/b] and [b]EpochPact/EpochPact.Core.dll[/b].
+[*]The included runtime file [b]version.dll[/b] (the loader, with the mod's core built into it).
 [/list]
 Python is bundled; no separate Python install is needed. No MelonLoader, BepInEx, development SDK or additional mod loader is required. [url=https://developer.microsoft.com/microsoft-edge/webview2/]Official WebView2 download[/url]. Online play is unsupported and native changes are gated to offline characters. Do not combine loaders that require the same version.dll.
 
 [size=5][b]Install — recommended manual ZIP (Main file)[/b][/size]
 1. Close the game and app. Back up offline saves and existing mod files. Check your game version and the supported-game-builds.json hash before copying; manual copying cannot enforce compatibility before game startup.
 2. Extract the ZIP to a normal writable folder. Copy [b]only the contents of CopyToGame[/b] into the folder containing Last Epoch.exe. Steam > Manage > Browse local files opens this folder.
-3. The game folder should contain version.dll and EpochPact/EpochPact.Core.dll. Never overwrite another mod's loader.
-4. Keep EpochPactUI/EpochPact.exe in a writable folder outside the game installation. Open it > Game setup > Browse > select Last Epoch.exe. The manually installed DLLs are detected; no additional Install mod action is needed.
+3. The game folder should contain version.dll. If an earlier release left EpochPact/EpochPact.Core.dll there, delete that file. Never overwrite another mod's loader.
+4. Keep EpochPactUI/EpochPact.exe in a writable folder outside the game installation. Open it > Game setup > Browse > select Last Epoch.exe. The manually installed version.dll is detected; no additional Install mod action is needed.
 5. Press Launch offline and load an offline character.
 
-[b]Optional app setup:[/b] download the Optional App-Setup ZIP instead of the Main ZIP. Extract and run EpochPact.exe, choose Last Epoch.exe, close the game, press Install mod, then Launch offline. The EXE contains exactly the same player loader/core. If installation needs Windows administrator permission, use the explicit install-elevation action and approve Windows yourself. Do not run the entire interface as administrator by default.
+[b]Optional app setup:[/b] download the Optional App-Setup ZIP instead of the Main ZIP. Extract and run EpochPact.exe, choose Last Epoch.exe, close the game, press Install mod, then Launch offline. The EXE contains exactly the same player loader. If installation needs Windows administrator permission, use the explicit install-elevation action and approve Windows yourself. Do not run the entire interface as administrator by default.
 
 [b]Use Manual Download.[/b] These packages are not configured for a mod manager. The ZIP contains full README instructions, third-party notices, a runtime manifest and SHA256SUMS.txt. No game executables, GameAssembly.dll, game metadata, saves, development SDKs, tests or private logs are distributed.
 
 [size=5][b]Update, rollback and uninstall[/b][/size]
-Close both programs. Keep the previous UI EXE, version.dll and EpochPact.Core.dll outside the game folder, then replace all three with files from the same release. Preserve recovery backups and other mods. App updates retain previous native files under EpochPact/install-backups; follow that backup's README to restore them and use the matching old UI. Never mix versions.
+Close both programs. Keep the previous UI EXE and version.dll outside the game folder, then replace both with files from the same release. Preserve recovery backups and other mods. App updates retain previous native files under EpochPact/install-backups; follow that backup's README to restore them and use the matching old UI. Never mix versions.
 
-To uninstall, close both programs and remove only the EpochPact version.dll and EpochPact/EpochPact.Core.dll, plus your extracted UI folder if desired. Keep save-recovery backups. Do not delete another loader or the entire shared mod directory. Uninstall does not remove player saves; mod logs/backups/preferences may remain.
+To uninstall, close both programs and remove only the EpochPact version.dll (and EpochPact/EpochPact.Core.dll if an earlier release left one), plus your extracted UI folder if desired. Keep save-recovery backups. Do not delete another loader or the entire shared mod directory. Uninstall does not remove player saves; mod logs/backups/preferences may remain.
 
 [size=5][b]Controls and persistence[/b][/size]
 No required in-game hotkey: use the external sidebar. General session settings apply automatically; character bonuses use Apply/Reset. Permanent rewards, quest completion, balances and unlocks require their explicit action buttons. Opening the app never completes quests or grants rewards.

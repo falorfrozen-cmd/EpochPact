@@ -19,6 +19,20 @@
 
 #include "..\version_info.h"
 
+#ifdef EPOCHPACT_MERGED_LOADER
+extern "C" void EpochPact_Start();  // native\core\core.cpp, linked into this DLL
+// The installer (tools/le_session.py LOADER_MARKS) recognises this loader by this exact text,
+// because the "EpochPact\EpochPact.Core.dll" path below is not compiled into it.
+static const wchar_t kLoaderMark[] = L"EpochPact loader with linked core";
+// Older EpochPact apps (before the core was linked in) recognise their loader by the path it loaded
+// the separate core from. Keeping that text in this file lets such an app still see it as EpochPact's
+// own, so installing or removing an older release over this one works instead of being refused as
+// "another mod loader". The linker keeps the symbol; it is data only and exports nothing.
+extern "C" extern const wchar_t kLegacyLoaderMark[];
+extern "C" const wchar_t kLegacyLoaderMark[] = L"EpochPact\\EpochPact.Core.dll";
+#pragma comment(linker, "/INCLUDE:kLegacyLoaderMark")
+#endif
+
 extern "C" void* g_real[15] = {};
 static INIT_ONCE g_forwarding = INIT_ONCE_STATIC_INIT;
 static HINSTANCE g_self = nullptr;
@@ -117,6 +131,12 @@ static DWORD WINAPI LoadCore() {
         return 0;
     }
 
+#ifdef EPOCHPACT_MERGED_LOADER
+    // The core is linked into this DLL, so no other module is loaded.
+    EpochPact_Start();
+    Trace(L"core started (%s); see core.log", kLoaderMark);
+    return 0;
+#else
     if (wcscat_s(path, L"EpochPact\\EpochPact.Core.dll")) return 0;
     // Resolve dependencies beside the explicit core DLL or in System32. Never
     // search the current directory or PATH for DLLs supplied by another program.
@@ -135,6 +155,7 @@ static DWORD WINAPI LoadCore() {
     start();
     Trace(L"core loaded and started; see core.log");
     return 0;
+#endif
 }
 
 static DWORD WINAPI StartCore(void* lease) {

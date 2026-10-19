@@ -65,12 +65,15 @@ def package(kind, output):
         raise ValueError('Invalid release version')
     info = json.loads((ROOT / 'dist/build-info.json').read_text())
     core = ROOT / 'native/build/player/EpochPact.Core.dll'
+    loader = ROOT / 'native/build/player/version.dll'
     native = json.loads((core.parent / 'build-info.json').read_text())
     exe = ROOT / 'dist/EpochPact.exe'
     if sha(exe.read_bytes()) != info['sha256'] or exe.stat().st_size != info['bytes']:
         raise ValueError('Rebuild player EXE: metadata mismatch')
     if native['flavor'] != 'player' or sha(core.read_bytes()) != native['sha256'] or info['nativePlayerSHA256'] != native['sha256']:
         raise ValueError('Player DLL build mismatch')
+    if native.get('loaderSha256') != sha(loader.read_bytes()):
+        raise ValueError('Player loader build mismatch')
     if info.get('version') != version:
         raise ValueError('EXE build version does not match Nexus version')
     prefix = 'EpochPactUI/' if kind == 'Manual' else ''
@@ -86,9 +89,8 @@ def package(kind, output):
     files[prefix + NAME] = exe.parent / NAME
     runtime = [prefix + 'EpochPact.exe']
     if kind == 'Manual':
-        files['CopyToGame/version.dll'] = ROOT / 'native/build/version.dll'
-        files['CopyToGame/EpochPact/EpochPact.Core.dll'] = core
-        runtime += ['CopyToGame/version.dll', 'CopyToGame/EpochPact/EpochPact.Core.dll']
+        files['CopyToGame/version.dll'] = loader
+        runtime += ['CopyToGame/version.dll']
     else:
         files['README-APP-SETUP.md'] = ROOT / 'docs/nexus/README-APP-SETUP.md'
     payload = {name: file.read_bytes() for name, file in files.items()}
@@ -97,7 +99,7 @@ def package(kind, output):
     embedded = CArchiveReader(str(exe))
     entries = {name.replace('\\', '/'): name for name in embedded.toc}
     for local, key in [(core, 'native/build/player/EpochPact.Core.dll'),
-                       (ROOT / 'native/build/version.dll', 'native/build/version.dll'),
+                       (loader, 'native/build/player/version.dll'),
                        (ROOT / 'ui/supported-game-builds.json', 'ui/supported-game-builds.json')]:
         if embedded.extract(entries[key]) != local.read_bytes():
             raise ValueError('Embedded runtime mismatch: ' + key)

@@ -56,9 +56,13 @@ def main():
     if args.native_build:
         le.BUILD = args.native_build.resolve(strict=True)
     core, digest = le.build_artifact('player')
-    loader = args.loader.resolve(strict=True) if args.loader else le.BUILD / 'version.dll'
+    loader = args.loader.resolve(strict=True) if args.loader else le.loader_artifact('player')[0]
     if not le.is_ours(loader):
         raise ValueError('Missing or foreign loader. Build native/build.bat player first.')
+    if not le.is_linked_loader(loader):
+        raise ValueError('The player loader must carry the core. Build native/build.bat player first.')
+    if hashlib.sha256(loader.read_bytes()).hexdigest() != le.loader_artifact('player')[1]:
+        raise ValueError('The loader does not match the verified player build.')
     stage = args.stage.resolve()
     (stage / 'ui/assets').mkdir(parents=True, exist_ok=True)
     for name in ('index.html', 'app.js', 'style.css', 'stat-model.js', 'session.js',
@@ -74,7 +78,7 @@ def main():
     catalog['currentValues'] = {}
     (stage / 'ui/catalog.json').write_text(json.dumps(catalog, ensure_ascii=False), encoding='utf-8')
     (stage / 'native/build/player').mkdir(parents=True, exist_ok=True)
-    shutil.copy2(loader, stage / 'native/build/version.dll')
+    shutil.copy2(loader, stage / 'native/build/player/version.dll')
     shutil.copy2(core, stage / 'native/build/player/EpochPact.Core.dll')
     shutil.copy2(core.parent / 'build-info.json', stage / 'native/build/player/build-info.json')
     bridge = le.BUILD / 'melon/EpochPact.MelonBridge.dll'

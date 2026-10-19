@@ -105,7 +105,9 @@ def bound_process(process):
         yield
     finally:
         _ipc_process.reset(token)
-MARK = "EpochPact\\EpochPact.Core.dll".encode("utf-16-le")  # only EpochPact's loader carries this
+MARK = "EpochPact\\EpochPact.Core.dll".encode("utf-16-le")  # the loader that starts a separate core carries this
+LINKED_MARK = "EpochPact loader with linked core".encode("utf-16-le")  # the loader with the core inside
+LOADER_MARKS = (MARK, LINKED_MARK)
 
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -316,7 +318,15 @@ def game_window(pid: int) -> int | None:
 
 
 def is_ours(dll: Path) -> bool:
-    return dll.is_file() and MARK in dll.read_bytes()
+    if not dll.is_file():
+        return False
+    data = dll.read_bytes()
+    return any(mark in data for mark in LOADER_MARKS)
+
+
+def is_linked_loader(dll: Path) -> bool:
+    """version.dll that carries the core itself (no separate EpochPact.Core.dll)."""
+    return dll.is_file() and LINKED_MARK in dll.read_bytes()
 
 
 def is_ours_core(dll: Path) -> bool:
@@ -328,7 +338,7 @@ def cmd_status(_: argparse.Namespace) -> int:
     print(f"game running: {game_pids() or 'no'}")
     print(f"loader: {'EpochPact' if is_ours(loader) else ('FOREIGN version.dll' if loader.exists() else 'not installed')}")
     core = GAME / "EpochPact" / "EpochPact.Core.dll"
-    print(f"core: {'installed' if core.is_file() else 'not installed'}"
+    print(f"core: {'linked into version.dll' if is_linked_loader(loader) else ('installed' if core.is_file() else 'not installed')}"
           f"{' (disabled)' if (GAME / 'EpochPact' / 'disabled').exists() else ''}")
     done = GAME / "EpochPact" / "dump" / "done.txt"
     print(f"dump: {done.read_text().split() if done.is_file() else 'not written'}")
@@ -350,6 +360,28 @@ def build_artifact(flavor='player') -> tuple[Path, str]:
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     if metadata.get('flavor') != flavor or metadata.get('sha256') != digest:
         raise ValueError('Build flavor or SHA256 mismatch; rebuild before installing.')
+    return path, digest
+
+
+def loader_artifact(flavor='player') -> tuple[Path, str]:
+    """The version.dll an install of this flavor puts in the game folder, with its SHA-256.
+
+    Players get the loader with the player core linked in (build\\player\\version.dll, checked
+    against build-info.json). Research and test builds keep the loader that starts their own
+    separate core, so the core under test is the one that runs.
+    """
+    if flavor not in ('player', 'research', 'test'):
+        raise ValueError('Unknown build flavor.')
+    if flavor != 'player':
+        path = BUILD / 'version.dll'
+        return path, hashlib.sha256(path.read_bytes()).hexdigest()
+    path = BUILD / 'player' / 'version.dll'
+    metadata = json.loads((path.parent / 'build-info.json').read_text(encoding='utf-8'))
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    if metadata.get('flavor') != 'player' or metadata.get('loaderSha256') != digest:
+        raise ValueError('Loader SHA256 mismatch; rebuild before installing.')
+    if not is_linked_loader(path):
+        raise ValueError('The player loader does not carry the core; rebuild before installing.')
     return path, digest
 
 
@@ -427,9 +459,9 @@ def cmd_install(args: argparse.Namespace) -> int:
         except (OSError, ValueError) as exc:
             print(f'refused: {exc}')
             return 2
-    loader = BUILD / 'version.dll'
     try:
         core_src, digest = build_artifact(flavor)
+        loader, loader_digest = loader_artifact(flavor)
     except PermissionError:
         raise
     except (OSError, ValueError) as exc:
@@ -464,8 +496,14 @@ def cmd_install(args: argparse.Namespace) -> int:
         print('refused: linked mod path or unrecognized core file; left alone')
         return 2
     mod_dir.mkdir(exist_ok=True)
+    # A standalone player install is one file: the loader carries the core. The separate core
+    # exists for the MelonLoader bridge and for research/test builds; an older install's copy
+    # is removed (and backed up) so nothing stale is left beside the new loader.
+    linked = not melon and flavor == 'player'
     record = {'flavor': flavor, 'sha256': digest, 'source': str(core_src), 'time': time.time(),
-              'loaderMode': 'melon' if melon else 'standalone'}
+              'loaderMode': 'melon' if melon else 'standalone', 'coreLinked': linked}
+    if linked:
+        record['loaderSha256'] = loader_digest
     # Prepare every file and its previous version before changing the installed
     # mod. Publish the loader last; a denied copy must not leave mixed versions.
     stage = mod_dir / ('.install-' + secrets.token_hex(16))
@@ -476,13 +514,16 @@ def cmd_install(args: argparse.Namespace) -> int:
     preserve_stage = False
     step = 'prepare mod files'
     try:
-        step = 'copy the core DLL'
-        _copy_install_file(core_src, stage / 'new-0')
-        if hashlib.sha256((stage / 'new-0').read_bytes()).hexdigest() != digest:
-            raise ValueError('Staged core DLL failed SHA-256 verification.')
+        if not linked:
+            step = 'copy the core DLL'
+            _copy_install_file(core_src, stage / 'new-0')
+            if hashlib.sha256((stage / 'new-0').read_bytes()).hexdigest() != digest:
+                raise ValueError('Staged core DLL failed SHA-256 verification.')
         (stage / 'new-1').write_text(json.dumps(record) + '\n', encoding='utf-8')
         step = 'copy ' + loader.name
         loader_digest = hashlib.sha256(loader.read_bytes()).hexdigest()
+        if linked and loader_digest != record['loaderSha256']:
+            raise ValueError('Loader changed while installing; try again.')
         _copy_install_file(loader, stage / 'new-2')
         if hashlib.sha256((stage / 'new-2').read_bytes()).hexdigest() != loader_digest:
             raise ValueError('Staged loader DLL failed SHA-256 verification.')
@@ -512,10 +553,13 @@ def cmd_install(args: argparse.Namespace) -> int:
             print('refused: another loader appeared during installation; left alone')
             return 2
         for index, destination in enumerate(destinations):
-            step = 'replace ' + destination.name
+            step = ('remove ' if not (stage / f'new-{index}').exists() else 'replace ') + destination.name
             if _make_install_writable(destination):
                 readonly_changed.append(destination)
-            os.replace(stage / f'new-{index}', destination)
+            if (stage / f'new-{index}').exists():
+                os.replace(stage / f'new-{index}', destination)
+            else:
+                destination.unlink(missing_ok=True)  # the linked loader replaces the old separate core
             committed.append((index, destination))
     except (OSError, ValueError) as original:
         original.install_step = step
@@ -552,7 +596,10 @@ def cmd_install(args: argparse.Namespace) -> int:
     except (OSError, ValueError) as exc:
         # Retention never turns a verified installation into a failure.
         logging.getLogger(__name__).warning('Install backup retention skipped: %s', exc)
-    print(f"installed: {flavor}, SHA256 {digest}: {target} and {GAME / 'EpochPact' / 'EpochPact.Core.dll'}")
+    if linked:
+        print(f"installed: {flavor}, loader SHA256 {loader_digest}: {target} (core linked in)")
+    else:
+        print(f"installed: {flavor}, SHA256 {digest}: {target} and {GAME / 'EpochPact' / 'EpochPact.Core.dll'}")
     return 0
 
 

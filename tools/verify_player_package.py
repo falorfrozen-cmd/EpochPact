@@ -107,15 +107,21 @@ def main():
             return archive.extract(entries[name])
     assert any(name.lower().startswith('python') and name.lower().endswith('.dll') for name in entries)
     native_files = {name for name in entries if name.startswith('native/')}
-    assert native_files == {'native/build/version.dll', 'native/build/player/EpochPact.Core.dll',
+    assert native_files == {'native/build/player/version.dll', 'native/build/player/EpochPact.Core.dll',
                             'native/build/player/build-info.json', 'native/build/melon/EpochPact.MelonBridge.dll'}, native_files
     assert not any(name.startswith(('research/', 'live/', 'docs/')) for name in entries)
     catalog = json.loads(extract('ui/catalog.json'))
     assert catalog['liveState'] == {} and catalog['currentValues'] == {}
     core = extract('native/build/player/EpochPact.Core.dll')
-    loader = extract('native/build/version.dll')
+    loader = extract('native/build/player/version.dll')
     metadata = json.loads(extract('native/build/player/build-info.json'))
     assert metadata['flavor'] == 'player' and metadata['sha256'] == sha(core)
+    assert metadata['loaderSha256'] == sha(loader), 'build-info does not describe the packaged loader'
+    from tools import le_session as _le
+    # Linked core, and still recognisable to older apps (they look for the legacy path text).
+    assert _le.LINKED_MARK in loader and _le.MARK in loader, 'the player loader must carry both marks'
+    # The core's command handlers are inside the loader; its start function is called, not exported.
+    assert b'connectionping' in loader and b'EpochPact_Start' not in loader and sha(core) != sha(loader)
     assert sha(exe.read_bytes()) == json.loads((exe.parent / 'build-info.json').read_text())['sha256']
     assert extract('ui/launcher.js') == (ROOT / 'ui/launcher.js').read_bytes()
     for script in ('app.js', 'session.js', 'preferences.js', 'crafting-model.js', 'affix-picker.js'):
@@ -167,15 +173,14 @@ def main():
         code, result = helper(custom, 'setup-install-' + 'a' * 32 + '.json')
         assert code == 0 and result['ok'], result
         assert (custom.parent / 'version.dll').read_bytes() == loader
-        assert (custom.parent / 'EpochPact/EpochPact.Core.dll').read_bytes() == core
-        checks.append('compiled installer helper installs exact DLLs in custom Unicode folder without Python')
+        assert not (custom.parent / 'EpochPact/EpochPact.Core.dll').exists(), 'a standalone install is one file'
+        checks.append('compiled installer helper installs the exact one-file loader in custom Unicode folder without Python')
         if onedir:
             # Use real Windows read-only flags on the extracted app's payload
             # and the existing owned mod, never on the build or owner's game.
-            payload_files = [exe.parent / '_internal/native/build/version.dll',
+            payload_files = [exe.parent / '_internal/native/build/player/version.dll',
                              exe.parent / '_internal/native/build/player/EpochPact.Core.dll']
-            installed_files = [custom.parent / 'version.dll', custom.parent / 'EpochPact/EpochPact.Core.dll',
-                               custom.parent / 'EpochPact/installed-build.json']
+            installed_files = [custom.parent / 'version.dll', custom.parent / 'EpochPact/installed-build.json']
             old_bytes = {p.name: p.read_bytes() for p in installed_files}
             sources_attributes = {p: p.stat().st_file_attributes for p in payload_files}
             readonly_fresh = fixture(root, 'Read-only download fresh install', args.game_assembly)
@@ -187,10 +192,9 @@ def main():
                     code, result = helper(game, 'readonly-install')
                     assert code == 0 and result['ok'], result
                     installed_loader = game.parent / 'version.dll'
-                    installed_core = game.parent / 'EpochPact/EpochPact.Core.dll'
                     assert installed_loader.read_bytes() == loader
-                    assert installed_core.read_bytes() == core
-                    for p in (installed_loader, installed_core, game.parent / 'EpochPact/installed-build.json'):
+                    assert not (game.parent / 'EpochPact/EpochPact.Core.dll').exists()
+                    for p in (installed_loader, game.parent / 'EpochPact/installed-build.json'):
                         assert not p.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY
                     assert not list((game.parent / 'EpochPact').glob('.install-*'))
                 for p in payload_files:

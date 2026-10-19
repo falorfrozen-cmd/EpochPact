@@ -25,8 +25,7 @@ def package(bundle: Path, output: Path, *, revision: str | None = None):
     resources = bundle / '_internal'
     payload = {'EpochPact/' + name: path.read_bytes() for name, path in files.items()}
     additions = {
-        'Manual Installation/version.dll': resources / 'native/build/version.dll',
-        'Manual Installation/EpochPact/EpochPact.Core.dll': resources / 'native/build/player/EpochPact.Core.dll',
+        'Manual Installation/version.dll': resources / 'native/build/player/version.dll',
         'README.md': ROOT / 'docs/player-folder-readme.md',
         'DISTRIBUTION-PERMISSIONS.txt': ROOT / 'docs/nexus/DISTRIBUTION-PERMISSIONS.txt',
         'THIRD-PARTY-NOTICES.txt': resources / 'THIRD-PARTY-NOTICES.txt',

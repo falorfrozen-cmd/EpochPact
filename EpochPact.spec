@@ -14,7 +14,7 @@ assets = ('chronoforge-art.png', 'chronoforge-reference.png', 'void-atlas-art.pn
           'void-atlas-reference.png', 'inter.ttf', 'inter-OFL.txt', 'monster-density.svg', 'damage-types.png')
 datas = [(str(stage / 'ui' / name), 'ui') for name in ui_files]
 datas += [(str(stage / 'ui/assets' / name), 'ui/assets') for name in assets]
-datas += [(str(stage / 'native/build/version.dll'), 'native/build'),
+datas += [(str(stage / 'native/build/player/version.dll'), 'native/build/player'),
           (str(stage / 'native/build/player/EpochPact.Core.dll'), 'native/build/player'),
           (str(stage / 'native/build/player/build-info.json'), 'native/build/player'),
           (str(stage / 'THIRD-PARTY-NOTICES.txt'), '.')]

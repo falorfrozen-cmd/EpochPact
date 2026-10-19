@@ -15,7 +15,7 @@ class MelonTests(unittest.TestCase):
         self.before={p.relative_to(self.game).as_posix():p.read_bytes() for p in self.game.rglob('*') if p.is_file()}
         core,digest=le.build_artifact('player');self.build=self.root/'build';(self.build/'player').mkdir(parents=True)
         shutil.copy2(core,self.build/'player/EpochPact.Core.dll');shutil.copy2(core.parent/'build-info.json',self.build/'player/build-info.json')
-        shutil.copy2(le.BUILD/'version.dll',self.build/'version.dll');(self.build/'melon').mkdir()
+        shutil.copy2(le.BUILD/'player/version.dll',self.build/'player/version.dll');(self.build/'melon').mkdir()
         (self.build/'melon'/melon.BRIDGE_NAME).write_bytes(b'MZ EpochPact.MelonBridge EpochPactBridge fixture')
         for p in [patch.object(le,'GAME',self.game),patch.object(le,'BUILD',self.build),patch.object(le,'game_pids',return_value=[]),
                   patch.object(le,'require_supported_build',return_value={}),patch.object(melon,'_version_strings',return_value={'ProductName':'MelonLoader.Bootstrap','FileVersion':'0.7.3.0'})]:

@@ -4,9 +4,9 @@ Your timeline. Your rules. Last Epoch offline tools for Windows x64.
 
 ## Start here — choose one installation method
 
-**Recommended:** open **EpochPact/EpochPact.exe**, select your game in **Game setup**, and press **Install mod**. The app already includes the required DLLs. You can ignore the **Manual Installation** folder entirely.
+**Recommended:** open **EpochPact/EpochPact.exe**, select your game in **Game setup**, and press **Install mod**. The app already includes the game file it installs. You can ignore the **Manual Installation** folder entirely.
 
-**Alternative:** **Manual Installation** contains the same two game DLLs for people who want to copy them themselves. Follow the manual steps below instead of pressing **Install mod**. It is not an additional installation step.
+**Alternative:** **Manual Installation** contains the same single game file (**version.dll**) for people who want to copy it themselves. Follow the manual steps below instead of pressing **Install mod**. It is not an additional installation step.
 
 Keep the **EpochPact** app folder complete, including **EpochPact.exe.config** and **_internal**. Do not copy the whole ZIP into your game folder.
 
@@ -14,7 +14,7 @@ Keep the **EpochPact** app folder complete, including **EpochPact.exe.config** a
 
 - Legitimate Steam Last Epoch **1.5.2.1**, build **25816319** (internal version 1.5.2.2). Unknown GameAssembly.dll builds are refused by Game setup.
 - Windows 10/11 x64, .NET Framework 4.8 and Microsoft Edge WebView2 Runtime. No separate Python installation is needed.
-- The included loader and core DLL are necessary. Do not remove runtime DLLs from the extracted app folder.
+- The included **version.dll** (EpochPact's loader, with the mod's core built into it) is necessary. Do not remove runtime DLLs from the extracted app folder.
 - Offline characters only. Online play is unsupported.
 
 WebView2: https://developer.microsoft.com/microsoft-edge/webview2/
@@ -37,12 +37,13 @@ An existing supported MelonLoader installation is preserved; the app installs it
 
 ```
 <game folder>/version.dll
-<game folder>/EpochPact/EpochPact.Core.dll
 ```
+
+That one file is the whole mod: since 0.1.2-dev.36 the core is built into it, so there is no separate **EpochPact.Core.dll** to copy. If an earlier release left **EpochPact/EpochPact.Core.dll** in your game folder, **Install mod** removes it (a backup is kept); by hand you may delete it once the new **version.dll** is in place.
 
 Never overwrite another loader's version.dll. Use the app's installation flow for supported MelonLoader coexistence.
 
-4. Keep the **EpochPact** app folder outside the game installation. Run its EXE, select the game path in **Game setup**, and press **Launch offline**. Exact manually copied DLLs are detected as installed.
+4. Keep the **EpochPact** app folder outside the game installation. Run its EXE, select the game path in **Game setup**, and press **Launch offline**. An exactly copied **version.dll** is detected as installed.
 
 The game must be able to write its EpochPact IPC folder. A writable Steam library avoids requiring administrator rights for ordinary play. Do not disable security software to install this mod.
 
@@ -50,9 +51,9 @@ The game must be able to write its EpochPact IPC folder. A writable Steam librar
 
 From 0.1.2-dev.22 on, **New version → Install update** in the app downloads the next release from EpochPact's GitHub page, checks its SHA-256 and every file, replaces this folder and reopens EpochPact; the mod in the game folder is updated when Last Epoch is closed. To update by hand instead, close the game and app, extract the new complete app folder, then use **Install mod** to update the owned runtime. Do not mix UI and DLL versions. Previous runtime files are backed up under **<game>/EpochPact/install-backups/<id>**; follow that backup's README with the matching older app to roll back.
 
-For manual updates, retain the previous two native DLLs and complete app folder outside the game, then replace them with the matching new versions.
+For manual updates, retain the previous **version.dll** and complete app folder outside the game, then replace them with the matching new versions.
 
-To remove the mod, close Last Epoch and press **Game setup → Uninstall mod**. It removes only EpochPact's loader (or its MelonLoader bridge) and core; another loader, its mods, your saves, logs and recovery backups stay. To remove a manual installation by hand, close both programs and remove only the EpochPact-owned **<game>/version.dll** and **<game>/EpochPact/EpochPact.Core.dll**. Compare manifest hashes if ownership is unclear. Never delete a foreign loader, shared mod folder or player saves. Removing the extracted app folder removes the UI. Recovery backups and local preferences may be retained.
+To remove the mod, close Last Epoch and press **Game setup → Uninstall mod**. It removes only EpochPact's loader (or its MelonLoader bridge and core); another loader, its mods, your saves, logs and recovery backups stay. To remove a manual installation by hand, close both programs and remove only the EpochPact-owned **<game>/version.dll** (and **<game>/EpochPact/EpochPact.Core.dll** if an earlier release left one). Compare manifest hashes if ownership is unclear. Never delete a foreign loader, shared mod folder or player saves. Removing the extracted app folder removes the UI. Recovery backups and local preferences may be retained.
 
 ## Using the controls
 

@@ -23,13 +23,14 @@ Every distributed file has a size and SHA-256 entry in `runtime-manifest.json`.
    actual `Last Epoch.exe`, and verify that the selected game build is supported.
 3. Check the game folder for an existing `version.dll`. Never overwrite another
    mod loader. If updating EpochPact, first keep a copy of its existing
-   `version.dll` and `EpochPact/EpochPact.Core.dll` outside the game folder.
+   `version.dll` (and `EpochPact/EpochPact.Core.dll` if an earlier release left one) outside the game folder.
 4. Copy the contents of `CopyToGame` into the selected Last Epoch game folder,
-   beside `Last Epoch.exe`. Required paths are `version.dll` and
-   `EpochPact/EpochPact.Core.dll`. Do not copy `EpochPactUI` into the game.
+   beside `Last Epoch.exe`. The only required path is `version.dll`; the core is
+   built into it. Delete a leftover `EpochPact/EpochPact.Core.dll` from an earlier
+   release. Do not copy `EpochPactUI` into the game.
 5. Refresh **Game setup**, choose **Launch offline** and load an offline
-   character. The app also offers explicit **Install mod** using these same
-   bundled DLLs if manual copying is not preferred.
+   character. The app also offers explicit **Install mod** using this same
+   bundled loader if manual copying is not preferred.
 
 Opening the app does not install the mod, launch the game, complete quests or
 grant rewards. Settings apply when changed; save actions require their buttons.
@@ -39,12 +40,12 @@ and rewards are retained. Back up important characters before modded play.
 ## Updating, rollback and removal
 
 Close the game and app first. Extract an update into a new app folder; do not mix
-runtime files from different versions. Replace only EpochPact's two game DLLs,
-retaining the previous copies for rollback. To roll back, restore those copies
+runtime files from different versions. Replace only EpochPact's `version.dll`,
+retaining the previous copy for rollback. To roll back, restore those copies
 and use the matching previous app folder.
 
 To remove the mod, close the game/app and remove only EpochPact's `version.dll`
-and `EpochPact/EpochPact.Core.dll`, plus this extracted app folder. Leave player
+(and a leftover `EpochPact/EpochPact.Core.dll` from an earlier release), plus this extracted app folder. Leave player
 saves, unrelated mods and existing backups/logs alone. App settings are under
 `%LOCALAPPDATA%/EpochPact`; keep them if you may reinstall.
 

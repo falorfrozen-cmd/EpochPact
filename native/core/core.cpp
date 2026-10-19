@@ -154,7 +154,12 @@ DWORD WINAPI Worker(void*) {
 
 }  // namespace
 
+#ifdef EPOCHPACT_MERGED_LOADER
+// Experiment A: linked into version.dll, whose loader thread calls this directly.
+extern "C" void EpochPact_Start() {
+#else
 extern "C" __declspec(dllexport) void EpochPact_Start() {
+#endif
     // Both the standalone loader and MelonLoader bridge can be present during
     // migration. The native IPC worker / detours must only initialize once.
     static std::atomic<bool> started{false};bool expected=false;
@@ -163,7 +168,9 @@ extern "C" __declspec(dllexport) void EpochPact_Start() {
     else started=false;
 }
 
+#ifndef EPOCHPACT_MERGED_LOADER
 BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID) {
     if (reason == DLL_PROCESS_ATTACH) DisableThreadLibraryCalls(self);
     return TRUE;
 }
+#endif

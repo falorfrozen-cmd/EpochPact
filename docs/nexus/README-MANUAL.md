@@ -6,7 +6,7 @@ Your timeline. Your rules. Last Epoch offline tools for Windows x64.
 
 - A legitimate Steam installation of Last Epoch **1.5.2.1**, Steam build **25816319** (internal game version 1.5.2.2). Other builds are not certified.
 - Windows 10/11 x64, Microsoft Edge WebView2 Runtime and .NET Framework 4.8. Python is bundled; no separate Python installation is needed.
-- The included EpochPact `version.dll` loader and `EpochPact.Core.dll` are required. Do not remove either DLL. No MelonLoader, BepInEx, development SDK or additional mod loader is required.
+- The included EpochPact `version.dll` (the loader, with the mod's core built into it) is required. Do not remove it. No MelonLoader, BepInEx, development SDK or additional mod loader is required.
 - **Offline characters only.** Online gameplay is unsupported and native mutations are gated to offline play.
 
 WebView2, if missing: https://developer.microsoft.com/microsoft-edge/webview2/
@@ -20,28 +20,29 @@ WebView2, if missing: https://developer.microsoft.com/microsoft-edge/webview2/
 
 ```
 <Last Epoch game folder>/version.dll
-<Last Epoch game folder>/EpochPact/EpochPact.Core.dll
 ```
+
+That one file is the whole mod; there is no separate `EpochPact.Core.dll` to copy. If an earlier release left `EpochPact/EpochPact.Core.dll` in the game folder, delete it once the new `version.dll` is in place (or let **Install mod** remove it and keep a backup).
 
 For Steam, use Manage > Browse local files. Any Steam library or custom folder is supported. The default is `C:\Program Files (x86)\Steam\steamapps\common\Last Epoch`.
 
 5. Keep `EpochPactUI/EpochPact.exe` in a writable folder outside the game installation. Run it, open **Game setup**, press **Browse**, and select your installed `Last Epoch.exe`.
    Keep `EpochPact.exe.config` and, for a folder build, `_internal` beside the EXE; extract the complete UI folder.
-6. The exact manually copied DLLs are detected as installed. You do not need to press **Install mod**. Press **Launch offline** and load an offline character. Game setup refuses an unknown GameAssembly.dll build.
+6. An exactly copied `version.dll` is detected as installed. You do not need to press **Install mod**. Press **Launch offline** and load an offline character. Game setup refuses an unknown GameAssembly.dll build.
 
 The game must be able to write its `EpochPact` IPC directory. If a protected game folder prevents this, use a Steam library in a writable folder. Do not run the whole interface as administrator by default. Grant Windows administrator permission only for an explicit installation when necessary.
 
 ## Update and rollback
 
-Close the game and app. Keep a copy of the old UI EXE, `version.dll` and `EpochPact/EpochPact.Core.dll` outside the game folder. Replace those three files with the same-version files from the new package. Preserve the existing `EpochPact` backups and other mods. Do not mix native DLLs and UI versions.
+Close the game and app. Keep a copy of the old UI EXE and `version.dll` outside the game folder. Replace those two files with the same-version files from the new package. Preserve the existing `EpochPact` backups and other mods. Do not mix the loader and UI versions.
 
-To roll back a manual update, close both programs and restore your three previous files. UI installation also retains previous mod files in `<game>/EpochPact/install-backups/<id>`. Follow the README in the selected backup to restore those files; use the matching old UI download. These mod backups contain no player saves.
+To roll back a manual update, close both programs and restore your two previous files. UI installation also retains previous mod files in `<game>/EpochPact/install-backups/<id>`. Follow the README in the selected backup to restore those files; use the matching old UI download. These mod backups contain no player saves.
 
 ## Uninstall
 
-Close the game and app. Remove the EpochPact copy of `<game>/version.dll` and `<game>/EpochPact/EpochPact.Core.dll` only. Compare the manifest hashes if unsure which files belong to this release. Never delete another loader or an entire shared mod folder. Delete the extracted UI folder if no longer needed.
+Close the game and app. Remove the EpochPact copy of `<game>/version.dll` (and `<game>/EpochPact/EpochPact.Core.dll` if an earlier release left one) only. Compare the manifest hashes if unsure which files belong to this release. Never delete another loader or an entire shared mod folder. Delete the extracted UI folder if no longer needed.
 
-Logs, IPC, mod-install backups and progression recovery backups can remain in `<game>/EpochPact`; without the loader and core they do not run. Preserve recovery backups unless you deliberately choose to discard them. App preferences/profiles/backups are under `%LOCALAPPDATA%/EpochPact`; keep them for a future reinstall. Game saves are under `%USERPROFILE%/AppData/LocalLow/Eleventh Hour Games/Last Epoch/Saves` and are not removed by uninstalling.
+Logs, IPC, mod-install backups and progression recovery backups can remain in `<game>/EpochPact`; without the loader they do not run. Preserve recovery backups unless you deliberately choose to discard them. App preferences/profiles/backups are under `%LOCALAPPDATA%/EpochPact`; keep them for a future reinstall. Game saves are under `%USERPROFILE%/AppData/LocalLow/Eleventh Hour Games/Last Epoch/Saves` and are not removed by uninstalling.
 
 ## Controls and save changes
 

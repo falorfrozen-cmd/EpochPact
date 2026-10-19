@@ -54,6 +54,7 @@ for %%f in (%CORE_SRC%) do call set "CORE_OBJ=%%CORE_OBJ%% "%OUT%\%%f.obj""
 cl %CFLAGS% /EHa %CORE_FLAGS% /c /Fo"%OUT%\\" %CORE_CPP% || exit /b 1
 rc /nologo /fo"%OUT%\core.res" "%HERE%core\core.rc" || exit /b 1
 link /nologo /DLL /OUT:"%OUT%\EpochPact.Core.dll" %CORE_OBJ% "%OUT%\stat_thunk.obj" "%OUT%\core.res" kernel32.lib user32.lib psapi.lib || exit /b 1
+if "%FLAVOR%"=="player" call :merged_loader || exit /b 1
 py -3 "%HERE%..\tools\stamp_build.py" %FLAVOR% --build-dir "%OUT%" || exit /b 1
 if "%~1"=="core" goto :done
 if "%~1"=="player-core" goto :done
@@ -98,5 +99,24 @@ cl %CFLAGS% /EHa /c /Fo"%OUT%\tests\\" "%HERE%tests\lifecycle_test.cpp" "%CORE%\
 link /nologo /OUT:"%OUT%\lifecycle_test.exe" "%OUT%\tests\lifecycle_test.obj" "%OUT%\tests\lifecycle.obj" "%OUT%\tests\mainthread.obj" "%OUT%\tests\x64_decode.obj" "%OUT%\tests\hook.obj" kernel32.lib || exit /b 1
 
 echo built: version.dll, EpochPact.Core.dll, hook_test.exe, xp_test.exe, stat_key_test.exe, density_test.exe, monolith_test.exe and cof_test.exe in %OUT%
+goto :done
+
+:merged_loader
+rem The loader players install: version.dll with the player core linked in, so there is no
+rem separate EpochPact.Core.dll to find, load or have flagged. Only core.cpp and
+rem version_proxy.cpp see EPOCHPACT_MERGED_LOADER; every other object is the one [2/3] just built.
+echo [2b/3] merged loader (player\version.dll)
+set "MERGED_DIR=%OUT%\merged"
+if not exist "%MERGED_DIR%" mkdir "%MERGED_DIR%"
+if not exist "%OUT%\player" mkdir "%OUT%\player"
+ml64 /nologo /c /Fo"%MERGED_DIR%\version_thunks.obj" "%HERE%proxy\version_thunks.asm" || exit /b 1
+cl %CFLAGS% /EHsc /DEPOCHPACT_MERGED_LOADER /c /Fo"%MERGED_DIR%\version_proxy.obj" "%HERE%proxy\version_proxy.cpp" || exit /b 1
+cl %CFLAGS% /EHa %CORE_FLAGS% /DEPOCHPACT_MERGED_LOADER /c /Fo"%MERGED_DIR%\core.obj" "%CORE%\core.cpp" || exit /b 1
+rc /nologo /fo"%MERGED_DIR%\version.res" "%HERE%proxy\version.rc" || exit /b 1
+set "MERGED_OBJ="
+for %%f in (%CORE_SRC%) do if /i not "%%f"=="core" call set "MERGED_OBJ=%%MERGED_OBJ%% "%OUT%\%%f.obj""
+link /nologo /DLL /OUT:"%OUT%\player\version.dll" /IMPLIB:"%MERGED_DIR%\version.lib" /DEF:"%HERE%proxy\version.def" "%MERGED_DIR%\version_thunks.obj" "%MERGED_DIR%\version_proxy.obj" "%MERGED_DIR%\core.obj" %MERGED_OBJ% "%OUT%\stat_thunk.obj" "%MERGED_DIR%\version.res" kernel32.lib user32.lib psapi.lib || exit /b 1
+exit /b 0
+
 :done
 endlocal
