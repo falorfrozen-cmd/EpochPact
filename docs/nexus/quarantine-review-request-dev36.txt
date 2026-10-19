@@ -1,0 +1,40 @@
+Hello Nexus Mods Support,
+
+Thank you for the update on this ticket. I have uploaded a new main file for EpochPact - Offline Tools (mod 44), and the automated checks have quarantined it as well. Could it be included in the review?
+
+New file
+- Link: https://www.nexusmods.com/lastepoch/mods/44?tab=files&file_id=260
+- Filename: EpochPact-0.1.2-dev.36.zip
+- Version: 0.1.2-dev.36
+- Size: 28,494,513 bytes
+- SHA-256: e9babb0f9b3dd4f4abe588837e37fcb17f2efc415a01e4e3bd3117ab468b8d9c
+- The previous file (0.1.1-alpha.5) was moved to Old files by the update; nothing was deleted.
+
+Source code and build steps
+- Source for this exact build: https://github.com/falorfrozen-cmd/EpochPact/tree/d497721574e59a56a515a2fe48b81406438fbc83
+- Build (Windows, MSVC x64): native\build.bat player
+  This writes native\build\player\version.dll (the loader with the mod's core linked in) and native\build\player\EpochPact.Core.dll.
+- App (Python environment from requirements-build-win64.lock): python -m tools.build_player --layout onedir --version 0.1.2-dev.36
+- ZIP: python -m tools.package_player_folder --bundle dist/EpochPact --output dist/share
+- The README section "Build and test" describes the same steps.
+
+What is inside
+- EpochPact/EpochPact.exe: the desktop app (PyInstaller folder build, no UPX, no obfuscation). On request it copies the game-side file into the Last Epoch folder and shows the settings.
+- version.dll (in "Manual Installation" and in EpochPact/_internal/native/build/player): the game-side mod. In this release the mod's core is linked into this one DLL. It forwards the Windows version API to Windows and starts the mod only inside Last Epoch.exe; it does not load any other DLL from the game folder.
+- EpochPact.Core.dll: the same core as a separate file, used only by the optional MelonLoader bridge.
+- EpochPact.MelonBridge.dll: optional bridge for players who already use MelonLoader.
+- A standard ZIP: no installer, no self-extracting archive, no nested archives, no password.
+
+VirusTotal, 20 October 2026 (the files inside this ZIP)
+- version.dll: 0/71 https://www.virustotal.com/gui/file/04d85db1719a00384ce2e2c9dd7bfc7c3a782326b9a947c206d0ef5ad54a4d2e
+- EpochPact.Core.dll: 0/71 https://www.virustotal.com/gui/file/c4b41037a20e60edcab1d0da0c986b6f8a35f496490e89fda8e7c2b702d47b8f
+- EpochPact.exe: 0/71 https://www.virustotal.com/gui/file/4866c6d96e3130a209fd793f19c6e302f46c72c03e18417737352f62a720ccc2
+- EpochPact.MelonBridge.dll: 0/71 (unchanged file, scanned 19 October) https://www.virustotal.com/gui/file/5dcd987ab4a91cfdca26db82e281534bc5b7e1e40ff7812ea6a662b25647cf86
+- Windows Defender found no threats in the ZIP.
+The earlier releases' version.dll had one detection (Cynet). This release changes the loader so the core is no longer a separate DLL that it loads from the game folder.
+
+The mod works in offline play only. Please let me know if you need anything else for the review.
+
+Thank you,
+Falor
+Nexus username: falorfrozen
