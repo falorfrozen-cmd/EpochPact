@@ -18,7 +18,9 @@ controls, 134 SP properties, 72 stat aliases and 206 character-sheet mappings,
 with commands/APIs, units, bounds, neutral defaults and persistence. Refresh both
 from the loaded offline character with `py -3 tools/export_ui_catalog.py --refresh`.
 
-Latest changes: [0.1.2-dev.34 Sell all, automatic sorting, fonts, loot filter colours, death recap, Season 5](docs/patch-notes-0.1.2-dev.34.md),
+Latest changes: [0.1.2-dev.35 connection when Windows refuses the game process query](docs/patch-notes-0.1.2-dev.35.md),
+[dev.35 tests](docs/connection-refused-query-2026-10-19.md),
+[0.1.2-dev.34 Sell all, automatic sorting, fonts, loot filter colours, death recap, Season 5](docs/patch-notes-0.1.2-dev.34.md),
 [dev.34 tests](docs/player-batch-2026-10-17.md),
 [0.1.2-dev.33 damage window styles, game icons and names](docs/patch-notes-0.1.2-dev.33.md),
 [dev.33 tests](docs/dps-meter-integration-2026-10-15.md),

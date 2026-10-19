@@ -169,6 +169,13 @@ def game_pids() -> list[int]:
         kernel32.CloseHandle(snapshot)
 
 
+def _query_error(api: str, code: int) -> OSError:
+    """A refused Windows process query, naming the call (shown in the connection status)."""
+    error = ctypes.WinError(code)
+    error.api = api
+    return error
+
+
 def process_identity(pid: int) -> dict | None:
     """Bind a connection to an executable and process creation time, not just a PID."""
     handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
@@ -176,21 +183,21 @@ def process_identity(pid: int) -> dict | None:
         error = ctypes.get_last_error()
         if error == 87:  # The process exited between enumeration and this query.
             return None
-        raise ctypes.WinError(error)
+        raise _query_error('OpenProcess', error)
     try:
         code = wt.DWORD()
         if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise _query_error('GetExitCodeProcess', ctypes.get_last_error())
         if code.value != 259:
             return None
         image = ctypes.create_unicode_buffer(32768)
         length = wt.DWORD(len(image))
         if not kernel32.QueryFullProcessImageNameW(handle, 0, image, ctypes.byref(length)):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise _query_error('QueryFullProcessImageNameW', ctypes.get_last_error())
         created, exited, system, user = (wt.FILETIME() for _ in range(4))
         if not kernel32.GetProcessTimes(handle, ctypes.byref(created), ctypes.byref(exited),
                                         ctypes.byref(system), ctypes.byref(user)):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise _query_error('GetProcessTimes', ctypes.get_last_error())
         ticks = (created.dwHighDateTime << 32) | created.dwLowDateTime
         return {"processId": pid, "sessionKey": f"{pid}:{ticks}",
                 "startedNs": (ticks - 116444736000000000) * 100, "executable": image.value}
@@ -198,19 +205,78 @@ def process_identity(pid: int) -> dict | None:
         kernel32.CloseHandle(handle)
 
 
+def announced_process(candidates) -> dict | None:
+    """The game session the mod in the selected game folder announced (EpochPact/ipc/protocol.json),
+    for a running "Last Epoch.exe" whose details Windows would not give. The mod writes its own PID and
+    creation time there; only an announcement naming one of the running candidates is accepted, and every
+    request and reply is still bound to that session key (send_packet), so an old announcement or another
+    process cannot be used: the mod ignores a request for another session."""
+    try:
+        protocol = json.loads((GAME / "EpochPact/ipc/protocol.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(protocol, dict) or protocol.get("version") != 3:
+        return None
+    pid, key = protocol.get("pid"), protocol.get("sessionKey")
+    match = re.fullmatch(r"([0-9]+):([0-9]+)", key) if isinstance(key, str) else None
+    if type(pid) is not int or pid not in set(candidates) or not match or int(match[1]) != pid:
+        return None
+    ticks = int(match[2])
+    return {"processId": pid, "sessionKey": key, "startedNs": (ticks - 116444736000000000) * 100,
+            "executable": str(GAME / EXE), "announced": True}
+
+
+class ProcessQueryRefused(RuntimeError):
+    """Windows refused to describe the running game and the mod has not announced its session yet."""
+
+
+def _refused(pid: int, error: OSError) -> ProcessQueryRefused:
+    api = getattr(error, "api", "a process query")
+    code = getattr(error, "winerror", None)
+    detail = f"{api}, WinError {code}" if code is not None else api
+    return ProcessQueryRefused(
+        f"Windows did not let EpochPact read the running game's details ({detail}). EpochPact connects as soon as "
+        "the mod in the game announces itself; if this stays, security software may be blocking EpochPact.")
+
+
+def session_of(pid: int) -> dict | None:
+    """process_identity, or the mod's own announcement when Windows refuses the query for a running game."""
+    try:
+        return process_identity(pid)
+    except OSError as error:
+        announced = announced_process([pid]) if pid in game_pids() else None
+        if announced is None:
+            raise _refused(pid, error) from error
+        return announced
+
+
 def selected_game_process() -> dict | None:
     expected = os.path.normcase(str((GAME / EXE).resolve()))
     matches = []
+    refused = []  # (pid, error): running games Windows would not describe
     pids = game_pids()
     other_running = False
     for pid in pids:
-        identity = process_identity(pid)
+        try:
+            identity = process_identity(pid)
+        except OSError as error:
+            refused.append((pid, error))
+            continue
         if identity and os.path.normcase(str(Path(identity["executable"]).resolve())) == expected:
             matches.append(identity)
         elif identity:
             other_running = True
     if len(matches) > 1:
         raise RuntimeError("More than one copy of the selected game is running. Close the extra copy.")
+    if refused:
+        # A process Windows would not describe may be a copy of the selected game: use only the session the
+        # mod in the selected folder announced, the described match when it is that session, else wait.
+        announced = announced_process([pid for pid, _ in refused] + [m["processId"] for m in matches])
+        if matches and announced and announced["sessionKey"] == matches[0]["sessionKey"]:
+            return matches[0]
+        if announced and not matches:
+            return announced
+        raise _refused(*refused[0])
     if not matches and other_running:
         raise RuntimeError("Last Epoch is running from a different folder. Select that executable in Game setup after closing the game.")
     return matches[0] if matches else None
@@ -642,7 +708,7 @@ def modern_ipc(ipc: Path) -> bool:
         if protocol.get("version") not in (2, 3) or type(protocol.get("pid")) is not int:
             return False
         if protocol['version'] == 3:
-            owner = process_identity(protocol['pid'])
+            owner = session_of(protocol['pid'])
             return owner is not None and owner['sessionKey'] == protocol.get('sessionKey')
         handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, protocol["pid"])
         if not handle:
@@ -652,7 +718,7 @@ def modern_ipc(ipc: Path) -> bool:
             return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259
         finally:
             kernel32.CloseHandle(handle)
-    except (OSError, ValueError, TypeError):
+    except (OSError, ValueError, TypeError, ProcessQueryRefused):
         return False
 
 
@@ -731,7 +797,7 @@ def _send_locked(command: str, timeout: float, *, expected_process=None) -> str 
         return send_packet(ipc, command, timeout, expected_process=expected_process)
     if modern_ipc(ipc):
         protocol = json.loads((ipc / 'protocol.json').read_text(encoding='utf-8'))
-        owner = process_identity(protocol['pid']) if protocol['version'] == 3 else None
+        owner = session_of(protocol['pid']) if protocol['version'] == 3 else None
         if protocol['version'] == 3 and (owner is None or owner['sessionKey'] != protocol.get('sessionKey')):
             raise RuntimeError('The game restarted before the request was submitted. Refresh the connection; the action was not applied.')
         return send_packet(ipc, command, timeout, expected_process=owner)
