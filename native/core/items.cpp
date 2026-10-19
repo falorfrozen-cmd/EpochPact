@@ -107,10 +107,18 @@ std::atomic<bool> g_inventoryFull{false};
 bool g_inventoryWasOpen = false;
 std::atomic<uint64_t> g_fullEvents{0}, g_fullSkipped{0};
 // Why collection paused or did nothing: the check that stopped the last paused tick (0 none, 1 hover
-// metadata missing, 2 highlighted item, 3 UI gone, 4 tooltip lock, 5 item tooltip open, 6 pending
+// metadata missing, 2 item just highlighted, 3 UI gone, 4 tooltip lock, 5 item tooltip open, 6 pending
 // hover, 7 item card open, 8 tooltip unreadable), tick counters and the last scan's numbers.
 std::atomic<int> g_inspectReason{0};
 std::atomic<uint64_t> g_ticks{0}, g_pausedInspecting{0}, g_pausedNoCharacter{0}, g_missedRecords{0};
+std::atomic<uint64_t> g_staleHighlight{0};  // hover checks that found a highlight with no tooltip behind it
+// TooltipItem.highlightedTooltipItem: OnPointerEnter opens the item tooltip and sets it in the same
+// call, OnPointerExit clears it, OnDisable does not. A ground label picked up or hidden under the
+// cursor leaves it set, and the label pool later hands that object out again for another drop. So
+// on its own it only covers the moment before the tooltip state appears (main thread only).
+constexpr uint64_t kHighlightGraceMs = 750;
+void* g_highlightSeen = nullptr;
+uint64_t g_highlightSince = 0;
 struct ScanNumbers { int labelsSeen = 0, labels = 0, materials = 0, gold = 0, others = 0, calls = 0, skippedFull = 0; bool stoppedInspecting = false; };
 ScanNumbers g_lastScanNumbers;  // main thread
 
@@ -187,9 +195,8 @@ bool InspectingItem() {
     if (!g_hoveredItemField || !g_uiField || !g_tooltipSystemOffset || !m_activeTooltipItem || !g_tooltipCardOffset || !g_tooltipManagerOffset || !g_legacyActiveOffset || !g_tooltipLockOffset || !m_componentObject || !m_activeHierarchy) { g_inspectReason = 1; return true; }
     void* hovered = nullptr;
     if (!game::TryStaticObject(g_hoveredItemField, &hovered)) { g_inspectReason = 8; return true; }
-    bool inspecting = false;
-    if (!game::TryIsAlive(hovered, &inspecting)) { g_inspectReason = 8; return true; }
-    if (inspecting) { g_inspectReason = 2; return true; }
+    bool highlighted = false, inspecting = false;
+    if (!game::TryIsAlive(hovered, &highlighted)) { g_inspectReason = 8; return true; }
     // Container-hover and the V2 tooltip system do not set highlightedTooltipItem.
     // Use the game's unified getter: it handles both V2 and the legacy manager.
     // This is a cached native getter, with no per-frame reflection or boxed result.
@@ -231,8 +238,15 @@ bool InspectingItem() {
             else reason=7;
         }
     }, nullptr);
-    g_inspectReason = !readable ? 8 : active ? reason : 0;
-    return !readable || active != nullptr;
+    if (!readable || active) { g_inspectReason = !readable ? 8 : reason; return true; }
+    if (!highlighted) { g_highlightSeen = nullptr; g_inspectReason = 0; return false; }
+    // Highlighted, no tooltip: either the moment before it opens, or a label left behind.
+    const uint64_t now = GetTickCount64();
+    if (hovered != g_highlightSeen) { g_highlightSeen = hovered; g_highlightSince = now; }
+    if (now - g_highlightSince < kHighlightGraceMs) { g_inspectReason = 2; return true; }
+    g_staleHighlight.fetch_add(1, std::memory_order_relaxed);
+    g_inspectReason = 0;
+    return false;
 }
 
 struct Position { float x,y,z; };
@@ -608,6 +622,8 @@ TickFn o_distantTick = nullptr;
 void d_distantTick(void* self, float deltaTime, const Method* m) {
     g_ticks.fetch_add(1, std::memory_order_relaxed);
     const bool active = g_auto.load(std::memory_order_relaxed) != 0.0 && game::IsOfflinePlay();
+    // Before the hover pause, so the inventory closing while an item is hovered still counts.
+    if (active) TrackInventoryFull();
     const bool inspectingBeforeTick = active && InspectingItem();
     if (inspectingBeforeTick) g_pausedInspecting.fetch_add(1, std::memory_order_relaxed);
     // This native handler does only queued distant item pickups. Its own
@@ -617,7 +633,6 @@ void d_distantTick(void* self, float deltaTime, const Method* m) {
     if(inspectingBeforeTick) return;
     o_distantTick(self, deltaTime, m);  // the game's own distant pickup stays in charge
     if (!active) return;
-    TrackInventoryFull();
     if (inspectingBeforeTick || InspectingItem()) { g_pausedInspecting.fetch_add(1, std::memory_order_relaxed); return; }  // Leave both the tooltip and scan timer alone.
     if (!smartloot::CanCollect()) { g_pausedNoCharacter.fetch_add(1, std::memory_order_relaxed); return; }
     const unsigned long now = GetTickCount();
@@ -758,14 +773,15 @@ std::string AutoPickupStatus() { return AutoStatus(); }
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
 std::string PickupDiagnostics() {
     const auto n = g_lastScanNumbers;
-    char buf[640];
+    char buf[704];
     std::snprintf(buf, sizeof buf,
-                  "{\"ok\":true,\"on\":%s,\"hook\":%s,\"ticks\":%llu,\"scans\":%llu,\"calls\":%llu,\"pausedInspecting\":%llu,\"inspectReason\":%d,"
+                  "{\"ok\":true,\"on\":%s,\"hook\":%s,\"ticks\":%llu,\"scans\":%llu,\"calls\":%llu,\"pausedInspecting\":%llu,\"inspectReason\":%d,\"staleHighlight\":%llu,"
                   "\"pausedNoCharacter\":%llu,\"missedRecords\":%llu,\"inventoryFull\":%s,\"fullSkipped\":%llu,\"intervalMs\":%u,\"radius\":%.2f,"
                   "\"last\":{\"labelsSeen\":%d,\"labels\":%d,\"materials\":%d,\"gold\":%d,\"others\":%d,\"calls\":%d,\"skippedFull\":%d,\"stoppedInspecting\":%s}}",
                   g_auto.load() > 0.5 ? "true" : "false", h_distantTick.ref && hook::IsInstalled(h_distantTick.ref.code) ? "true" : "false",
                   static_cast<unsigned long long>(g_ticks.load()), static_cast<unsigned long long>(g_scans.load()), static_cast<unsigned long long>(g_calls.load()),
-                  static_cast<unsigned long long>(g_pausedInspecting.load()), g_inspectReason.load(), static_cast<unsigned long long>(g_pausedNoCharacter.load()),
+                  static_cast<unsigned long long>(g_pausedInspecting.load()), g_inspectReason.load(), static_cast<unsigned long long>(g_staleHighlight.load()),
+                  static_cast<unsigned long long>(g_pausedNoCharacter.load()),
                   static_cast<unsigned long long>(g_missedRecords.load()), g_inventoryFull.load() ? "true" : "false", static_cast<unsigned long long>(g_fullSkipped.load()),
                   g_intervalMs.load(), g_radius.load(), n.labelsSeen, n.labels, n.materials, n.gold, n.others, n.calls, n.skippedFull, n.stoppedInspecting ? "true" : "false");
     return buf;
@@ -792,6 +808,9 @@ std::string SetAuto(double on) {
             return "autopickup: refused: the hook did not go in: " + why;
         }
     }
+    // Turning collection on tries equipment again: with the hook out nobody saw the inventory
+    // being emptied. Still no room: the game shows its own message once more and equipment waits.
+    g_inventoryFull = false;
     g_auto = 1.0;
     g_autoFirst = true;
     g_lastScan = 0;

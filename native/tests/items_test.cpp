@@ -13,6 +13,7 @@ bool aliveReadable = true;
 bool modernMetadata = true, modernFault = false, uiFault = false;
 bool uiAlive = true, systemAlive = true, closeOnTick = false;
 bool cardVisible=true;
+bool inventoryOpen = false;
 int tickCalls = 0, pickups = 0, roots = 0;
 bool materialLabels = false;
 int hoverField, uiField, listField, labelClass, pickupMethod;
@@ -24,6 +25,7 @@ struct LegacyManager {void* cls{};void* monitor{};bool active=false;} legacyMana
 struct TooltipSystem {void* cls{};void* monitor{};void* rect{};void* cardObject=&card;void* manager=&legacyManager;bool locked=false;} tooltipSystem;
 void* GameObject(void* object,const ep::il2cpp::Method*){return object;}
 bool Visible(void*,const ep::il2cpp::Method*){return cardVisible;}
+bool InventoryOpen(void*,const ep::il2cpp::Method*){return inventoryOpen;}
 void* ActiveTooltip(void*, const ep::il2cpp::Method*) {
     if (modernFault) throw std::runtime_error("unreadable modern tooltip fixture");
     return activeItem;
@@ -64,6 +66,7 @@ MethodRef FindMethod(const char*, const char*, const char* cls, const char* name
     if (!std::strcmp(name,"get_ActiveItemTooltipItem")) return fixture::modernMetadata ? MethodRef{&fixture::pickupMethod,reinterpret_cast<void*>(&fixture::ActiveTooltip)} : MethodRef{};
     if(!std::strcmp(name,"get_gameObject"))return {&fixture::pickupMethod,reinterpret_cast<void*>(&fixture::GameObject)};
     if(!std::strcmp(name,"get_activeInHierarchy"))return {&fixture::pickupMethod,reinterpret_cast<void*>(&fixture::Visible)};
+    if(!std::strcmp(name,"IsInventoryOpen"))return {&fixture::pickupMethod,reinterpret_cast<void*>(&fixture::InventoryOpen)};
     if (!std::strcmp(cls, "DistantItemPickupHandler")) return {&fixture::pickupMethod, reinterpret_cast<void*>(&fixture::Tick)};
     if (!std::strcmp(name, "requestPickup")) return {&fixture::pickupMethod, reinterpret_cast<void*>(&fixture::Invoke)};
     return {};
@@ -176,6 +179,19 @@ int main() {
     Check(pickups==6,"destroyed UI pauses collection");
     systemAlive=false;Due();Tick(nullptr,0,nullptr);systemAlive=true;
     Check(pickups==6,"destroyed tooltip system pauses collection");
+    // A ground label picked up under the cursor: the field still names that hidden label (and the
+    // pool hands it out again for a later drop) with no tooltip behind it.
+    hovered=&labels[0];Due();Tick(nullptr,0,nullptr);
+    Check(pickups==6,"a newly highlighted item pauses before its tooltip opens");
+    ep::items::g_highlightSince-=1000;Due();Tick(nullptr,0,nullptr);
+    Check(pickups==8&&ep::items::g_staleHighlight.load()>0,"a highlight left with no tooltip behind it stops pausing");
+    legacyManager.active=true;Due();Tick(nullptr,0,nullptr);legacyManager.active=false;
+    Check(pickups==8,"the same item hovered again with its tooltip open pauses");
+    hovered=&labels[1];Due();Tick(nullptr,0,nullptr);
+    Check(pickups==8,"another highlighted item starts a new short pause");
+    hovered=nullptr;Due();Tick(nullptr,0,nullptr);hovered=&labels[1];Due();Tick(nullptr,0,nullptr);
+    Check(pickups==10,"a highlight cleared and set again starts a new short pause");
+    hovered=nullptr;
     ep::items::SetAuto(0);modernMetadata=false;ep::items::Init();
     Check(ep::items::SetAuto(1).find("hover state was not found")!=std::string::npos,"missing V2 metadata refuses activation");
     modernMetadata=true;
@@ -189,6 +205,20 @@ int main() {
     materialLabels = true; Due(); Tick(nullptr, 0, nullptr);
     Check(pickups == fullBefore + 2, "materials are still collected while the inventory is full");
     materialLabels = false;
+    // Opened and closed while an item tooltip stays open, so the hover pause is on throughout.
+    legacyManager.active = true; inventoryOpen = true; Tick(nullptr, 0, nullptr);
+    Check(ep::items::g_inventoryFull.load(), "the full pause stays while the inventory is open");
+    inventoryOpen = false; Tick(nullptr, 0, nullptr);
+    Check(!ep::items::g_inventoryFull.load(), "closing the inventory clears the full pause even while a tooltip pauses collection");
+    legacyManager.active = false;
+    // Collection off (hook out) while the player empties the inventory, then on again.
+    ep::items::g_inventoryFull = true; ep::items::SetAuto(0);
+    inventoryOpen = true; Tick(nullptr, 0, nullptr); inventoryOpen = false; Tick(nullptr, 0, nullptr);
+    Check(ep::items::g_inventoryFull.load(), "with collection off nothing sees the inventory");
+    ep::items::SetAuto(1);
+    Check(!ep::items::g_inventoryFull.load(), "turning collection on again retries equipment");
+    ep::items::g_inventoryFull = true; const int retryBefore = pickups; Due(); Tick(nullptr, 0, nullptr);
+    Check(pickups == retryBefore, "equipment waits again once the full pause is set again");
     Check(ep::items::SetInterval(0.1).find("between 0.25 and 10") != std::string::npos &&
           ep::items::SetInterval(2).find("\"intervalSeconds\":2.00") != std::string::npos, "pickup interval is bounded and reported");
     const auto intervalScan = ep::items::g_lastScan.load(); Tick(nullptr, 0, nullptr);

@@ -39,6 +39,9 @@ Either one makes the feed look as if shards or gold were not collected. Tests: `
 
 ## Still open
 
-The real stop the players describe was not reproduced. If it happens again, the useful facts are:
+Found on 2026-10-19 ([pickup-pause-2026-10-19.md](pickup-pause-2026-10-19.md)): a ground label picked
+up by hand under the cursor paused all collection until the cursor crossed another label.
+
+The real stop the players describe was not reproduced here. If it happens again, the useful facts are:
 which window showed it (loot feed, or items left on the ground), the pickup mode and radius, whether
 the game was restarted, and an in-game F8 report right then.
