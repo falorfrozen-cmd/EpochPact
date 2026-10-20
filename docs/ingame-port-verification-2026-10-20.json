@@ -3,17 +3,17 @@
   "date": "2026-10-20",
   "version": "0.1.2-dev.36",
   "branch": "ingame-ui",
-  "build": "ingame-chatgpt-player-16",
+  "build": "ingame-chatgpt-player-29",
   "flavor": "player",
   "runtime": {
-    "bytes": 7870976,
-    "sha256": "a5843a38f3a97edf0ef2e202fdccf5d8f1e0a8c2616f07242b960e10ecf249bf",
+    "bytes": 7872512,
+    "sha256": "0639bf44cb00a078661da1ff9def81df71e4fbd24d7b47275e94de1b163e8d8c",
     "file": "version.dll"
   },
   "package": {
     "file": "EpochPact-0.1.2-dev.36-InGame.zip",
-    "bytes": 3417835,
-    "sha256": "74a85cdada2497add1ce59def1680d4e16e00609f9abbfc07ef6116afefc2745",
+    "bytes": 3419427,
+    "sha256": "f4730b2d5735b9f1507042af878bfea91d1ce4f9288f9175961fbb28d580df2e",
     "entries": 8,
     "version": "0.1.2-dev.36",
     "runtime": [
@@ -22,13 +22,13 @@
     "verified": true
   },
   "tests": {
-    "python": 375,
+    "python": 380,
     "javascript": 238,
     "nativeFailures": 0,
     "nativePrograms": 26
   },
   "live": {
-    "production": "ingame-chatgpt-live-2026-10-20-12",
+    "production": "ingame-chatgpt-live-2026-10-20-21",
     "measurementDrift": 0,
     "rendererFixtures": [
       {
@@ -58,124 +58,82 @@
       }
     ],
     "timing": {
-      "openMs": 8.4559,
-      "closeMs": 9.0134,
-      "pageMs": 2.3576,
-      "buildMs": 2498.33,
-      "rebuildMs": 3.979,
-      "firstBuildMs": 2497.92,
-      "frameAvgClosed": 13.3818,
-      "frameAvgOpen": 13.3446,
-      "stepAvgOpen": 0.0544693,
-      "stepMaxOpen": 23.4004,
-      "idleCostMax": 39.9471,
-      "spikeAfterOpen": 28.5526,
-      "spikeAfterClose": 24.5559,
-      "framesOpen": 944,
-      "slowOpen": 23,
-      "framesClosed": 350,
-      "slowClosed": 1,
+      "openMs": 7.2935,
+      "closeMs": 6.7287,
+      "pageMs": 2.3638,
+      "buildMs": 1788.64,
+      "rebuildMs": 2.4621,
+      "firstBuildMs": 1788.28,
+      "frameAvgClosed": 13.3742,
+      "frameAvgOpen": 13.3456,
+      "stepAvgOpen": 0.0468525,
+      "stepMaxOpen": 20.0244,
+      "idleCostMax": 28.0607,
+      "spikeAfterOpen": 23.9505,
+      "spikeAfterClose": 20.672,
+      "framesOpen": 902,
+      "slowOpen": 24,
+      "framesClosed": 334,
+      "slowClosed": 0,
       "slowestStage": "animate",
       "slowestIdleStage": "rebuild pickup_rules",
       "phases": {
-        "commands": 39.9437,
-        "job build job (163 left)": 11.0419,
-        "job build job (164 left)": 11.3005,
-        "job build job (165 left)": 10.0094,
-        "job build job (166 left)": 12.8643,
-        "job build job (167 left)": 53.4193,
-        "job build job (349 left)": 7.968,
-        "job card build_blessingrolls": 4.0105,
-        "job card build_cameraangle": 4.742,
-        "job card build_forgedextra": 4.3843,
-        "job card build_immortalminions": 5.9231,
-        "job card build_passivenodes": 4.0165,
-        "job card build_projectileflat": 5.4767,
-        "job card build_skillpoints": 4.3718,
-        "job card build_totemextra": 4.7228,
-        "job card build_weaverflat": 4.5402,
-        "job card cof_double_enemy": 4.8498,
-        "job card cof_lens_celerity": 4.7265,
-        "job card cof_lens_duplication": 4.463,
-        "job card cof_reward_multiplier": 5.9604,
-        "job card cof_t7_multiplier": 5.2,
-        "job card cooldown": 4.6565,
-        "job card craft_runes": 4.1443,
-        "job card drops": 5.1268,
-        "job card effects_descriptions": 4.2377,
-        "job card effects_rows": 4.8859,
-        "job card font_case": 4.8354,
-        "job card gold": 5.0306,
-        "job card loot_ww": 4.478,
-        "job card map_minimapzoom": 4.7496,
-        "job card map_overlayopacity": 5.3508,
-        "job card pickup_radius": 4.0564,
-        "job card qol_arearadius": 5.931,
-        "job card qol_areashow": 4.8144,
-        "job card qol_fog": 4.6123,
-        "job card qol_motionblur": 4.196,
-        "job card qol_reflections": 4.0776,
-        "job card qol_shrines": 4.436,
-        "job card rage_buffs": 5.9379,
-        "job card rage_hunttime": 5.5944,
-        "job card rarity": 5.38,
-        "job card speed": 4.4717,
-        "job card stability_multiplier": 5.3771,
-        "job card tier_name_colors": 4.6886,
-        "job card tier_rule_position": 5.2455,
-        "job card tier_special": 5.5426,
-        "job card tier_tooltips": 5.119,
-        "job card weaversdrop": 4.558,
-        "job rebuild global_search": 682.668,
-        "job section campaign": 4.7824,
-        "job section cof_main": 11.2347,
-        "job section cof_prophecies": 8.5731,
-        "job section craft_materials": 4.7038,
-        "job section damage_meter": 4.54,
-        "job section free_respec": 7.0972,
-        "job section glyph_chances": 4.1512,
-        "job section inventory_shortcuts": 8.3803,
-        "job section links": 7.7118,
-        "job section minion_bonuses": 6.5645,
-        "job section monolith_management": 10.7879,
-        "job section pickup_selections": 11.8818,
-        "job section settings_navigation": 12.7847,
-        "job section settings_profiles": 4.0446,
-        "job section stash_search_help": 6.9278,
-        "job section stats_filters": 4.8315,
-        "job section stats_results": 19.1705,
-        "job section tier_colours": 4.7532,
-        "job section ws_review": 4.1075,
-        "rebuild campaign": 5.2582,
-        "rebuild cof_main": 12.1446,
-        "rebuild cof_prophecies": 10.2398,
-        "rebuild collect_now": 3.1465,
-        "rebuild collection_head": 5.1445,
-        "rebuild collection_results": 5.4328,
-        "rebuild craft_materials": 5.2587,
-        "rebuild craft_tabs": 4.1169,
-        "rebuild damage_meter": 6.4454,
-        "rebuild echo_head": 2.2309,
-        "rebuild factions": 6.3078,
-        "rebuild filter_files": 11.7509,
-        "rebuild free_respec": 5.3133,
-        "rebuild global_search": 3.1818,
-        "rebuild inventory_shortcuts": 9.9083,
-        "rebuild mastery": 3.5572,
-        "rebuild monolith_management": 10.573,
-        "rebuild pickup_rules": 3.6364,
-        "rebuild pickup_selections": 19.1371,
-        "rebuild settings_report": 4.1039,
-        "rebuild skill_budgets": 2.7478,
-        "rebuild stash_rules": 2.5598,
-        "rebuild summon_allies": 2.9066,
-        "rebuild tail craft_forge": 3.4244,
-        "rebuild tail sort_tabs": 1.2372,
-        "rebuild tail weaver_affixes": 15.5302,
-        "rebuild ws_item": 1.5073,
-        "rebuild ws_review": 4.2851,
-        "tick collection_results": 2.1503,
-        "tick global_search": 2.172
+        "commands": 28.0583,
+        "job build job (163 left)": 4.9288,
+        "job build job (164 left)": 5.2411,
+        "job build job (165 left)": 6.405,
+        "job build job (166 left)": 8.0567,
+        "job build job (167 left)": 35.936,
+        "job build job (349 left)": 6.0613,
+        "job card build_totemextra": 5.2658,
+        "job card effects_rows": 4.3917,
+        "job card gold": 4.6612,
+        "job card loot_ww": 4.9983,
+        "job card qol_arearadius": 4.0075,
+        "job card speed": 4.0262,
+        "job card tier_name_colors": 5.5574,
+        "job rebuild global_search": 408.91,
+        "job section cof_main": 9.7652,
+        "job section cof_prophecies": 5.7175,
+        "job section free_respec": 5.0315,
+        "job section inventory_shortcuts": 6.353,
+        "job section links": 6.0316,
+        "job section monolith_management": 7.0936,
+        "job section pickup_selections": 10.5521,
+        "job section recent_pickups": 5.8216,
+        "job section settings_navigation": 9.7522,
+        "job section stash_search_help": 4.9227,
+        "job section stats_results": 15.9636,
+        "rebuild campaign": 4.7799,
+        "rebuild cof_main": 9.6538,
+        "rebuild cof_prophecies": 9.3859,
+        "rebuild collect_now": 3.5623,
+        "rebuild collection_head": 4.2771,
+        "rebuild collection_results": 4.7558,
+        "rebuild craft_materials": 3.8335,
+        "rebuild craft_tabs": 2.9733,
+        "rebuild damage_meter": 6.2619,
+        "rebuild echo_head": 1.3722,
+        "rebuild factions": 5.2617,
+        "rebuild filter_files": 9.7031,
+        "rebuild free_respec": 5.1932,
+        "rebuild global_search": 2.6712,
+        "rebuild inventory_shortcuts": 12.1542,
+        "rebuild mastery": 2.6475,
+        "rebuild monolith_management": 9.32,
+        "rebuild pickup_rules": 2.1071,
+        "rebuild pickup_selections": 13.6829,
+        "rebuild settings_report": 2.9518,
+        "rebuild skill_budgets": 2.4924,
+        "rebuild stash_rules": 4.4194,
+        "rebuild summon_allies": 2.4329,
+        "rebuild tail craft_forge": 2.8158,
+        "rebuild tail sort_tabs": 1.5326,
+        "rebuild tail weaver_affixes": 10.7744,
+        "rebuild ws_item": 1.4785,
+        "rebuild ws_review": 3.7365,
+        "tick collection_results": 1.7988,
+        "tick global_search": 1.7049
       }
     },
     "kerning": {
@@ -186,7 +144,7 @@
         "advances": 1632,
         "enableKerning": true,
         "tmpKerningOn": 1632.07,
-        "pairRecords": 5592
+        "pairRecords": 5926
       },
       "serif": {
         "tmp": 1541.55,
@@ -207,13 +165,14 @@
       150
     ],
     "productionShutdown": {
-      "exit": 0,
-      "preferencesUnchanged": true,
-      "restored": {
+      "closeCode": 0,
+      "normalShutdownConfirmed": true,
+      "savesRestored": {
         "restoredFiles": 54,
         "archivedTestFiles": 3,
         "originalBytesVerified": true
-      }
+      },
+      "realPreferencesUnchanged": true
     },
     "rendererShutdown": {
       "exit": 0,
@@ -228,15 +187,709 @@
     "recordingResumed": true,
     "privateCommandsRejected": [
       "panel fixture:bars",
-      "panel local:profile-save"
+      "panel local:profile-save",
+      "panel qa:resolution",
+      "panel qa:confirm:craft_custom"
     ],
-    "saveActionsExecuted": false,
-    "freshCaptureFiles": true
+    "saveActionsExecuted": true,
+    "freshCaptureFiles": true,
+    "followUp": {
+      "report": "ingame-live-validation-2026-10-20.md",
+      "privateBuild": "ingame-chatgpt-ui-test-28",
+      "saveActions": {
+        "run": "ingame-chatgpt-live-2026-10-20-15",
+        "checks": [
+          {
+            "name": "Stock all materials",
+            "materialTypes": 525,
+            "higherQuantitiesPreserved": true,
+            "backup": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Last Epoch\\EpochPact\\backups\\progression\\56092-44266812"
+          },
+          {
+            "name": "Craft once",
+            "affix": 90,
+            "tierBefore": 1,
+            "tierAfter": 2,
+            "exactlyOneShardConsumed": true
+          },
+          {
+            "name": "Create custom item",
+            "item": {
+              "ok": true,
+              "type": 0,
+              "rarity": 4,
+              "uniqueId": 0,
+              "bytes": [
+                6,
+                112,
+                215,
+                175,
+                108,
+                0,
+                0,
+                4,
+                128,
+                255,
+                255,
+                255,
+                27,
+                1,
+                96,
+                0,
+                255
+              ],
+              "affixes": [
+                {
+                  "id": 0,
+                  "tier": 7,
+                  "roll": 255,
+                  "sealed": 0
+                }
+              ],
+              "primordial": false
+            },
+            "backup": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Last Epoch\\EpochPact\\backups\\progression\\56092-44275562",
+            "nativeSerializationRoundTrip": true
+          }
+        ],
+        "materialsSurvivedRestart": true,
+        "customItemBytesInSave": true,
+        "restartCloseCodes": [
+          0
+        ]
+      },
+      "resolutions": {
+        "run": "ingame-chatgpt-live-2026-10-20-17",
+        "checks": [
+          {
+            "width": 1920,
+            "height": 1080,
+            "textScale": 100,
+            "reachableApply": true,
+            "faults": 0
+          },
+          {
+            "width": 1920,
+            "height": 1080,
+            "textScale": 150,
+            "reachableApply": true,
+            "faults": 0
+          },
+          {
+            "width": 1280,
+            "height": 720,
+            "textScale": 100,
+            "reachableApply": true,
+            "faults": 0
+          },
+          {
+            "width": 1280,
+            "height": 720,
+            "textScale": 150,
+            "reachableApply": true,
+            "faults": 0
+          },
+          {
+            "width": 2560,
+            "height": 1440,
+            "textScale": 100,
+            "reachableApply": true,
+            "faults": 0
+          },
+          {
+            "width": 2560,
+            "height": 1440,
+            "textScale": 150,
+            "reachableApply": true,
+            "faults": 0
+          }
+        ],
+        "originalModeRestored": true
+      },
+      "echoFocus": {
+        "run": "ingame-chatgpt-live-2026-10-20-16",
+        "webEchoes": 7,
+        "focused": {
+          "ok": true,
+          "selectionVerified": true,
+          "focused": 0,
+          "timeline": 1
+        },
+        "noEchoStarted": true
+      },
+      "realCombat": {
+        "run": "ingame-chatgpt-live-2026-10-20-20",
+        "session": {
+          "ok": true,
+          "active": false,
+          "elapsedSeconds": 10.1,
+          "combatSeconds": 7,
+          "hits": 13,
+          "unsplitHits": 0,
+          "elementNames": [
+            "Physical",
+            "Fire",
+            "Cold",
+            "Lightning",
+            "Necrotic",
+            "Void",
+            "Poison"
+          ],
+          "hooked": true,
+          "types": [
+            {
+              "name": "You",
+              "label": "",
+              "icon": "c:1:0",
+              "live": 0,
+              "total": 726.3,
+              "hits": 12,
+              "maxHit": 78.0,
+              "dps10": 66.9,
+              "dps60": 71.6,
+              "dps600": 71.6,
+              "dps3600": 71.6,
+              "average": 71.6,
+              "combatAverage": 103.8,
+              "elements": {
+                "total": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  726.3,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "hits": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  12.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "maxHit": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  78.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "dps10": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  66.9,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "dps60": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  71.6,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "dps600": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  71.6,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "dps3600": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  71.6,
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            {
+              "name": "RogueBallista",
+              "label": "Ballista",
+              "icon": "a:ba1574",
+              "live": 0,
+              "total": 82.9,
+              "hits": 1,
+              "maxHit": 82.9,
+              "dps10": 8.3,
+              "dps60": 8.2,
+              "dps600": 8.2,
+              "dps3600": 8.2,
+              "average": 8.2,
+              "combatAverage": 11.8,
+              "elements": {
+                "total": [
+                  82.9,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "hits": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "maxHit": [
+                  82.9,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "dps10": [
+                  8.3,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "dps60": [
+                  8.2,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "dps600": [
+                  8.2,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "dps3600": [
+                  8.2,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            }
+          ],
+          "allies": {
+            "total": 82.9,
+            "hits": 1,
+            "maxHit": 82.9,
+            "dps10": 8.3,
+            "dps60": 8.2,
+            "dps600": 8.2,
+            "dps3600": 8.2,
+            "average": 8.2,
+            "combatAverage": 11.8,
+            "elements": {
+              "total": [
+                82.9,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "hits": [
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "maxHit": [
+                82.9,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "dps10": [
+                8.3,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "dps60": [
+                8.2,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "dps600": [
+                8.2,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "dps3600": [
+                8.2,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "taken": {
+            "types": [],
+            "total": 0.0,
+            "hits": 0,
+            "maxHit": 0.0,
+            "dot": 0.0,
+            "combatSeconds": 0,
+            "dps10": 0.0,
+            "dps60": 0.0,
+            "dps600": 0.0,
+            "dps3600": 0.0,
+            "average": 0.0,
+            "combatAverage": 0.0,
+            "elements": {
+              "total": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "hits": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "maxHit": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "dps10": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "dps60": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "dps600": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "dps3600": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "deaths": 0,
+          "deathRecap": true
+        },
+        "healthAudit": {
+          "ok": true,
+          "outsideLoss": 0.0,
+          "outsideEvents": 0,
+          "clamps": 3,
+          "sources": {
+            "DamageEnemyOnHit": {
+              "damage": 731.568,
+              "hits": 12
+            }
+          },
+          "otherKinds": {},
+          "targets": 3,
+          "otherHits": 0,
+          "matched": 12,
+          "failed": 0,
+          "calls": 13,
+          "error": "",
+          "types": [
+            {
+              "name": "You",
+              "recorded": 648.637,
+              "lost": 648.637,
+              "hits": 11
+            },
+            {
+              "name": "RogueBallista",
+              "recorded": 82.931,
+              "lost": 82.93,
+              "hits": 1
+            }
+          ]
+        },
+        "hud": {
+          "open": true,
+          "fixture": false,
+          "style": "table",
+          "w": 900,
+          "h": 300,
+          "cells": [
+            {
+              "source": "You",
+              "field": "dps10",
+              "element": -1,
+              "text": "67"
+            },
+            {
+              "source": "You",
+              "field": "dps60",
+              "element": -1,
+              "text": "72"
+            },
+            {
+              "source": "You",
+              "field": "dps600",
+              "element": -1,
+              "text": "72"
+            },
+            {
+              "source": "You",
+              "field": "dps3600",
+              "element": -1,
+              "text": "72"
+            },
+            {
+              "source": "You",
+              "field": "combatAverage",
+              "element": -1,
+              "text": "104"
+            },
+            {
+              "source": "You",
+              "field": "average",
+              "element": -1,
+              "text": "72"
+            },
+            {
+              "source": "You",
+              "field": "total",
+              "element": -1,
+              "text": "726"
+            },
+            {
+              "source": "You",
+              "field": "hits",
+              "element": -1,
+              "text": "12"
+            },
+            {
+              "source": "You",
+              "field": "maxHit",
+              "element": -1,
+              "text": "78"
+            },
+            {
+              "source": "RogueBallista",
+              "field": "dps10",
+              "element": -1,
+              "text": "8"
+            },
+            {
+              "source": "RogueBallista",
+              "field": "dps60",
+              "element": -1,
+              "text": "8"
+            },
+            {
+              "source": "RogueBallista",
+              "field": "dps600",
+              "element": -1,
+              "text": "8"
+            },
+            {
+              "source": "RogueBallista",
+              "field": "dps3600",
+              "element": -1,
+              "text": "8"
+            },
+            {
+              "source": "RogueBallista",
+              "field": "combatAverage",
+              "element": -1,
+              "text": "12"
+            },
+            {
+              "source": "RogueBallista",
+              "field": "average",
+              "element": -1,
+              "text": "8"
+            },
+            {
+              "source": "RogueBallista",
+              "field": "total",
+              "element": -1,
+              "text": "83"
+            },
+            {
+              "source": "RogueBallista",
+              "field": "hits",
+              "element": -1,
+              "text": "1"
+            },
+            {
+              "source": "RogueBallista",
+              "field": "maxHit",
+              "element": -1,
+              "text": "83"
+            },
+            {
+              "source": "__total",
+              "field": "value",
+              "element": -1,
+              "text": "75"
+            }
+          ],
+          "iconsLoaded": [
+            "c:1:0",
+            "a:ba1574"
+          ]
+        },
+        "realAbilities": true,
+        "stopAndReset": true
+      },
+      "restoration": {
+        "15": {
+          "closeCode": 0,
+          "normalShutdownConfirmed": true,
+          "savesRestored": {
+            "restoredFiles": 54,
+            "archivedTestFiles": 3,
+            "originalBytesVerified": true
+          },
+          "realPreferencesUnchanged": true
+        },
+        "16": {
+          "closeCode": 0,
+          "normalShutdownConfirmed": true,
+          "savesRestored": {
+            "restoredFiles": 54,
+            "archivedTestFiles": 3,
+            "originalBytesVerified": true
+          },
+          "realPreferencesUnchanged": true
+        },
+        "17": {
+          "closeCode": 0,
+          "normalShutdownConfirmed": true,
+          "savesRestored": {
+            "restoredFiles": 54,
+            "archivedTestFiles": 3,
+            "originalBytesVerified": true
+          },
+          "realPreferencesUnchanged": true
+        },
+        "20": {
+          "closeCode": 0,
+          "normalShutdownConfirmed": true,
+          "savesRestored": {
+            "restoredFiles": 54,
+            "archivedTestFiles": 3,
+            "originalBytesVerified": true
+          },
+          "realPreferencesUnchanged": true
+        },
+        "21": {
+          "closeCode": 0,
+          "normalShutdownConfirmed": true,
+          "savesRestored": {
+            "restoredFiles": 54,
+            "archivedTestFiles": 3,
+            "originalBytesVerified": true
+          },
+          "realPreferencesUnchanged": true
+        }
+      },
+      "fixedDefects": [
+        "Full table could reuse a narrow HUD width and truncate headers.",
+        "Native damage icon validation rejected actual string skill IDs."
+      ],
+      "xinputResults": [
+        1167,
+        1167,
+        1167,
+        1167
+      ],
+      "physicalGamepadTested": false,
+      "inputAutomation": false
+    }
   },
   "limits": [
-    "Stock all materials, Craft once and Create custom item were not executed.",
-    "Renderer fixture values do not certify new real-combat accuracy.",
-    "Generated Echo focus, hardware gamepad and other physical resolutions not validated.",
+    "No physical XInput controller was attached; hardware gamepad navigation is unverified.",
+    "Live combat audited 12 of 13 hits in this native UI round; prior every-class/ailment measurements remain separate evidence.",
+    "TMP and Chrome metrics can differ; no universal pixel-identity claim.",
+    "Desktop/native startup preference arbitration is unchanged.",
     "No antivirus clearance or public release."
   ]
 }

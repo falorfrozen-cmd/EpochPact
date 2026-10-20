@@ -55,7 +55,17 @@ void SavePlace(Hud& h) {
     Put(state,"open",Flag(h.open));auto native=Object();Put(native,"x",Number(h.x));Put(native,"y",Number(h.y));Put(native,"w",Number(h.w));Put(native,"h",Number(h.h));Put(state,"ingame",native);Put(windows,Name(h),state);
     const auto text=Pack(windows);if(!StorePreference("epochpact.windows.v1",&text))Toast(Tr("Could not save window position."),true);
 }
-void Clamp(Hud& h){h.w=std::clamp(h.w,h.damage?260.f:220.f,std::max(h.damage?260.f:220.f,screenWidth-20));const float minimum=h.damage?180.f:120.f;h.h=std::clamp(h.h,minimum,std::max(minimum,screenHeight-20));h.x=std::clamp(h.x,0.f,std::max(0.f,screenWidth-h.w));h.y=std::clamp(h.y,0.f,std::max(0.f,screenHeight-h.h));}
+void Clamp(Hud& h){
+    const float base=h.damage?260.f:220.f,available=std::max(base,screenWidth-20);
+    // A remembered compact HUD width must not squeeze nine table columns into
+    // 300 px on startup. Apply the same limit on load, style changes and resize.
+    const bool table=h.damage&&h.optionsData["style"].Str()=="table";
+    const float minimumW=std::min(available,table?(On(h.optionsData["compact"])?560.f:900.f):base);
+    h.w=std::clamp(h.w,minimumW,available);
+    const float minimum=h.damage?180.f:120.f;
+    h.h=std::clamp(h.h,minimum,std::max(minimum,screenHeight-20));
+    h.x=std::clamp(h.x,0.f,std::max(0.f,screenWidth-h.w));h.y=std::clamp(h.y,0.f,std::max(0.f,screenHeight-h.h));
+}
 void DestroyNode(Pin& pin){if(pin){void* a[]{GameObjectOf(pin.Get())};SetActive(a[0],false);Invoke(U("Object","Destroy",1),nullptr,a);pin.Reset();}}
 J State(const Hud& h) {
     if(h.optionsData["view"].Str()=="taken") {auto r=h.reply["taken"];Put(r,"ok",Flag(On(h.reply["ok"])));Put(r,"active",h.reply["active"]);Put(r,"elapsedSeconds",h.reply["elapsedSeconds"]);return r;}
@@ -108,7 +118,7 @@ float Options(Hud& h,const Ctx& c,float y) {
     const float w=h.w-20;auto button=[&](const std::string& text,Action action){auto b=AddButton(c,10,y,text,Look::Small,std::move(action));y+=b.h+8;};
     if(h.damage){
         button(Tr("Style")+": "+styleLabels[Index(h.optionsData["style"].Str(),styles,4)],[&h]{Cycle(h,"style",styles,4);if(h.optionsData["style"].Str()=="table")h.w=std::min(screenWidth-20,900.f);Clamp(h);});
-        if(h.optionsData["style"].Str()=="table") y+=CheckField(c,10,y,Tr("Compact table"),On(h.optionsData["compact"]),[&h](bool on){Put(h.optionsData,"compact",Flag(on));Save(h);h.dirty=true;},"hud-compact")+8;
+        if(h.optionsData["style"].Str()=="table") y+=CheckField(c,10,y,Tr("Compact table"),On(h.optionsData["compact"]),[&h](bool on){Put(h.optionsData,"compact",Flag(on));Clamp(h);Save(h);h.dirty=true;},"hud-compact")+8;
         button(Tr("Damage type")+": "+(h.optionsData["element"].Num(-1)<0?Tr("All damage"):Tr(kDamageTypes[std::clamp(static_cast<int>(h.optionsData["element"].Num()),0,6)])),[&h]{Put(h.optionsData,"element",Number(static_cast<int>(h.optionsData["element"].Num(-1))+1>6?-1:h.optionsData["element"].Num(-1)+1));Save(h);h.dirty=true;});
         auto model=Model(h);const auto key=h.optionsData["view"].Str()=="taken"?"takenHidden":"hidden";
         for(const auto& row:model["sources"].items){const auto name=row["name"].Str();
@@ -320,7 +330,11 @@ void HudStep(bool blocked){if(!loaded)return;for(auto* h:{&damage,&feed}){if(h->
 void ReleaseHud(){damage=Hud{};feed=Hud{};hudParent.Reset();iconTries.clear();affixTries.clear();affixes.clear();loaded=false;}
 std::string HudState(){
     J result=Object();for(const auto* h:{&damage,&feed}){J state=Object(),cells=List();Put(state,"open",Flag(h->open));Put(state,"fixture",Flag(h->fixture));Put(state,"style",h->optionsData["style"]);Put(state,"w",Number(h->w));Put(state,"h",Number(h->h));
-        for(const auto& cell:h->cells){auto row=Object();Put(row,"source",Text(cell.source));Put(row,"field",Text(cell.field));Put(row,"element",Number(cell.element));Put(row,"text",Text(cell.shown));cells.items.push_back(row);}Put(state,"cells",cells);Put(result,Name(*h),state);}return Pack(result);
+        for(const auto& cell:h->cells){auto row=Object();Put(row,"source",Text(cell.source));Put(row,"field",Text(cell.field));Put(row,"element",Number(cell.element));Put(row,"text",Text(cell.shown));cells.items.push_back(row);}Put(state,"cells",cells);
+#ifdef EPOCHPACT_TESTING
+        auto icons=List();const auto model=Model(*h);for(const auto& row:model["sources"].items){const auto key=row["icon"].Str();if(DamageIconKey(key)&&assets::RuntimeSprite(key))icons.items.push_back(Text(key));}Put(state,"iconsLoaded",icons);
+#endif
+        Put(result,Name(*h),state);}return Pack(result);
 }
 #ifdef EPOCHPACT_TESTING
 bool HudFixture(const std::string& style){

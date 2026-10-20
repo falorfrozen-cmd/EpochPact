@@ -110,6 +110,30 @@ uint64_t nextEligibleCheck = 0;
 // Reads kept for the sections: the reply text and its JSON.
 struct Kept { std::string text; std::shared_ptr<JValue> json; };
 std::map<std::string, Kept> cache;
+#ifdef EPOCHPACT_TESTING
+std::string qaPendingAction, qaLastCommand, qaLastReply;
+uint64_t qaConfirmToken = 0;
+// Private tests require both explicit environment opt-in and the live clone's
+// exact save ID. Never bypass the normal command's own identity/offline checks.
+void RequireQaClone(bool writes) {
+    wchar_t prefs[32768], id[128], allowed[8];
+    if (!GetEnvironmentVariableW(L"EPOCHPACT_PREFERENCES", prefs, 32768) ||
+        !GetEnvironmentVariableW(L"EPOCHPACT_TEST_SAVE_ID", id, 128) ||
+        (writes && (GetEnvironmentVariableW(L"EPOCHPACT_ALLOW_SAVE_TESTS", allowed, 8) != 1 || allowed[0] != L'1')))
+        throw std::runtime_error("Explicit isolated UI test required");
+    if (!game::IsOfflinePlay()) throw std::runtime_error("Offline test required");
+    managed::RequireSession(4);
+    void* actor = Invoke(game::FindMethod("LE.dll", "", "PlayerFinder", "getPlayerActor", 0));
+    if (!actor || !game::IsAlive(actor)) throw std::runtime_error("Live test actor required");
+    void* tracker = Get<void*>(actor, Offset("Actor", "characterDataTracker"));
+    void* data = Get<void*>(tracker, Offset("CharacterDataTracker", "charData"));
+    const auto name = Text(Get<void*>(data, Offset("CharacterData", "<CharacterName>k__BackingField", "LE.Data")));
+    const auto save = Text(Invoke(Method(data, "get_Id", 0), data));
+    const std::wstring expected(id);
+    if ((name != "EpFeedbackTest" && name != "EpCraftTest") || std::wstring(save.begin(), save.end()) != expected)
+        throw std::runtime_error("Live character is not the pinned disposable clone");
+}
+#endif
 
 // ------------------------------------------------------------------------------ the window
 struct Card {
@@ -2406,6 +2430,9 @@ std::string State() {
         }
     }
     out << "}}";
+#ifdef EPOCHPACT_TESTING
+    out << ",\"qa\":{\"command\":" << Json(qaLastCommand) << ",\"reply\":" << Json(qaLastReply) << '}';
+#endif
     // what Unity's event system has selected, and the window's mouse listener (a test checks the game
     // gets its input back when the window closes)
     try {
@@ -2813,6 +2840,9 @@ void Rebuild(int sectionId) {
 void Send(std::string line, Reply done) {
     auto remember = line;
     commandQueue.push_back({std::move(line), [remember, done](const std::string& reply) {
+#ifdef EPOCHPACT_TESTING
+        if (remember.rfind("echofocus ", 0) == 0) { qaLastCommand=remember; qaLastReply=reply; }
+#endif
         std::string why; if (!Refused(reply, &why)) RememberChoice(remember);
         if (done) done(reply);
     }});
@@ -2869,7 +2899,10 @@ void RunAction(ActionRun run) {
         auto proceed = [run](const std::string& liveId) {
             std::string line = run.command;
             for (size_t at = line.find("{save_id}"); at != std::string::npos; at = line.find("{save_id}")) line.replace(at, 9, liveId);
-            Send(line, [run](const std::string& reply) {
+            Send(line, [run, line](const std::string& reply) {
+#ifdef EPOCHPACT_TESTING
+                qaLastCommand = line; qaLastReply = reply;
+#endif
                 std::string why;
                 if (Refused(reply, &why)) { Toast(PlayerError(why), true); return; }
                 JValue v;
@@ -3404,6 +3437,71 @@ std::string Kerning() {
 }
 std::string Panel(const std::string& action) {
 #ifdef EPOCHPACT_TESTING
+    if (action.rfind("qa:", 0) == 0) return Run([action] {
+        const auto name = action.substr(3);
+        RequireQaClone(name.rfind("click:craft_", 0) == 0 || name.rfind("confirm:", 0) == 0);
+        if (!win.built || !win.shown || !view::Eligible()) throw std::runtime_error("Open the ready isolated UI first");
+        if (name == "details:advanced") {
+            for(int id:win.pages[win.page].sections) {
+                auto& s=Sec(id);
+                if(!s.hidden && s.panelState && s.panelState->detailsKey=="advanced") {
+                    if(!s.panelState->open)ToggleDetails(id);
+                    return State();
+                }
+            }
+            throw std::runtime_error("Advanced forge section not built");
+        }
+        if (name == "resolution") {
+            return std::string("{\"ok\":true,\"width\":") + std::to_string(Value<int>(U("Screen", "get_width", 0))) +
+                ",\"height\":" + std::to_string(Value<int>(U("Screen", "get_height", 0))) +
+                ",\"mode\":" + std::to_string(Value<int>(U("Screen", "get_fullScreenMode", 0))) + "}";
+        }
+        if (name.rfind("resolution:", 0) == 0) {
+            int width=0, height=0, mode=0; char extra=0;
+            if (std::sscanf(name.c_str()+11, "%d:%d:%d%c", &width, &height, &mode, &extra) != 3 ||
+                width < 1280 || width > 3840 || height < 720 || height > 2160 || mode < 0 || mode > 3)
+                throw std::runtime_error("Unsupported QA resolution");
+            void* args[]{&width,&height,&mode};
+            Invoke(Sig("UnityEngine.CoreModule.dll", "UnityEngine", "Screen", "SetResolution",
+                {"System.Int32","System.Int32","UnityEngine.FullScreenMode"}), nullptr, args);
+            return std::string("{\"ok\":true,\"requested\":true}");
+        }
+        if (name.rfind("field:", 0) == 0) {
+            const auto eq = name.find('='); if (eq == std::string::npos) throw std::runtime_error("Expected field=value");
+            const auto field = name.substr(6, eq-6), value = name.substr(eq+1);
+            if (field != "craft_materials-value") throw std::runtime_error("Field not in QA allowlist");
+            for (auto& input : win.inputs) if (input.name == field) {
+                managed::Root text(il2cpp::api().string_new(value.c_str())); void* args[]{text.Get()};
+                Invoke(Find("Unity.TextMeshPro.dll", "TMPro", "TMP_InputField", "set_text", 1), input.field.Get(), args);
+                input.last=value; if(input.onChange)input.onChange(value); return State();
+            }
+            throw std::runtime_error("QA field not built");
+        }
+        if (name.rfind("confirm:", 0) == 0) {
+            const auto expected = name.substr(8);
+            if (qaPendingAction != expected || !win.dialogOpen || win.dialogToken != qaConfirmToken)
+                throw std::runtime_error("No matching QA confirmation");
+            for (const auto& h : win.dialogHits) if (h.name == "confirm" && h.enabled && h.action) {
+                const auto act = h.action; qaPendingAction.clear(); act(); return State();
+            }
+            throw std::runtime_error("QA confirmation not built");
+        }
+        if (name.rfind("click:", 0) == 0) {
+            const auto control=name.substr(6);
+            const bool save=control=="craft_materials" || control=="craft_forge" || control=="craft_custom";
+            const bool view=control=="craft_custom_catalog" || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0;
+            if (!save && !view) throw std::runtime_error("Control not in QA allowlist");
+            if (win.dialogOpen || win.listOpen) throw std::runtime_error("Dismiss the current dialog first");
+            for(int id:win.pages[win.page].sections) if(!Sec(id).hidden) for(const auto& h:Sec(id).hits)
+                if(h.name==control && h.enabled && h.visible && h.action) {
+                    const auto act=h.action; qaLastCommand.clear(); qaLastReply.clear(); act();
+                    if(save && win.dialogOpen){qaPendingAction=control;qaConfirmToken=win.dialogToken;}
+                    return State();
+                }
+            throw std::runtime_error("Enabled QA control not built");
+        }
+        throw std::runtime_error("Unknown private UI QA action");
+    });
     if(action.rfind("fixture:",0)==0)return Run([action]{if(!view::Eligible()||!win.built)return std::string("{\"ok\":false,\"error\":\"test character not ready\"}");if(!HudFixture(action.substr(8)))return std::string("{\"ok\":false,\"error\":\"unknown UI fixture\"}");return State();});
     // Private UI tests may exercise local preferences, never arbitrary commands or Apply.
     if(action.rfind("local:",0)==0)return Run([action]{

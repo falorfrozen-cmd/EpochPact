@@ -4,15 +4,15 @@
 namespace ep::ingame::model {
 inline constexpr const char* kDamageTypes[]{"Physical","Fire","Cold","Lightning","Necrotic","Void","Poison"};
 inline bool DamageIconKey(const std::string& key) {
-    if (key.size() < 3 || key.size() > 40 || (key[0] != 'a' && key[0] != 'c') || key[1] != ':') return false;
-    int separators = 0, digits = 0;
-    for (size_t i=2; i<key.size(); ++i) {
-        const char c=key[i];
-        if (c==':' && key[0]=='c' && !separators && digits) { ++separators; digits=0; }
-        else if (c>='0' && c<='9') ++digits;
-        else return false;
-    }
-    return digits && separators == (key[0]=='c' ? 1 : 0);
+    // Same accepted keys as the desktop bridge: player skill IDs are strings
+    // (Ballista is ba1574), including the core's synthetic _<ability ID> keys.
+    if (key.rfind("a:",0)==0) return key.size()>=3 && key.size()<=34 &&
+        std::all_of(key.begin()+2,key.end(),[](unsigned char c){return (c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='_';});
+    if (key.rfind("c:",0)!=0)return false;
+    const auto colon=key.find(':',2);
+    if(colon==std::string::npos)return false;
+    const auto number=[](const std::string& s){return !s.empty()&&s.size()<=2&&s.find_first_not_of("0123456789")==std::string::npos;};
+    return number(key.substr(2,colon-2))&&number(key.substr(colon+1));
 }
 inline J FeedShown(const J& options) {
     J show=Object();

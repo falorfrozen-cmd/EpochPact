@@ -4,6 +4,12 @@ Continuation: see `ingame-port-completion-2026-10-20.md` for the implementation
 and measured verification after this handover. The remaining-work list below
 records the original handover state.
 
+Follow-up: `ingame-live-validation-2026-10-20.md` records the subsequently
+owner-authorized execution of the three Crafting save actions on disposable
+clones, their persistence after a normal restart, real resolutions, Echo focus,
+combat and the final production audit. This records that specific test
+authorization; it does not authorize edits to the owner's real characters.
+
 Written 2026-10-20 for the next developer. Read this first, then `docs/ingame-panel-2026-10-20.md`
 (what the window is) and `docs/ingame-port-map.md` (every desktop page, its HTML, CSS, commands and
 texts, which is the specification for the pages still to port).

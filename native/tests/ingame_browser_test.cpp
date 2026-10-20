@@ -69,8 +69,10 @@ int main(int argc, char**) {
     const auto loot=Parse(R"([{"kind":"gold","gold":10},{"kind":"gold","gold":20},{"kind":"item","rarity":"Unique","name":"Relic"}])");
     const auto rows=LootRows(loot,Object());assert(rows.items.size()==2&&rows.items[1]["gold"].Num()==30&&rows.items[1]["count"].Num()==2);
     assert(LootCategory(Parse(R"({"kind":"material","type":101})"))=="shard");
-    for (auto key : {"a:1","a:0","c:1:2"}) assert(DamageIconKey(key));
-    for (auto key : {"","a:","a:1:2","c:1","c:1:","c::1","a:1\nquit","a:-1"}) assert(!DamageIconKey(key));
+    for (auto key : {"a:1","a:0","a:ba1574","a:_379","c:1:2","c:99:99"}) assert(DamageIconKey(key));
+    for (auto key : {"","a:","a:1:2","c:1","c:1:","c::1","a:1\nquit","a:-1","c:100:0","c:a:1","a:../file"}) assert(!DamageIconKey(key));
+    assert(DamageIconKey("a:"+std::string(32,'x')));
+    assert(!DamageIconKey("a:"+std::string(33,'x')));
     auto visible=FeedShown(Parse(R"({"gold":false,"materials":false,"show":{"shard":true}})"));
     assert(!On(visible["gold"]) && !On(visible["rune"]) && On(visible["shard"]) && On(visible["normal"]));
     std::cout << "native browsers: complete snapshots, owner changes, LP, groups, filters and JSON passed\n";

@@ -2785,14 +2785,15 @@ std::string Test(const std::string& id,const std::string& action){
                 if(Value<bool>(Method(agent,"Warp",1),agent,wa)){start=Position(source);const double x=t.x-start.x,z=t.z-start.z;distance=x*x+z*z;}
             }
         }
-        Vec3 p=Position(nearest),direction{p.x-start.x,p.y-start.y,p.z-start.z};float length=std::sqrt(direction.x*direction.x+direction.y*direction.y+direction.z*direction.z);if(length>0){direction.x/=length;direction.y/=length;direction.z/=length;}
-        void* constructor=Get<void*>(source,F("Actor","abilityObjectConstructor"));float delay=0;int castType=1;bool mutate=true;
-        void* args[]{constructor,&p,&direction,&delay,&castType,&mutate,nullptr};Invoke(Method(ability.Get(),"CastAfterDelay",7),ability.Get(),args);
+        // CastAfterDelay takes two world points, not a target plus a direction.
+        // Match the normal cast and the ally-shoot fixture below.
+        Vec3 p=Position(nearest);
+        void* constructor=Get<void*>(source,F("Actor","abilityObjectConstructor"));float delay=0;int castType=1;bool onDeath=false;
+        void* args[]{constructor,&start,&p,&delay,&castType,&onDeath,nullptr};Invoke(Method(ability.Get(),"CastAfterDelay",7),ability.Get(),args);
         return "{\"ok\":true,\"requested\":true,\"ability\":"+Json(Text(Get<void*>(ability.Get(),F("Ability","abilityName"))))+",\"abilities\":"+std::to_string(abilities.size())
               +",\"constructor\":"+Boolean(constructor!=nullptr)+",\"distance\":"+std::to_string(std::sqrt(distance))+"}";
     }
-    // Ability.CastAfterDelay takes (constructor, cast point, target point, ...); the fixtures above pass a
-    // direction as the target point. The three below pass real points (turrets such as the Ballista).
+    // Cast fixtures for placing summons and aiming turrets at actual world points.
     const auto ownSummon=[&](size_t wanted)->void*{
         // The k-th own summon, counted as ally-attack-<k> counts them.
         void* tracker=Get<void*>(c.actor,F("Actor","summonTracker"));if(!tracker)throw std::runtime_error("Summon tracker unavailable.");size_t index=0;

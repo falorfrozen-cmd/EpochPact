@@ -44,7 +44,7 @@ def run(folder, loader):
             else:raise RuntimeError('Crafting tab population timed out')
             extra['craftingTabs'].append(tab)
         extra['privateCommandsRejected']=[]
-        for command in ('panel fixture:bars','panel local:profile-save'):
+        for command in ('panel fixture:bars','panel local:profile-save','panel qa:resolution','panel qa:confirm:craft_custom'):
             reply=json.loads(le.send(command,timeout=8,expected_process=process))
             if reply.get('ok'):raise RuntimeError('Private test command present in production: '+command)
             extra['privateCommandsRejected'].append(command)
@@ -57,7 +57,7 @@ def run(folder, loader):
         if extra['measurement'].get('drift'):raise RuntimeError('Unexpected text measurement drift')
         req('damagesession stop')
         (folder/'final-checks.json').write_text(json.dumps(extra,ensure_ascii=False,indent=2),encoding='utf-8')
-        print(json.dumps({'finalAudit':'passed','privateCommandsRejected':2,'craftingTabs':3,'inputAutomation':False}),flush=True)
+        print(json.dumps({'finalAudit':'passed','privateCommandsRejected':len(extra['privateCommandsRejected']),'craftingTabs':3,'inputAutomation':False}),flush=True)
     finally:
         manifest=folder/'session.json'
         if manifest.exists() and json.loads(manifest.read_text()).get('phase')!='restored':session.finish(folder)

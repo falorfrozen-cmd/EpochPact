@@ -5,6 +5,12 @@ The original handover and port map describe the starting state and specification
 This document records the resulting implementation and separates its test coverage.
 No public release, main-branch merge or Discord announcement is authorized by it.
 
+Latest results: [follow-up live verification](ingame-live-validation-2026-10-20.md).
+The three save actions and persistence, six real screen/text-size combinations,
+Echo focus and actual combat through the native damage window are now verified.
+That follow-up also fixes narrow damage tables and string skill-icon IDs. The
+current player build is 29, validated in production live run 21.
+
 ## Implemented
 
 | Area | Result |
@@ -91,14 +97,14 @@ Computer Use is needed for these runs.
 
 ## Explicit verification limits
 
-- Stock all materials, Craft once and Create custom item were **not executed**.
-  Earlier live tests exercised their confirmation and Cancel only. No report
-  claims a save-changing action succeeded when it was not run.
-- A real generated Echo-web focus/travel scenario was not exercised in these
-  camp-area tests. Native owner checks and read-only browsing were checked.
-- Hardware gamepad navigation, other physical resolutions and a fresh real
-  combat/DPS accuracy benchmark remain unverified. UI renderer fixture numbers
-  and automated desktop parity are separate evidence.
+- The original audit below used confirmation/Cancel only. The follow-up
+  [live verification](ingame-live-validation-2026-10-20.md) now executes all
+  three Crafting save actions, verifies persistence after a real restart,
+  exercises generated Echo focus, checks six actual resolution/text-size
+  combinations, and measures real combat through the native damage window.
+- Physical gamepad navigation remains unverified: no XInput controller was
+  attached. UI fixtures, live combat and automated desktop parity remain
+  separate evidence.
 - Earlier runs 1/3/4 ended in Unity accessibility shutdown with `0xC0000005`.
   Runs without the retained desktop automation client subsequently closed
   normally. This is correlation, not a universal crash fix claim.
@@ -124,7 +130,7 @@ For unit tests, set `EPOCHPACT_NATIVE_TESTS` to the completed native build,
 `EPOCHPACT_PREFERENCES` to a throwaway preferences file. Never package the
 `player-ui-test` DLL or run save-writing tests on the owner's character.
 
-## Final audit — passed
+## Original audit — passed
 
 - Production: `ingame-chatgpt-player-16`, live run **12**.
 - Private renderer: `ingame-chatgpt-ui-test-17`, live run **11**. This DLL is not
@@ -151,13 +157,13 @@ For unit tests, set `EPOCHPACT_NATIVE_TESTS` to the completed native build,
 
 Machine-readable results: `ingame-port-verification-2026-10-20.json`.
 
-Local player package:
-`C:\Users\falor\EpochPactLab\builds\ingame-chatgpt-player-16\package\EpochPact-0.1.2-dev.36-InGame.zip`
+Latest local player package (follow-up production run 21 passed):
+`C:\Users\falor\EpochPactLab\builds\ingame-chatgpt-player-29\package\EpochPact-0.1.2-dev.36-InGame.zip`
 
-- ZIP: 3,417,835 bytes, eight allowlisted files, one runtime (`version.dll`).
-- ZIP SHA-256: `74a85cdada2497add1ce59def1680d4e16e00609f9abbfc07ef6116afefc2745`.
-- DLL: 7,870,976 bytes.
-- DLL SHA-256: `a5843a38f3a97edf0ef2e202fdccf5d8f1e0a8c2616f07242b960e10ecf249bf`.
+- ZIP: 3,419,427 bytes, eight allowlisted files, one runtime (`version.dll`).
+- ZIP SHA-256: `f4730b2d5735b9f1507042af878bfea91d1ce4f9288f9175961fbb28d580df2e`.
+- DLL: 7,872,512 bytes.
+- DLL SHA-256: `0639bf44cb00a078661da1ff9def81df71e4fbd24d7b47275e94de1b163e8d8c`.
 - All archived payload bytes match the manifest and verified source files.
 
 No public release was created. The owner's original installed runtime is restored;

@@ -52,8 +52,32 @@ def reply(command):
     return json.loads(text)
 
 
-def start(folder, loader, *, hud_running=False):
+def select_clone(name):
+    """CharacterSelect state precedes tile loading: wait for the exact tile too."""
+    offline_requested=False
+    def selection():
+        nonlocal offline_requested
+        current=reply('sessionread')
+        if current.get('state')=='Login' and not current.get('transitioning') and not offline_requested:
+            response=le.send('playoffline',timeout=8,expected_process=PROCESS)
+            offline_requested='OnPlayOfflineClicked called' in (response or '')
+        return current.get('state')=='CharacterSelect' and not current.get('transitioning')
+    wait(selection,240,'Character selection')
+    def tile():
+        response=le.send('characters',timeout=8,expected_process=PROCESS) or ''
+        matches=[line for line in response.splitlines() if line.startswith(name+' level=')]
+        if len(matches)>1:raise UnsafeTestState('Ambiguous disposable character tile.')
+        return response if response.startswith('offline characters:') and len(matches)==1 else None
+    wait(tile,180,'Disposable character tile loading')
+    response=le.send('loadname '+name,timeout=90,expected_process=PROCESS) or ''
+    if not response.startswith('loadname: normal tile double-click requested for '+name+' '):
+        raise UnsafeTestState('Clone load was not acknowledged: '+response)
+
+
+def start(folder, loader, *, hud_running=False, test_name="EpFeedbackTest", save_tests=False, hud_options=None):
     global PROCESS
+    if test_name not in ("EpFeedbackTest", "EpCraftTest"):
+        raise UnsafeTestState("Only the explicitly named disposable UI clones are supported.")
     if le.game_pids():
         raise RuntimeError("Last Epoch is already running; the owner's process is not a test session.")
     path = folder / "session.json"
@@ -66,7 +90,7 @@ def start(folder, loader, *, hud_running=False):
     backup.mkdir(exist_ok=True)
     real = Path(os.environ["LOCALAPPDATA"]) / "EpochPact/preferences.json"
     records = []
-    for relative in ("version.dll", "EpochPact/EpochPact.Core.dll", "EpochPact/installed-build.json"):
+    for relative in ("version.dll", "EpochPact/EpochPact.Core.dll", "EpochPact/installed-build.json", "EpochPact/workshop-recipes.txt"):
         target = game / relative
         if target.is_symlink():
             raise RuntimeError("Runtime links are not supported by this test helper.")
@@ -80,8 +104,8 @@ def start(folder, loader, *, hud_running=False):
              "loaderHash": digest(loader), "pid": None}
     write(path, state)
     saves.MANIFEST = le.OUT / "ingame-chatgpt-test-manifest.json"
-    manifest = saves.prepare("EpFeedbackTest")
-    state.update(phase="prepared", cloneId=manifest["id"], cloneName="EpFeedbackTest")
+    manifest = saves.prepare(test_name)
+    state.update(phase="prepared", cloneId=manifest["id"], cloneName=test_name)
     write(path, state)
     # The embedded player loader replaces the standalone core for this test only.
     core = game / "EpochPact/EpochPact.Core.dll"
@@ -97,16 +121,23 @@ def start(folder, loader, *, hud_running=False):
         shutil.copyfile(real, prefs)
     else:
         prefs.write_text('{"version":1,"values":{}}', encoding="utf-8")
+    data=json.loads(prefs.read_text(encoding='utf-8')); values=data.setdefault('values',{})
+    # The owner's startup profile can enable travel/auto-pickup. Tests start neutral,
+    # and never change the original preference file.
+    values['epochpact.startup-profile.live'] = json.dumps('__off__')
+    options=json.loads(values.get('epochpact.damage-window.v1','{}'))
+    if hud_options:options.update(hud_options)
+    options['running']=hud_running
+    values['epochpact.damage-window.v1']=json.dumps(options)
     if hud_running:
-        data=json.loads(prefs.read_text(encoding='utf-8')); values=data.setdefault('values',{})
         windows=json.loads(values.get('epochpact.windows.v1','{}'))
         for name in ('damage','feed'):
             entry=windows.setdefault(name,{}); entry['open']=True
-        options=json.loads(values.get('epochpact.damage-window.v1','{}'));options['running']=True
         values['epochpact.windows.v1']=json.dumps(windows)
-        values['epochpact.damage-window.v1']=json.dumps(options)
-        prefs.write_text(json.dumps(data),encoding='utf-8')
+    prefs.write_text(json.dumps(data),encoding='utf-8')
     os.environ["EPOCHPACT_PREFERENCES"] = str(prefs)
+    os.environ["EPOCHPACT_TEST_SAVE_ID"] = state["cloneId"]
+    os.environ["EPOCHPACT_ALLOW_SAVE_TESTS"] = "1" if save_tests else "0"
     state["phase"] = "installed"
     write(path, state)
     if le.cmd_launch(argparse.Namespace(offline=True)):
@@ -123,17 +154,11 @@ def start(folder, loader, *, hud_running=False):
     write(path, state)
     print(json.dumps({"phase": "running", "pid": state["pid"]}), flush=True)
     wait(lambda: reply("connectionping").get("ok"), 180, "Core startup")
-    def character_select():
-        current = reply("sessionread")
-        if current.get("state") == "Login" and not current.get("transitioning"):
-            le.send("playoffline", timeout=8, expected_process=PROCESS)
-        return current.get("state") == "CharacterSelect" and not current.get("transitioning")
-    wait(character_select, 240, "Character selection")
-    le.send(f"loadname EpFeedbackTest {manifest['originalCharacter'].get('level') or 1}", timeout=90, expected_process=PROCESS)
+    select_clone(test_name)
     def loaded():
         identity = reply("identityread")
         player = identity.get("player") or {}
-        if identity.get("offline") and player.get("name") != "EpFeedbackTest":
+        if identity.get("offline") and player.get("name") != test_name:
             raise UnsafeTestState("Unexpected loaded character; do not run UI tests.")
         return identity if identity.get("offline") and str(player.get("id")) == state["cloneId"] else None
     identity = wait(loaded, 300, "Isolated character")
@@ -143,6 +168,37 @@ def start(folder, loader, *, hud_running=False):
     state["panelBuilt"] = {k: panel.get(k) for k in ("built", "page", "faults", "error", "timing")}
     write(path, state)
     print(json.dumps(state["panelBuilt"]), flush=True)
+
+
+def restart(folder):
+    """Reload the same disposable save from disk; keep the restoration anchor intact."""
+    global PROCESS
+    path=folder/'session.json'; state=json.loads(path.read_text())
+    if state['phase']!='running' or le.game_pids()!=[state['pid']] or le.process_identity(state['pid'])!=state['process']:
+        raise UnsafeTestState('Only the owned, unchanged test process can be restarted.')
+    code=le.cmd_close(argparse.Namespace(timeout=120))
+    state.setdefault('restartCloseCodes',[]).append(code); write(path,state)
+    if le.game_pids() or code:
+        raise UnsafeTestState('The test did not close normally; restore before any further test.')
+    prefs=folder/'preferences.json'
+    os.environ['EPOCHPACT_PREFERENCES']=str(prefs)
+    os.environ['EPOCHPACT_TEST_SAVE_ID']=state['cloneId']
+    if le.cmd_launch(argparse.Namespace(offline=True)):
+        raise RuntimeError('Test restart launch failed.')
+    pids=le.game_pids()
+    if len(pids)!=1:raise UnsafeTestState('Expected one restarted test process.')
+    state['pid']=pids[0]; PROCESS=le.process_identity(pids[0]);state['process']=PROCESS;write(path,state)
+    if not PROCESS:raise UnsafeTestState('Cannot verify restarted test process.')
+    wait(lambda:reply('connectionping').get('ok'),180,'Restart core startup')
+    select_clone(state['cloneName'])
+    def loaded():
+        value=reply('identityread'); player=value.get('player') or {}
+        if value.get('offline') and (player.get('name')!=state['cloneName'] or str(player.get('id'))!=state['cloneId']):
+            raise UnsafeTestState('Unexpected character after restart.')
+        return value if value.get('offline') else None
+    state['identityAfterRestart']=wait(loaded,300,'Reload disposable character')
+    wait(lambda:(lambda r:r if r.get('built') and not r.get('jobs') else None)(reply('panel read')),180,'Restart UI build')
+    write(path,state)
 
 
 def finish(folder):
@@ -173,7 +229,7 @@ def finish(folder):
     saves.MANIFEST = le.OUT / "ingame-chatgpt-test-manifest.json"
     if state.get("cloneId"):
         manifest = json.loads(saves.MANIFEST.read_text())
-        if manifest["id"] != state["cloneId"] or manifest["testName"] != "EpFeedbackTest":
+        if manifest["id"] != state["cloneId"] or manifest["testName"] != state.get("cloneName", "EpFeedbackTest"):
             raise RuntimeError("Another save test owns the manifest; refusing restore.")
         state["savesRestored"] = saves.restore()
     for record in state["records"]:
