@@ -46,14 +46,17 @@ if "%~1"=="loader" goto :done
 echo [2/3] core (EpochPact.Core.dll)
 rem EPOCHPACT_RESEARCH: the metadata dump, capture hooks and research commands (not for players).
 ml64 /nologo /c /Fo"%OUT%\stat_thunk.obj" "%HERE%core\stat_thunk.asm" || exit /b 1
-set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread lifecycle xp loot density items smart_loot crafting workshop map_view collection player stat_editor progression monolith factions cof cof_tuning build_controls convenience inventory_tools rage weaver item_tiers stash_rules fonts report effects ingame_panel commands research"
+set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread lifecycle xp loot density items smart_loot crafting workshop map_view collection player stat_editor progression monolith factions cof cof_tuning build_controls convenience inventory_tools rage weaver item_tiers stash_rules fonts report effects ingame_panel ingame_assets commands research"
 set "CORE_CPP="
 set "CORE_OBJ="
 for %%f in (%CORE_SRC%) do call set "CORE_CPP=%%CORE_CPP%% "%CORE%\%%f.cpp""
 for %%f in (%CORE_SRC%) do call set "CORE_OBJ=%%CORE_OBJ%% "%OUT%\%%f.obj""
 cl %CFLAGS% /EHa %CORE_FLAGS% /c /Fo"%OUT%\\" %CORE_CPP% || exit /b 1
 rc /nologo /fo"%OUT%\core.res" "%HERE%core\core.rc" || exit /b 1
-link /nologo /DLL /OUT:"%OUT%\EpochPact.Core.dll" %CORE_OBJ% "%OUT%\stat_thunk.obj" "%OUT%\core.res" kernel32.lib user32.lib psapi.lib || exit /b 1
+rem The in-game window's data, images and fonts (tools/build_ingame_assets.py), embedded as RCDATA.
+py -3 "%HERE%..\tools\build_ingame_assets.py" --out "%OUT%\ingame" || exit /b 1
+rc /nologo /fo"%OUT%\ingame.res" "%OUT%\ingame\ingame.rc" || exit /b 1
+link /nologo /DLL /OUT:"%OUT%\EpochPact.Core.dll" %CORE_OBJ% "%OUT%\stat_thunk.obj" "%OUT%\core.res" "%OUT%\ingame.res" kernel32.lib user32.lib psapi.lib || exit /b 1
 if "%FLAVOR%"=="player" call :merged_loader || exit /b 1
 py -3 "%HERE%..\tools\stamp_build.py" %FLAVOR% --build-dir "%OUT%" || exit /b 1
 if "%~1"=="core" goto :done
@@ -91,7 +94,7 @@ cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\cof_test.exe" "%HERE%tests\cof_te
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\loot_crafting_test.exe" "%HERE%tests\loot_crafting_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\weaver_rules_test.exe" "%HERE%tests\weaver_rules_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\rage_rules_test.exe" "%HERE%tests\rage_rules_test.cpp" || exit /b 1
-cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\ingame_rules_test.exe" "%HERE%tests\ingame_rules_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\ingame_json_test.exe" "%HERE%tests\ingame_json_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\review_test.exe" "%HERE%tests\review_test.cpp" || exit /b 1
 cl %CFLAGS% /EHa /c /Fo"%OUT%\tests\\" "%HERE%tests\mainthread_test.cpp" "%CORE%\mainthread.cpp" || exit /b 1
 link /nologo /OUT:"%OUT%\mainthread_test.exe" "%OUT%\tests\mainthread_test.obj" "%OUT%\tests\mainthread.obj" "%OUT%\tests\x64_decode.obj" "%OUT%\tests\hook.obj" kernel32.lib || exit /b 1
@@ -116,7 +119,7 @@ cl %CFLAGS% /EHa %CORE_FLAGS% /DEPOCHPACT_MERGED_LOADER /c /Fo"%MERGED_DIR%\core
 rc /nologo /fo"%MERGED_DIR%\version.res" "%HERE%proxy\version.rc" || exit /b 1
 set "MERGED_OBJ="
 for %%f in (%CORE_SRC%) do if /i not "%%f"=="core" call set "MERGED_OBJ=%%MERGED_OBJ%% "%OUT%\%%f.obj""
-link /nologo /DLL /OUT:"%OUT%\player\version.dll" /IMPLIB:"%MERGED_DIR%\version.lib" /DEF:"%HERE%proxy\version.def" "%MERGED_DIR%\version_thunks.obj" "%MERGED_DIR%\version_proxy.obj" "%MERGED_DIR%\core.obj" %MERGED_OBJ% "%OUT%\stat_thunk.obj" "%MERGED_DIR%\version.res" kernel32.lib user32.lib psapi.lib || exit /b 1
+link /nologo /DLL /OUT:"%OUT%\player\version.dll" /IMPLIB:"%MERGED_DIR%\version.lib" /DEF:"%HERE%proxy\version.def" "%MERGED_DIR%\version_thunks.obj" "%MERGED_DIR%\version_proxy.obj" "%MERGED_DIR%\core.obj" %MERGED_OBJ% "%OUT%\stat_thunk.obj" "%MERGED_DIR%\version.res" "%OUT%\ingame.res" kernel32.lib user32.lib psapi.lib || exit /b 1
 exit /b 0
 
 :done
