@@ -1,74 +1,69 @@
-# EpochPact — In-game UI {{VERSION}}
+# EpochPact {{VERSION}} — in-game edition
 
-Private review build for Windows x64 / **Last Epoch 1.5.2.1, offline only**.
-The tested GameAssembly.dll build is listed in supported-game-builds.json.
+Unofficial offline mod for **Last Epoch 1.5.2.1** (Windows x64, **offline play only**).
+The supported game build is listed in supported-game-builds.json.
 
-This package contains one runtime file: **version.dll**. The EpochPact core,
-interface, images and fonts are embedded in it. No Python, desktop EXE,
-WebView2, MelonLoader or separate EpochPact.Core.dll is required for this route.
+The whole mod is one file: **version.dll**. The EpochPact core, its interface,
+images and fonts are inside it. You do not need Python, the desktop EXE,
+WebView2, MelonLoader or a separate EpochPact.Core.dll. Press **F6** in the game.
 
-## Install or update
+## Install or update (manual)
 
-1. Close Last Epoch and the EpochPact desktop app normally.
-2. Back up your offline saves and the current mod files before updating.
-3. Open the folder containing **Last Epoch.exe** (Steam: Manage → Browse local files).
-4. If that folder already has a version.dll, keep a copy outside the game folder.
-   Do not replace an unrelated loader without checking which mod owns it.
-5. Copy this package's **version.dll** beside **Last Epoch.exe**.
-   An older EpochPact/EpochPact.Core.dll is not used by this merged loader.
-6. Launch Last Epoch in its offline mode and enter an offline character's area.
+1. Close Last Epoch (and the EpochPact desktop app, if you used it before).
+2. Back up your offline saves before updating any mod.
+3. Open the folder that contains **Last Epoch.exe**
+   (Steam: right-click Last Epoch → Manage → Browse local files).
+4. If that folder already has a **version.dll** from another mod, keep a copy of it
+   somewhere else first; only one version.dll can be in the folder.
+5. Copy this package's **version.dll** next to **Last Epoch.exe**
+   (replace an older EpochPact version.dll if asked).
+   A leftover EpochPact\EpochPact.Core.dll from an older version is not used.
+6. Start Last Epoch, choose offline play and load your offline character.
 7. Press **F6** to open or close EpochPact.
 
-The in-game route does not install the optional MelonLoader bridge. Compatibility
-with arbitrary other loaders/mods has not been certified for this review build.
-Keep the desktop app closed while testing this route so that two interfaces do
-not both apply a startup profile.
+## Using it
 
-## Controls
+- F6 opens and closes the window. The search box finds settings on every page.
+- Settings that say "Changes apply automatically" apply right away; panels that
+  say "Use Apply changes below" wait for the Apply changes button.
+- Actions that change your save (stocking materials, crafting, custom items,
+  quests, Monolith, Circle of Fortune) ask first and make a recovery backup.
+  Read the description before you confirm.
+- The damage window and recent pickups can stay on screen while the main window
+  is closed: open them from their pages, drag the title, resize from the corner,
+  use the gear for options.
+- Settings has the language, saved profiles, what to apply at startup, text
+  size, navigation, hidden parts and a support report.
+- Loot filters: import an XML or ZIP by its full path; imports create new files
+  and never overwrite your filters. Backups and exports are kept in the local
+  EpochPact folder.
+- Use either the in-game window or the desktop app, not both at once: both
+  would apply your startup profile.
 
-- F6: open/close the main interface. Search finds settings across pages.
-- Scroll inside the interface, long dialogs or independent HUD windows.
-- Changes marked automatic apply after editing; draft panels use Apply changes.
-- Save-changing actions have their own confirmation. Read the description first.
-- Open Damage / Recent pickups from the corresponding page. These HUDs remain
-  visible while the main interface is closed. Drag their title area, resize the
-  lower-right grip, use the gear for display options, and − to hide them.
-- Settings contains language, local profiles, startup behaviour, text size,
-  navigation favorites, hidden parts and the support report.
-- Gamepad focus navigation is implemented but has not been hardware validated.
+## Uninstall
 
-The Game setup page describes the running installation; selecting or installing
-an executable is a desktop operation. Restore a save backup only with the game
-closed. No save restore runs when opening this interface.
+Close the game normally and delete **the EpochPact version.dll** from the game
+folder (or put back the version.dll you saved in step 4). Your saves and other
+mods stay. Removing the mod does not undo save changes you already confirmed;
+use the recovery backup or your own backup for that.
 
-Loot filter import accepts a full XML/ZIP path. Imports create new files and do
-not overwrite existing filters. Backups and exports are under the local
-EpochPact folder; ZIP imports accept only top-level filter XML files.
+## Good to know
 
-## Uninstall / roll back
+- Offline only. EpochPact does nothing in online play.
+- Gamepad navigation is included but has not been tested with a physical
+  controller yet.
+- runtime-manifest.json and SHA256SUMS.txt list the size and SHA-256 of every
+  file in this package, so you can check your download.
 
-Close the game normally. Remove **only the EpochPact version.dll you installed**,
-or restore the previous version.dll you backed up. Keep unrelated mods, saves
-and preferences. Removing the DLL does not undo permanent save changes already
-confirmed in the UI; use your backup if you need to undo those changes.
+## Support
 
-## Verification and support
+Discord: https://discord.gg/q6aexZZSAf
+Project: https://github.com/falorfrozen-cmd/EpochPact
 
-runtime-manifest.json records every packaged file's size and SHA-256.
-SHA256SUMS.txt also covers that manifest. This is a local review package,
-not a public release or an antivirus clearance claim.
+When you report a problem, include the EpochPact version, the Last Epoch version,
+where you were in the game, what you did, the error text and a screenshot. The
+support report (Settings) can contain local paths and character names: look at it
+before you share it.
 
-The test report distinguishes game reads, UI renderer fixtures, and save actions
-which were not executed. New read-only screens being tested successfully does
-not prove every possible build/crafting combination works.
-
-Support: https://discord.gg/q6aexZZSAf
-
-Public project: https://github.com/falorfrozen-cmd/EpochPact
-
-Report the EpochPact version, Last Epoch version, install method, offline area,
-the exact action, error text and a screenshot. A support report may contain
-local paths and character names; inspect it before sharing.
-
-Unofficial community mod by Falor. No Last Epoch game files, saves, SDKs, tests
-or private logs are included. See the included distribution and third-party notices.
+Unofficial community mod by Falor; not made by Eleventh Hour Games. No game
+files, saves or SDKs are included. See the distribution and third-party notices.

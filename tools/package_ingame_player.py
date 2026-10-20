@@ -1,4 +1,4 @@
-"""Allowlisted single-DLL in-game review package; never uploads or installs anything."""
+"""Allowlisted single-DLL in-game player package; never uploads or installs anything."""
 from __future__ import annotations
 import argparse
 import json
@@ -39,7 +39,7 @@ def package(build: Path, output: Path):
     payload = {name: path.read_bytes() for name, path in files.items()}
     payload['README.md'] = payload['README.md'].replace(b'{{VERSION}}', version.encode('ascii'))
     payload['THIRD-PARTY-NOTICES.txt'] = notice.encode('utf-8')
-    manifest = dict(version=version, kind='In-game UI review', runtime=['version.dll'],
+    manifest = dict(version=version, kind='In-game edition', runtime=['version.dll'],
                     files=[dict(path=n, bytes=len(d), sha256=sha(d)) for n, d in sorted(payload.items())])
     payload['runtime-manifest.json'] = (json.dumps(manifest, indent=2) + '\n').encode()
     payload['SHA256SUMS.txt'] = ''.join(f'{sha(d)}  {n}\n' for n, d in sorted(payload.items())).encode()
