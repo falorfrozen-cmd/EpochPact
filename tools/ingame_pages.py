@@ -137,6 +137,9 @@ def sections(page, controls, counts):
         return [settings("General game settings", general_ids(controls)),
                 settings("Weaver's Will", WEAVER_SETTINGS, text=WEAVER_TEXT, head="refresh", tail="weaver_affixes",
                          tail_controls=["weaver_affixes"])]
+    if page == "stats":
+        return [native("stats_filters", controls=["stat_reset", "sheet_row", "stat_alias", "raw_stat"], group="stats"),
+                native("stats_results", group="stats")]
     if page == "loot":
         return [settings("Automatic collection", ["autopickup", "pickup_radius", "pickup_interval"]),
                 native("recent_pickups", controls=["loot_log", "loot_log_clear"]), native("collect_now", controls=["pickup_now"]),

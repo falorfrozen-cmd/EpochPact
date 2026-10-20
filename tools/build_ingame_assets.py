@@ -477,6 +477,9 @@ def build_data():
     # the names the Custom Items workshop builds its extra effects' names from (workshopModifierEntries)
     stats = catalog["characterStats"]
     data["characterStats"] = {k: [{"id": x["id"], "name": x["name"]} for x in stats[k]] for k in ("properties", "tags", "ailments")}
+    # Browser names, keys, units and bounds come from the same stat-model.js the app uses.
+    result = subprocess.run(["node", str(ROOT / "tools/ingame_stat_catalog.js")], capture_output=True, check=True)
+    data["statBrowser"] = json.loads(result.stdout.decode("utf-8"))
     data["appVersion"] = re.search(r'#define EP_VERSION_STR "([^"]+)"', (ROOT / "native/version_info.h").read_text(encoding="utf-8"))[1]
     data["i18n"] = translations(data)
     # every character the window's texts use in each language: the fonts' atlases are filled with
@@ -516,6 +519,9 @@ def texts_of(data):
     for c in data["controls"].values():
         texts |= {c["label"], c["description"], c["unit"].strip(), c.get("defaultText", ""), *c.get("choiceLabels", [])}
     texts |= native_texts()
+    for rows in data.get("statBrowser", {}).values():
+        for row in rows:
+            texts |= {row["name"], row["category"], *row["shared"]}
     return sorted(t for t in texts if t)
 
 
@@ -602,6 +608,7 @@ def build(out: Path):
     save("main.png", main_background(), optimize=True)
     slices = {}
     for name, (radius, fill) in {"frame-r0": (0, False), "frame-r2": (2, False), "frame-r3": (3, False), "frame-r4": (4, False),
+                                 "frame-r5": (5, False), "frame-r6": (6, False), "fill-r5": (5, True), "fill-r6": (6, True),
                                  "frame-r12": (12, False), "fill-r2": (2, True), "fill-r3": (3, True), "fill-r4": (4, True),
                                  "fill-r6": (6, True), "fill-r12": (12, True)}.items():
         image, edge = frame_sprite(radius, fill=fill)

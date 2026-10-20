@@ -142,10 +142,11 @@ class BuiltDataTests(unittest.TestCase):
 
     def test_every_image_the_window_draws_exists(self):
         files = set(self.data["files"])
-        named = set(re.findall(r'"([\w-]+\.(?:png|jpg))"', NATIVE))
+        native = "".join(path.read_text(encoding="utf-8") for path in (ROOT / "native/core").glob("ingame_*.cpp"))
+        named = set(re.findall(r'"([\w-]+\.(?:png|jpg))"', native))
         named |= {f"icon-{c['icon']}.png" for c in self.data["controls"].values()}
-        named |= {f"fill-r{r}.png" for r in re.findall(r'Fill\([^;]*?, (\d+)\)', NATIVE) if r != "0"}
-        named |= {f"frame-r{r}.png" for r in re.findall(r'Outline\([^;]*?, (\d+)\)', NATIVE)} | {"frame-r0.png"}
+        named |= {f"fill-r{r}.png" for r in re.findall(r'Fill\([^;]*?, (\d+)\)', native) if r != "0"}
+        named |= {f"frame-r{r}.png" for r in re.findall(r'Outline\([^;]*?, (\d+)\)', native)} | {"frame-r0.png"}
         self.assertFalse(named - files, f"missing images: {sorted(named - files)}")
         for name in files:
             if name.startswith(("frame-", "fill-", "band-")):

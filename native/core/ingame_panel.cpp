@@ -146,6 +146,8 @@ struct Window {
     std::vector<Watched> inputs;
     int page = 0, applyHit = -1, discardHit = -1;
     bool built = false, shown = false, dialogOpen = false, listOpen = false;
+    float dialogX = 0, dialogY = 0;
+    uint64_t dialogToken = 0;
     bool parked = false;  // the root canvas stays on, drawn on a display nobody uses while closed
     bool heroCompact = false;
     std::function<void(float)> popupWheel;  // the open list scrolls (a long one)
@@ -1681,7 +1683,10 @@ HitRef Under(float px, float py) {
             if (Inside(list, (*hits)[i], px, py)) return {list, static_cast<int>(i)};
         return {kFixed, -1};
     };
-    if (win.dialogOpen) return search(kDialog);
+    if (win.dialogOpen) {
+        if (win.listOpen) { const HitRef r = search(kPopup); if (r.index >= 0) return r; }
+        return search(kDialog);
+    }
     for (int list : {kPopup, kFixed}) {
         const HitRef r = search(list);
         if (r.index >= 0) return r;
@@ -1743,7 +1748,7 @@ void Input(float dt) {
     }
     mouseDown = down;
     // the wheel: 100 px a notch, eased like the browser's smooth scrolling
-    const float wheel = inside && !win.dialogOpen ? WheelDelta() : 0;
+    const float wheel = inside && (!win.dialogOpen || win.listOpen) ? WheelDelta() : 0;
     if (wheel != 0 && win.listOpen && win.popupWheel) win.popupWheel(wheel);
     if (wheel != 0 && !win.listOpen) {
         // a list box under the pointer scrolls itself, not the page
@@ -1892,7 +1897,6 @@ std::string ReadLanguage() {
     const JValue v = Preference("epochpact.language");
     return v.IsString() && (v.text == "tr" || v.text == "ru") ? v.text : "en";
 }
-void CloseDialog();
 // Closed, the window's canvas renders to display 8, which the game never uses: switching a canvas
 // off and on makes Unity batch every graphic again (a 15-30 ms frame), a display change does not.
 // Its raycaster is off meanwhile, so it never takes a click.
@@ -1920,6 +1924,7 @@ void Show(bool open) {
         timing.openMs = Ms() - start;
     } else {
         CloseList();
+        CloseDialog();
         ClearHover();
         ReleaseKeyboard();
         if (win.parked) {
@@ -2152,8 +2157,11 @@ void Watch() {
         Sleep(15);
         const int vk = hotkey.load();
         if (!vk) { down = false; continue; }
-        const bool now = (GetAsyncKeyState(vk) & 0x8000) != 0;
-        if (now && !down && GameInFront()) toggleRequested = true;
+        const SHORT keyState = GetAsyncKeyState(vk);
+        const bool now = (keyState & 0x8000) != 0;
+        // A very short press may begin and end during this 15ms poll interval. The low-bit
+        // latch is a best-effort fallback; the held-key edge remains authoritative.
+        if ((now || (keyState & 1)) && !down && GameInFront()) toggleRequested = true;
         down = now;
     }
 }
@@ -2695,6 +2703,10 @@ void Toast(const std::string& text, bool error) {
 }
 void CloseDialog() {
     if (!win.dialogOpen) return;
+    CloseList();
+    ReleaseKeyboard(kCustomDialogSection);
+    win.inputs.erase(std::remove_if(win.inputs.begin(), win.inputs.end(), [](const Watched& w) { return w.section == kCustomDialogSection; }), win.inputs.end());
+    ++win.dialogToken;
     win.dialogOpen = false;
     if (hovered.list == kDialog) ClearHover();
     win.dialogHits.clear();
@@ -2746,6 +2758,28 @@ void Confirm(const std::string& title, const std::string& message, Action yes) {
     closeHit.area = Area::Dialog;
     win.dialogHits.push_back(std::move(closeHit));
     win.dialogOpen = true;
+}
+uint64_t DialogToken() { return win.dialogToken; }
+void ShowCustomDialog(float width, const DialogDraw& draw) {
+    CloseList();
+    CloseDialog();
+    ++win.dialogToken;
+    void* layer = OpenLayer(win.dialog);
+    Solid(layer, "Backdrop", 0, 0, kW, kH, Hex("#000000aa"));
+    const float w = std::clamp(width, 260.f, kW - 40);
+    Node box = New("Custom dialog", layer, (kW - w) / 2, 20, w, 10);
+    void* bg = Fill(box.rt, "Background", 0, 0, w, 10, C("panel"), 6);
+    void* frame = Outline(box.rt, "Border", 0, 0, w, 10, C("gold"), 6);
+    win.dialogOpen = true;
+    Ctx c{&win.dialogHits, Area::Dialog, box.rt, 0, 0, kCustomDialogSection};
+    const float h = draw(c, w);
+    win.dialogX = (kW - w) / 2;
+    win.dialogY = std::max(16.f, (kH - h) / 2);
+    Resize(box.rt, w, h);
+    Resize(TransformOf(bg), w, h);
+    Resize(TransformOf(frame), w, h);
+    Move(box.rt, win.dialogX, win.dialogY);
+    for (auto& hit : win.dialogHits) { hit.x += win.dialogX; hit.y += win.dialogY; }
 }
 // #result-dialog (players see it for the prophecy preview): the head, p.note, then
 // dl.result-summary (grid: minmax(80px, .35fr) 1fr, gap 1rem, margin 1.5rem 0; dt #aebdb7).
@@ -2803,6 +2837,8 @@ void CloseList() {
 void OpenList(float x, float y, float w, float h, const std::vector<std::string>& labels, int current, std::function<void(int)> chosen) {
     CloseList();
     void* rt = OpenLayer(win.popup);
+    // A select inside a modal must paint above that modal as well as receive its clicks.
+    Invoke(U("Transform", "SetAsLastSibling", 0), win.popup.Get());
     const float rowH = 28;
     const int total = static_cast<int>(labels.size());
     const int room = std::max(1, static_cast<int>((kH - 4 - 2) / rowH));
@@ -2966,6 +3002,9 @@ bool WindowPoint(const Ctx& c, float x, float y, float* wx, float* wy) {
     } else if (c.area == Area::Sidebar) {
         *wx += 1;
         *wy += 1 - win.sideScroll;
+    } else if (c.area == Area::Dialog && c.section == kCustomDialogSection) {
+        *wx += win.dialogX;
+        *wy += win.dialogY;
     }
     return true;
 }
@@ -3150,6 +3189,7 @@ std::string SetKey(const std::string& key) {
 
 // Runtime shutdown has already stopped frames. Do not call Unity Destroy here.
 void ReleaseRoots() {
+    view::ReleaseStatRoots();
     win = Window{};
     cache.clear();
     ui::ReleaseTypes();

@@ -100,6 +100,8 @@ void RegisterCofSections();              // ingame_cof.cpp
 void RegisterMonolithSections();         // ingame_monolith.cpp
 void RegisterCraftSections();            // ingame_craft.cpp
 void RegisterWorkshopSections();         // ingame_workshop.cpp
+void RegisterStatSections();             // ingame_stats.cpp
+void ReleaseStatRoots();                 // before IL2CPP shutdown, not static DLL destruction
 std::string WorkshopState();             // for "panel read": the Custom Items draft
 std::string SectionsState();             // for "panel read": the pickers' choices, the pickups kept
 Section* FindSection(int id);
@@ -204,6 +206,12 @@ bool FormCommand(const Control& ctl, std::string* line, std::string* error, cons
 // ------------------------------------------------------------------------------ overlays
 void Toast(const std::string& text, bool error = false);
 void Confirm(const std::string& title, const std::string& message, Action yes);
+// Custom modal inputs have their own watched-input owner, released on every close/rebuild.
+inline constexpr int kCustomDialogSection = -4;
+void CloseDialog();
+using DialogDraw = std::function<float(const Ctx&, float width)>;
+void ShowCustomDialog(float width, const DialogDraw& draw);
+uint64_t DialogToken();                  // invalidates asynchronous replies when closed/replaced
 // #result-dialog: a note and a summary (dt/dd rows), closed with ×.
 void ShowResult(const std::string& title, const std::string& note, const std::vector<std::pair<std::string, std::string>>& rows);
 // A list below (or above) a window-coords box, like the browser's select popup.

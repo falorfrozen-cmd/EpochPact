@@ -1000,6 +1000,7 @@ void RegisterNativeSections() {
     RegisterMonolithSections();
     RegisterCraftSections();
     RegisterWorkshopSections();
+    RegisterStatSections();
     RegisterSection("cached_summary", MakeCachedSummary);
     RegisterSection("skill_budgets", MakeSkillBudgets);
     RegisterSection("free_respec", MakeFreeRespec);
