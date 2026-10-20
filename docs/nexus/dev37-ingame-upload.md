@@ -15,6 +15,10 @@ EpochPact 0.1.2-dev.37 — in-game edition (manual install, one file)
 One file, no installer and no EXE: copy version.dll next to Last Epoch.exe and press F6
 in game. Last Epoch 1.5.2.1, offline play only. Back up your offline saves first.
 
+- Only for Last Epoch 1.5.2.1. After a game update, wait for a new EpochPact version.
+- MelonLoader also uses a file named version.dll: if you use MelonLoader, do not install
+  this edition (it would replace MelonLoader's file).
+
 ## Changelog
 
 - EpochPact now runs entirely inside the game: press F6 for the full EpochPact window
