@@ -1,0 +1,26 @@
+{
+  "version": "0.1.2-dev.37",
+  "edition": "In-game edition (one version.dll, F6 window)",
+  "observed": "2026-10-20 (UTC+03:00), fresh uploads through the VirusTotal web interface",
+  "files": {
+    "version.dll": {
+      "sha256": "2a2d6bf67e4659361d5c2238481525688ab1654d66ec1e9636cc4ac180487567",
+      "bytes": 7872512,
+      "virusTotal": "0/63",
+      "report": "https://www.virustotal.com/gui/file/2a2d6bf67e4659361d5c2238481525688ab1654d66ec1e9636cc4ac180487567",
+      "cynet": "Undetected",
+      "sandboxes": "no sandbox verdicts, no Sigma, YARA or IDS matches; MITRE descriptions only (e.g. hijack execution flow, the version.dll loader by design); file not signed",
+      "localDefender": "No threats found (signatures 1.461.118.0)"
+    }
+  },
+  "zip": {
+    "file": "EpochPact-0.1.2-dev.37-InGame.zip",
+    "sha256": "afa0d3bc3657c7dc3b895fd77250ee7d0fe24de0ecb31f8d24c02d3cc261b9fc",
+    "bytes": 3419291,
+    "virusTotal": "0/67 (the archive; over VirusTotal's 3 MB limit for scanning the files inside, the version.dll inside is the file above)",
+    "report": "https://www.virustotal.com/gui/file/afa0d3bc3657c7dc3b895fd77250ee7d0fe24de0ecb31f8d24c02d3cc261b9fc",
+    "localDefender": "No threats found"
+  },
+  "build": "ingame-ui branch commit 84f7882 (player flavor, build-info loaderSha256 = version.dll above)",
+  "note": "Scan counts describe these exact bytes on this date only; they are not a safety certification. Nexus Mods may still hold a DLL mod for manual review: 0.1.2-dev.36 was 0/71 and was quarantined by its automated checks."
+}
