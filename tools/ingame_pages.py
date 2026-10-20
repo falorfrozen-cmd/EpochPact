@@ -140,11 +140,18 @@ def sections(page, controls, counts):
     if page == "stats":
         return [native("stats_filters", controls=["stat_reset", "sheet_row", "stat_alias", "raw_stat"], group="stats"),
                 native("stats_results", group="stats")]
+    if page in ("atlas", "stash"):
+        options = {"mode": page, "group": "collection-" + page}
+        result = [native("collection_head", controls=["atlas_read" if page == "atlas" else "stash_read"], **options),
+                  native("collection_results", **options), native("collection_comparison", **options)]
+        if page == "stash":
+            result.append(native("stash_search_help"))
+        return result
     if page == "loot":
         return [settings("Automatic collection", ["autopickup", "pickup_radius", "pickup_interval"]),
                 native("recent_pickups", controls=["loot_log", "loot_log_clear"]), native("collect_now", controls=["pickup_now"]),
                 settings("Quality rules", ["loot_lp", "loot_ww", "loot_t7", "loot_filter"]),
-                pending("Loot filter files"),
+                native("filter_files"),
                 settings("Loot filter window", ["tier_filter_colors", "tier_name_colors"], note="Rule name examples",
                          note_tail=": " + "   ".join(NAME_TAG_EXAMPLES)),
                 native("pickup_selections", controls=["loot_mode", "loot_category", "loot_affixes"]),
@@ -187,7 +194,8 @@ def sections(page, controls, counts):
                 settings("Echo modifiers", ["density", "stability_multiplier"], note=MONOLITH_NOTE, overrides={"density": MONOLITH_DENSITY}),
                 settings("Boss blessing rewards", ["build_blessingoptions", "build_blessingrolls"]),
                 native("monolith_management", controls=["monolith_read", "monolith_unlock", "monolith_select", "corruption", "stability"]),
-                pending("Monolith Navigator")]
+                native("echo_head", group="navigator", controls=["echo_read"]),
+                native("echo_results", group="navigator", controls=["echo_focus"])]
     if page == "campaign":
         return [native("cached_summary", read="progressread"),
                 native("campaign", controls=["campaign_complete", "waypoints_unlock"]), native("mastery", controls=["mastery_choose"])]
@@ -222,7 +230,13 @@ def sections(page, controls, counts):
                 native("ws_affix_head", **ws), native("ws_affix_list", **ws), native("ws_affix_rows", **ws),
                 native("ws_extra_head", **ws), native("ws_mod_list", **ws), native("ws_mod_rows", **ws),
                 native("ws_review", controls=["craft_custom"], **ws)]
-    return [pending(dict((p[0], p[1]) for p in PAGES)[page])]
+    if page == "settings":
+        return [native("settings_language"), native("settings_profiles"), native("settings_version"),
+                native("settings_report"), native("settings_recovery"), native("settings_navigation"),
+                native("settings_text_size"), native("settings_hidden")]
+    if page == "game_setup":
+        return [native("setup_status")]
+    raise ValueError(f"Page has no in-game composition: {page}")
 
 
 DEVELOPER_CONTROLS = {"density_read", "map_read", "pickup_radius_read", "tier_read", "map_settings_read", "font_read", "sheet_catalog",

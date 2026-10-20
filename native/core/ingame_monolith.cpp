@@ -6,6 +6,7 @@
 #define NOMINMAX
 #endif
 #include "ingame_window.hpp"
+#include "ingame_browser_rules.hpp"
 #include <windows.h>
 #include <algorithm>
 #include <cmath>
@@ -45,6 +46,14 @@ std::string MonolithReason() {
 
 // monoTarget: the timeline and difficulty the cards act on (default: the selected one, else the first)
 struct Target { std::string timeline, difficulty = "normal"; } target;
+struct EchoView {
+    std::string query, reward = "all", status = "all";
+    JValue data;
+    int head = -1, results = -1, selected = -1;
+    bool busy = false;
+    uint64_t revision = 0, request = 0;
+} echoes;
+void RebuildEchoes() { if (echoes.head >= 0) Rebuild(echoes.head); if (echoes.results >= 0) Rebuild(echoes.results); }
 const JValue* Timeline(const std::string& id) {
     const JValue* r = Cached("monolithread");
     if (r) for (const auto& t : (*r)["timelines"].items) if (IdOf(&t["id"]) == id) return &t;
@@ -168,6 +177,7 @@ void MakeMonolithManagement(Section& s) {
             y += 10;  // p margin-bottom before the grid (the grid has none)
             const float a = SelectField(in, kPanelPad, y, colW, Tr("Timeline"), names, at, [ids, id](int i) {
                 target.timeline = ids[i];
+                ++echoes.request; echoes.busy = false; RebuildEchoes();
                 ForgetForm("corruption");
                 ForgetForm("stability");
                 Rebuild(id);
@@ -175,6 +185,7 @@ void MakeMonolithManagement(Section& s) {
             const float b = SelectField(in, kPanelPad + colW + 14, y, colW, Tr("Difficulty"), {Tr("Normal"), Tr("Empowered")}, target.difficulty == "empowered" ? 1 : 0,
                                         [id](int i) {
                                             target.difficulty = i == 1 ? "empowered" : "normal";
+                                            ++echoes.request; echoes.busy = false; RebuildEchoes();
                                             ForgetForm("corruption");
                                             ForgetForm("stability");
                                             Rebuild(id);
@@ -276,8 +287,182 @@ void MakeMonolithManagement(Section& s) {
         });
     };
 }
+bool CurrentEchoes() {
+    const JValue* live = Cached("monolithread");
+    return live && model::SameOwner(echoes.data, *live) && model::Id(echoes.data["timeline"]) == target.timeline &&
+        echoes.data["difficulty"].Num(-1) == (target.difficulty == "empowered" ? 1 : 0);
+}
+void ReadEchoes() {
+    if (echoes.busy || !Eligible()) return;
+    Resolve();
+    if (target.timeline.empty()) return;
+    echoes.busy = true; const uint64_t token = ++echoes.request;
+    const auto selected = target;
+    RebuildEchoes();
+    Send("identityread", [token, selected](const std::string& identity) {
+        if (token != echoes.request) return;
+        const JValue who = Parse(identity);
+        const JValue* snapshot = Cached("monolithread");
+        const std::string id = IdOf(who.Path("player.id"));
+        if (!model::On(who["offline"]) || id.empty() || !snapshot || !model::SameOwner(who, *snapshot)) {
+            echoes.busy = false; echoes.data = JValue{}; RebuildEchoes();
+            Toast(Tr("The loaded character changed. Refresh live data."), true); return;
+        }
+        Send("echoread " + id + " " + selected.timeline + " " + selected.difficulty, [token, id](const std::string& reply) {
+            if (token != echoes.request) return;
+            echoes.busy = false;
+            std::string why;
+            const JValue r = Parse(reply);
+            if (Refused(reply, &why) || IdOf(r.Path("player.id")) != id) {
+                echoes.data = JValue{};
+                Toast(why.empty() ? Tr("The loaded character changed. Refresh live data.") : PlayerError(why), true);
+            } else { echoes.data = r; echoes.selected = -1; }
+            RebuildEchoes();
+        });
+    });
+}
+void FocusEcho(int index) {
+    if (!CurrentEchoes() || !MonolithReason().empty()) return;
+    const Target selected = target;
+    const std::string owner = IdOf(echoes.data.Path("player.id"));
+    ForCharacter([selected, owner, index](const std::string& id) {
+        if (id != owner) { Toast(Tr("The loaded character changed. Refresh live data."), true); return; }
+        const std::string where = id + " " + selected.timeline + " " + selected.difficulty;
+        const Fail fail = [](const std::string& why) { Toast(why, true); Read("monolithread"); };
+        const Action focus = [where, index, fail] {
+            Send("echofocus " + where + " " + std::to_string(index), [index, fail](const std::string& reply) {
+                const JValue r = Parse(reply); std::string why;
+                if (Refused(reply, &why) || !model::On(r["selectionVerified"]) || r["focused"].Num(-1) != index) {
+                    fail(why.empty() ? Tr("The game did not confirm the selected Echo.") : PlayerError(why)); return;
+                }
+                echoes.selected = index; RebuildEchoes();
+                Toast(Tr("Echo focused in the game map. It has not been started."));
+            });
+        };
+        EnsureRest(id, [id, where, focus, fail] {
+            Send("monolithpanelready " + where, [id, where, focus, fail](const std::string& reply) {
+                const JValue r = Parse(reply);
+                if (model::On(r["panelReady"])) { focus(); return; }
+                Send("monolithselect " + where, [id, where, focus, fail](const std::string& opened) {
+                    std::string why; if (Refused(opened, &why)) { fail(PlayerError(why)); return; }
+                    WaitPanel(id, where, focus, fail);
+                });
+            });
+        }, fail);
+    });
+}
+void MakeEchoHead(Section& s) {
+    echoes.head = s.id; s.reads.insert("monolithread");
+    s.build = [](Section& section, const Ctx& outer) {
+        auto panel = std::make_shared<Panel>(OpenPanel(outer.parent, kPadX, 0, kPanelW)); section.frame = panel; section.after = 0;
+        const Ctx c = outer.At(panel->rt.Get(), kPadX, 0); Resolve();
+        float y = kPanelPad;
+        Style eyebrow{Face::Body, 10, C("accent")}; eyebrow.spacing = 2;
+        TextBox(c.parent, "Eyebrow", kPanelPad, y, kPanelInner, 13, eyebrow, Tr("REWARD FINDER")); y += 20;
+        auto read = AddButton(c, kPanelPad + kPanelInner, y, Tr(echoes.busy ? "Reading…" : "↻ Read Echo web"), Look::Normal, ReadEchoes, true, "echo_read");
+        SetEnabled(c, read, !echoes.busy && Eligible() && Cached("monolithread"));
+        y += H2(c.parent, kPanelPad, y, kPanelInner - read.w - 15, Tr("Monolith Navigator")) + 14;
+        y += Muted(c.parent, kPanelPad, y, kPanelInner, Tr("Search the selected timeline’s existing web. “Show in game” focuses the normal map; it never starts an Echo.")) + 20;
+        if (!CurrentEchoes() || !model::On(echoes.data["generated"])) return y;
+        const int id = section.id;
+        const float searchW = kPanelInner - 160 - 180 - 28;
+        InputField(c, kPanelPad, y, searchW, Tr("Search rewards or Echo names"), echoes.query, Tr("Example: Unique, Exalted, Arena…"), false, [](const std::string& text) {
+            echoes.query = text; const uint64_t rev = ++echoes.revision;
+            After(180, [rev] { if (rev == echoes.revision && echoes.results >= 0) Rebuild(echoes.results); });
+        }, "echo-search");
+        std::set<int> types;
+        for (const auto& e : echoes.data["echoes"].items) types.insert(static_cast<int>(e["rewardType"].Num()));
+        std::vector<std::string> rewards{"all"}, names{Tr("Any reward")}; int at = 0;
+        for (int type : types) { if (std::to_string(type) == echoes.reward) at = static_cast<int>(names.size()); rewards.push_back(std::to_string(type)); names.push_back(Tr(model::Reward(type))); }
+        SelectField(c, kPanelPad + searchW + 14, y, 160, Tr("Reward"), names, at, [rewards, id](int i) {
+            echoes.reward = rewards[i]; Rebuild(id); Rebuild(echoes.results);
+        }, "echo-reward");
+        const std::vector<std::string> states{"all", "ready", "pending", "completed"};
+        const auto where = std::find(states.begin(), states.end(), echoes.status);
+        const float height = SelectField(c, kPanelPad + searchW + 188, y, 180, Tr("State"),
+            {Tr("All existing Echoes"), Tr("Runnable"), Tr("Uncompleted"), Tr("Completed")}, static_cast<int>(where - states.begin()), [states, id](int i) {
+                echoes.status = states[i]; Rebuild(id); Rebuild(echoes.results);
+            }, "echo-status");
+        return y + height + 20;
+    };
+}
+void MakeEchoResults(Section& s) {
+    echoes.results = s.id; s.reads.insert("monolithread");
+    s.build = [](Section& section, const Ctx& outer) {
+        const Node body = New("Echo results", outer.parent, kPadX, 0, kPanelW, 2000); const Ctx c = outer.At(body.rt, kPadX, 0);
+        if (!CurrentEchoes()) return kPanelPad + EmptyText(c.parent, kPanelPad, 0, kPanelInner, Tr("Read the Echo web to search rewards. Read requests do not generate new nodes."));
+        if (!model::On(echoes.data["generated"])) return kPanelPad + EmptyText(c.parent, kPanelPad, 0, kPanelInner, Tr("No web exists for this timeline yet. Open it normally in game, then read again."));
+        std::vector<JValue> matches; std::set<int> ids;
+        for (const auto& e : echoes.data["echoes"].items) if (model::EchoMatch(e, Trim(echoes.query), echoes.reward, echoes.status)) {
+            matches.push_back(e); ids.insert(static_cast<int>(e["index"].Num()));
+        }
+        float y = Muted(c.parent, kPanelPad, 0, kPanelInner, Fmt("{0} matches / {1} existing Echoes", {std::to_string(matches.size()), std::to_string(echoes.data["echoes"].items.size())}), 11) + 14;
+        const auto& all = echoes.data["echoes"].items;
+        if (!all.empty()) {
+            const Node map = New("Existing Echo web", c.parent, kPanelPad, y, kPanelInner, 340); Clip(map);
+            Fill(map.rt, "Map background", 0, 0, kPanelInner, 340, Hex("#00000044"), 5);
+            Picture(map.rt, "Map glow", 0, 0, kPanelInner, 340, "grad-stat-value.png", false, kWhite);
+            float left = 0, right = 0, bottom = 0, top = 0; bool first = true; std::map<int, const JValue*> nodes;
+            for (const auto& e : all) {
+                const float x = static_cast<float>(e["x"].Num()), yy = static_cast<float>(-e["y"].Num());
+                if (first) { left = right = x; top = bottom = yy; first = false; }
+                left = std::min(left, x); right = std::max(right, x); top = std::min(top, yy); bottom = std::max(bottom, yy);
+                nodes[static_cast<int>(e["index"].Num())] = &e;
+            }
+            const float width = std::max(100.f, right - left + 70), height = std::max(100.f, bottom - top + 70);
+            const float scale = std::min(kPanelInner / width, 340 / height), dx = (kPanelInner - width * scale) / 2, dy = (340 - height * scale) / 2;
+            const auto position = [=](const JValue& e) { return V2{dx + (static_cast<float>(e["x"].Num()) - left + 35) * scale, dy + (static_cast<float>(-e["y"].Num()) - top + 35) * scale}; };
+            std::set<std::pair<int, int>> edges;
+            for (const auto& e : all) for (const auto& link : e["connections"].items) {
+                const int a = static_cast<int>(e["index"].Num()), b = static_cast<int>(link.Num());
+                if (!nodes.count(b) || !edges.insert({std::min(a,b), std::max(a,b)}).second) continue;
+                const auto p = position(e), q = position(*nodes[b]); const float vx = q.x - p.x, vy = q.y - p.y;
+                void* line = Solid(map.rt, "Echo connection", p.x, p.y, std::hypot(vx, vy), 1, C("line")); Turn(TransformOf(line), -std::atan2(vy, vx) * 180.f / 3.14159265f);
+            }
+            for (const auto& e : all) {
+                const int index = static_cast<int>(e["index"].Num()); const V2 p = position(e);
+                const float size = (index == echoes.selected ? 22.f : 14.f) * scale;
+                Picture(map.rt, "Echo node", p.x-size/2, p.y-size/2, size, size, "circle-17.png", false, ids.count(index) ? C("accent") : Alpha(C("muted"), .25f));
+                if (index == echoes.selected) Picture(map.rt, "Selected Echo", p.x-size/2-2, p.y-size/2-2, size+4, size+4, "ring-30.png", false, C("gold"));
+            }
+            Outline(c.parent, "Map border", kPanelPad, y, kPanelInner, 340, C("line"), 5); y += 362;
+        }
+        if (matches.empty()) return y + EmptyText(c.parent, kPanelPad, y, kPanelInner, Tr("No reward matches these filters.")) + kPanelPad;
+        std::vector<CardMaker> cards; const int sectionId = section.id;
+        for (size_t i = 0; i < std::min(size_t(200), matches.size()); ++i) {
+            const JValue e = matches[i];
+            cards.push_back([e, sectionId](const Ctx& cc, float x, float yy, float w) {
+                const int index = static_cast<int>(e["index"].Num());
+                CardBox card = OpenBrowserCard(cc.parent, x, yy, w, index == echoes.selected); const Ctx cell = cc.At(card.node.Get(), x, yy);
+                float cy = 19, badgeH = 0;
+                Badge(cell.parent, w - 19, cy, Tr(model::On(e["completed"]) ? "Completed" : model::On(e["runnable"]) ? "Runnable" : "Not currently reachable"), &badgeH); cy += badgeH + 16;
+                Style title{Face::Serif, 20, C("ink")}; title.line = 1.4f; title.wrap = true;
+                cy += Paragraph(cell.parent, "Echo reward", 19, cy, w-38, title, e["reward"].Str().empty() ? Tr(model::Reward(static_cast<int>(e["rewardType"].Num()))) : e["reward"].Str()) + 16;
+                cy += Muted(cell.parent, 19, cy, w-38, e["name"].Str() + " · " + Fmt("{0} base stability", {Num(e["stability"].Num())})) + 18;
+                auto highlight = AddButton(cell, 19, cy, Tr("Highlight"), Look::Small, [index, sectionId] { echoes.selected = index; Rebuild(sectionId); }, false, "echo-highlight-" + std::to_string(index));
+                auto focus = AddButton(cell, 19 + highlight.w + 8, cy, Tr("Show in game →"), Look::Small, [index] { FocusEcho(index); }, false, "echo-focus-" + std::to_string(index));
+                if (highlight.w + focus.w + 8 > w - 38) {
+                    Move(focus.node.rt, 19, cy + highlight.h + 10);
+                    (*cell.hits)[focus.hit].x = cell.ox + 19; (*cell.hits)[focus.hit].y = cell.oy + cy + highlight.h + 10;
+                    cy += highlight.h + 10 + focus.h;
+                } else cy += std::max(highlight.h, focus.h);
+                SetEnabled(cell, focus, MonolithReason().empty()); cy += 19;
+                CloseCard(card, w, cy); return card;
+            });
+        }
+        const float top = y;
+        const float more = matches.size() > 200 ? Muted(c.parent, kPanelPad, y + 674, kPanelInner, Tr("First 200 matches shown. Narrow your search to see a smaller list.")) + 14 : 0;
+        const float grid = ScrollCards(section, c, kPanelPad, y, kPanelInner, 660, std::move(cards), 3, 14,
+            [sectionId, top, more](float h) { if (auto* s = FindSection(sectionId)) Resized(*s, top + h + more + kPanelPad); });
+        return y + grid + more + kPanelPad;
+    };
+}
 }  // namespace
 
-void RegisterMonolithSections() { RegisterSection("monolith_management", MakeMonolithManagement); }
+void RegisterMonolithSections() {
+    RegisterSection("monolith_management", MakeMonolithManagement);
+    RegisterSection("echo_head", MakeEchoHead);
+    RegisterSection("echo_results", MakeEchoResults);
+}
 
 }  // namespace ep::ingame::view

@@ -454,6 +454,30 @@ def build_data():
     pages, used = [], {}
     for page_id, nav, symbol, title, subtitle in ingame_pages.PAGES:
         sections = ingame_pages.sections(page_id, controls, catalog["counts"])
+        panel_names = {"recent_pickups": ("loot-log", "Recent pickups"), "collect_now": ("", "Collect now"),
+                       "pickup_rules": ("", "Pickup rules"), "pickup_selections": ("", "Pickup selections"),
+                       "filter_files": ("filter-files", "Loot filter files"), "stats_filters": ("", "Character bonuses"),
+                       "skill_budgets": ("", "Skill and point budgets"), "free_respec": ("", "Free respec"),
+                       "summon_allies": ("", "Live summoned allies"), "damage_meter": ("damage-meter", "Damage meter"),
+                       "minion_bonuses": ("", "Minion and companion bonuses"),
+                       "inventory_shortcuts": ("", "Inventory shortcuts"), "stash_rules": ("", "Stash tabs from loot filter"),
+                       "campaign": ("", "Campaign quests"), "mastery": ("", "Mastery"), "monolith_management": ("", "Monolith management"),
+                       "collection_head": ("collection", "Unique Atlas" if page_id == "atlas" else "Stash Assistant"),
+                       "echo_head": ("navigator", "Monolith Navigator"), "ws_head": ("custom-workshop", "Create custom item"),
+                       "stash_search_help": ("", "In-game stash search"), "craft_materials": ("", "Crafting materials"),
+                       "glyph_chances": ("", "Glyph chances"), "factions": ("", "Faction data")}
+        group_parts = {}
+        for section in sections:
+            section_title, identifier = section.get("title", ""), ""
+            if section.get("native") in panel_names:
+                identifier, section_title = panel_names[section["native"]]
+            if section.get("group") and section["group"] in group_parts:
+                section.update(group_parts[section["group"]]); continue
+            if section_title and page_id != "settings":
+                part = {"partKey": "panel:" + (identifier or page_id + ":" + section_title), "partTitle": section_title}
+                section.update(part)
+                if section.get("group"): group_parts[section["group"]] = part
+        sections.append(ingame_pages.native("global_search"))
         for section in sections:
             if section["kind"] == "native":
                 for i in section.get("controls", []):
@@ -472,6 +496,12 @@ def build_data():
     data = {"version": VERSION, "reference": [1440, 900], "theme": THEME, "lifetimes": LIFETIME, "pages": pages,
             "controls": {i: control_entry(c, english) for i, c in used.items()}}
     data["counts"] = catalog["counts"]
+    data["searchControls"] = [dict(control_entry(c, english), group=c["group"]) for c in controls
+                              if c["id"] not in ingame_pages.DEVELOPER_CONTROLS]
+    # Profiles may contain a session control whose page has not been visited yet.
+    for c in controls:
+        if c["lifetime"] in ("session", "actor") and c["widget"] in ("number", "toggle"):
+            data["controls"].setdefault(c["id"], control_entry(c, english))
     data["campaignQuests"] = catalog["optionCatalogs"]["campaignQuests"]  # the static coverage table of Campaign
     data["lensCatalog"] = catalog["optionCatalogs"]["lenses"]  # the Circle of Fortune lens catalog before a live read
     # the names the Custom Items workshop builds its extra effects' names from (workshopModifierEntries)
@@ -502,7 +532,7 @@ def texts_of(data):
               "Customize navigation", "↻ Refresh", "Refresh", "Find a setting…", "CHRONOFORGE", "Checking connection", "● Offline · InGame",
               "● InGame", "Changes apply automatically", "Use Apply changes below", "Default", "On", "Off", "Applying…", "Applied", "Draft",
               "Ready", "A setting needs attention", "Applying changes…", "{0} settings in draft", "Save actions use their own buttons.",
-              "Apply changes", "Discard draft", "Rank"}
+              "Apply changes", "Discard draft", "Rank", "⚙−☠▶Ⅱ↺⌃⌄◢×"}
     by_id = {p["id"]: p for p in data["pages"]}
     for page in data["pages"]:
         texts |= {page["nav"], page["title"], page["subtitle"]}  # the breadcrumb is "EpochPact / " + the translated nav
@@ -627,6 +657,7 @@ def build(out: Path):
     save("grad-panel.png", linear_gradient(128 * S, 128 * S, 135, [(0, rgba("#25362e33")), (0.5, (37, 54, 46, 0))]), optimize=True)
     save("grad-card.png", linear_gradient(128 * S, 128 * S, 135, [(0, rgba("#24402c24")), (1, (36, 64, 44, 0))]), optimize=True)
     save("grad-stat-value.png", linear_gradient(128 * S, 128 * S, 120, [(0, rgba(THEME["soft"])), (0.8, (0, 0, 0, 0))]), optimize=True)
+    save("grad-browser.png", linear_gradient(128 * S, 128 * S, 135, [(0, rgba(THEME["soft"])), (1, rgba("#00000022"))]), optimize=True)
     save("grad-button.png", linear_gradient(64 * S, 32 * S, 160, [(0, rgba("#29302c55")), (1, rgba("#070d0cb8"))]), optimize=True)
     save("grad-primary.png", linear_gradient(128 * S, 32 * S, 145, [(0, rgba(THEME["soft"])), (1, rgba("#07160fe0"))]), optimize=True)
     soft = rgba(THEME["soft"])

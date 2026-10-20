@@ -5,6 +5,7 @@
 #endif
 #include "ingame_window.hpp"
 #include "ingame_stat_rules.hpp"
+#include "ingame_browser_rules.hpp"
 #include <windows.h>
 #include <algorithm>
 #include <cctype>
@@ -56,13 +57,9 @@ void SaveMarker(const std::string& id, bool favorite) {
     std::string text;
     if (favorite) text = Array(values);
     else {
-        const J prefs = Preference("epochpact.display-preferences.v1");
-        text = "{";
-        for (const auto& [key, value] : prefs.members) {
-            if (key == "hiddenStats" || !value.IsArray()) continue;
-            text += (text.size() > 1 ? "," : "") + managed::Json(key) + ":" + Array(Strings(value));
-        }
-        text += (text.size() > 1 ? "," : "") + std::string("\"hiddenStats\":") + Array(values) + "}";
+        J prefs = Preference("epochpact.display-preferences.v1"); if (!prefs.IsObject()) prefs = model::Object();
+        auto hidden = model::List(); for (const auto& value : values) hidden.items.push_back(model::Text(value));
+        model::Put(prefs, "hiddenStats", hidden); text = model::Pack(prefs);
     }
     if (!StorePreference(favorite ? "epochpact.stat-favorites.v1" : "epochpact.display-preferences.v1", &text)) {
         Toast(Tr("Favorites could not be saved on this device."), true); return;
@@ -283,7 +280,7 @@ void DrawEditor() {
             {Num(Unit()["sliderMin"].Num()), Num(Unit()["sliderMax"].Num()), Unit()["suffix"].Str()}), 10) + 20;
         Resize(TransformOf(bg), w, y - cardY); Resize(TransformOf(border), w, y - cardY);
         y += 15;
-        y += Details(c, pad, y, Tr("Advanced"), editor.advanced, [] { editor.advanced = !editor.advanced; DrawEditor(); }) + 10;
+        y += Details(c, pad, y, Tr("Advanced"), editor.advanced, [] { if (!editor.busy) { editor.advanced = !editor.advanced; DrawEditor(); } }) + 10;
         if (editor.advanced) {
             std::vector<std::string> options;
             int at = 0;
@@ -475,6 +472,7 @@ bool OpenStatView(const std::string& address) {
     OpenEditor(rows[at.index], at.extra);
     return true;
 }
+bool AdvancedStatView() { if (editor.busy || editor.row.IsNull()) return false; editor.advanced = true; DrawEditor(); return true; }
 void RegisterStatSections() {
     RegisterSection("stats_filters", MakeFilters);
     RegisterSection("stats_results", MakeResults);

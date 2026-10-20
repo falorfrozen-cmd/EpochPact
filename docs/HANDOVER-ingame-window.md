@@ -1,5 +1,9 @@
 # Handover: the in-game window (F6)
 
+Continuation: see `ingame-port-completion-2026-10-20.md` for the implementation
+and measured verification after this handover. The remaining-work list below
+records the original handover state.
+
 Written 2026-10-20 for the next developer. Read this first, then `docs/ingame-panel-2026-10-20.md`
 (what the window is) and `docs/ingame-port-map.md` (every desktop page, its HTML, CSS, commands and
 texts, which is the specification for the pages still to port).

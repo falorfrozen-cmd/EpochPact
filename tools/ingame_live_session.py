@@ -52,7 +52,7 @@ def reply(command):
     return json.loads(text)
 
 
-def start(folder, loader):
+def start(folder, loader, *, hud_running=False):
     global PROCESS
     if le.game_pids():
         raise RuntimeError("Last Epoch is already running; the owner's process is not a test session.")
@@ -97,6 +97,15 @@ def start(folder, loader):
         shutil.copyfile(real, prefs)
     else:
         prefs.write_text('{"version":1,"values":{}}', encoding="utf-8")
+    if hud_running:
+        data=json.loads(prefs.read_text(encoding='utf-8')); values=data.setdefault('values',{})
+        windows=json.loads(values.get('epochpact.windows.v1','{}'))
+        for name in ('damage','feed'):
+            entry=windows.setdefault(name,{}); entry['open']=True
+        options=json.loads(values.get('epochpact.damage-window.v1','{}'));options['running']=True
+        values['epochpact.windows.v1']=json.dumps(windows)
+        values['epochpact.damage-window.v1']=json.dumps(options)
+        prefs.write_text(json.dumps(data),encoding='utf-8')
     os.environ["EPOCHPACT_PREFERENCES"] = str(prefs)
     state["phase"] = "installed"
     write(path, state)

@@ -6,6 +6,7 @@
 #define NOMINMAX
 #endif
 #include "ingame_window.hpp"
+#include "ingame_browser_rules.hpp"
 #include <windows.h>
 #include <algorithm>
 #include <cmath>
@@ -72,13 +73,7 @@ float Head(const Ctx& c, float y, const std::string& title, const std::vector<He
         row = std::max(row, b.h);
         made.push_back(std::move(b));
     }
-    for (auto& b : made) {
-        const float by = y + (row - b.h) / 2;
-        Move(b.node.rt, (*c.hits)[b.hit].x - c.ox, by);
-        (*c.hits)[b.hit].y = c.oy + by;
-    }
-    TextBox(c.parent, "Title", kPanelPad, y + (row - lh) / 2, right - kPanelPad - 15, lh, h2, title);
-    return row;
+    return PlaceSectionHead(c,kPanelPad,y,kPanelInner,title,made);
 }
 std::string Plain(const std::string& s) { return s.empty() ? s : "<noparse>" + s + "</noparse>"; }
 
@@ -323,6 +318,7 @@ void MakeDamageMeter(Section& s) {
             };
             y += Head(in, y, Tr("Damage meter"),
                       {{Tr(st.active ? "Stop" : "Start"), act(st.active ? "stop" : "start"), "damage_session", !st.active, eligible},
+                       {Tr(HudShown("damage") ? "Hide damage window" : "Open damage window"), [id] { ToggleHud("damage"); Rebuild(id); }, "damage-window", false, true},
                        {Tr("Reset"), act("reset"), "damage_reset", false, eligible},
                        {Tr("Copy as CSV"), [] {
                             if (CopyText(DamageCsv(Cached("damagesession")))) Toast(Tr("Damage table copied as CSV."));
@@ -513,7 +509,7 @@ std::string Tenth(double v) {  // one decimal
 }
 struct DeathHit { double t = 0, damage = 0, ward = 0, from = 0; double health = NAN; std::string attacker, what; bool dot = false; int count = 1; };
 std::string Short(const std::string& s, size_t most = 96) { return s.size() > most ? s.substr(0, most) : s; }
-float DrawDeath(Section& s, const Ctx& c, float x, float y, float w) {
+float DrawDeath(Section& s, const Ctx& c, float x, float y, float w, const std::function<void(int)>& choose = {}) {
     const JValue* r = Cached("deathrecap");
     Style empty{Face::Body, 14, C("muted")};
     if (!r || ((*r)["ok"].IsBool() && !(*r)["ok"].boolean)) {
@@ -548,8 +544,9 @@ float DrawDeath(Section& s, const Ctx& c, float x, float y, float w) {
         float rowH = LineHeight(head);
         if (count > 1) {
             float right = x + w;
-            const auto step = [id, count](int delta) {
-                return [id, count, delta] {
+            const auto step = [id, count, choose](int delta) {
+                return [id, count, delta, choose] {
+                    if (choose) { choose(delta); return; }
                     if (Section* s2 = FindSection(id)) {
                         const int now = std::clamp(std::atoi(s2->state["deathIndex"].c_str()) + delta, 0, count - 1);
                         s2->state["deathIndex"] = std::to_string(now);
@@ -762,13 +759,22 @@ const char* const kSummonColumns[13] = {"Measured DPS", "Last damage", "DPS chan
                                         "Fire",         "Cold",        "Lightning", "Void",   "Necrotic", "Poison"};
 struct SummonChoices { std::set<std::string> hidden; bool individual = false, loaded = false, open = false; } summonChoices;
 SummonChoices& Choices() {
-    if (!summonChoices.loaded) {
+    {
+        summonChoices.hidden.clear(); summonChoices.individual = false;
         summonChoices.loaded = true;
         const JValue p = Preference("epochpact.display-preferences.v1");
         for (const auto& c : p["summonColumns"].items) if (c.IsString()) summonChoices.hidden.insert(c.text);
         for (const auto& o : p["summonOptions"].items) if (o.IsString() && o.text == "individual") summonChoices.individual = true;
     }
     return summonChoices;
+}
+void SaveSummonChoices() {
+    auto prefs = Preference("epochpact.display-preferences.v1"); if (!prefs.IsObject()) prefs = model::Object();
+    auto columns = model::List(); for (const auto& c : summonChoices.hidden) columns.items.push_back(model::Text(c));
+    model::Put(prefs, "summonColumns", columns);
+    model::Put(prefs, "summonOptions", summonChoices.individual ? model::List({model::Text("individual")}) : model::List());
+    const auto text = model::Pack(prefs);
+    if (!StorePreference("epochpact.display-preferences.v1", &text)) Toast(Tr("Could not save local preferences."), true);
 }
 std::map<std::string, double> summonBaseline;  // instance -> measured DPS when saved
 std::string SummonName(const JValue& s) {
@@ -901,12 +907,13 @@ void MakeSummonAllies(Section& s) {
                     CheckField(in, cx, cy, label, checked, std::move(changed), name, 14, 8);
                     cx += w + 16;
                 };
-                add(Tr("Show each ally separately"), ch.individual, [id](bool on) { Choices().individual = on; Rebuild(id); }, "summon-individual");
+                add(Tr("Show each ally separately"), ch.individual, [id](bool on) { Choices().individual = on; SaveSummonChoices(); Rebuild(id); }, "summon-individual");
                 for (const char* col : kSummonColumns) {
                     const std::string name = col;
                     add(Tr(col), !ch.hidden.count(name), [id, name](bool on) {
                         if (on) Choices().hidden.erase(name);
                         else Choices().hidden.insert(name);
+                        SaveSummonChoices();
                         Rebuild(id);
                     }, "summon-column-" + name);
                 }
@@ -984,6 +991,11 @@ void MakeSummonAllies(Section& s) {
     };
 }
 }  // namespace
+float DrawHudRecap(const Ctx& c, float x, float y, float w, int* index, Action changed) {
+    Section fake; fake.id = c.section; fake.state["deathIndex"] = std::to_string(*index);
+    return DrawDeath(fake, c, x, y, w, [index, changed](int delta) { *index = std::max(0, *index + delta); if (changed) changed(); });
+}
+std::string DamageSourceLabel(const JValue& source) { return AllyName(source); }
 
 void RegisterSummonSections() {
     RegisterSection("damage_meter", MakeDamageMeter);

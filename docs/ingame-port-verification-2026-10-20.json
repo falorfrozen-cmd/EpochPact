@@ -1,0 +1,242 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "version": "0.1.2-dev.36",
+  "branch": "ingame-ui",
+  "build": "ingame-chatgpt-player-16",
+  "flavor": "player",
+  "runtime": {
+    "bytes": 7870976,
+    "sha256": "a5843a38f3a97edf0ef2e202fdccf5d8f1e0a8c2616f07242b960e10ecf249bf",
+    "file": "version.dll"
+  },
+  "package": {
+    "file": "EpochPact-0.1.2-dev.36-InGame.zip",
+    "bytes": 3417835,
+    "sha256": "74a85cdada2497add1ce59def1680d4e16e00609f9abbfc07ef6116afefc2745",
+    "entries": 8,
+    "version": "0.1.2-dev.36",
+    "runtime": [
+      "version.dll"
+    ],
+    "verified": true
+  },
+  "tests": {
+    "python": 375,
+    "javascript": 238,
+    "nativeFailures": 0,
+    "nativePrograms": 26
+  },
+  "live": {
+    "production": "ingame-chatgpt-live-2026-10-20-12",
+    "measurementDrift": 0,
+    "rendererFixtures": [
+      {
+        "style": "quiet",
+        "total": "8,146",
+        "cells": 12
+      },
+      {
+        "style": "bars",
+        "total": "8,146",
+        "cells": 11
+      },
+      {
+        "style": "split",
+        "total": "8,146",
+        "cells": 17
+      },
+      {
+        "style": "table",
+        "total": "8,146",
+        "cells": 28
+      },
+      {
+        "style": "options",
+        "total": "8,146",
+        "cells": 1
+      }
+    ],
+    "timing": {
+      "openMs": 8.4559,
+      "closeMs": 9.0134,
+      "pageMs": 2.3576,
+      "buildMs": 2498.33,
+      "rebuildMs": 3.979,
+      "firstBuildMs": 2497.92,
+      "frameAvgClosed": 13.3818,
+      "frameAvgOpen": 13.3446,
+      "stepAvgOpen": 0.0544693,
+      "stepMaxOpen": 23.4004,
+      "idleCostMax": 39.9471,
+      "spikeAfterOpen": 28.5526,
+      "spikeAfterClose": 24.5559,
+      "framesOpen": 944,
+      "slowOpen": 23,
+      "framesClosed": 350,
+      "slowClosed": 1,
+      "slowestStage": "animate",
+      "slowestIdleStage": "rebuild pickup_rules",
+      "phases": {
+        "commands": 39.9437,
+        "job build job (163 left)": 11.0419,
+        "job build job (164 left)": 11.3005,
+        "job build job (165 left)": 10.0094,
+        "job build job (166 left)": 12.8643,
+        "job build job (167 left)": 53.4193,
+        "job build job (349 left)": 7.968,
+        "job card build_blessingrolls": 4.0105,
+        "job card build_cameraangle": 4.742,
+        "job card build_forgedextra": 4.3843,
+        "job card build_immortalminions": 5.9231,
+        "job card build_passivenodes": 4.0165,
+        "job card build_projectileflat": 5.4767,
+        "job card build_skillpoints": 4.3718,
+        "job card build_totemextra": 4.7228,
+        "job card build_weaverflat": 4.5402,
+        "job card cof_double_enemy": 4.8498,
+        "job card cof_lens_celerity": 4.7265,
+        "job card cof_lens_duplication": 4.463,
+        "job card cof_reward_multiplier": 5.9604,
+        "job card cof_t7_multiplier": 5.2,
+        "job card cooldown": 4.6565,
+        "job card craft_runes": 4.1443,
+        "job card drops": 5.1268,
+        "job card effects_descriptions": 4.2377,
+        "job card effects_rows": 4.8859,
+        "job card font_case": 4.8354,
+        "job card gold": 5.0306,
+        "job card loot_ww": 4.478,
+        "job card map_minimapzoom": 4.7496,
+        "job card map_overlayopacity": 5.3508,
+        "job card pickup_radius": 4.0564,
+        "job card qol_arearadius": 5.931,
+        "job card qol_areashow": 4.8144,
+        "job card qol_fog": 4.6123,
+        "job card qol_motionblur": 4.196,
+        "job card qol_reflections": 4.0776,
+        "job card qol_shrines": 4.436,
+        "job card rage_buffs": 5.9379,
+        "job card rage_hunttime": 5.5944,
+        "job card rarity": 5.38,
+        "job card speed": 4.4717,
+        "job card stability_multiplier": 5.3771,
+        "job card tier_name_colors": 4.6886,
+        "job card tier_rule_position": 5.2455,
+        "job card tier_special": 5.5426,
+        "job card tier_tooltips": 5.119,
+        "job card weaversdrop": 4.558,
+        "job rebuild global_search": 682.668,
+        "job section campaign": 4.7824,
+        "job section cof_main": 11.2347,
+        "job section cof_prophecies": 8.5731,
+        "job section craft_materials": 4.7038,
+        "job section damage_meter": 4.54,
+        "job section free_respec": 7.0972,
+        "job section glyph_chances": 4.1512,
+        "job section inventory_shortcuts": 8.3803,
+        "job section links": 7.7118,
+        "job section minion_bonuses": 6.5645,
+        "job section monolith_management": 10.7879,
+        "job section pickup_selections": 11.8818,
+        "job section settings_navigation": 12.7847,
+        "job section settings_profiles": 4.0446,
+        "job section stash_search_help": 6.9278,
+        "job section stats_filters": 4.8315,
+        "job section stats_results": 19.1705,
+        "job section tier_colours": 4.7532,
+        "job section ws_review": 4.1075,
+        "rebuild campaign": 5.2582,
+        "rebuild cof_main": 12.1446,
+        "rebuild cof_prophecies": 10.2398,
+        "rebuild collect_now": 3.1465,
+        "rebuild collection_head": 5.1445,
+        "rebuild collection_results": 5.4328,
+        "rebuild craft_materials": 5.2587,
+        "rebuild craft_tabs": 4.1169,
+        "rebuild damage_meter": 6.4454,
+        "rebuild echo_head": 2.2309,
+        "rebuild factions": 6.3078,
+        "rebuild filter_files": 11.7509,
+        "rebuild free_respec": 5.3133,
+        "rebuild global_search": 3.1818,
+        "rebuild inventory_shortcuts": 9.9083,
+        "rebuild mastery": 3.5572,
+        "rebuild monolith_management": 10.573,
+        "rebuild pickup_rules": 3.6364,
+        "rebuild pickup_selections": 19.1371,
+        "rebuild settings_report": 4.1039,
+        "rebuild skill_budgets": 2.7478,
+        "rebuild stash_rules": 2.5598,
+        "rebuild summon_allies": 2.9066,
+        "rebuild tail craft_forge": 3.4244,
+        "rebuild tail sort_tabs": 1.2372,
+        "rebuild tail weaver_affixes": 15.5302,
+        "rebuild ws_item": 1.5073,
+        "rebuild ws_review": 4.2851,
+        "tick collection_results": 2.1503,
+        "tick global_search": 2.172
+      }
+    },
+    "kerning": {
+      "ok": true,
+      "sample": "AVAVAVAVAV To To Ty Wa Yo LT",
+      "body": {
+        "tmp": 1632.07,
+        "advances": 1632,
+        "enableKerning": true,
+        "tmpKerningOn": 1632.07,
+        "pairRecords": 5592
+      },
+      "serif": {
+        "tmp": 1541.55,
+        "advances": 1541.67,
+        "enableKerning": true,
+        "tmpKerningOn": 1541.55,
+        "pairRecords": 1319
+      }
+    },
+    "renderer": "ingame-chatgpt-live-2026-10-20-11",
+    "searchResults": 17,
+    "distinctBrowserReportFolders": 5,
+    "faults": 0,
+    "inputAutomation": false,
+    "textScalePercent": [
+      90,
+      100,
+      150
+    ],
+    "productionShutdown": {
+      "exit": 0,
+      "preferencesUnchanged": true,
+      "restored": {
+        "restoredFiles": 54,
+        "archivedTestFiles": 3,
+        "originalBytesVerified": true
+      }
+    },
+    "rendererShutdown": {
+      "exit": 0,
+      "preferencesUnchanged": true,
+      "restored": {
+        "restoredFiles": 54,
+        "archivedTestFiles": 3,
+        "originalBytesVerified": true
+      }
+    },
+    "pages": 19,
+    "recordingResumed": true,
+    "privateCommandsRejected": [
+      "panel fixture:bars",
+      "panel local:profile-save"
+    ],
+    "saveActionsExecuted": false,
+    "freshCaptureFiles": true
+  },
+  "limits": [
+    "Stock all materials, Craft once and Create custom item were not executed.",
+    "Renderer fixture values do not certify new real-combat accuracy.",
+    "Generated Echo focus, hardware gamepad and other physical resolutions not validated.",
+    "No antivirus clearance or public release."
+  ]
+}

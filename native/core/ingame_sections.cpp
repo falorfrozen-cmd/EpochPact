@@ -306,7 +306,8 @@ void MakeRecentPickups(Section& s) {
         void* rt = v->panel.rt.Get();
         const Ctx in = c.At(rt, kPadX, 0);
         float y = kPanelPad;
-        y += SectionHead(in, kPanelPad, y, kPanelInner, Tr("Recent pickups"), {{Tr("Refresh"), [] { Read("lootlog"); }}}) + 16;
+        y += SectionHead(in, kPanelPad, y, kPanelInner, Tr("Recent pickups"), {{Tr("Refresh"), [] { Read("lootlog"); }},
+            {Tr(HudShown("feed") ? "Hide loot window" : "Open loot window"), [id = sec.id] { ToggleHud("feed"); Rebuild(id); }}}) + 16;
         // p.muted (margin 10px 0); the list follows its bottom margin
         y += Muted(rt, kPanelPad, y, kPanelInner,
                    Tr("Items and gold you or Auto Pickup collect, with the loot filter rule that matched. \"Rule\" uses the same number as the game's Item rule "
@@ -1001,6 +1002,9 @@ void RegisterNativeSections() {
     RegisterCraftSections();
     RegisterWorkshopSections();
     RegisterStatSections();
+    RegisterCollectionSections();
+    RegisterSettingsSections();
+    RegisterFilterSections();
     RegisterSection("cached_summary", MakeCachedSummary);
     RegisterSection("skill_budgets", MakeSkillBudgets);
     RegisterSection("free_respec", MakeFreeRespec);

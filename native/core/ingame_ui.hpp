@@ -46,18 +46,25 @@ struct Pin {
 };
 
 // ------------------------------------------------------------- layout (style.css at 1440x900)
-inline constexpr float kW = 1440, kH = 900;
+inline float kW = 1440, kH = 900;
 inline constexpr float kSideInner = 222, kBar = 15, kSideW = 238;                  // inside the 1px shell border
 inline constexpr float kTopH = 67;                                                  // with its bottom border
-inline constexpr float kMainX = 239, kMainY = 68, kMainW = 1200, kMainH = 748, kContentW = kMainW - kBar;
-inline constexpr float kFootY = kMainY + kMainH, kFootH = 83;
+inline constexpr float kMainX = 239, kMainY = 68, kFootH = 83;
+inline float kMainW = 1200, kMainH = 748, kContentW = kMainW - kBar, kFootY = kMainY + kMainH;
 inline constexpr float kHeroH = 226, kPadX = 28, kPadTop = 24, kPadBottom = 30;
 inline constexpr float kHeroCompactH = 156;                                         // .main-scroll:has(.craft-categories) .hero
-inline constexpr float kPanelW = kContentW - 2 * kPadX, kPanelPad = 24;           // 1px border + 23 padding
-inline constexpr float kPanelInner = kPanelW - 2 * kPanelPad, kGap = 15;
-inline constexpr float kCardW = (kPanelInner - kGap) / 2, kCardPad = 20;          // 1px border + 19 padding
-inline constexpr float kCardInner = kCardW - 2 * kCardPad;
-inline constexpr float kHeroTextW = (kContentW - 64) * 0.7f;                       // .hero>div max-width 70%
+inline constexpr float kPanelPad = 24, kGap = 15, kCardPad = 20;
+inline float kPanelW = kContentW - 2 * kPadX, kPanelInner = kPanelW - 2 * kPanelPad;
+inline float kCardW = (kPanelInner - kGap) / 2, kCardInner = kCardW - 2 * kCardPad;
+inline float kHeroTextW = (kContentW - 64) * 0.7f;
+// CSS zoom: shrink logical viewport and enlarge its canvas together, keeping the whole window
+// on screen. Simply scaling a 1440x900 canvas would push controls outside the game at 150%.
+inline void ConfigureGeometry(float zoom) {
+    kW = 1440 / zoom; kH = 900 / zoom; kMainW = kW - kMainX - 1; kMainH = kH - kMainY - kFootH - 1;
+    kContentW = kMainW - kBar; kFootY = kMainY + kMainH;
+    kPanelW = kContentW - 2 * kPadX; kPanelInner = kPanelW - 2 * kPanelPad;
+    kCardW = (kPanelInner - kGap) / 2; kCardInner = kCardW - 2 * kCardPad; kHeroTextW = (kContentW - 64) * .7f;
+}
 inline constexpr int kTopLeft = 257, kTop = 258, kTopRight = 260, kLeft = 513, kCenter = 514, kRight = 516;  // TMP alignments
 
 // ----------------------------------------------------------------------------- Unity calls

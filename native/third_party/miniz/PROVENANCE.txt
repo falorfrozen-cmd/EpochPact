@@ -1,0 +1,6 @@
+miniz 3.1.2
+https://github.com/richgel999/miniz/tree/3.1.2
+Files downloaded unchanged from this upstream tag on 2026-10-20.
+miniz_export.h is the static-build export header generated locally.
+License: MIT; see LICENSE and the notices in each source file.
+Used only for loot-filter ZIP import and backup; no executable extraction.

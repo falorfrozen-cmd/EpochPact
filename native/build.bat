@@ -28,6 +28,9 @@ if "%~1"=="player" set "CORE_FLAGS="
 if "%~1"=="player-core" set "CORE_FLAGS="
 if "%~1"=="player" set "FLAVOR=player"
 if "%~1"=="player-core" set "FLAVOR=player"
+rem Private UI renderer fixtures only. Never package this flavor for players.
+if "%~1"=="player-ui-test" set "CORE_FLAGS=/DEPOCHPACT_TESTING"
+if "%~1"=="player-ui-test" set "FLAVOR=test"
 rem Isolated crafting fixtures only; never install general research trackers.
 if "%~1"=="test-core" set "CORE_FLAGS=/DEPOCHPACT_TESTING"
 if "%~1"=="test-core" set "FLAVOR=test"
@@ -46,18 +49,19 @@ if "%~1"=="loader" goto :done
 echo [2/3] core (EpochPact.Core.dll)
 rem EPOCHPACT_RESEARCH: the metadata dump, capture hooks and research commands (not for players).
 ml64 /nologo /c /Fo"%OUT%\stat_thunk.obj" "%HERE%core\stat_thunk.asm" || exit /b 1
-set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread lifecycle xp loot density items smart_loot crafting workshop map_view collection player stat_editor progression monolith factions cof cof_tuning build_controls convenience inventory_tools rage weaver item_tiers stash_rules fonts report effects ingame_panel ingame_assets ingame_ui ingame_i18n ingame_kit ingame_sections ingame_summons ingame_display ingame_inventory ingame_forms ingame_cof ingame_monolith ingame_craft ingame_workshop ingame_stats commands research"
+set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread lifecycle xp loot density items smart_loot crafting workshop map_view collection player stat_editor progression monolith factions cof cof_tuning build_controls convenience inventory_tools rage weaver item_tiers stash_rules fonts report effects ingame_panel ingame_assets ingame_ui ingame_i18n ingame_kit ingame_sections ingame_summons ingame_display ingame_inventory ingame_forms ingame_cof ingame_monolith ingame_craft ingame_workshop ingame_stats ingame_collection ingame_settings ingame_archive ingame_filter_io ingame_filter_view ingame_hud commands research"
 set "CORE_CPP="
 set "CORE_OBJ="
 for %%f in (%CORE_SRC%) do call set "CORE_CPP=%%CORE_CPP%% "%CORE%\%%f.cpp""
 for %%f in (%CORE_SRC%) do call set "CORE_OBJ=%%CORE_OBJ%% "%OUT%\%%f.obj""
-cl %CFLAGS% /EHa %CORE_FLAGS% /c /Fo"%OUT%\\" %CORE_CPP% || exit /b 1
+cl %CFLAGS% /MP4 /EHa %CORE_FLAGS% /c /Fo"%OUT%\\" %CORE_CPP% || exit /b 1
 rc /nologo /fo"%OUT%\core.res" "%HERE%core\core.rc" || exit /b 1
 rem The in-game window's data, images and fonts (tools/build_ingame_assets.py), embedded as RCDATA.
 py -3 "%HERE%..\tools\build_ingame_assets.py" --out "%OUT%\ingame" || exit /b 1
 rc /nologo /fo"%OUT%\ingame.res" "%OUT%\ingame\ingame.rc" || exit /b 1
 link /nologo /DLL /OUT:"%OUT%\EpochPact.Core.dll" %CORE_OBJ% "%OUT%\stat_thunk.obj" "%OUT%\core.res" "%OUT%\ingame.res" kernel32.lib user32.lib psapi.lib || exit /b 1
 if "%FLAVOR%"=="player" call :merged_loader || exit /b 1
+if "%~1"=="player-ui-test" call :merged_loader || exit /b 1
 py -3 "%HERE%..\tools\stamp_build.py" %FLAVOR% --build-dir "%OUT%" || exit /b 1
 if "%~1"=="core" goto :done
 if "%~1"=="player-core" goto :done
@@ -96,6 +100,8 @@ cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\weaver_rules_test.exe" "%HERE%tes
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\rage_rules_test.exe" "%HERE%tests\rage_rules_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\ingame_json_test.exe" "%HERE%tests\ingame_json_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\ingame_stats_test.exe" "%HERE%tests\ingame_stats_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\ingame_browser_test.exe" "%HERE%tests\ingame_browser_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\ingame_filter_test.exe" "%HERE%tests\ingame_filter_test.cpp" "%OUT%\ingame_filter_io.obj" "%OUT%\ingame_archive.obj" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\ingame_i18n_test.exe" "%HERE%tests\ingame_i18n_test.cpp" "%CORE%\ingame_i18n.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\review_test.exe" "%HERE%tests\review_test.cpp" || exit /b 1
 cl %CFLAGS% /EHa /c /Fo"%OUT%\tests\\" "%HERE%tests\mainthread_test.cpp" "%CORE%\mainthread.cpp" || exit /b 1
@@ -113,15 +119,17 @@ rem separate EpochPact.Core.dll to find, load or have flagged. Only core.cpp and
 rem version_proxy.cpp see EPOCHPACT_MERGED_LOADER; every other object is the one [2/3] just built.
 echo [2b/3] merged loader (player\version.dll)
 set "MERGED_DIR=%OUT%\merged"
+set "MERGED_PLAYER_DIR=%OUT%\player"
+if "%FLAVOR%"=="test" set "MERGED_PLAYER_DIR=%OUT%\test"
 if not exist "%MERGED_DIR%" mkdir "%MERGED_DIR%"
-if not exist "%OUT%\player" mkdir "%OUT%\player"
+if not exist "%MERGED_PLAYER_DIR%" mkdir "%MERGED_PLAYER_DIR%"
 ml64 /nologo /c /Fo"%MERGED_DIR%\version_thunks.obj" "%HERE%proxy\version_thunks.asm" || exit /b 1
 cl %CFLAGS% /EHsc /DEPOCHPACT_MERGED_LOADER /c /Fo"%MERGED_DIR%\version_proxy.obj" "%HERE%proxy\version_proxy.cpp" || exit /b 1
 cl %CFLAGS% /EHa %CORE_FLAGS% /DEPOCHPACT_MERGED_LOADER /c /Fo"%MERGED_DIR%\core.obj" "%CORE%\core.cpp" || exit /b 1
 rc /nologo /fo"%MERGED_DIR%\version.res" "%HERE%proxy\version.rc" || exit /b 1
 set "MERGED_OBJ="
 for %%f in (%CORE_SRC%) do if /i not "%%f"=="core" call set "MERGED_OBJ=%%MERGED_OBJ%% "%OUT%\%%f.obj""
-link /nologo /DLL /OUT:"%OUT%\player\version.dll" /IMPLIB:"%MERGED_DIR%\version.lib" /DEF:"%HERE%proxy\version.def" "%MERGED_DIR%\version_thunks.obj" "%MERGED_DIR%\version_proxy.obj" "%MERGED_DIR%\core.obj" %MERGED_OBJ% "%OUT%\stat_thunk.obj" "%MERGED_DIR%\version.res" "%OUT%\ingame.res" kernel32.lib user32.lib psapi.lib || exit /b 1
+link /nologo /DLL /OUT:"%MERGED_PLAYER_DIR%\version.dll" /IMPLIB:"%MERGED_DIR%\version.lib" /DEF:"%HERE%proxy\version.def" "%MERGED_DIR%\version_thunks.obj" "%MERGED_DIR%\version_proxy.obj" "%MERGED_DIR%\core.obj" %MERGED_OBJ% "%OUT%\stat_thunk.obj" "%MERGED_DIR%\version.res" "%OUT%\ingame.res" kernel32.lib user32.lib psapi.lib || exit /b 1
 exit /b 0
 
 :done

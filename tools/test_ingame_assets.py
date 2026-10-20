@@ -76,6 +76,11 @@ def app_panel_ids(title):
 
 
 class PagesTests(unittest.TestCase):
+    def test_generated_hero_titles_survive_section_metadata(self):
+        data = assets.build_data()
+        self.assertEqual([(p["id"], p["title"], p["subtitle"]) for p in data["pages"]],
+                         [(p[0], p[3], p[4]) for p in ingame_pages.PAGES])
+
     def test_pages_match_the_desktop_table(self):
         desktop = app_pages()
         self.assertEqual([p[0] for p in ingame_pages.PAGES], list(desktop), "same pages in the same order")

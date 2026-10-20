@@ -60,6 +60,8 @@ struct Section {
     Pin root, body;                      // root: placed by Relayout; body: what Build made
     float y = 0, h = 0, after = 20;      // after: the CSS margin below (a panel 20, a summary 22, a note 18)
     std::vector<Hit> hits;
+    struct HideRegion { Pin node; Hit bounds; int hit = -1; bool shown = false, panel = false; };
+    std::vector<HideRegion> hideRegions;
     std::set<std::string> reads;         // reads to send when its page is shown (and on Refresh)
     std::set<std::string> polls;         // reads repeated every second while its page is shown
     // Native sections: build the content into ctx (x 0 = the content's left edge, kPadX the
@@ -71,6 +73,7 @@ struct Section {
     std::map<std::string, uint64_t> every;     // a poll's own interval in ms (default 1000)
     std::shared_ptr<void> live;                // widgets the section updates in place (tables, lists)
     std::function<void(Section&)> tick;        // every frame while its page is shown
+    std::function<void(Section&)> widgetTick;  // an incremental widget; replaced on body rebuild
     // Places where the wheel scrolls a list instead of the page (section coords).
     struct Wheel { float x = 0, y = 0, w = 0, h = 0; std::function<void(float notches)> scroll; };
     std::vector<Wheel> wheels;
@@ -85,6 +88,7 @@ struct Section {
     // built again on its own; the group's first section makes the panel, Relayout sizes it.
     std::shared_ptr<Panel> frame;
     bool built = false;
+    int pendingWidgets = 0;              // incremental grids still being populated
     Ctx Body(void* parent) { return {&hits, Area::Main, parent, 0, 0, id}; }
 };
 // The section's height changed in place (a live table grew): move the sections below it.
@@ -101,7 +105,42 @@ void RegisterMonolithSections();         // ingame_monolith.cpp
 void RegisterCraftSections();            // ingame_craft.cpp
 void RegisterWorkshopSections();         // ingame_workshop.cpp
 void RegisterStatSections();             // ingame_stats.cpp
+struct Control;
+void RegisterCollectionSections();       // ingame_collection.cpp
+void RegisterSettingsSections();         // ingame_settings.cpp
+void RegisterFilterSections();
+void FilterFilesStep();
+void ReleaseFilterFiles();
+void HudInit(void* parent, int width, int height);
+void HudStep(bool mainWindowOpen);
+bool HudActive();
+bool HudShown(const std::string& name);
+void ToggleHud(const std::string& name);
+void ReleaseHud();
+std::string HudState();
+#ifdef EPOCHPACT_TESTING
+bool HudFixture(const std::string& style);
+#endif
+void ForgetInputs(int owner);
+float DrawHudRecap(const Ctx& c, float x, float y, float w, int* index, Action changed);
+void SettingsStep();                     // once per ready offline owner, even with F6 closed
+void RememberSetting(const Control& c, double value);
+void RememberChoice(const std::string& command);
+void NavigationChanged();
+void ReloadWindow();
+void Navigate(const std::string& page, const std::string& tab = "");
+std::map<std::string, double> ProfileValues();
+bool QueueProfileSetting(const std::string& id, double value);
+void CancelAutomaticSettings();
+std::string SearchQuery();
+void SearchChanged(const std::string& value);
+bool PartHidden(const std::string& key);
+void HideControl(const Ctx& c, float x, float y, float w, float h, const std::string& control, const std::string& label);
+bool ScanCollection(const std::string& page); // atlas/stash; explicit, read only
+std::string CollectionState();
 bool OpenStatView(const std::string& location);  // sheet:index[:extra], aliases:index or raw:index; read only
+bool AdvancedStatView();
+std::string DamageSourceLabel(const json::Value& source);
 void ReleaseStatRoots();                 // before IL2CPP shutdown, not static DLL destruction
 std::string WorkshopState();             // for "panel read": the Custom Items draft
 std::string SectionsState();             // for "panel read": the pickers' choices, the pickups kept
@@ -247,6 +286,7 @@ float SetNote(NoteParts& n, const std::string& text);
 float EmptyText(void* parent, float x, float y, float w, const std::string& text);   // p.empty
 // .section-head: h2 left, head buttons right (centred on the h2 line); returns its height
 float SectionHead(const Ctx& c, float x, float y, float w, const std::string& title, const std::vector<std::pair<std::string, Action>>& buttons);
+float PlaceSectionHead(const Ctx& c, float x, float y, float w, const std::string& title, std::vector<Button>& rightToLeft);
 // The summary tiles (.summary-grid): values and labels, n columns
 float SummaryTiles(void* parent, float x, float y, float w, const std::vector<std::pair<std::string, std::string>>& tiles, int columns = 4);
 // form-grid label + select (a closed select; OpenList on click)
@@ -275,6 +315,7 @@ void* MakeInput(const Ctx& c, float x, float y, float w, float h, const Style& s
 // A card's box (.control-card): border, gradient; rows of a CSS grid stretch it to the tallest.
 struct CardBox { float h = 0; Pin node, frame, grad; };
 CardBox OpenCard(void* parent, float x, float y, float w);
+CardBox OpenBrowserCard(void* parent, float x, float y, float w, bool selected = false);
 void CloseCard(CardBox& b, float w, float h);
 // actionCard (app.js): title (Georgia 15/600), lifetime badge, description, fields, the reason line
 // and the submit button. fields draws into the form grid at (x, y, w) and returns its height.
@@ -287,6 +328,11 @@ std::string ActionCaption(const Control& control);
 // Cards in a 2-column grid (gap 15); rows share the tallest card. Returns the grid height.
 using CardMaker = std::function<CardBox(const Ctx&, float x, float y, float w)>;
 float CardGrid(const Ctx& c, float x, float y, float w, const std::vector<CardMaker>& makers);
+// A bounded card viewport populated one card per frame. Its own wheel scrolls it; rebuilding
+// the section cancels the old population job. resized receives the final viewport height.
+float ScrollCards(Section& section, const Ctx& c, float x, float y, float w, float maxHeight,
+                  std::vector<CardMaker> makers, int columns = 3, float gap = 14,
+                  std::function<void(float)> resized = {});
 
 // A table updated in place (loot log, damage meter): rows are made as needed and reused, cells
 // are single lines; Update returns the new height.

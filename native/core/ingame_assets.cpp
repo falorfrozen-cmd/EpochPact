@@ -57,7 +57,7 @@ template <class T> struct Com {
     T** operator&() { return &p; }
     T* operator->() const { return p; }
 };
-bool Decode(IWICImagingFactory* factory, std::string_view bytes, Pixels& out) {
+bool Decode(IWICImagingFactory* factory, std::string_view bytes, Pixels& out, UINT maximum = 8192) {
     Com<IWICStream> stream;
     Com<IWICBitmapDecoder> decoder;
     Com<IWICBitmapFrameDecode> frame;
@@ -69,7 +69,7 @@ bool Decode(IWICImagingFactory* factory, std::string_view bytes, Pixels& out) {
         FAILED(converter->Initialize(frame.p, GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, nullptr, 0, WICBitmapPaletteTypeCustom)))
         return false;
     UINT w = 0, h = 0;
-    if (FAILED(converter->GetSize(&w, &h)) || !w || !h || w > 8192 || h > 8192) return false;
+    if (FAILED(converter->GetSize(&w, &h)) || !w || !h || w > maximum || h > maximum) return false;
     std::vector<uint8_t> topDown(static_cast<size_t>(w) * h * 4);
     if (FAILED(converter->CopyPixels(nullptr, w * 4, static_cast<UINT>(topDown.size()), topDown.data()))) return false;
     out.width = static_cast<int>(w);
@@ -327,6 +327,27 @@ const char* FaceLabel(Face face) {
     case Face::BodyBold: return "Inter Bold";
     }
     return "?";
+}
+void* RuntimeSprite(const std::string& key, std::string_view png) {
+    if (key.empty() || key.size() > 64) return nullptr;
+    const auto file = "runtime:" + key;
+    if (auto it = sprites.find(file); it != sprites.end()) return it->second.Get();
+    if (png.empty()) return nullptr;
+    size_t count = 0;
+    for (const auto& entry : sprites) if (entry.first.starts_with("runtime:")) ++count;
+    if (count >= 128 || png.size() > 150000 || png.size() < 8 || png.substr(0,8) != std::string_view("\x89PNG\r\n\x1a\n",8)) return nullptr;
+    const HRESULT init = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    Pixels decoded;
+    bool ok = false;
+    {
+        Com<IWICImagingFactory> factory;
+        if (SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory))))
+            ok = Decode(factory.p, png, decoded, 256);
+    }
+    if (SUCCEEDED(init)) CoUninitialize();
+    if (!ok) return nullptr;
+    { std::lock_guard<std::mutex> hold(pixelsLock); pixels[file] = std::move(decoded); }
+    return Sprite(file, false);
 }
 // TMP_FontAsset.fontWeightTable[weight / 100].regularTypeface = typeface (the table is an array of
 // TMP_FontWeightPair { regular, italic }; both faces stay loaded, so no reference is lost to the GC).

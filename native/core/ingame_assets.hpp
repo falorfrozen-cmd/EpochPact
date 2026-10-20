@@ -26,6 +26,8 @@ void* Font(Face face);
 bool FontsReady(std::string* why);
 // For "panel read": each face, its fallbacks, and whether ⚙ is found (alone / with fallbacks).
 std::string FontReport();
+// Cached runtime icons from the game's damageicon reply. PNG input is bounded to 256x256.
+void* RuntimeSprite(const std::string& key, std::string_view png = {});
 // Line metrics of a font, per point of size: line height, ascent and descent (descent < 0).
 // Adds characters to a face's atlas now (a few at a time, in the background).
 bool Warm(Face face, const std::string& characters);

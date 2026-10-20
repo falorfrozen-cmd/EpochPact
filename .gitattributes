@@ -1,3 +1,5 @@
 * text=auto
 *.bat text eol=crlf
 *.asm text eol=crlf
+# Preserve vendored upstream bytes, including its existing whitespace.
+native/third_party/miniz/* text eol=lf whitespace=-blank-at-eol

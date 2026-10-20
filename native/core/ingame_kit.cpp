@@ -191,6 +191,18 @@ float EmptyText(void* parent, float x, float y, float w, const std::string& text
     s.line = 1.65f;
     return 25 + Paragraph(parent, "Empty", x + 25, y + 25, w - 50, s, text) + 25;
 }
+float PlaceSectionHead(const Ctx& c,float x,float y,float w,const std::string& title,std::vector<Button>& made) {
+    Style h2{Face::Serif,27,C("ink")}; const float line=LineHeight(h2);
+    float used=0,tallest=line;for(const auto& b:made){used+=b.w+10;tallest=std::max(tallest,b.h);}
+    if(!made.empty()&&w-used-15<std::min(TextAdvance(Face::Serif,27,title),w*.55f)) {
+        float cy=y+H2(c.parent,x,y,w,title)+12,cx=x,row=0;
+        for(auto it=made.rbegin();it!=made.rend();++it){auto& b=*it;if(cx>x&&cx+b.w>x+w){cx=x;cy+=row+10;row=0;}
+            Move(b.node.rt,cx,cy);(*c.hits)[b.hit].x=c.ox+cx;(*c.hits)[b.hit].y=c.oy+cy;cx+=b.w+10;row=std::max(row,b.h);}
+        return cy+row-y;
+    }
+    for(auto& b:made){const float by=y+(tallest-b.h)/2;Move(b.node.rt,(*c.hits)[b.hit].x-c.ox,by);(*c.hits)[b.hit].y=c.oy+by;}
+    TextBox(c.parent,"Title",x,y+(tallest-line)/2,std::max(1.f,w-used-15),line,h2,title);return tallest;
+}
 float SectionHead(const Ctx& c, float x, float y, float w, const std::string& title, const std::vector<std::pair<std::string, Action>>& buttons) {
     Style h2{Face::Serif, 27, C("ink")};
     const float lh = LineHeight(h2);
@@ -203,13 +215,7 @@ float SectionHead(const Ctx& c, float x, float y, float w, const std::string& ti
         tallest = std::max(tallest, b.h);
         made.push_back(std::move(b));
     }
-    for (auto& b : made) {
-        const float by = y + (tallest - b.h) / 2;
-        Move(b.node.rt, (*c.hits)[b.hit].x - c.ox, by);
-        (*c.hits)[b.hit].y = c.oy + by;
-    }
-    TextBox(c.parent, "Title", x, y + (tallest - lh) / 2, right - x - 15, lh, h2, title);
-    return tallest;
+    return PlaceSectionHead(c,x,y,w,title,made);
 }
 float SummaryTiles(void* parent, float x, float y, float w, const std::vector<std::pair<std::string, std::string>>& tiles, int columns) {
     const float tileW = (w - (columns - 1) * 14) / columns;
@@ -424,6 +430,13 @@ CardBox OpenCard(void* parent, float x, float y, float w) {
     b.frame.Set(TransformOf(Outline(n.rt, "Border", 0, 0, w, 10, Hex("#5e644e77"), 4)));
     return b;
 }
+CardBox OpenBrowserCard(void* parent, float x, float y, float w, bool selected) {
+    CardBox b;
+    const Node n = New("Browser card", parent, x, y, w, 10); b.node.Set(n.rt);
+    b.grad.Set(TransformOf(Picture(n.rt, "Gradient", 0, 0, w, 10, "grad-browser.png", false, kWhite)));
+    b.frame.Set(TransformOf(Outline(n.rt, "Border", 0, 0, w, 10, selected ? C("gold") : C("line"), 5)));
+    return b;
+}
 void CloseCard(CardBox& b, float w, float h) {
     b.h = h;
     Resize(b.node.Get(), w, h);
@@ -444,6 +457,7 @@ std::string ActionCaption(const Control& c) {
 }
 CardBox ActionCard(const Ctx& c, float x, float y, float w, const Control& control, const std::string& caption, bool primary, Action submit,
                    const std::string& reason, Fields fields, const std::string& title, const std::string& description, float minDescription) {
+    if (PartHidden("card:" + control.id)) return {};
     CardBox b = OpenCard(c.parent, x, y, w);
     void* rt = b.node.Get();
     const Ctx in = c.At(rt, x, y);
@@ -476,22 +490,87 @@ CardBox ActionCard(const Ctx& c, float x, float y, float w, const Control& contr
                               control.id);
     if (!reason.empty()) SetEnabled(in, button, false);
     cy += button.h + pad;
+    HideControl(c, x, y, w, cy, control.id, control.label);
     CloseCard(b, w, cy);
     return b;
 }
 float CardGrid(const Ctx& c, float x, float y, float w, const std::vector<CardMaker>& makers) {
     const float colW = (w - 15) / 2;
     float cy = y;
-    for (size_t i = 0; i < makers.size(); i += 2) {
+    for (size_t i = 0; i < makers.size();) {
         std::vector<CardBox> row;
-        row.push_back(makers[i](c, x, cy, colW));
-        if (i + 1 < makers.size()) row.push_back(makers[i + 1](c, x + colW + 15, cy, colW));
+        while (i < makers.size() && row.size() < 2) {
+            auto made = makers[i++](c, x + row.size() * (colW + 15), cy, colW);
+            if (made.node) row.push_back(std::move(made));
+        }
+        if (row.empty()) continue;
         float rowH = 0;
         for (const auto& b : row) rowH = std::max(rowH, b.h);
         for (auto& b : row) if (b.h < rowH) CloseCard(b, colW, rowH);
         cy += rowH + 15;
     }
-    return makers.empty() ? 0 : cy - 15 - y;
+    return cy == y ? 0 : cy - 15 - y;
+}
+
+float ScrollCards(Section& sec, const Ctx& outer, float x, float y, float w, float maxHeight,
+                  std::vector<CardMaker> makers, int columns, float gap, std::function<void(float)> resized) {
+    if (makers.empty()) return 0;
+    struct Grid {
+        Pin viewport, content, thumb;
+        std::vector<CardMaker> makers;
+        std::vector<CardBox> row;
+        std::vector<int> hits;
+        Ctx c;
+        float width = 0, colW = 0, maxH = 0, h = 0, total = 0, rowH = 0, scroll = 0, gap = 0;
+        int columns = 3;
+        bool unbounded = false;
+        size_t next = 0;
+        std::function<void(float)> resized;
+    };
+    auto grid = std::make_shared<Grid>();
+    grid->width = w; grid->columns = std::max(1, columns); grid->gap = gap; grid->unbounded = maxHeight <= 0;
+    grid->colW = (w - (grid->columns - 1) * gap - (grid->unbounded ? 0 : 12)) / grid->columns;
+    grid->h = grid->unbounded ? 1.f : maxHeight; grid->maxH = maxHeight; grid->makers = std::move(makers); grid->resized = std::move(resized);
+    const Node viewport = New("Card grid viewport", outer.parent, x, y, w, grid->h); Clip(viewport);
+    const Node content = New("Card grid content", viewport.rt, 0, 0, w - (grid->unbounded ? 0 : 12), grid->h);
+    grid->viewport.Set(viewport.rt); grid->content.Set(content.rt);
+    grid->thumb.Set(TransformOf(Fill(viewport.rt, "Card grid scrollbar", w - 7, 2, 5, 16, C("gold"), 2)));
+    grid->c = outer.At(content.rt, x, y);
+    const auto scroll = [grid](float value) {
+        const float maximum = grid->unbounded ? 0.f : std::max(0.f, grid->total - grid->h);
+        const float next = std::clamp(value, 0.f, maximum), delta = grid->scroll - next;
+        grid->scroll = next; Move(grid->content.Get(), 0, -next); grid->c.oy += delta;
+        for (int hit : grid->hits) if (static_cast<size_t>(hit) < grid->c.hits->size()) (*grid->c.hits)[hit].y += delta;
+        const float thumb = maximum > 0 ? std::max(16.f, grid->h * grid->h / grid->total) : 0;
+        Resize(grid->thumb.Get(), 5, thumb);
+        Move(grid->thumb.Get(), grid->width - 7, maximum > 0 ? (grid->h - thumb) * next / maximum : 0);
+    };
+    if (!grid->unbounded) sec.wheels.push_back({outer.ox + x, outer.oy + y, w, maxHeight, [grid, scroll](float notches) { scroll(grid->scroll - notches * 100); }});
+    sec.pendingWidgets = static_cast<int>(grid->makers.size());
+    sec.widgetTick = [grid, scroll](Section& section) {
+        if (grid->next == grid->makers.size()) return;
+        const size_t before = grid->c.hits->size();
+        const int column = static_cast<int>(grid->next % grid->columns);
+        auto card = grid->makers[grid->next](grid->c, column * (grid->colW + grid->gap), grid->total, grid->colW);
+        grid->rowH = std::max(grid->rowH, card.h); grid->row.push_back(std::move(card));
+        for (size_t i = before; i < grid->c.hits->size(); ++i) grid->hits.push_back(static_cast<int>(i));
+        ++grid->next; section.pendingWidgets = static_cast<int>(grid->makers.size() - grid->next);
+        if (column + 1 == grid->columns || grid->next == grid->makers.size()) {
+            for (auto& cell : grid->row) if (cell.h < grid->rowH) CloseCard(cell, grid->colW, grid->rowH);
+            grid->total += grid->rowH + grid->gap; grid->row.clear(); grid->rowH = 0;
+            if (!section.pendingWidgets) grid->total -= grid->gap;
+            if (grid->unbounded || !section.pendingWidgets) {
+                grid->h = grid->unbounded ? grid->total : std::min(grid->maxH, grid->total);
+                Resize(grid->viewport.Get(), grid->width, grid->h);
+                if (grid->resized) grid->resized(grid->h);
+            }
+            if (!section.pendingWidgets) {
+                grid->makers.clear(); grid->next = 0;
+            }
+            scroll(grid->scroll);
+        }
+    };
+    return grid->h;
 }
 
 // ---------------------------------------------------------------------------------- live table

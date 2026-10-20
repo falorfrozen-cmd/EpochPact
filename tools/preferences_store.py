@@ -15,6 +15,7 @@ import json
 import os
 import re
 import threading
+from contextlib import contextmanager
 from pathlib import Path
 
 from tools.app_paths import user_root
@@ -23,6 +24,45 @@ KEY = re.compile(r'epochpact\.[A-Za-z0-9._-]{1,120}')
 MAXIMUM_KEYS = 300
 MAXIMUM_VALUE = 64 * 1024
 MAXIMUM_TOTAL = 1024 * 1024
+
+
+def _mutex_name(path: Path) -> str:
+    """Same UTF-8 FNV-1a path key as the native preference writer."""
+    text = os.path.normcase(os.path.abspath(path)).encode('utf-8')
+    value = 14695981039346656037
+    for byte in text:
+        value = ((value ^ byte) * 1099511628211) & 0xffffffffffffffff
+    return f'Local\\EpochPact.Preferences.{value:016x}'
+
+
+@contextmanager
+def _process_lock(path: Path):
+    if os.name != 'nt':
+        yield
+        return
+    import ctypes
+    from ctypes import wintypes
+    api = ctypes.WinDLL('kernel32', use_last_error=True)
+    api.CreateMutexW.argtypes = (ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR)
+    api.CreateMutexW.restype = wintypes.HANDLE
+    api.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+    api.WaitForSingleObject.restype = wintypes.DWORD
+    api.ReleaseMutex.argtypes = (wintypes.HANDLE,)
+    api.CloseHandle.argtypes = (wintypes.HANDLE,)
+    handle = api.CreateMutexW(None, False, _mutex_name(path))
+    if not handle:
+        raise ctypes.WinError(ctypes.get_last_error())
+    held = False
+    try:
+        result = api.WaitForSingleObject(handle, 1000)
+        if result not in (0, 0x80):
+            raise OSError('EpochPact preferences are busy. Try again.')
+        held = True
+        yield
+    finally:
+        if held:
+            api.ReleaseMutex(handle)
+        api.CloseHandle(handle)
 
 
 def default_path() -> Path:
@@ -60,7 +100,7 @@ class PreferencesStore:
                 raise ValueError('Invalid preference name.')
             if value is not None and (not isinstance(value, str) or len(value) > MAXIMUM_VALUE):
                 raise ValueError('Preference value is too large.')
-        with self._lock:
+        with self._lock, _process_lock(self.path):
             values = self._read()
             for key, value in changes.items():
                 if value is None:

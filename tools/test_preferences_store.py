@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -11,6 +12,14 @@ from tools.preferences_store import PreferencesStore, MAXIMUM_VALUE
 
 
 class StoreTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == 'nt', 'Windows native/desktop shared mutex')
+    def test_independent_stores_serialize_updates_to_the_same_file(self):
+        def write(index):
+            PreferencesStore(self.path).set_json(f'epochpact.writer{index}', index)
+        with ThreadPoolExecutor(max_workers=6) as workers:
+            list(workers.map(write, range(60)))
+        self.assertEqual(self.store.values(), {f'epochpact.writer{i}': str(i) for i in range(60)})
+
     def setUp(self):
         self.temp = Path(tempfile.mkdtemp())
         self.path = self.temp / 'EpochPact' / 'preferences.json'

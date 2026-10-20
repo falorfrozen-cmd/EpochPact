@@ -22,11 +22,13 @@
 #endif
 #include "ingame_panel.hpp"
 #include "ingame_window.hpp"
+#include "ingame_preferences_rules.hpp"
 #include "commands.hpp"
 #include "fonts.hpp"
 #include "lifecycle.hpp"
 #include <windows.h>
 #include <shellapi.h>
+#include <Xinput.h>
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -45,6 +47,7 @@
 #include <thread>
 #include <vector>
 #pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "xinput9_1_0.lib")
 
 namespace ep::ingame {
 namespace {
@@ -131,13 +134,14 @@ struct Page {
     float heroH = kHeroH;
     Pin root, canvas;
     float height = 0;
+    float savedScroll = 0;
     bool built = false, queued = false;
     std::vector<int> sections;
 };
 struct Watched { int section = -1; Pin field; std::string last, name; std::function<void(const std::string&)> onChange; };
 struct Window {
     Pin rootGo, rootCanvas, windowRt, listener, mainContent, sideContent, mainThumb, sideThumb, crumb, connection, draftLabel, applyGroup, applyGo, discardGo,
-        heroEyebrow, heroTitle, heroSub, heroArt, heroArtCompact, heroBorder, popup, toast, dialog, raycaster, applyLabel;
+        heroEyebrow, heroTitle, heroSub, heroArt, heroArtCompact, heroBorder, popup, toast, dialog, raycaster, applyLabel, navRoot, captionRoot, searchField, padFocus, dialogContent;
     std::vector<Pin> navFill, navFrame, navBar;
     std::vector<Page> pages;
     std::vector<std::unique_ptr<Section>> sections;
@@ -148,13 +152,16 @@ struct Window {
     bool built = false, shown = false, dialogOpen = false, listOpen = false;
     float dialogX = 0, dialogY = 0;
     uint64_t dialogToken = 0;
+    float dialogScroll = 0, dialogMaxScroll = 0, dialogWidth = 0, dialogHeight = 0;
     bool parked = false;  // the root canvas stays on, drawn on a display nobody uses while closed
     bool heroCompact = false;
     std::function<void(float)> popupWheel;  // the open list scrolls (a long one)
     uint64_t toastUntil = 0;
-    float scale = 1, mainScroll = 0, mainTarget = 0, sideScroll = 0, sideTarget = 0, sideHeight = 0;
+    float scale = 1, mainScroll = 0, mainTarget = 0, sideScroll = 0, sideTarget = 0, sideHeight = 0, brandHeight = 0;
     float thumbsAt[2] = {-1, -1};
     std::string lang;
+    int padList = -1, padIndex = -1;
+    bool padMode = false;
 } win;
 
 std::map<std::string, std::string>& RememberedTabs() {
@@ -171,6 +178,11 @@ std::atomic<int> hotkey{VK_F6};
 std::atomic<bool> toggleRequested{false};
 std::atomic<uint64_t> opens{0}, closes{0}, faults{0};
 bool broken = false;   // repeated faults: nothing more until the next F6 or "panel 1"
+bool reloadRequested = false;
+int screenW = 0, screenH = 0;
+std::string globalSearch;
+uint64_t searchDue = 0;
+uint64_t dialogCounter = 0;
 std::string lastError;
 std::string stage;     // what the window was doing, for a fault report
 
@@ -468,6 +480,7 @@ float BuildCard(Section& s, void* panel, float ox, float oy, float x, float y, c
     Resize(card.rt, cardW, k.h);
     Resize(k.frame.Get(), cardW, k.h);
     Resize(k.grad.Get(), cardW, k.h);
+    HideControl(Ctx{&s.hits, Area::Main, panel, ox, oy, s.id}, x, y, cardW, k.h, c.id, c.label);
     win.cards.push_back(std::move(k));
     Paint(win.cards.back(), false);
     if (!c.read.empty()) s.polls.insert(c.read);
@@ -596,6 +609,7 @@ void QueueSettings(std::vector<std::function<void()>>& out, int sectionId) {
         for (size_t i = 0; i < ids.size(); ++i) {
             auto it = controls.find(ids[i].Str());
             if (it == controls.end()) continue;
+            if (PartHidden("card:" + it->first)) continue;
             b->list.push_back(&it->second);
             b->automatic.push_back(i < spec["automatic"].items.size() ? spec["automatic"].items[i].boolean : true);
         }
@@ -906,7 +920,8 @@ void BuildBase() {
     Node rootGo = New("EpochPact In-game Window", nullptr, 0, 0, 0, 0);
     win.rootGo.Set(rootGo.go);
     fonts::SetWindowRoot(rootGo.rt);  // the interface font option leaves these texts alone
-    void* canvas = AddCanvas(rootGo.go);
+    Node canvasNode = New("Window canvas", rootGo.rt, 0, 0, 0, 0);
+    void* canvas = AddCanvas(canvasNode.go);
     win.rootCanvas.Set(canvas);
     int overlay = 0, order = 30000;
     void* ma[]{&overlay};
@@ -920,7 +935,8 @@ void BuildBase() {
     Enable(canvas, false);
     // The window, centred on the screen. Everything but the pages sits on its canvas, which stays
     // on: texts get their meshes while the window is closed, and only the root canvas switches.
-    Node w = New("Window", rootGo.rt, 0, 0, kW, kH);
+    HudInit(rootGo.rt, screenW, screenH);
+    Node w = New("Window", canvasNode.rt, 0, 0, kW, kH);
     V2 mid{0.5f, 0.5f}, zero{0, 0};
     void* mida[]{&mid};
     void* za[]{&zero};
@@ -971,16 +987,17 @@ void BuildTopbar() {
     s.align = kLeft;
     win.crumb.Set(TextBox(w, "Breadcrumb", kMainX + 20, 1, 600, kTopH - 1, s, ""));
     // .top-search: 250 wide at the right edge: the ⌕ (27px gold), gap 8, the input
-    const float searchX = kMainX + kMainW - 20 - 250;
+    const float searchW = kW < 1200 ? 180.f : 250.f;
+    const float searchX = kMainX + kMainW - 20 - searchW;
     Style ss{Face::Symbol, 27, C("gold")};  // Inter has no ⌕
     ss.align = kLeft;
     TextBox(w, "Search icon", searchX, 1, 20, kTopH - 1, ss, "\xE2\x8C\x95");
-    const float inputX = searchX + 23.6f, inputW = 250 - 23.6f, inputH = 35.3f, inputY = 1 + (kTopH - 1 - inputH) / 2;
-    Fill(w, "Search", inputX, inputY, inputW, inputH, Hex("#080e0e"), 3);
-    Outline(w, "Search border", inputX, inputY, inputW, inputH, Hex("#7b745a99"), 3);
-    Style ps{Face::Body, 12, Hex("#8b8f8c")};
+    const float inputX = searchX + 23.6f, inputW = searchW - 23.6f, inputH = 35.3f, inputY = 1 + (kTopH - 1 - inputH) / 2;
+    Style ps{Face::Body, 12, C("ink")};
     ps.align = kLeft;
-    TextBox(w, "Search placeholder", inputX + 11, inputY, inputW - 22, inputH, ps, Tr("Find a setting…"));
+    win.searchField.Set(MakeInput(FixedCtx(), inputX, inputY, inputW, inputH, ps,
+        {Hex("#080e0e"), Hex("#7b745a99")}, globalSearch, Tr("Find a setting…"), false,
+        [](const std::string& value) { globalSearch = value; searchDue = Now() + 160; }, "global-search"));
     // ↻ Refresh (quiet), 16px left of the search; the connection text 16px left of it
     Button b = AddButton(FixedCtx(), searchX - 16, 0, Tr("↻ Refresh"), Look::Quiet, [] { RequestValues(true); }, true, "refresh");
     const float ry = 1 + (kTopH - 1 - b.h) / 2, rx = win.hits[b.hit].x;
@@ -990,7 +1007,9 @@ void BuildTopbar() {
     Style cs{Face::Body, 12, C("muted")};
     cs.align = kRight;
     cs.line = 1.3f;
-    win.connection.Set(TextBox(w, "Connection", rx - 16 - 380, 1, 380, kTopH - 1, cs, Tr("Checking connection")));
+    const float connectionW = std::min(380.f, rx - kMainX - 36);
+    win.connection.Set(TextBox(w, "Connection", rx - 16 - connectionW, 1, connectionW, kTopH - 1, cs, Tr("Checking connection")));
+    if (kW < 1200) SetActive(GameObjectOf(win.crumb.Get()), false);
 }
 void ApplyDrafts();
 void DiscardDrafts();
@@ -1053,16 +1072,26 @@ void BuildSidebarTop() {
     win.sideHeight = smallY + LineHeight(small) + 25;
     Solid(sc.rt, "Brand border", 0, win.sideHeight, kSideInner, 1, C("line"));
     win.sideHeight += 1;
+    win.brandHeight = win.sideHeight;
 }
 void BuildNav() {
-    void* sc = win.sideContent.Get();
+    Node nav = New("Navigation", win.sideContent.Get(), 0, 0, kSideInner, 10);
+    win.navRoot.Set(nav.rt); void* sc = nav.rt;
+    win.navFill.clear(); win.navFrame.clear(); win.navBar.clear();
+    win.navFill.resize(win.pages.size()); win.navFrame.resize(win.pages.size()); win.navBar.resize(win.pages.size());
+    const auto display = Preference("epochpact.display-preferences.v1");
+    const auto contains = [](const JValue& a, const std::string& key) { return std::any_of(a.items.begin(), a.items.end(), [&](const auto& v) { return v.Str() == key; }); };
+    std::vector<size_t> order;
+    for (size_t i = 0; i < win.pages.size(); ++i) if (i == win.page || win.pages[i].id == "overview" || win.pages[i].id == "settings" || !contains(display["hidden"], win.pages[i].id)) order.push_back(i);
+    std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) { return contains(display["favorites"], win.pages[a].id) && !contains(display["favorites"], win.pages[b].id); });
     // #nav: padding 15px 8px, gap 5; .nav-item: padding 12px 11px, 1px border, symbol 25 wide, gap
     // 15. Heights follow each symbol's fallback font, as measured in the desktop app.
     static const std::map<std::string, float> heights{{"\xE2\x97\x88", 54.7f}, {"\xE2\x8C\x81", 54.7f}, {"\xE2\x96\xA3", 54.7f}, {"\xE2\x97\x89", 54.7f},
                                                       {"\xE2\x8C\x96", 54.7f}, {"\xE2\x96\xA4", 54.7f}, {"\xE2\x8C\x98", 52.7f}, {"\xE2\x97\x87", 52.7f}};
-    float y = win.sideHeight + 15;
-    for (size_t i = 0; i < win.pages.size(); ++i) {
+    float y = win.brandHeight + 15;
+    for (size_t i : order) {
         const Page& p = win.pages[i];
+        const bool favorite = contains(display["favorites"], p.id);
         const auto hh = heights.find(p.symbol);
         const float h = hh != heights.end() ? hh->second : 56.f;
         Hit hit;
@@ -1075,14 +1104,15 @@ void BuildNav() {
         hit.w = 206;
         hit.h = h;
         // the current page: gradient, gold border, 3px accent bar; hover: soft (over the gradient)
-        win.navFill.emplace_back(Picture(sc, "Nav selected", 8, y, 206, h, "grad-nav.png", false, kWhite));
+        win.navFill[i].Set(Picture(sc, "Nav selected", 8, y, 206, h, "grad-nav.png", false, kWhite));
         void* hover = Fill(sc, "Nav hover", 8, y, 206, h, kWhite, 2);
         AddHover(hit, hover, Alpha(C("soft"), 0), C("soft"), 0);
-        win.navFrame.emplace_back(Outline(sc, "Nav border", 8, y, 206, h, C("gold"), 2));
-        win.navBar.emplace_back(Solid(sc, "Nav bar", 9, y + 1, 3, h - 2, C("accent")));
-        Style sym{p.symbolFace == "body" ? Face::Body : Face::Symbol, 23, C("gold")};
+        win.navFrame[i].Set(Outline(sc, "Nav border", 8, y, 206, h, C("gold"), 2));
+        win.navBar[i].Set(Solid(sc, "Nav bar", 9, y + 1, 3, h - 2, C("accent")));
+        for (auto* pin : {&win.navFill[i], &win.navFrame[i], &win.navBar[i]}) SetActive(GameObjectOf(pin->Get()), i == win.page);
+        Style sym{favorite || p.symbolFace == "body" ? Face::Body : Face::Symbol, 23, C("gold")};
         sym.align = kCenter;
-        TextBox(sc, "Nav symbol", 8 + 12, y, 25, h, sym, p.symbol);
+        TextBox(sc, "Nav symbol", 8 + 12, y, 25, h, sym, favorite ? "\xE2\x98\x85" : p.symbol);
         Style label{Face::Body, 14, C("ink")};
         label.align = kLeft;
         TextBox(sc, "Nav label", 8 + 12 + 25 + 15, y, 150, h, label, Tr(p.nav));
@@ -1092,10 +1122,14 @@ void BuildNav() {
     // .nav-customize: block, padding 12px 22px, 11.2px muted
     Style custom{Face::Body, 11.2f, C("muted")};
     TextBox(sc, "Customize", 8 + 22, y + 12, 170, LineHeight(custom), custom, Tr("Customize navigation"));
+    Hit customize; customize.kind = HitKind::Action; customize.area = Area::Sidebar; customize.name = "customize-navigation";
+    customize.x = 8; customize.y = y; customize.w = 206; customize.h = LineHeight(custom) + 24;
+    customize.action = [] { Navigate("settings"); }; win.hits.push_back(std::move(customize));
     win.sideHeight = y + LineHeight(custom) + 24 + 15;
 }
 void BuildCaption() {
-    void* sc = win.sideContent.Get();
+    Node caption = New("Sidebar caption", win.sideContent.Get(), 0, 0, kSideInner, 10);
+    win.captionRoot.Set(caption.rt); void* sc = caption.rt;
     // .sidebar-caption: margin 0 20px 20px, padding-top 25, centred, line-height 2, letter-spacing 2
     Style cap{Face::Body, 10, Hex("#b9ad96")};
     cap.line = 2;
@@ -1139,7 +1173,7 @@ void BuildCaption() {
     win.hits.push_back(std::move(link));
     y += LineHeight(support) + 20;
     win.sideHeight = y;
-    Resize(sc, kSideInner, y);
+    Resize(win.sideContent.Get(), kSideInner, y);
 }
 void BuildFrame() {
     void* w = win.windowRt.Get();
@@ -1250,6 +1284,7 @@ void ShowPage(int index) {
     const double start = Ms();
     if (index != win.page && win.built) ReleaseKeyboard();
     const int previous = win.page;
+    if (previous >= 0 && previous < static_cast<int>(win.pages.size())) win.pages[previous].savedScroll = win.mainScroll;
     Page& p = win.pages[index];
     if (!p.built) {
         QueuePage(index, true);
@@ -1258,19 +1293,20 @@ void ShowPage(int index) {
     CloseList();
     if (previous != index && win.pages[previous].canvas) Enable(win.pages[previous].canvas.Get(), false);
     win.page = index;
+    if (win.built && previous != index && !Preference("epochpact.display-preferences.v1")["hidden"].items.empty()) NavigationChanged();
     Enable(p.canvas.Get(), true);
-    win.mainScroll = win.mainTarget = 0;
-    Move(win.mainContent.Get(), 0, 0);
+    win.mainScroll = win.mainTarget = model::On(Preference("epochpact.remember-scroll.live")) ? std::clamp(p.savedScroll, 0.f, MaxMain()) : 0;
+    Move(win.mainContent.Get(), 0, -win.mainScroll);
     for (size_t i = 0; i < win.pages.size(); ++i) {
         const bool on = static_cast<int>(i) == index;
-        SetActive(GameObjectOf(win.navFill[i].Get()), on);
-        SetActive(GameObjectOf(win.navFrame[i].Get()), on);
-        SetActive(GameObjectOf(win.navBar[i].Get()), on);
+        for (auto* pin : {&win.navFill[i], &win.navFrame[i], &win.navBar[i]}) if (*pin) SetActive(GameObjectOf(pin->Get()), on);
     }
     SetText(win.crumb.Get(), "EpochPact / " + Tr(p.nav));
     PlaceHero();
     UpdateFooter();
     RequestValues(true);
+    for (int id : p.sections) if (Sec(id).kind == "global_search") Rebuild(id);
+    Relayout(index);
     win.thumbsAt[0] = -1;
     timing.pageMs = Ms() - start;
 }
@@ -1421,6 +1457,7 @@ void SendSetting(const std::string& id, double v, std::function<void(bool)> afte
         } else {
             appliedValues[id] = v;
             applied.insert(id);
+            RememberSetting(controls.at(id), v);
         }
         PaintId(id);
         const Control& sent = controls.at(id);
@@ -1500,7 +1537,6 @@ bool GameInFront(HWND* window = nullptr) {
     if (window) *window = w;
     return pid == GetCurrentProcessId();
 }
-int screenW = 0, screenH = 0;
 // The cursor in window css px; false outside the game's window.
 bool Cursor(float* x, float* y) {
     HWND window = nullptr;
@@ -1550,6 +1586,7 @@ bool Inside(int list, const Hit& h, float px, float py) {
     float x, y;
     if (!h.visible || !Placed(list, h, &x, &y) || px < x || px >= x + h.w || py < y || py >= y + h.h) return false;
     if (list >= 0) return px >= kMainX && px < kMainX + kContentW && py >= kMainY && py < kMainY + kMainH;
+    if (list == kDialog && win.dialogContent) return px >= win.dialogX && px < win.dialogX + win.dialogWidth && py >= win.dialogY && py < win.dialogY + win.dialogHeight;
     if (h.area == Area::Sidebar) return px >= 1 && px < 1 + kSideInner && py >= 1 && py < kH - 1;
     return true;
 }
@@ -1697,9 +1734,23 @@ HitRef Under(float px, float py) {
     }
     return {kFixed, -1};
 }
+void ScrollDialog(float target) {
+    if (!win.dialogContent) return;
+    const float next = std::clamp(target, 0.f, win.dialogMaxScroll), delta = win.dialogScroll - next;
+    win.dialogScroll = next; Move(win.dialogContent.Get(), 0, -next);
+    for (auto& h : win.dialogHits) h.y += delta;
+}
 void Input(float dt) {
     float px = -1, py = -1;
     const bool inside = Cursor(&px, &py);
+    for (int id : win.pages[win.page].sections) {
+        auto& s = Sec(id);
+        for (auto& region : s.hideRegions) {
+            const bool on = inside && !win.dialogOpen && !s.hidden && Inside(id, region.bounds, px, py);
+            if (on != region.shown) { SetActive(GameObjectOf(region.node.Get()), on); region.shown = on; }
+            if (region.hit >= 0 && region.hit < static_cast<int>(s.hits.size())) s.hits[region.hit].visible = on;
+        }
+    }
     if (!mouseDown) SetHover(inside ? Under(px, py) : HitRef{kFixed, -1});
     const int vk = GetSystemMetrics(SM_SWAPBUTTON) ? VK_RBUTTON : VK_LBUTTON;
     const bool down = inside && (GetAsyncKeyState(vk) & 0x8000) != 0;
@@ -1748,9 +1799,10 @@ void Input(float dt) {
     }
     mouseDown = down;
     // the wheel: 100 px a notch, eased like the browser's smooth scrolling
-    const float wheel = inside && (!win.dialogOpen || win.listOpen) ? WheelDelta() : 0;
+    const float wheel = inside ? WheelDelta() : 0;
+    if (wheel != 0 && win.dialogOpen && !win.listOpen && win.dialogContent && px >= win.dialogX && px < win.dialogX + win.dialogWidth && py >= win.dialogY && py < win.dialogY + win.dialogHeight) ScrollDialog(win.dialogScroll - wheel * 80);
     if (wheel != 0 && win.listOpen && win.popupWheel) win.popupWheel(wheel);
-    if (wheel != 0 && !win.listOpen) {
+    if (wheel != 0 && !win.listOpen && !win.dialogOpen) {
         // a list box under the pointer scrolls itself, not the page
         bool used = false;
         if (px >= kMainX && px < kMainX + kContentW && py >= kMainY && py < kMainY + kMainH)
@@ -1776,6 +1828,73 @@ void Input(float dt) {
     approach(win.sideScroll, win.sideTarget);
     if (win.mainScroll != mainBefore) { Move(win.mainContent.Get(), 0, -win.mainScroll); CloseList(); }
     if (win.sideScroll != sideBefore) Move(win.sideContent.Get(), 0, -win.sideScroll);
+}
+void Show(bool on);
+void PadInput() {
+    static WORD previous = 0; static uint64_t repeatAt = 0;
+    static DWORD controller = XUSER_MAX_COUNT; static uint64_t nextProbe = 0;
+    XINPUT_STATE state{}; bool found = controller < XUSER_MAX_COUNT && XInputGetState(controller, &state) == ERROR_SUCCESS;
+    if (!found && Now() >= nextProbe) {
+        controller = XUSER_MAX_COUNT; nextProbe = Now() + 1000;
+        for (DWORD i = 0; i < XUSER_MAX_COUNT; ++i) if (XInputGetState(i, &state) == ERROR_SUCCESS) { controller = i; found = true; break; }
+    }
+    if (!found || !GameInFront()) { previous = 0; return; }
+    const WORD buttons = state.Gamepad.wButtons, pressedNow = buttons & ~previous;
+    const bool repeat = Now() >= repeatAt;
+    int dx = 0, dy = 0;
+    if (buttons & XINPUT_GAMEPAD_DPAD_UP) dy = -1; else if (buttons & XINPUT_GAMEPAD_DPAD_DOWN) dy = 1;
+    else if (buttons & XINPUT_GAMEPAD_DPAD_LEFT) dx = -1; else if (buttons & XINPUT_GAMEPAD_DPAD_RIGHT) dx = 1;
+    if ((dx || dy) && (pressedNow || repeat)) {
+        struct Candidate { HitRef ref; float x, y, w, h; }; std::vector<Candidate> candidates;
+        const auto add = [&](int list) {
+            auto* hits = ListOf(list); if (!hits) return;
+            for (size_t i = 0; i < hits->size(); ++i) { const auto& h = (*hits)[i]; float x, y;
+                if (!h.enabled || !h.visible || h.kind == HitKind::Track || !Placed(list,h,&x,&y)) continue;
+                if (list == kFixed && h.area != Area::Sidebar && (x < 0 || y < 0 || x+h.w > kW || y+h.h > kH)) continue;
+                candidates.push_back({{list,static_cast<int>(i)},x,y,h.w,h.h});
+            }
+        };
+        if (win.listOpen) add(kPopup);
+        else if (win.dialogOpen) add(kDialog);
+        else { add(kFixed); for (int id : win.pages[win.page].sections) if (!Sec(id).hidden) add(id); }
+        const HitRef current{win.padList,win.padIndex}; auto at = std::find_if(candidates.begin(),candidates.end(),[&](const auto& c){return c.ref==current;});
+        auto chosen = candidates.end();
+        if (at == candidates.end()) { if (!candidates.empty()) chosen=candidates.begin(); }
+        else {
+            double best = 1e30;
+            for (auto it=candidates.begin();it!=candidates.end();++it) {
+                const float xx=it->x+it->w/2-(at->x+at->w/2),yy=it->y+it->h/2-(at->y+at->h/2);
+                const float primary=dx?xx*dx:yy*dy, perpendicular=dx?std::abs(yy):std::abs(xx);
+                if(primary<=1)continue;const double cost=primary+perpendicular*3;
+                if(cost<best){best=cost;chosen=it;}
+            }
+        }
+        if (chosen!=candidates.end()) {
+            win.padList=chosen->ref.list;win.padIndex=chosen->ref.index;win.padMode=true;
+            const auto* hit=HitAt(chosen->ref);
+            if (chosen->ref.list == kDialog && win.dialogContent && (chosen->y < win.dialogY || chosen->y + hit->h > win.dialogY + win.dialogHeight)) ScrollDialog(win.dialogScroll + chosen->y - win.dialogY - win.dialogHeight / 3);
+            if (chosen->ref.list>=0) {
+                const float top=Sec(chosen->ref.list).y+hit->y;
+                if(top<win.mainScroll||top+hit->h>win.mainScroll+kMainH)win.mainTarget=win.mainScroll=std::clamp(top-kMainH/3,0.f,MaxMain());
+                Move(win.mainContent.Get(),0,-win.mainScroll);
+            } else if (hit->area==Area::Sidebar) {
+                if(hit->y<win.sideScroll||hit->y+hit->h>win.sideScroll+kH-2)win.sideTarget=win.sideScroll=std::clamp(hit->y-kH/3,0.f,MaxSide());
+                Move(win.sideContent.Get(),0,-win.sideScroll);
+            }
+        }
+        repeatAt=Now()+(pressedNow?320:130);
+    }
+    if (pressedNow & XINPUT_GAMEPAD_A) { win.padMode=true; const HitRef ref{win.padList,win.padIndex}; const auto* h=HitAt(ref); if(h&&h->enabled&&h->visible){const Hit copy=*h;Click(ref.list,copy);} }
+    if (pressedNow & XINPUT_GAMEPAD_B) { if(win.listOpen)CloseList();else if(win.dialogOpen)CloseDialog();else Show(false); }
+    if (pressedNow & XINPUT_GAMEPAD_X) RequestValues(true);
+    if (win.padMode && win.shown) {
+        const auto* hit=HitAt({win.padList,win.padIndex});float x=0,y=0;
+        if (hit && Placed(win.padList,*hit,&x,&y)) {
+            if(!win.padFocus)win.padFocus.Set(TransformOf(Outline(win.windowRt.Get(),"Controller focus",x-2,y-2,hit->w+4,hit->h+4,C("accent"),3)));
+            Move(win.padFocus.Get(),x-2,y-2);Resize(win.padFocus.Get(),hit->w+4,hit->h+4);SetActive(GameObjectOf(win.padFocus.Get()),true);
+        }
+    }
+    previous=buttons;
 }
 // Text fields the player is typing in: their text, each time it changes.
 // EpochInputManager.instance.isInputFieldActive: the game's own switch for "typing in a text
@@ -1832,7 +1951,7 @@ void PollInputs() {
         if (w.section >= 0 && Sec(w.section).page != win.page) continue;
         if (reinterpret_cast<bool (*)(void*, const il2cpp::Method*)>(focusedMethod.code)(w.field.Get(), focusedMethod.info)) { typing = true; break; }
     }
-    BlockGameKeys(typing);
+    BlockGameKeys(typing || (win.padMode && win.shown));
     for (size_t i = 0; i < win.inputs.size(); ++i) {
         Watched& w = win.inputs[i];
         if (w.section >= 0 && Sec(w.section).page != win.page) continue;
@@ -1868,7 +1987,7 @@ void HideToast() {
 // --------------------------------------------------------------------------- open and close
 float ScaleFor() { return std::max(0.4f, std::min(screenW / kW, screenH / kH) * 0.94f); }
 // The desktop app's stored choices (%LOCALAPPDATA%\EpochPact\preferences.json: {"values": {key: JSON
-// text}}), read when the window is built or opened; the window never writes them.
+    // text}}), shared with the desktop preference store.
 JValue preferences;
 // EPOCHPACT_PREFERENCES names another file (tests keep the player's own choices untouched).
 std::filesystem::path PreferencesPath() {
@@ -1949,6 +2068,9 @@ void Show(bool open) {
     }
 }
 void Destroy() {
+    ReleaseHud();
+    ReleaseStatRoots();
+    ++dialogCounter;
     BlockGameKeys(false);  // never leave the game's keys switched off
     timers.clear();
     if (void* go = win.rootGo.Get()) { void* a[]{go}; Invoke(U("Object", "Destroy", 1), nullptr, a); }
@@ -1963,6 +2085,9 @@ void Destroy() {
 // Build everything ahead of time: the shell, the page shown first, then every other page.
 void QueueAll() {
     win = Window{};
+    float zoom = static_cast<float>(Preference("epochpact.text-scale.v1").Num(1));
+    if (zoom != .9f && zoom != 1 && zoom != 1.1f && zoom != 1.25f && zoom != 1.4f && zoom != 1.5f) zoom = 1;
+    ConfigureGeometry(zoom);
     eligibleBuilt = Eligible();
     nextEligibleCheck = Now() + 1000;
     win.lang = language;
@@ -2062,6 +2187,12 @@ void Step() {
     const double now = Ms();
     const float dt = lastStep > 0 ? static_cast<float>(std::min(0.1, (now - lastStep) / 1000.0)) : 0.016f;
     lastStep = now;
+    if (reloadRequested && win.built) {
+        reloadRequested = false;
+        const auto page = win.pages[win.page].id; const bool shown = win.shown;
+        ReleaseKeyboard(); language = ReadLanguage(); Destroy(); QueueAll();
+        jobs.push_back([page, shown] { Navigate(page); if (shown) Show(true); });
+    }
     const bool toggle = toggleRequested.exchange(false);
     // the screen size: on opening and once a second while open (a resolution change)
     static uint64_t nextScreen = 0;
@@ -2122,15 +2253,20 @@ void Step() {
     double t0 = Ms();
     stage = "commands";
     PumpCommands();
+    SettingsStep();
+    FilterFilesStep();
+    HudStep(win.shown);
     Record("commands", Ms() - t0);
     if (win.toastUntil && Now() >= win.toastUntil) HideToast();
-    if (!win.shown) return;
+    if (!win.shown) { if (HudActive()) PollInputs(); return; }
+    if (searchDue && Now() >= searchDue) { searchDue = 0; SearchChanged(globalSearch); }
     t0 = Ms();
     FlushPending();
     Record("flush", Ms() - t0);
     t0 = Ms();
     stage = "input";
     Input(dt);
+    PadInput();
     PollInputs();
     Record("input", Ms() - t0);
     t0 = Ms();
@@ -2138,10 +2274,11 @@ void Step() {
     Animate();
     Record("animate", Ms() - t0);
     for (int id : win.pages[win.page].sections)
-        if (Sec(id).tick && Sec(id).built && !Sec(id).hidden) {
+        if ((Sec(id).tick || Sec(id).widgetTick) && Sec(id).built && !Sec(id).hidden) {
             t0 = Ms();
             stage = "tick " + Sec(id).kind;
-            Sec(id).tick(Sec(id));
+            if (Sec(id).tick) Sec(id).tick(Sec(id));
+            if (Sec(id).widgetTick) Sec(id).widgetTick(Sec(id));
             Record(stage, Ms() - t0);
         }
     t0 = Ms();
@@ -2305,14 +2442,15 @@ std::string State() {
         out << (comma ? "," : "") << Json(k.c->id) << ':' << Json(k.feedbackShown);
         comma = true;
     }
-    out << "},\"sectionsState\":" << SectionsState() << ",\"heights\":{";
+    out << "},\"sectionsState\":" << SectionsState() << ",\"collections\":" << CollectionState() << ",\"hud\":" << HudState() << ",\"dialogScroll\":" << win.dialogScroll << ",\"dialogMaxScroll\":" << win.dialogMaxScroll << ",\"dialogBounds\":[" << win.dialogX << ',' << win.dialogY << ',' << win.dialogWidth << ',' << win.dialogHeight << "],\"heights\":{";
     comma = false;
     for (const auto& p : win.pages) { out << (comma ? "," : "") << Json(p.id) << ':' << p.height; comma = true; }
     out << "},\"sectionList\":[";
     comma = false;
     for (const auto& s : win.sections) {
         out << (comma ? "," : "") << "{\"id\":" << s->id << ",\"page\":" << Json(win.pages[s->page].id) << ",\"kind\":" << Json(s->kind)
-            << ",\"y\":" << s->y << ",\"h\":" << s->h << ",\"built\":" << Boolean(s->built) << ",\"hidden\":" << Boolean(s->hidden) << '}';
+            << ",\"y\":" << s->y << ",\"h\":" << s->h << ",\"built\":" << Boolean(s->built) << ",\"hidden\":" << Boolean(s->hidden)
+            << ",\"pendingWidgets\":" << s->pendingWidgets << '}';
         comma = true;
     }
     out << "],\"inputs\":[";
@@ -2355,6 +2493,69 @@ std::string State() {
 
 // ------------------------------------------------------------------ the services for sections
 namespace view {
+void ForgetInputs(int owner) {
+    ReleaseKeyboard(owner);
+    win.inputs.erase(std::remove_if(win.inputs.begin(), win.inputs.end(), [owner](const Watched& w) { return w.section == owner; }), win.inputs.end());
+}
+bool PartHidden(const std::string& key) { return Preference("epochpact.hidden-parts.v1").Find(key) != nullptr; }
+void AddHide(const Ctx& c, float x, float y, float w, float h, const std::string& key, const std::string& label, bool panel) {
+    auto* s = FindSection(c.section); if (!s || win.pages[s->page].id == "settings") return;
+    Style style{Face::Body, 20, C("gold")}; style.align = kCenter;
+    Node button = New("Hide part", c.parent, x + w - 22, y + 2, 20, 22);
+    TextBox(button.rt, "Hide part", 0, 0, 20, 22, style, "\xC3\x97");
+    Hit hit; hit.name = "hide:" + key; hit.x = x + w - 22; hit.y = y + 2; hit.w = 20; hit.h = 22; hit.visible = false;
+    hit.action = [key, label, page = win.pages[s->page].nav] {
+        auto hidden = Preference("epochpact.hidden-parts.v1"); if (!hidden.IsObject()) hidden = model::Object();
+        auto value = model::Object(); model::Put(value, "label", model::Text(Tr(page) + " · " + Tr(label))); model::Put(hidden, key, value);
+        const auto json = model::Pack(hidden);
+        if (!StorePreference("epochpact.hidden-parts.v1", &json)) { Toast(Tr("Could not save local preferences."), true); return; }
+        ReloadWindow(); Toast(Tr("Hidden. Settings → Hidden parts shows it again."));
+    };
+    Section::HideRegion region; region.node.Set(button.rt); region.hit = c.Add(std::move(hit)); region.panel = panel;
+    region.bounds.x = c.ox + x; region.bounds.y = c.oy + y; region.bounds.w = w; region.bounds.h = h;
+    SetActive(button.go, false); s->hideRegions.push_back(std::move(region));
+}
+void HideControl(const Ctx& c, float x, float y, float w, float h, const std::string& control, const std::string& label) { AddHide(c, x, y, w, h, "card:" + control, label, false); }
+std::string SearchQuery() { return globalSearch; }
+void SearchChanged(const std::string& value) {
+    globalSearch = value; searchDue = 0;
+    if (win.searchField) {
+        for (auto& field : win.inputs) if (field.name == "global-search" && field.last != value) {
+            managed::Root text(il2cpp::api().string_new(value.c_str())); void* a[]{text.Get()};
+            Invoke(Find("Unity.TextMeshPro.dll", "TMPro", "TMP_InputField", "set_text", 1), field.field.Get(), a); field.last = value;
+        }
+    }
+    for (int id : win.pages[win.page].sections) if (Sec(id).kind == "global_search") Rebuild(id);
+    win.mainScroll = win.mainTarget = 0; Relayout(win.page);
+}
+void ReloadWindow() { reloadRequested = true; }
+void Navigate(const std::string& page, const std::string& tab) {
+    for (size_t i = 0; i < win.pages.size(); ++i) if (win.pages[i].id == page) {
+        ShowPage(static_cast<int>(i)); if (!tab.empty()) ShowTab(static_cast<int>(i), tab); return;
+    }
+}
+void NavigationChanged() {
+    win.padIndex = -1;
+    ClearHover(); pressed = {kFixed, -1};
+    win.hits.erase(std::remove_if(win.hits.begin(), win.hits.end(), [](const Hit& h) { return h.area == Area::Sidebar; }), win.hits.end());
+    for (auto* pin : {&win.navRoot, &win.captionRoot}) if (*pin) { void* a[]{GameObjectOf(pin->Get())}; SetActive(a[0], false); Invoke(U("Object", "Destroy", 1), nullptr, a); pin->Reset(); }
+    BuildNav(); BuildCaption();
+    win.sideScroll = win.sideTarget = std::clamp(win.sideScroll, 0.f, MaxSide()); Move(win.sideContent.Get(), 0, -win.sideScroll); win.thumbsAt[1] = -1;
+}
+std::map<std::string, double> ProfileValues() {
+    std::map<std::string, double> result;
+    for (const auto& [id, c] : controls) if (c.lifetime == "session" || id == "autopickup" || id == "speed") {
+        auto it = values.find(id); if (it != values.end()) result[id] = it->second;
+        else if (c.hasDefault) result[id] = c.def;
+    }
+    return result;
+}
+void CancelAutomaticSettings() { pending.clear(); }
+bool QueueProfileSetting(const std::string& id, double value) {
+    const auto* c = ControlById(id);
+    if (!c || !model::ProfileSetting(D()["controls"][id], std::isfinite(value) ? model::Number(value) : JValue{})) return false;
+    pending[id] = {value, Now()}; return true;
+}
 const Control* ControlById(const std::string& id) {
     auto it = controls.find(id);
     return it == controls.end() ? nullptr : &it->second;
@@ -2363,7 +2564,16 @@ const Control* ControlById(const std::string& id) {
 // indent 1 and the texts as written, through a temporary file replaced in one step.
 bool StorePreference(const std::string& key, const std::string* value) {
     const auto path = PreferencesPath();
-    if (path.empty() || key.rfind("epochpact.", 0) != 0) return false;
+    if (path.empty() || key.rfind("epochpact.", 0) != 0 || key.size() > 130 || (value && value->size() > 65536)) return false;
+    const auto wide = std::filesystem::absolute(path).lexically_normal().wstring();
+    std::string utf8(WideCharToMultiByte(CP_UTF8, 0, wide.data(), static_cast<int>(wide.size()), nullptr, 0, nullptr, nullptr), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, wide.data(), static_cast<int>(wide.size()), utf8.data(), static_cast<int>(utf8.size()), nullptr, nullptr);
+    utf8 = model::Fold(utf8); std::replace(utf8.begin(), utf8.end(), '/', '\\');
+    uint64_t hash = 14695981039346656037ull; for (unsigned char ch : utf8) { hash ^= ch; hash *= 1099511628211ull; }
+    wchar_t mutexName[80]; std::swprintf(mutexName, 80, L"Local\\EpochPact.Preferences.%016llx", static_cast<unsigned long long>(hash));
+    struct Lock { HANDLE value = nullptr; bool held = false; ~Lock() { if (held) ReleaseMutex(value); if (value) CloseHandle(value); } } lock;
+    lock.value = CreateMutexW(nullptr, false, mutexName); if (!lock.value) return false;
+    const auto wait = WaitForSingleObject(lock.value, 50); lock.held = wait == WAIT_OBJECT_0 || wait == WAIT_ABANDONED; if (!lock.held) return false;
     JValue file = ReadPreferencesFile();
     // the other values as they are, in their order; this one in its place, or last when new
     std::vector<std::pair<std::string, std::string>> stored;
@@ -2374,6 +2584,8 @@ bool StorePreference(const std::string& key, const std::string* value) {
         else if (value) { stored.emplace_back(k, *value); placed = true; }
     }
     if (value && !placed) stored.emplace_back(key, *value);
+    size_t total = 0; for (const auto& entry : stored) total += entry.first.size() + entry.second.size();
+    if (stored.size() > 300 || total > 1024 * 1024) return false;
     const auto quote = [](const std::string& text) {
         std::string out = "\"";
         for (unsigned char c : text) {
@@ -2393,14 +2605,14 @@ bool StorePreference(const std::string& key, const std::string* value) {
     text += stored.empty() ? "}\n}" : "\n }\n}";
     std::error_code ignored;
     std::filesystem::create_directories(path.parent_path(), ignored);
-    const auto temporary = std::filesystem::path(path.wstring() + L".tmp");
+    const auto temporary = std::filesystem::path(path.wstring() + L".native-" + std::to_wstring(GetCurrentProcessId()) + L".tmp");
     {
         std::ofstream out(temporary, std::ios::binary | std::ios::trunc);
         if (!out) return false;
         out << text;
         if (!out) return false;
     }
-    if (!MoveFileExW(temporary.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING)) return false;
+    if (!MoveFileExW(temporary.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) { DeleteFileW(temporary.c_str()); return false; }
     LoadPreferences();
     return true;
 }
@@ -2525,6 +2737,7 @@ void Relayout(int page) {
     float bottom = y;
     const auto closeGroup = [&] {
         if (groupFirst && groupFirst->frame) ClosePanel(*groupFirst->frame, kPanelW, bottom - groupFirst->y);
+        if (groupFirst) for (auto& region : groupFirst->hideRegions) if (region.panel) region.bounds.h = bottom - groupFirst->y;
         groupFirst = nullptr;
         group.clear();
     };
@@ -2533,18 +2746,24 @@ void Relayout(int page) {
         if (!s.built || !s.root) continue;
         // a section of another tab: switched off, no place on the page
         const std::string tab = (*s.spec)["tab"].Str();
-        const bool hidden = !tab.empty() && tab != p.tab;
+        const bool searching = globalSearch.find_first_not_of(" \t\r\n") != std::string::npos;
+        const bool hidden = (s.kind == "global_search") ? !searching : searching || (!tab.empty() && tab != p.tab) ||
+            (!(*s.spec)["partKey"].Str().empty() && PartHidden((*s.spec)["partKey"].Str()));
         if (hidden != s.hidden) {
             SetActive(GameObjectOf(s.root.Get()), !hidden);
             s.hidden = hidden;
         }
         if (hidden) continue;
         const std::string g = (*s.spec)["group"].Str();
+        const bool firstGroup = g.empty() || g != group;
         if (g != group) {
             closeGroup();
             if (!g.empty()) { groupFirst = &s; group = g; }
         }
         s.y = y;
+        if (firstGroup && !(*s.spec)["partKey"].Str().empty() && std::none_of(s.hideRegions.begin(), s.hideRegions.end(), [](const auto& r) { return r.panel; }))
+            AddHide(s.Body(s.root.Get()), kPadX, 0, kPanelW, s.h, (*s.spec)["partKey"].Str(), (*s.spec)["partTitle"].Str(), true);
+        for (auto& region : s.hideRegions) if (region.panel && g.empty()) region.bounds.h = s.h;
         Move(s.root.Get(), 0, y);
         bottom = y + s.h;
         y += s.h + s.after;
@@ -2562,6 +2781,7 @@ void Relayout(int page) {
 void Rebuild(int sectionId) {
     Section* s = FindSection(sectionId);
     if (!s || !s->build || !s->root) return;
+    if (win.padList == sectionId) { win.padIndex = -1; if (win.padFocus) SetActive(GameObjectOf(win.padFocus.Get()), false); }
     const double start = Ms();
     if (hovered.list == sectionId) ClearHover();
     if (pressed.list == sectionId) pressed = {kFixed, -1};
@@ -2574,8 +2794,11 @@ void Rebuild(int sectionId) {
         Invoke(U("Object", "Destroy", 1), nullptr, d);
     }
     s->hits.clear();
+    s->hideRegions.clear();
     s->wheels.clear();
     s->live.reset();  // its widgets were in the old body
+    s->widgetTick = {};
+    s->pendingWidgets = 0;
     NewBody(*s);
     stage = "rebuild " + s->kind;
     // TMP measures only texts that are switched on: a section on another tab is on while it is made
@@ -2587,7 +2810,13 @@ void Rebuild(int sectionId) {
     timing.rebuildMs = Ms() - start;
     Record("rebuild " + s->kind, timing.rebuildMs);
 }
-void Send(std::string line, Reply done) { commandQueue.push_back({std::move(line), std::move(done)}); }
+void Send(std::string line, Reply done) {
+    auto remember = line;
+    commandQueue.push_back({std::move(line), [remember, done](const std::string& reply) {
+        std::string why; if (!Refused(reply, &why)) RememberChoice(remember);
+        if (done) done(reply);
+    }});
+}
 void Keep(const std::string& read, const std::string& reply) { ReadInto(read, reply); }
 void After(uint64_t ms, Action work) { timers.emplace_back(Now() + ms, std::move(work)); }
 // The desktop app's test (ui_bridge.text_ok): a "...: refused:" / "error:" / "failed:" line, or a
@@ -2706,7 +2935,9 @@ void CloseDialog() {
     CloseList();
     ReleaseKeyboard(kCustomDialogSection);
     win.inputs.erase(std::remove_if(win.inputs.begin(), win.inputs.end(), [](const Watched& w) { return w.section == kCustomDialogSection; }), win.inputs.end());
-    ++win.dialogToken;
+    win.dialogToken = ++dialogCounter;
+    win.dialogContent.Reset(); win.dialogMaxScroll = win.dialogScroll = 0;
+    if (win.padList == kDialog) win.padIndex = -1;
     win.dialogOpen = false;
     if (hovered.list == kDialog) ClearHover();
     win.dialogHits.clear();
@@ -2759,11 +2990,11 @@ void Confirm(const std::string& title, const std::string& message, Action yes) {
     win.dialogHits.push_back(std::move(closeHit));
     win.dialogOpen = true;
 }
-uint64_t DialogToken() { return win.dialogToken; }
+uint64_t DialogToken() { return dialogCounter; }
 void ShowCustomDialog(float width, const DialogDraw& draw) {
     CloseList();
     CloseDialog();
-    ++win.dialogToken;
+    win.dialogToken = ++dialogCounter;
     void* layer = OpenLayer(win.dialog);
     Solid(layer, "Backdrop", 0, 0, kW, kH, Hex("#000000aa"));
     const float w = std::clamp(width, 260.f, kW - 40);
@@ -2771,13 +3002,18 @@ void ShowCustomDialog(float width, const DialogDraw& draw) {
     void* bg = Fill(box.rt, "Background", 0, 0, w, 10, C("panel"), 6);
     void* frame = Outline(box.rt, "Border", 0, 0, w, 10, C("gold"), 6);
     win.dialogOpen = true;
-    Ctx c{&win.dialogHits, Area::Dialog, box.rt, 0, 0, kCustomDialogSection};
+    Node viewport = New("Dialog viewport", box.rt, 0, 0, w, 10); Clip(viewport);
+    Node contents = New("Dialog contents", viewport.rt, 0, 0, w, 10);
+    win.dialogContent.Set(contents.rt);
+    Ctx c{&win.dialogHits, Area::Dialog, contents.rt, 0, 0, kCustomDialogSection};
     const float h = draw(c, w);
+    const float visible = std::min(h, kH * .9f);
+    win.dialogWidth = w; win.dialogHeight = visible; win.dialogMaxScroll = std::max(0.f, h - visible); win.dialogScroll = 0;
     win.dialogX = (kW - w) / 2;
-    win.dialogY = std::max(16.f, (kH - h) / 2);
-    Resize(box.rt, w, h);
-    Resize(TransformOf(bg), w, h);
-    Resize(TransformOf(frame), w, h);
+    win.dialogY = std::max(16.f, (kH - visible) / 2);
+    Resize(box.rt, w, visible); Resize(viewport.rt, w, visible); Resize(contents.rt, w, h);
+    Resize(TransformOf(bg), w, visible);
+    Resize(TransformOf(frame), w, visible);
     Move(box.rt, win.dialogX, win.dialogY);
     for (auto& hit : win.dialogHits) { hit.x += win.dialogX; hit.y += win.dialogY; }
 }
@@ -2826,6 +3062,7 @@ void ShowResult(const std::string& title, const std::string& note, const std::ve
 void CloseList() {
     if (!win.listOpen) return;
     win.listOpen = false;
+    if (win.padList == kPopup) win.padIndex = -1;
     win.popupWheel = nullptr;
     if (hovered.list == kPopup) ClearHover();
     win.popupHits.clear();
@@ -2835,6 +3072,7 @@ void CloseList() {
 // The choice list, below the select (above it when there is no room), like the browser's: up to
 // 20 rows at a time; a longer list scrolls with the wheel and opens at the current choice.
 void OpenList(float x, float y, float w, float h, const std::vector<std::string>& labels, int current, std::function<void(int)> chosen) {
+    win.padIndex = -1;
     CloseList();
     void* rt = OpenLayer(win.popup);
     // A select inside a modal must paint above that modal as well as receive its clicks.
@@ -3004,7 +3242,7 @@ bool WindowPoint(const Ctx& c, float x, float y, float* wx, float* wy) {
         *wy += 1 - win.sideScroll;
     } else if (c.area == Area::Dialog && c.section == kCustomDialogSection) {
         *wx += win.dialogX;
-        *wy += win.dialogY;
+        *wy += win.dialogY - win.dialogScroll;
     }
     return true;
 }
@@ -3095,7 +3333,7 @@ void Frame() {
     const bool toggle = toggleRequested.load(std::memory_order_relaxed);
     if (broken && !toggle) return;
     // closed and idle, or not in game yet and not time to look again: nothing to do this frame
-    if (!win.shown && win.built && jobs.empty() && !toggle && commandQueue.empty() && !commandInFlight && !win.toastUntil && Now() < nextEligibleCheck && timers.empty()) return;
+    if (!win.shown && !HudActive() && win.built && jobs.empty() && !toggle && commandQueue.empty() && !commandInFlight && !win.toastUntil && Now() < nextEligibleCheck && timers.empty()) return;
     if (!win.rootGo && jobs.empty() && !toggle && Now() < nextBuildCheck) return;
     std::string why, ours;
     const double start = Ms();
@@ -3165,21 +3403,45 @@ std::string Kerning() {
     return out.str() + "}";
 }
 std::string Panel(const std::string& action) {
+#ifdef EPOCHPACT_TESTING
+    if(action.rfind("fixture:",0)==0)return Run([action]{if(!view::Eligible()||!win.built)return std::string("{\"ok\":false,\"error\":\"test character not ready\"}");if(!HudFixture(action.substr(8)))return std::string("{\"ok\":false,\"error\":\"unknown UI fixture\"}");return State();});
+    // Private UI tests may exercise local preferences, never arbitrary commands or Apply.
+    if(action.rfind("local:",0)==0)return Run([action]{
+        wchar_t isolated[32768]; if(!GetEnvironmentVariableW(L"EPOCHPACT_PREFERENCES",isolated,32768)||!win.built||!view::Eligible())return std::string("{\"ok\":false,\"error\":\"isolated UI test required\"}");
+        const auto name=action.substr(6);
+        if(name.rfind("profile-name=",0)==0){for(auto& field:win.inputs)if(field.name=="profile-name"){const auto value=name.substr(13);managed::Root text(il2cpp::api().string_new(value.c_str()));void* a[]{text.Get()};Invoke(Find("Unity.TextMeshPro.dll","TMPro","TMP_InputField","set_text",1),field.field.Get(),a);field.last=value;if(field.onChange)field.onChange(value);return State();}}
+        if(name=="discard"){DiscardDrafts();return State();}
+        const bool allowed=name=="profile-save"||name=="profile-load"||name=="profile-delete"||name=="display-preferences-reset"||name=="show-all-parts"||name.rfind("nav-visible:",0)==0||name.rfind("nav-favorite:",0)==0||name.rfind("hide:",0)==0||name.rfind("show-part:",0)==0;
+        if(!allowed)return std::string("{\"ok\":false,\"error\":\"not a local preference action\"}");
+        for(int id:win.pages[win.page].sections)for(const auto& h:Sec(id).hits)if(h.name==name&&h.action){const auto act=h.action;act();return State();}
+        return std::string("{\"ok\":false,\"error\":\"local preference control not found\"}");
+    });
+#endif
     if (action == "read") return Run([] { return State(); });
     if (action == "measure") return Run([] { return Measure(); });
     if (action == "kern") return Run([] { return Kerning(); });
-    // Read-only UI navigation for background verification. Deliberately no arbitrary hit
+    // View/local-preference navigation for background verification. No arbitrary hit
     // invocation: opening these views can only request data, never apply a bonus/save action.
-    if (action.rfind("page:", 0) == 0 || action.rfind("stat:", 0) == 0 || action == "dismiss") return Run([action] {
+    if (action.rfind("page:", 0) == 0 || action.rfind("stat:", 0) == 0 || action.rfind("collection:", 0) == 0 || action.rfind("search:",0)==0 || action.rfind("scroll:",0)==0 || action.rfind("dialogscroll:",0)==0 || action.rfind("hud:",0)==0 || action.rfind("layout:",0)==0 || action.rfind("tab:",0)==0 || action == "dismiss" || action == "statadvanced") return Run([action] {
         if (!win.built || !win.shown) return std::string("{\"ok\":false,\"error\":\"open the ready panel first\"}");
         if (action == "dismiss") { CloseDialog(); CloseList(); return State(); }
         if (!view::Eligible()) return std::string("{\"ok\":false,\"error\":\"offline character is not ready\"}");
+        if(action=="statadvanced"){if(!AdvancedStatView())return std::string("{\"ok\":false,\"error\":\"stat view is still reading\"}");return State();}
+        if(action.rfind("search:",0)==0){view::SearchChanged(action.substr(7));return State();}
+        if(action.rfind("tab:",0)==0){const auto tab=action.substr(4);if(win.pages[win.page].id!="crafting"||(tab!="forge"&&tab!="materials"&&tab!="custom"))return std::string("{\"ok\":false,\"error\":\"unknown page tab\"}");ShowTab(win.page,tab);return State();}
+        if(action.rfind("dialogscroll:",0)==0){char* end=nullptr;const auto n=std::strtof(action.c_str()+13,&end);if(!end||*end||!std::isfinite(n))return std::string("{\"ok\":false,\"error\":\"invalid dialog scroll position\"}");ScrollDialog(n);return State();}
+        if(action.rfind("scroll:",0)==0){char* end=nullptr;const auto n=std::strtof(action.c_str()+7,&end);if(!end||*end||!std::isfinite(n))return std::string("{\"ok\":false,\"error\":\"invalid scroll position\"}");win.mainScroll=win.mainTarget=std::clamp(n,0.f,MaxMain());Move(win.mainContent.Get(),0,-win.mainScroll);return State();}
+        if(action.rfind("hud:",0)==0){const auto name=action.substr(4);if(name!="damage"&&name!="feed")return std::string("{\"ok\":false,\"error\":\"unknown HUD\"}");ToggleHud(name);return State();}
+        if(action.rfind("layout:",0)==0){const auto v=action.substr(7);if(v!="90"&&v!="100"&&v!="110"&&v!="125"&&v!="140"&&v!="150")return std::string("{\"ok\":false,\"error\":\"unsupported text scale\"}");const auto json=Num(std::atoi(v.c_str())/100.);if(!StorePreference("epochpact.text-scale.v1",&json))return std::string("{\"ok\":false,\"error\":\"preference write failed\"}");ReloadWindow();return State();}
         if (action.rfind("stat:", 0) == 0) {
             if (!view::OpenStatView(action.substr(5))) return std::string("{\"ok\":false,\"error\":\"unknown stat view\"}");
         } else {
-            const auto at = std::find_if(win.pages.begin(), win.pages.end(), [&](const Page& page) { return page.id == action.substr(5); });
+            const bool scan = action.rfind("collection:", 0) == 0;
+            const std::string id = action.substr(scan ? 11 : 5);
+            const auto at = std::find_if(win.pages.begin(), win.pages.end(), [&](const Page& page) { return page.id == id; });
             if (at == win.pages.end()) return std::string("{\"ok\":false,\"error\":\"unknown page\"}");
             CloseDialog(); ShowPage(static_cast<int>(at - win.pages.begin()));
+            if (scan && !view::ScanCollection(id)) return std::string("{\"ok\":false,\"error\":\"unknown or busy collection\"}");
         }
         return State();
     });
@@ -3204,6 +3466,8 @@ std::string SetKey(const std::string& key) {
 
 // Runtime shutdown has already stopped frames. Do not call Unity Destroy here.
 void ReleaseRoots() {
+    view::ReleaseFilterFiles();
+    view::ReleaseHud();
     view::ReleaseStatRoots();
     win = Window{};
     cache.clear();

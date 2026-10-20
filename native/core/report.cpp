@@ -170,8 +170,15 @@ std::string Create(const char* trigger) {
     if (busy.exchange(true)) return "{\"ok\":false,\"error\":\"A report is already being written.\"}";
     struct Release { ~Release() { busy = false; } } release;
     try {
-        const auto folder = ReportsRoot() / std::filesystem::path(Stamp());
-        std::filesystem::create_directories(folder);
+        const auto root = ReportsRoot();
+        std::filesystem::create_directories(root);
+        const auto stamp = Stamp();
+        std::filesystem::path folder;
+        for (int n=1;n<10000;++n) {
+            const auto candidate = root / std::filesystem::path(stamp + (n==1 ? "" : "-"+std::to_string(n)));
+            if (std::filesystem::create_directory(candidate)) { folder=candidate; break; }
+        }
+        if (folder.empty()) throw std::runtime_error("Could not create a new report folder.");
         // The game writes the screenshot at the end of the current frame.
         std::string screenshot = "requested";
         const std::string imagePath = Utf8((folder / L"screenshot.png").wstring());
