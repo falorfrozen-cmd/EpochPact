@@ -101,6 +101,7 @@ void RegisterMonolithSections();         // ingame_monolith.cpp
 void RegisterCraftSections();            // ingame_craft.cpp
 void RegisterWorkshopSections();         // ingame_workshop.cpp
 void RegisterStatSections();             // ingame_stats.cpp
+bool OpenStatView(const std::string& location);  // sheet:index[:extra], aliases:index or raw:index; read only
 void ReleaseStatRoots();                 // before IL2CPP shutdown, not static DLL destruction
 std::string WorkshopState();             // for "panel read": the Custom Items draft
 std::string SectionsState();             // for "panel read": the pickers' choices, the pickups kept

@@ -3168,6 +3168,21 @@ std::string Panel(const std::string& action) {
     if (action == "read") return Run([] { return State(); });
     if (action == "measure") return Run([] { return Measure(); });
     if (action == "kern") return Run([] { return Kerning(); });
+    // Read-only UI navigation for background verification. Deliberately no arbitrary hit
+    // invocation: opening these views can only request data, never apply a bonus/save action.
+    if (action.rfind("page:", 0) == 0 || action.rfind("stat:", 0) == 0 || action == "dismiss") return Run([action] {
+        if (!win.built || !win.shown) return std::string("{\"ok\":false,\"error\":\"open the ready panel first\"}");
+        if (action == "dismiss") { CloseDialog(); CloseList(); return State(); }
+        if (!view::Eligible()) return std::string("{\"ok\":false,\"error\":\"offline character is not ready\"}");
+        if (action.rfind("stat:", 0) == 0) {
+            if (!view::OpenStatView(action.substr(5))) return std::string("{\"ok\":false,\"error\":\"unknown stat view\"}");
+        } else {
+            const auto at = std::find_if(win.pages.begin(), win.pages.end(), [&](const Page& page) { return page.id == action.substr(5); });
+            if (at == win.pages.end()) return std::string("{\"ok\":false,\"error\":\"unknown page\"}");
+            CloseDialog(); ShowPage(static_cast<int>(at - win.pages.begin()));
+        }
+        return State();
+    });
     if (action != "0" && action != "1") return "{\"ok\":false,\"error\":\"use panel read|measure|kern|0|1\"}";
     const bool open = action == "1";
     return Run([open] {

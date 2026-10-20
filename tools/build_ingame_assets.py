@@ -610,7 +610,7 @@ def build(out: Path):
     for name, (radius, fill) in {"frame-r0": (0, False), "frame-r2": (2, False), "frame-r3": (3, False), "frame-r4": (4, False),
                                  "frame-r5": (5, False), "frame-r6": (6, False), "fill-r5": (5, True), "fill-r6": (6, True),
                                  "frame-r12": (12, False), "fill-r2": (2, True), "fill-r3": (3, True), "fill-r4": (4, True),
-                                 "fill-r6": (6, True), "fill-r12": (12, True)}.items():
+                                 "fill-r12": (12, True)}.items():
         image, edge = frame_sprite(radius, fill=fill)
         save(f"{name}.png", image, optimize=True)
         slices[name] = edge
@@ -626,6 +626,7 @@ def build(out: Path):
     save("thumb.png", thumb_sprite(), optimize=True)
     save("grad-panel.png", linear_gradient(128 * S, 128 * S, 135, [(0, rgba("#25362e33")), (0.5, (37, 54, 46, 0))]), optimize=True)
     save("grad-card.png", linear_gradient(128 * S, 128 * S, 135, [(0, rgba("#24402c24")), (1, (36, 64, 44, 0))]), optimize=True)
+    save("grad-stat-value.png", linear_gradient(128 * S, 128 * S, 120, [(0, rgba(THEME["soft"])), (0.8, (0, 0, 0, 0))]), optimize=True)
     save("grad-button.png", linear_gradient(64 * S, 32 * S, 160, [(0, rgba("#29302c55")), (1, rgba("#070d0cb8"))]), optimize=True)
     save("grad-primary.png", linear_gradient(128 * S, 32 * S, 145, [(0, rgba(THEME["soft"])), (1, rgba("#07160fe0"))]), optimize=True)
     soft = rgba(THEME["soft"])

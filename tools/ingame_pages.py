@@ -181,7 +181,7 @@ def sections(page, controls, counts):
                 native("summon_allies", controls=["summons_read"]),
                 settings("Summon lifetime", ["build_summonduration"]),
                 settings("Minion counts", ["build_minionextra", "build_totemextra", "build_ballistaextra", "build_forgedextra", "build_companionextra", "build_immortalminions"]),
-                pending("Minion and companion bonuses")]
+                native("minion_bonuses", controls=["stat_alias"])]
     if page == "monolith":
         return [native("cached_summary", read="monolithread"),
                 settings("Echo modifiers", ["density", "stability_multiplier"], note=MONOLITH_NOTE, overrides={"density": MONOLITH_DENSITY}),

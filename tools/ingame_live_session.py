@@ -140,6 +140,8 @@ def finish(folder):
     path = folder / "session.json"
     state = json.loads(path.read_text())
     if state["phase"] == "restored":
+        if not state.get("normalShutdownConfirmed", state.get("closeCode") == 0):
+            raise RuntimeError("Files were restored, but normal game shutdown was not confirmed; see the session report.")
         print("Already restored.")
         return
     pids = le.game_pids()
@@ -178,10 +180,13 @@ def finish(folder):
         assert digest(target) == record["sha256"]
     real = Path(os.environ["LOCALAPPDATA"]) / "EpochPact/preferences.json"
     state["realPreferencesUnchanged"] = digest(real) == state["realPreferencesHash"]
+    state["normalShutdownConfirmed"] = state.get("closeCode") == 0
     state["phase"] = "restored"
     write(path, state)
     assert state["realPreferencesUnchanged"], "Real preferences changed; preserve evidence."
-    print(json.dumps({k: state.get(k) for k in ("phase", "closeCode", "savesRestored", "realPreferencesUnchanged")}), flush=True)
+    print(json.dumps({k: state.get(k) for k in ("phase", "closeCode", "normalShutdownConfirmed", "savesRestored", "realPreferencesUnchanged")}), flush=True)
+    if not state["normalShutdownConfirmed"]:
+        raise RuntimeError("All files were restored, but the game did not confirm normal shutdown. This live test failed.")
 
 
 if __name__ == "__main__":

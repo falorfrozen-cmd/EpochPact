@@ -10,6 +10,7 @@ test('all native stat rows retain desktop identity, category, key and search dat
    const actual=result[tab][i];
    assert.equal(actual.name,ST.name(row,tab));assert.equal(actual.category,ST.category(row,tab));
    assert.equal(actual.favorite,ST.favoriteId(row,tab));assert.equal(actual.index,i);
+   assert.equal(actual.tab,tab);assert.equal(actual.alias,tab==='aliases'?row.name:null);
    assert(actual.search.includes(JSON.stringify(row).toLowerCase()));
    assert.deepEqual(actual.editor.key,tab==='raw'?{sp:row.id,tags:0,special:0,extra:0,property:row.name}:row.key);
    assert.equal(!!actual.extra,!!row.modifierKey);
@@ -27,6 +28,14 @@ test('native dialog modes, percentage scales and legal bounds are the desktop va
     assert.deepEqual(e.units[mode],{...u,...ST.bounds(stats,mode,u,e.key)});
     assert(Number.isFinite(e.units[mode].minimum)&&Number.isFinite(e.units[mode].maximum));
    }
+   for(const mode of ['added','increased','more'])assert.deepEqual(e.summaryUnits[mode],ST.unit(stats,e.key,mode));
   }
  });
+});
+
+test('summon shortcuts include only the desktop minion and companion aliases',()=>{
+ const expected=stats.aliases.map((r,i)=>({r,i})).filter(({r})=>/^minion|^maxcompanions/.test(r.name));
+ assert(expected.length>0);
+ assert.deepEqual(result.aliases.filter(r=>r.summon).map(r=>r.index),expected.map(({i})=>i));
+ for(const row of result.aliases.filter(r=>r.summon))assert.deepEqual(row.editor.key,stats.aliases[row.index].key);
 });
