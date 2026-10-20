@@ -28,9 +28,9 @@ json::Value data;
 std::mutex pixelsLock;
 std::map<std::string, Pixels> pixels;   // decoded, waiting for the main thread
 std::map<std::string, game::Handle> sprites;
-game::Handle fonts[4];
-Metrics metrics[4];
-bool metricsKnown[4] = {};
+game::Handle fonts[6];
+Metrics metrics[6];
+bool metricsKnown[6] = {};
 
 HMODULE Self() {
     HMODULE module = nullptr;
@@ -216,8 +216,8 @@ void* CreateFromFile(const std::string& path) {
                             {"System.String", "System.Int32", "System.Int32", "System.Int32", "UnityEngine.TextCore.LowLevel.GlyphRenderMode", "System.Int32", "System.Int32"}),
                   nullptr, a);
 }
-void* CreateFromSystem(const char* family) {
-    Root name(il2cpp::api().string_new(family)), style(il2cpp::api().string_new("Regular"));
+void* CreateFromSystem(const char* family, const char* styleName = "Regular") {
+    Root name(il2cpp::api().string_new(family)), style(il2cpp::api().string_new(styleName));
     int size = 90;
     void* a[]{name.Get(), style.Get(), &size};
     return Invoke(Signature("Unity.TextMeshPro.dll", "TMPro", "TMP_FontAsset", "CreateFontAsset", {"System.String", "System.String", "System.Int32"}), nullptr, a);
@@ -323,8 +323,19 @@ const char* FaceLabel(Face face) {
     case Face::BodySemi: return "Inter SemiBold";
     case Face::Serif: return "Georgia";
     case Face::Symbol: return "Segoe UI Symbol";
+    case Face::SerifBold: return "Georgia Bold";
+    case Face::BodyBold: return "Inter Bold";
     }
     return "?";
+}
+// TMP_FontAsset.fontWeightTable[weight / 100].regularTypeface = typeface (the table is an array of
+// TMP_FontWeightPair { regular, italic }; both faces stay loaded, so no reference is lost to the GC).
+void Weight(void* asset, int index, void* typeface) {
+    void* table = Invoke(Method(asset, "get_fontWeightTable", 0), asset);
+    if (!table) return;
+    const auto length = Get<uintptr_t>(table, 0x18);
+    if (static_cast<uintptr_t>(index) >= length) return;
+    *reinterpret_cast<void**>(static_cast<char*>(table) + 0x20 + index * 2 * sizeof(void*)) = typeface;
 }
 // Kept only once complete: its face loaded and, for the text faces, the symbol fallback attached.
 // A font that is not ready is dropped and asked for again later.
@@ -337,6 +348,8 @@ void* Font(Face face) {
     case Face::BodySemi: asset = CreateFromFile(FontFile("inter-semibold.ttf")); break;
     case Face::Serif: asset = CreateFromSystem("Georgia"); break;
     case Face::Symbol: asset = CreateFromSystem("Segoe UI Symbol"); break;
+    case Face::SerifBold: asset = CreateFromSystem("Georgia", "Bold"); break;
+    case Face::BodyBold: asset = CreateFromFile(FontFile("inter-bold.ttf")); break;
     }
     if (!asset) throw std::runtime_error(std::string("font not ready: ") + FaceLabel(face) + " unavailable");
     if (FaceName(asset).empty()) {
@@ -346,13 +359,35 @@ void* Font(Face face) {
     }
     KeepLoaded(asset);
     if (face != Face::Symbol) AddFallback(asset, Font(Face::Symbol));
+    // <b> and font-weight 600: the faces the browser draws them with (TMP's own would leave Inter
+    // for the game's fallback font)
+    if (face == Face::Body) { Weight(asset, 6, Font(Face::BodySemi)); Weight(asset, 7, Font(Face::BodyBold)); }
+    if (face == Face::Serif) Weight(asset, 7, Font(Face::SerifBold));
     fonts[i].Set(asset);
     return asset;
 }
 
+// TMP_FontAsset.TryAddCharacters(string, bool): a few glyphs into a face's atlas now, in the
+// background, so a text never waits for a glyph to be drawn into the atlas.
+bool Warm(Face face, const std::string& characters) {
+    static const il2cpp::Method* add = nullptr;
+    static bool looked = false;
+    if (!looked) {
+        looked = true;
+        try { add = Signature("Unity.TextMeshPro.dll", "TMPro", "TMP_FontAsset", "TryAddCharacters", {"System.String", "System.Boolean"}); }
+        catch (const std::exception&) { add = nullptr; }
+    }
+    if (!add || characters.empty()) return false;
+    void* font = Font(face);
+    Root text(il2cpp::api().string_new(characters.c_str()));
+    bool features = false;
+    void* a[]{text.Get(), &features};
+    Invoke(add, font, a);
+    return true;
+}
 bool FontsReady(std::string* why) {
     try {
-        for (Face face : {Face::Symbol, Face::Body, Face::BodySemi, Face::Serif}) Font(face);
+        for (Face face : {Face::Symbol, Face::BodySemi, Face::BodyBold, Face::SerifBold, Face::Body, Face::Serif}) Font(face);
         return true;
     } catch (const std::exception& e) {
         if (why) *why = e.what();

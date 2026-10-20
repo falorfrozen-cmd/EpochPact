@@ -1,87 +1,101 @@
 # In-game window (2026-10-20)
 
 Private experiment (repo EpochPact-ingame-ui, branch ingame-ui), built on the 0.1.2-dev.36
-one-file loader. Goal: EpochPact from inside the game, so a player could install only
-`version.dll` and need no desktop EXE. The first prototype (commit 38b7a55: a small panel with
-three rows) proved the idea; this step replaces it with the desktop interface itself.
+one-file loader. Goal: EpochPact from inside the game, so a player installs only `version.dll`
+and needs no desktop EXE. The window is the desktop interface itself, drawn with the game's own
+Unity UI.
 
 ## What it is
 
-- **F6** (`panelkey F5-F12|off`, saved in `<game>\EpochPact\panel-key.txt`) opens and closes the
-  EpochPact window: the desktop interface (ui/index.html, ui/style.css, Chronoforge) drawn with
-  the game's own Unity UI on a canvas of its own, at the desktop's 1440x900 layout scaled to 94 %
-  of the screen. Sidebar, topbar, hero, pages, cards, sliders, steppers, switches, choice lists,
-  badges, notes, footer and scrollbars use the sizes measured from the desktop app's DOM, its
-  colours, Inter (embedded, static instances) and Georgia, and its own artwork.
-- Pages, settings and words come from the embedded `ui.json`, which
-  `tools/build_ingame_assets.py` writes from the same sources as the desktop app: the catalog,
-  locale-en, `tools/ingame_pages.py` (the page composition of app.js renderPage) and the
-  translations, run through the app's own translator (`ui/i18n.js`, via
-  `tools/ingame_translate.js`) so Turkish and Russian read exactly as in the app. The language is
-  the app's (preferences.json, read only).
-- Settings behave as in app.js: automatic settings are sent 250 ms after the last change, the
-  others wait as a draft for Apply changes; feedback Applying… / Draft / Applied / the refusal.
-  Every change is an ordinary command line through `commands::SubmitUi`, so each command's
-  limits and the offline-only gate apply unchanged. Values come from the same reads as the app
-  (status, sessionread, statraw for speed, buildread, qolread, rageread, effectsread, mapsettings,
-  tierread, invread, pickupradius), polled once a second while the window is open.
-- Sections the window does not have yet show their heading and "This section is not in the
-  in-game window yet. Use the EpochPact app for it." (game setup, crafting, character,
-  inventory, atlas, stash, campaign, the Monolith/CoF/factions main sections, settings, the
-  Weaver's Will affix choice and other action panels). The search box is drawn but not active.
-- Files: `native/core/ingame_panel.cpp/.hpp`, `ingame_assets.cpp/.hpp` (embedded data, WIC image
-  decoding off the main thread, sprites, TMP font assets), `ingame_json.hpp` (+ test);
-  `tools/ingame_pages.py`, `tools/build_ingame_assets.py`, `tools/ingame_translate.js`,
-  `tools/test_ingame_assets.py`; build.bat embeds `ingame.rc` (35 files, ~880 KiB) into the core
-  and the one-file loader.
+- **F6** (`panelkey F5-F12|off`) opens and closes the window: the desktop interface
+  (ui/index.html, ui/style.css, Chronoforge) at its 1440x900 layout, scaled to 94 % of the
+  screen, with the desktop's measured sizes, colours, artwork, Inter (embedded: 400, 600, 700)
+  and Georgia. `<b>` and weight 600 use Inter Bold / SemiBold (TMP's weight table), as the
+  browser does.
+- Pages, settings and words come from the embedded `ui.json` (`tools/build_ingame_assets.py`,
+  `tools/ingame_pages.py` = app.js renderPage). Static texts are translated at build time by the
+  app's own translator; texts the window writes while it runs (statuses, tables, notifications)
+  by the same translator ported to C++ (`native/core/ingame_i18n.cpp`, the app's dictionaries
+  embedded). A native test checks the port against ui/i18n.js on every dictionary text, each
+  template filled, and the window's own texts (Turkish and Russian, all identical).
+- Settings behave as in app.js (automatic after 250 ms, or a draft for Apply changes). Action
+  cards follow formAction: game-save actions confirm first and run only for the character their
+  data was read for; `{save_id}` comes from `identityread`.
+- Native sections (each built from live reads, updated in place while numbers change):
+  - Loot & Pickup: Recent pickups (loot log every 2 s, newest 100, grouped, rarity colours),
+    Collect now, Pickup selections with the Wanted T7 affix picker (search, sort, two lists,
+    double-click, 64 at most, Apply selection), Pickup rules.
+  - General: Weaver's Will affixes inside the Weaver's Will panel (the same picker).
+  - Skills & Trees: budgets, free respec. Campaign: cards, quest table. Mastery. Factions.
+  - Summons: Damage meter (Start/Stop/Reset, element filter, row choice, Copy as CSV, damage
+    taken), Death recap (the deaths with killer, damage by type, attackers, last hits, effects),
+    Live summoned allies (columns, grouping, damage baseline).
+  - Display: Tier colours (colour picker; stored in the app's preferences as the app stores
+    them), Text and font (Windows fonts on request, a long list that scrolls).
+    World: Interaction area colour, Rage of Morditas facts note.
+  - Inventory: shortcuts (stash, vendor, Stash all, Sell all), Automatic sorting and Sell all
+    with the tabs to sort, Stash tabs from loot filter (rule table, tab per rule, create, sort).
+  - Circle of Fortune: membership, rank, Favor, Reputation, lenses; prophecy slots with reward /
+    lens / charges forms and the preview dialog; lens catalog; the session multipliers.
+  - Monolith: management (target timeline and difficulty, unlock, select with the trip to
+    Traveler's Rest and the wait for the timeline panel, Corruption, Stability).
+- Not yet in the window (heading and a pointer to the app): game setup, crafting, character,
+  Unique Atlas, Stash Assistant, Monolith Navigator, minion bonuses, loot filter files,
+  settings; the search box is drawn but not active.
+- Keyboard: while a field of the window has the keyboard, the game's own "typing" switch
+  (EpochInputManager.isInputFieldActive, what its own text fields use) is on, so typed keys do
+  not drink a potion or cast a skill; it is off again when the field loses the keyboard, on
+  another page and when the window closes.
+- Preferences: read from `%LOCALAPPDATA%\EpochPact\preferences.json` (`EPOCHPACT_PREFERENCES`
+  names another file; tests use an isolated copy); a colour chosen in the window is written in
+  the app's format (indent 1, a temporary file replaced in one step).
 
 ## Speed
 
 - Built ahead of time, never on F6: 5 s after a character is in game, in jobs of about 2.5 ms
-  per frame (a section, or one row of cards). The whole window is about 230 ms of work spread
-  over frames; no frame over 50 ms was seen while it was built.
-- Opening and closing switch one Canvas component (about 3 ms); Unity keeps every mesh. Each
-  page has its own Canvas, off while hidden; clipping uses a stencil Mask (RectMask2D tests every
-  child every frame). TMP texts are marked scale-static (no per-frame scale check).
-- Hit testing, hover, sliders, wheel and scrollbars use the window's own layout numbers; a closed
-  window does no work per frame.
+  per frame. The fonts' atlases are filled with every character the window's texts use first,
+  so no text waits for a new glyph later.
+- Closed, the window's canvas stays on but renders to display 8 (unused) with its raycaster
+  off: opening and closing take 0.03 ms and the next frame is an ordinary frame (switching a
+  canvas off and on made Unity batch every graphic again, a 15-30 ms frame).
+- A text's lines are measured with TextMeshProUGUI.ForceMeshUpdate (TMP_Text's own is an empty
+  virtual: runtime_invoke does no virtual dispatch); `panel measure` checks every measured text
+  against what TMP draws (377 texts, 0 differences).
+- Long tables (quests, pickups) fill over a few frames; the closed window does no work per frame
+  except a check once a second (a character change rebuilds the sections in the background).
 
 ## Live test (EpFeedbackTest clone, offline, 2560x1440, real keyboard and mouse)
 
-`livetest/live_window.py`, player build (one-file loader):
+`livetest/live_window2.py`, player build; preferences isolated (the player's own file is checked
+unchanged afterwards).
 
 | Step | Result |
 |---|---|
-| built in the background | 5.9 s after loading, 83 cards, 0 faults |
-| F6 (real key) | open in 3.1 ms; the next frames 19 ms at most |
-| click on the window | character moved 0.0 (the same click with the window closed: 9.4) |
-| XP + / − | x1.1 then x1, "Applied" shown, `status` agrees |
-| slider, Default | x22.8 from the slider, x1 after Default |
-| mouse wheel | scrolled 285 px and back |
-| Loot & Pickup: auto pickup switch | on, then off again (status agrees) |
-| pages overview, display, world, monolith, skills | 1–2.7 ms each to show |
-| link card (overview) | opened its page |
-| choice list (Interaction area shape) | opened, closed by a click outside, nothing changed |
-| 6 × F6 open/close | open 2.5–3.1 ms, close 2.6–4.0 ms, frames after 14.5–18 ms |
-| frame time open vs closed | 13.34 ms vs 13.34 ms; 0 frames over 50 ms in 2704 open frames |
+| built in the background | 5 s after loading, 0 faults; 377 measured texts, 0 differences |
+| F6 open / close | 0.03 ms / 0.04 ms; the frames after them 14 ms (ordinary frames) |
+| click on the window / the same click with it closed | moved 0.0 / 7.7 |
+| XP + −, slider, Default, wheel, toggle, links, choice list | as before (all pass) |
+| free respec dialog | Cancel 78 px, Apply action 147 px wide; Cancel changes nothing |
+| campaign quest table, factions, pickup mode list and back | pass |
+| a text field takes typing | typed 0 and 1; the game's keys off while typing, on after |
+| Wanted T7 affixes | double-click to Wanted, search "str" (1156 → 87), Apply, Clear and Apply back |
+| Weaver's Will affixes | inside its panel (1156 affixes) |
+| Summons | Damage meter Start, Stop, Reset; visible columns open and close |
+| Tier colours / area colour | picker colour stored, Reset colours removes it / back to 3FD0FF |
+| Text and font | Windows fonts loaded on request; a list of 20 rows scrolls with the wheel |
+| Inventory | stash tabs from the loot filter read (9 rules, 1 tab) |
+| Circle of Fortune | prophecy preview dialog (read only) |
+| Monolith | 10 timelines in the list (read only); unlock, select, corruption, stability cards |
+| frame time open vs closed | 14.1 ms vs 13.9 ms |
 | game close | exit code 0; saves (54 files) and game files restored and checked |
 
-Pictures: `livetest/window-out3/compare-<page>.png` (desktop app left, in-game right, both at
-1440x900).
-
-The first two runs found: (1) a font file written while the zone loaded could not be read yet
-(a virus scanner holds new files for a moment) and the half-made font was kept, so building
-faulted; fonts are now written at game start, a font is kept only once its face loaded and its
-symbol fallback is attached, and building waits 5 s after loading; (2) a panel filled over
-several frames held an unrooted wrapper; panels are now pinned; (3) every text was white: TMP's
-colour is TMP_Text.color, not Graphic.color. Diagnostics added: fault address and step in the log,
-fonts and frame-time counters in `panel read`.
-
-Checks: Python 353 (new test_ingame_assets 7), JavaScript 235, native 23/23 (new
-ingame_json_test 17/17), interface texts 1727 and translations unchanged.
+Found and fixed on the way: text measured before TMP laid it out (every paragraph one line);
+overlays (dialog, toast, list) built while switched off, so their texts could not be measured;
+the interface font option of EpochPact changed the window's own texts (now excluded); keys
+typed into the window reached the game.
 
 ## Not covered yet
 
-- The sections listed above, the search box, the hero's text shadow, Void Atlas theme.
-- Gamepad, other resolutions and UI scales, the window over the game's own panels and menus.
-- VirusTotal for this build.
+- The sections listed as not yet in the window, the search box, gamepad, the HUD overlays (loot
+  feed, damage window), settings/profiles and the startup replay of stored choices.
+- Other resolutions and UI scales; VirusTotal for this build.

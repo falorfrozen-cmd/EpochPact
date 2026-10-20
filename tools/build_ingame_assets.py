@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import io
+import os
 import json
 import math
 import re
@@ -323,6 +324,24 @@ def inter_instance(weight):
     return buffer.getvalue()
 
 
+def text_advances(faces):
+    """Each character's advance in em for the faces the window draws (Inter as embedded, Georgia
+    from Windows as the game loads it): the window lays out table columns from text widths as the
+    browser's automatic table layout does, without asking the game to measure every cell."""
+    from fontTools.ttLib import TTFont
+    out = {}
+    sources = dict(faces)
+    windows = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
+    for face, file in (("serif", "georgia.ttf"), ("serifBold", "georgiab.ttf")):
+        if (windows / file).is_file():
+            sources[face] = (windows / file).read_bytes()
+    for face, font_bytes in sources.items():
+        font = TTFont(io.BytesIO(font_bytes))
+        em, metrics = font["head"].unitsPerEm, font["hmtx"]
+        out[face] = {str(cp): round(metrics[glyph][0] / em, 4) for cp, glyph in font.getBestCmap().items() if cp < 0x3000}
+    return out
+
+
 # -------------------------------------------------------------------------------------- data
 def js_number(value):
     """String(value) as JavaScript writes it."""
@@ -406,12 +425,14 @@ def control_entry(c, english):
         entry["choiceLabels"] = value.get("choiceLabels") or [("Normal game choices" if x == 0 else f"{x} choices") for x in value["choices"]]
     if c["widget"] == "toggle":
         entry["defaultText"] = "Default: on" if c.get("default") else "Default: off"
-    elif not value.get("choices"):
+    elif c["widget"] == "number" and not value.get("choices"):
         default = js_number(c.get("default")) if c.get("default") is not None else "rank bonus"
         entry["defaultText"] = f"{js_number(value.get('minimum'))}–{js_number(value.get('maximum'))}{entry['unit']} · Default: {default}"
     source = source_for(c)
     if source:
         entry["source"] = source
+    entry["params"] = [{k: p[k] for k in ("name", "type", "minimum", "maximum", "choices", "choiceLabels") if k in p}
+                       for p in c.get("parameters", [])]
     return entry
 
 
@@ -432,10 +453,13 @@ def build_data():
     for page_id, nav, symbol, title, subtitle in ingame_pages.PAGES:
         sections = ingame_pages.sections(page_id, controls, catalog["counts"])
         for section in sections:
+            if section["kind"] == "native":
+                for i in section.get("controls", []):
+                    used[i] = by_id[i]
             if section["kind"] != "settings":
                 continue
             section["automatic"] = [automatic(page_id, by_id[i]) for i in section["controls"]]
-            for i in section["controls"]:
+            for i in section["controls"] + section.get("tailControls", []):
                 used[i] = by_id[i]
         # the face the browser draws the navigation symbol with: Inter when Inter has it, else the
         # system fallback (Segoe UI Symbol)
@@ -444,8 +468,21 @@ def build_data():
                       "sections": sections})
     data = {"version": VERSION, "reference": [1440, 900], "theme": THEME, "lifetimes": LIFETIME, "pages": pages,
             "controls": {i: control_entry(c, english) for i, c in used.items()}}
+    data["counts"] = catalog["counts"]
+    data["campaignQuests"] = catalog["optionCatalogs"]["campaignQuests"]  # the static coverage table of Campaign
+    data["lensCatalog"] = catalog["optionCatalogs"]["lenses"]  # the Circle of Fortune lens catalog before a live read
     data["appVersion"] = re.search(r'#define EP_VERSION_STR "([^"]+)"', (ROOT / "native/version_info.h").read_text(encoding="utf-8"))[1]
     data["i18n"] = translations(data)
+    # every character the window's texts use in each language: the fonts' atlases are filled with
+    # them in the background, so no text waits for a new glyph later
+    english = set("".join(texts_of(data))) | {chr(c) for c in range(0x20, 0x7F)}
+    data["charset"] = {"en": "".join(sorted(c for c in english if c >= " "))}
+    for language in ("tr", "ru"):
+        words = english | set("".join(data["i18n"][language].values()))
+        data["charset"][language] = "".join(sorted(c for c in words if c >= " "))
+    # the app's dictionaries as written, for the texts the window composes while it runs
+    # (native/core/ingame_i18n.cpp translates them the way ui/i18n.js does)
+    data["dictionaries"] = {language: json.loads((UI / f"i18n-{language}.json").read_text(encoding="utf-8")) for language in ("tr", "ru")}
     return data
 
 
@@ -470,7 +507,53 @@ def texts_of(data):
                 texts |= set(override.values())
     for c in data["controls"].values():
         texts |= {c["label"], c["description"], c["unit"].strip(), c.get("defaultText", ""), *c.get("choiceLabels", [])}
+    texts |= native_texts()
     return sorted(t for t in texts if t)
+
+
+def native_texts():
+    """The English texts the native window code passes to Tr() / Fmt(): a literal argument, or
+    both literal branches of a ?: argument."""
+    import codecs
+    found = set()
+
+    literal = r'"(?:[^"\\]|\\.)*"'
+
+    def literals(code):
+        return [codecs.escape_decode(m[1:-1].encode("utf-8"))[0] for m in re.findall(literal, code)]
+
+    for source in sorted((ROOT / "native" / "core").glob("ingame_*.cpp")):
+        code = source.read_text(encoding="utf-8")
+        for start in (m.end() for m in re.finditer(r"\b(?:Tr|Fmt)\(", code)):
+            # the first argument: up to the matching ")" or a top-level ","
+            depth, i, quote = 0, start, False
+            while i < len(code):
+                ch = code[i]
+                if quote:
+                    if ch == "\\":
+                        i += 1
+                    elif ch == '"':
+                        quote = False
+                elif ch == '"':
+                    quote = True
+                elif ch in "([{":
+                    depth += 1
+                elif ch in ")]}":
+                    if depth == 0:
+                        break
+                    depth -= 1
+                elif ch == "," and depth == 0:
+                    break
+                i += 1
+            argument = code[start:i].strip()
+            if re.fullmatch(r"(?:" + literal + r"\s*)+", argument):
+                found.add(b"".join(literals(argument)).decode("utf-8"))
+            else:
+                ternary = re.search(r"\?\s*(" + literal + r")\s*:\s*(" + literal + r")", argument)
+                if ternary:
+                    for branch in ternary.groups():
+                        found.add(literals(branch)[0].decode("utf-8"))
+    return found
 
 
 def translations(data):
@@ -480,6 +563,9 @@ def translations(data):
     result = subprocess.run(["node", str(ROOT / "tools" / "ingame_translate.js")], input=request, capture_output=True, check=True)
     out = json.loads(result.stdout.decode("utf-8"))
     for language in ("tr", "ru"):
+        # a text the dictionary has word for word (a template too) is its entry, as the app writes it
+        words = json.loads((UI / f"i18n-{language}.json").read_text(encoding="utf-8"))
+        out[language].update({t: words[t] for t in texts if words.get(t) and words[t] != t})
         out[language].update({t: v[language] for t, v in OWN_TEXTS.items()})
     return out
 
@@ -527,11 +613,20 @@ def build(out: Path):
     save("grad-primary.png", linear_gradient(128 * S, 32 * S, 145, [(0, rgba(THEME["soft"])), (1, rgba("#07160fe0"))]), optimize=True)
     soft = rgba(THEME["soft"])
     save("grad-nav.png", linear_gradient(128 * S, 8, 90, [(0, soft), (1, rgba("#12241b22"))]), optimize=True)
-    for weight, name in ((400, "inter-regular.ttf"), (600, "inter-semibold.ttf")):
-        (out / name).write_bytes(inter_instance(weight))
+    # .dm-ico: the damage types' icons (ui/assets/damage-types.png, 7 frames), one image each
+    damage_types = Image.open(ASSETS / "damage-types.png").convert("RGBA")
+    frame = damage_types.height
+    for i in range(7):
+        save(f"dmg-type-{i}.png", damage_types.crop((i * frame, 0, (i + 1) * frame, frame)).resize((36, 36), Image.LANCZOS), optimize=True)
+    faces = {}
+    for weight, name, face in ((400, "inter-regular.ttf", "body"), (600, "inter-semibold.ttf", "semi"), (700, "inter-bold.ttf", "bold")):
+        font = inter_instance(weight)
+        (out / name).write_bytes(font)
         files[name] = out / name
+        faces[face] = font
 
     data = build_data()
+    data["advances"] = text_advances(faces)
     data["slices"] = slices
     data["files"] = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in sorted(files.items())}
     (out / "ui.json").write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

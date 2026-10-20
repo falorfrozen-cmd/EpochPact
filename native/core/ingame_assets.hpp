@@ -20,13 +20,15 @@ const json::Value& Data();
 // Main thread only. A sprite for an embedded image (2x the layout size). `sliced` sprites get
 // the 9-slice border named in ui.json "slices", in the same css pixels as the layout.
 void* Sprite(const std::string& file, bool sliced = false);
-enum class Face { Body, BodySemi, Serif, Symbol };
+enum class Face { Body, BodySemi, Serif, Symbol, SerifBold, BodyBold };
 // Throws "font not ready: ..." while a face cannot be loaded yet; FontsReady makes all four.
 void* Font(Face face);
 bool FontsReady(std::string* why);
 // For "panel read": each face, its fallbacks, and whether ⚙ is found (alone / with fallbacks).
 std::string FontReport();
 // Line metrics of a font, per point of size: line height, ascent and descent (descent < 0).
+// Adds characters to a face's atlas now (a few at a time, in the background).
+bool Warm(Face face, const std::string& characters);
 struct Metrics { float line = 1.2f, ascent = 0.95f, descent = -0.25f; };
 Metrics FontMetrics(Face face);
 

@@ -9,5 +9,8 @@ namespace ep::fonts {
 bool Init();
 std::string Read();
 std::string Set(const std::string& key, const std::string& value);
+// The in-game window's root Transform (nullptr: none): its texts are the desktop app's and keep
+// their own font and size. Main thread.
+void SetWindowRoot(void* transform);
 void ReleaseRoots();  // before IL2CPP shutdown while GC handles are valid
 }

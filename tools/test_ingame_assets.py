@@ -31,6 +31,10 @@ def app_panel_ids(title):
     # two panels have functions of their own: weaverPanel() and ragePanel()
     if title == "Weaver's Will":
         return re.findall(r'"(\w+)"', re.search(r'const weaverSettings=\[([^\]]*)\];', APP)[1])
+    if title == "Automatic sorting and Sell all":  # autoSortPanel(): inventoryTools
+        return re.findall(r'"(\w+)"', re.search(r'const inventoryTools=\[([^\]]*)\];', APP)[1])
+    if title == "Death recap":  # deathPanel(): settingCard(controlById("death_recap"))
+        return re.findall(r'controlById\("(\w+)"\)', re.search(r'function deathPanel\(\)\{\s*const c=(controlById\("\w+"\))', APP)[1])
     if title == "Rage of Morditas (Season 5)":
         return re.findall(r'"(\w+)"', re.search(r'function ragePanel\(\)\{\s*const list=\[([^\]]*)\]\.map\(controlById\)', APP)[1])
     at = APP.find(f'settingPanel("{title}",')
@@ -135,13 +139,26 @@ class BuiltDataTests(unittest.TestCase):
                     self.assertEqual(len(section["automatic"]), len(section["controls"]))
                     for i in section["controls"]:
                         self.assertIn(i, self.data["controls"])
+        setting_ids = {i for page in self.data["pages"] for s in page["sections"] if s["kind"] == "settings" for i in s["controls"]}
         for c in self.data["controls"].values():
-            self.assertTrue(c["command"] and "{value}" in c["command"], c["id"])
+            self.assertTrue(c["command"], c["id"])
+            if c["id"] not in setting_ids:
+                continue  # an action a native section shows
+            self.assertIn("{value}", c["command"], c["id"])
             self.assertIn(c["widget"], ("number", "toggle", "choice"), c["id"])
             if c["widget"] != "choice":
                 self.assertTrue(c["defaultText"], c["id"])
             if c["widget"] == "choice":
                 self.assertEqual(len(c["choices"]), len(c["choiceLabels"]), c["id"])
+
+    def test_every_native_section_is_drawn_by_the_window(self):
+        code = "".join(path.read_text(encoding="utf-8") for path in (ROOT / "native/core").glob("ingame_*.cpp"))
+        registered = set(re.findall(r'RegisterSection\("(\w+)"', code))
+        kinds = {s["native"] for page in self.data["pages"] for s in page["sections"] if s["kind"] == "native"}
+        self.assertTrue(kinds)
+        self.assertFalse(kinds - registered, f"no C++ section for {sorted(kinds - registered)}")
+        # every English text the C++ passes to Tr()/Fmt() goes through the app's translator
+        self.assertTrue(assets.native_texts() <= set(assets.texts_of(self.data)))
 
     def test_words_are_the_desktop_translations(self):
         tr, ru = self.data["i18n"]["tr"], self.data["i18n"]["ru"]
@@ -159,6 +176,48 @@ class BuiltDataTests(unittest.TestCase):
             for text in assets.texts_of(self.data):
                 if words.get(text) and words[text] != text:
                     self.assertEqual(table.get(text), words[text], f"{language}: {text}")
+
+
+class TranslatorTests(unittest.TestCase):
+    """native/core/ingame_i18n.cpp translates the texts the window composes while it runs as
+    ui/i18n.js does: every dictionary text, each template filled with numbers and with interface
+    words, and texts the window writes (statuses, rules, notifications), checked by the native
+    test of the research build (ingame_i18n_test.exe; EPOCHPACT_NATIVE_TESTS names its folder)."""
+
+    def test_live_texts_translate_as_the_app_does(self):
+        import os
+        import subprocess
+        folder = Path(os.environ.get("EPOCHPACT_NATIVE_TESTS", ROOT / "native" / "build"))
+        exe = folder / "ingame_i18n_test.exe"
+        if not exe.is_file():
+            self.skipTest(f"build the native tests first ({exe})")
+        texts = set()
+        for language in ("tr", "ru"):
+            words = json.loads((ROOT / f"ui/i18n-{language}.json").read_text(encoding="utf-8"))
+            for source in words:
+                texts.add(source)
+                if re.search(r"\{\d+\}", source):
+                    texts.add(re.sub(r"\{\d+\}", "3", source))
+                    texts.add(re.sub(r"\{\d+\}", "Experience multiplier", source))
+                    texts.add(re.sub(r"\{\d+\}", "0.25", source))
+        texts |= {
+            "Measuring · 1:02 session · 0:45 in combat · 1,234 hits", "Stopped · 0:00 session · 0:00 in combat · 0 hits",
+            "Rule 12 · Show · Uniques and sets", "Rule 3 · Hide", "No matching rule", "Picked up 3 drops.",
+            "Picked up 3 drops. Your inventory is full: equipment waits until you open and close your inventory.",
+            "Experience multiplier updated.", "Wanted T7 affixes updated.", "(3 pickups)", "12 shard types", "Rule 45", "0.25 s", "♜ Character",
+            "Level 55", "Live reading · Falor · Level 55", "Default: on", "Line one\nLine two", "  Padded text  ", "Tier: 7",
+            "Current selection: All items.", "Quest rewards and coverage (85 quests / 109 waypoints)", "Weaver points: 3 / 20 (10 rank + 10 echo)",
+            "Selection applied. Double-click an affix or press Enter to move it. Search only filters the available list.", "+1,234 Gold",
+        }
+        texts = sorted(texts)
+        request = json.dumps({"tr": texts, "ru": texts}, ensure_ascii=False).encode("utf-8")
+        cases = json.loads(subprocess.run(["node", str(ROOT / "tools" / "ingame_i18n_cases.js")], input=request, capture_output=True, check=True).stdout.decode("utf-8"))
+        with tempfile.TemporaryDirectory(prefix="EpochPact-i18n-") as temp:
+            for language in ("tr", "ru"):
+                path = Path(temp) / f"cases-{language}.json"
+                path.write_text(json.dumps(cases[language], ensure_ascii=False), encoding="utf-8")
+                run = subprocess.run([str(exe), str(ROOT / f"ui/i18n-{language}.json"), str(path), "1"], capture_output=True)
+                self.assertEqual(run.returncode, 0, f"{language}:\n" + run.stdout.decode("utf-8", "replace")[-4000:])
 
 
 if __name__ == "__main__":

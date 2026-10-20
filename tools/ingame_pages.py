@@ -30,6 +30,8 @@ PAGES = [
 ]
 
 WEAVER_SETTINGS = ["weaverswill", "weaversdrop", "weaversupgrades"]
+# app.js nameTagExamples: shown as written in the Loot filter window note
+NAME_TAG_EXAMPLES = ["<color=#FF4040>red</color>", "<color=yellow>yellow</color>", "<b>bold</b>", "<i>italic</i>", "<u>underlined</u>"]
 
 
 def general_ids(controls):
@@ -42,9 +44,16 @@ def graphics_ids(controls):
     return [c["id"] for c in controls if c["group"] == "display" and c["id"].startswith("qol_")]
 
 
-def settings(title, ids, text=None, note=None, overrides=None, head=None):
+def native(kind, **fields):
+    """A section the window draws natively (ingame_sections.cpp): "controls" lists the catalog
+    controls it shows, so their labels, descriptions and commands are in ui.json."""
+    return {"kind": "native", "native": kind, **fields}
+
+
+def settings(title, ids, text=None, note=None, overrides=None, head=None, facts=None, note_tail=None, tail=None, tail_controls=None):
     """A settingPanel: heading (its badge, or head="refresh": a Refresh button as the Weaver's Will
-    panel has), optional muted paragraph, the cards, optional note below."""
+    panel has), optional muted paragraph, the cards, optional note below. tail: a native part inside
+    the panel after the cards (ingame_sections.cpp RegisterTail); tail_controls are the controls it shows."""
     section = {"kind": "settings", "title": title, "controls": ids}
     if text:
         section["text"] = text
@@ -54,6 +63,13 @@ def settings(title, ids, text=None, note=None, overrides=None, head=None):
         section["overrides"] = overrides
     if head:
         section["head"] = head
+    if facts:
+        section["facts"] = facts          # a live note under the text (app.js rageFacts)
+    if note_tail:
+        section["noteTail"] = note_tail   # shown after the translated note, as written
+    if tail:
+        section["tail"] = tail
+        section["tailControls"] = tail_controls or []
     return section
 
 
@@ -73,6 +89,14 @@ MONOLITH_NOTE = ("Monster density is shared with General settings and applies to
                  "×1 uses normal pack sizes. Apply before entering the next Echo; restarting the game resets these session settings.")
 
 
+DEATH_TEXT = ("When your character dies, the hits of the 10 seconds before it are kept: who hit, with which skill or ailment, the damage by type and the "
+              "health left after each hit, with the buffs and debuffs you had. Kept until the game closes; the damage window shows it under ☠.")
+
+
+AUTOSORT_TEXT = ("Sorting uses the game's own Sort: your inventory each time it opens, a stash tab each time it is shown. "
+                 "These choices are remembered by EpochPact.")
+
+
 def pending(title):
     return {"kind": "pending", "title": title}
 
@@ -89,43 +113,71 @@ def sections(page, controls, counts):
         ]
     if page == "general":
         return [settings("General game settings", general_ids(controls)),
-                settings("Weaver's Will", WEAVER_SETTINGS, text=WEAVER_TEXT, head="refresh"), pending("Weaver's Will affixes")]
+                settings("Weaver's Will", WEAVER_SETTINGS, text=WEAVER_TEXT, head="refresh", tail="weaver_affixes",
+                         tail_controls=["weaver_affixes"])]
     if page == "loot":
         return [settings("Automatic collection", ["autopickup", "pickup_radius", "pickup_interval"]),
-                pending("Recent pickups"), pending("Collect now"),
+                native("recent_pickups", controls=["loot_log", "loot_log_clear"]), native("collect_now", controls=["pickup_now"]),
                 settings("Quality rules", ["loot_lp", "loot_ww", "loot_t7", "loot_filter"]),
                 pending("Loot filter files"),
-                settings("Loot filter window", ["tier_filter_colors", "tier_name_colors"]),
-                pending("Pickup selections"), pending("Pickup rules")]
+                settings("Loot filter window", ["tier_filter_colors", "tier_name_colors"], note="Rule name examples",
+                         note_tail=": " + "   ".join(NAME_TAG_EXAMPLES)),
+                native("pickup_selections", controls=["loot_mode", "loot_category", "loot_affixes"]),
+                native("pickup_rules", controls=["loot_reset"])]
     if page == "display":
         return [settings("Buffs & debuffs in game", ["effects_enabled", "effects_player", "effects_target", "effects_descriptions", "effects_scale", "effects_rows"],
                          note=EFFECTS_NOTE),
                 settings("Camera", ["build_zoom", "build_cameraangle"]),
                 settings("Minimap and overlay", ["map_minimapsize", "map_minimapzoom", "map_minimapopacity", "map_overlayopacity", "map_overlayzoom"]),
                 settings("Item tiers", ["tier_icons", "tier_tooltips", "tier_lines", "tier_special", "tier_rules", "tier_rule_position", "tier_rule_parts"]),
-                pending("Tier colours"), pending("Interface font"),
+                native("tier_colours", controls=["tier_color", "tier_rule_color"]),
+                native("interface_font", controls=["font_family", "font_read"]),
+                settings("Text size and letter case", ["font_scale", "font_case"]),
                 settings("Graphics effects", graphics_ids(controls), note=GRAPHICS_NOTE)]
     if page == "world":
         return [settings("Map visibility", ["map_reveal"]),
                 settings("Nearby interactions", ["qol_chests", "qol_shrines", "qol_portals", "qol_arearadius", "qol_areashape", "qol_areashow"]),
-                pending("Interaction area colour"),
-                settings("Rage of Morditas (Season 5)", ["rage_spawn", "rage_hunttime", "rage_charges", "rage_buffs", "rage_blood"], text=RAGE_TEXT)]
+                native("area_colour", controls=["qol_areacolor"]),
+                settings("Rage of Morditas (Season 5)", ["rage_spawn", "rage_hunttime", "rage_charges", "rage_buffs", "rage_blood"], text=RAGE_TEXT,
+                         facts="rage")]
     if page == "skills":
-        return [pending("Skill and point budgets"),
+        return [native("cached_summary", read="buildread"), native("skill_budgets"),
                 settings("Experience and skill points", ["build_skillxp", "build_skillpoints", "build_passivepoints"]),
                 settings("Weaver points", ["build_weaverpoints", "build_weaverflat"]),
                 settings("Tree connections", ["build_skillnodes", "build_passivenodes", "build_weavernodes"]),
                 settings("Projectiles", ["build_projectiles", "build_projectileflat"]),
-                pending("Free respec")]
+                native("free_respec", controls=["respec_skills", "respec_passives", "respec_weaver"])]
     if page == "equipment":
-        return [settings("Equipment rules", ["build_offhand", "build_fullsets"])]
+        return [native("cached_summary", read="buildread"), settings("Equipment rules", ["build_offhand", "build_fullsets"])]
     if page == "summons":
-        return [pending("Damage meter"), pending("Death recap"), pending("Live summoned allies"),
+        return [native("damage_meter", controls=["damage_session", "damage_session_read"]),
+                settings("Death recap", ["death_recap"], text=DEATH_TEXT, head="tail", tail="death_recap",
+                         tail_controls=["death_recap_read", "death_recap_clear"]),
+                native("summon_allies", controls=["summons_read"]),
                 settings("Summon lifetime", ["build_summonduration"]),
-                settings("Minion counts", ["build_minionextra", "build_totemextra", "build_ballistaextra", "build_forgedextra", "build_companionextra", "build_immortalminions"])]
+                settings("Minion counts", ["build_minionextra", "build_totemextra", "build_ballistaextra", "build_forgedextra", "build_companionextra", "build_immortalminions"]),
+                pending("Minion and companion bonuses")]
     if page == "monolith":
-        return [pending("Monolith"), settings("Echo modifiers", ["density", "stability_multiplier"], note=MONOLITH_NOTE,
-                                              overrides={"density": MONOLITH_DENSITY})]
+        return [native("cached_summary", read="monolithread"),
+                settings("Echo modifiers", ["density", "stability_multiplier"], note=MONOLITH_NOTE, overrides={"density": MONOLITH_DENSITY}),
+                settings("Boss blessing rewards", ["build_blessingoptions", "build_blessingrolls"]),
+                native("monolith_management", controls=["monolith_read", "monolith_unlock", "monolith_select", "corruption", "stability"]),
+                pending("Monolith Navigator")]
+    if page == "campaign":
+        return [native("cached_summary", read="progressread"),
+                native("campaign", controls=["campaign_complete", "waypoints_unlock"]), native("mastery", controls=["mastery_choose"])]
+    if page == "inventory":
+        return [native("inventory_shortcuts", controls=["inventory_read", "inventory_stash", "inventory_vendor", "inventory_stashall", "inventory_sellall"]),
+                settings("Automatic sorting and Sell all", ["inventory_autosort", "inventory_autosortall", "inventory_sellkeep"], text=AUTOSORT_TEXT,
+                         head="none", tail="sort_tabs", tail_controls=["inventory_tools_read", "inventory_sorttab", "stash_rules_read"]),
+                native("stash_rules", controls=["stash_rules_read", "stash_rules_create", "stash_rule_assign", "stash_rules_sort"])]
+    if page == "cof":
+        return [native("cached_summary", read="cofread"),
+                native("cof_main", controls=["cof_read", "cof_join", "cof_rank", "cof_favor", "cof_reputation_grant", "cof_lenses_unlock"]),
+                native("cof_prophecies", controls=["cofprophecy", "cofpreview", "cof_charges"]),
+                settings("Gain, drop and quality multipliers", [c["id"] for c in controls if c["group"] == "cof" and c["lifetime"] == "session"])]
+    if page == "factions":
+        return [native("factions")]
     return [pending(dict((p[0], p[1]) for p in PAGES)[page])]
 
 

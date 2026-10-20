@@ -40,6 +40,7 @@ std::atomic<bool> active{false};
 uint64_t applied = 0, enables = 0, restored = 0, faults = 0, created = 0;
 game::MethodRef m_enable;
 void (*o_enable)(void*, MethodInfo) = nullptr;
+void* windowRoot = nullptr;  // the in-game window's root Transform
 
 game::MethodRef T(const char* cls, const char* name, int arity) {
     static std::map<std::string, game::MethodRef> methods;
@@ -65,6 +66,16 @@ const il2cpp::Method* Typed(const char* image, const char* ns, const char* cls, 
     throw std::runtime_error(std::string("Font method overload unavailable: ") + cls + "." + name);
 }
 bool Custom() { return family != "game" || scale != 1 || keepCase; }
+// A text of the in-game window: it shows the desktop app's own fonts and sizes.
+bool WindowText(void* text) {
+    if (!windowRoot) return false;
+    static game::MethodRef transform, root;
+    if (!transform) transform = game::FindMethod("UnityEngine.CoreModule.dll", "UnityEngine", "Component", "get_transform", 0);
+    if (!root) root = game::FindMethod("UnityEngine.CoreModule.dll", "UnityEngine", "Transform", "get_root", 0);
+    if (!transform || !root) return false;
+    void* t = Invoke(transform, text);
+    return t && Invoke(root, t) == windowRoot;
+}
 
 // The styles Windows has for a family (the common style names, probed once per family).
 const std::vector<std::string>& Styles(const std::string& name) {
@@ -126,7 +137,7 @@ void Restore(void* text, Saved& saved) {
     ++restored;
 }
 void Apply(void* text) {
-    if (!text || !game::IsAlive(text)) return;
+    if (!text || !game::IsAlive(text) || WindowText(text)) return;
     auto it = texts.find(text);
     if (it == texts.end()) {
         if (!Custom()) return;
@@ -266,6 +277,7 @@ std::string Set(const std::string& key, const std::string& value) {
         return State();
     });
 }
-void ReleaseRoots() { texts.clear(); assets.clear(); fallbacksAdded.clear(); active = false; keepCase = false; }
+void SetWindowRoot(void* transform) { windowRoot = transform; }
+void ReleaseRoots() { texts.clear(); assets.clear(); fallbacksAdded.clear(); active = false; keepCase = false; windowRoot = nullptr; }
 
 }  // namespace ep::fonts
