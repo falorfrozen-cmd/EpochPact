@@ -183,20 +183,44 @@ std::string Upper(const std::string& s) {
     WideCharToMultiByte(CP_UTF8, 0, up.data(), static_cast<int>(up.size()), out.data(), static_cast<int>(out.size()), nullptr, nullptr);
     return out;
 }
-float LineHeight(const Style& s) { return (s.line > 0 ? s.line : assets::FontMetrics(s.face).line) * s.size; }
+namespace {
+// Chrome's font metrics at a size (SimpleFontData): ascent, descent and line gap rounded each.
+struct Rounded { float ascent, descent, gap; };
+Rounded RoundedMetrics(const assets::Metrics& m, float size) {
+    const float gap = std::max(0.f, m.line - (m.ascent - m.descent));
+    return {std::round(m.ascent * size), std::round(-m.descent * size), std::round(gap * size)};
+}
+}  // namespace
+float LineHeight(const Style& s) {
+    if (s.line > 0) return s.line * s.size;
+    const auto r = RoundedMetrics(assets::FontMetrics(s.face), s.size);
+    return r.ascent + r.descent + r.gap;
+}
 // A text's colour: TMP_Text.color, not Graphic.color (a call through the base setter is not virtual).
-void Ink(void* text, Color c) { void* a[]{&c}; Invoke(T("set_color", 1), text, a); }
+void InkRaw(void* text, Color c) { void* a[]{&c}; Invoke(T("set_color", 1), text, a); }
+void Ink(void* text, Color c) {
+    if (c.a > 0 && c.a < 1) c.a = std::pow(c.a, 2.2f);
+    InkRaw(text, c);
+}
 void SetText(void* text, const std::string& value) {
     Root s(il2cpp::api().string_new(value.c_str()));
     void* a[]{s.Get()};
     Invoke(T("set_text", 1), text, a);
 }
 bool scaleStatic = false;
-// A TMP text whose CSS line box starts at (x, y). Top-aligned text sits half a leading lower,
-// where the browser draws the first line; further lines advance by the CSS line height.
+// A TMP text whose CSS line box starts at (x, y). Top-aligned text sits where the browser puts the
+// first baseline: half the leading (the line box less the rounded ascent and descent) plus the
+// rounded ascent; TMP puts it the face's own ascent below the box. Further lines advance by the
+// CSS line height.
+void ForgetMeasure(void* text);  // a new text at the address of one destroyed before
+float TopOffset(const Style& s) {
+    const auto m = assets::FontMetrics(s.face);
+    const auto r = RoundedMetrics(m, s.size);
+    return (LineHeight(s) - r.ascent - r.descent) / 2 + r.ascent - m.ascent * s.size;
+}
 void* TextBox(void* parent, const char* name, float x, float y, float w, float h, const Style& s, const std::string& value) {
     const auto m = assets::FontMetrics(s.face);
-    const float lineH = LineHeight(s), half = (lineH - (m.ascent - m.descent) * s.size) / 2;
+    const float lineH = LineHeight(s), half = TopOffset(s);
     const bool top = s.align == kTopLeft || s.align == kTop || s.align == kTopRight;
     Node n = New(name, parent, x, top ? y + half : y, w, top ? std::max(h - half, lineH) : h);
     void* text = Add(n.go, "Unity.TextMeshPro.dll", "TMPro", "TextMeshProUGUI");
@@ -210,8 +234,8 @@ void* TextBox(void* parent, const char* name, float x, float y, float w, float h
     }
     void* fa[]{assets::Font(s.face)};
     Invoke(T("set_font", 1), text, fa);
-    bool off = false, wrap = s.wrap;
-    void* ra[]{&off};
+    bool rich = s.rich, wrap = s.wrap;
+    void* ra[]{&rich};
     Invoke(T("set_richText", 1), text, ra);
     float size = s.size, spacing = s.spacing / s.size * 100.f, lineSpacing = (lineH / s.size - m.line) * 100.f;
     void* za[]{&size};
@@ -235,6 +259,7 @@ void* TextBox(void* parent, const char* name, float x, float y, float w, float h
     } else Invoke(T("set_enableWordWrapping", 1), text, wa);
     Ink(text, s.color);
     SetText(text, s.upper ? Upper(value) : value);
+    ForgetMeasure(text);
     return text;
 }
 float TextWidth(void* text) { return Value<V2>(Sig("Unity.TextMeshPro.dll", "TMPro", "TMP_Text", "GetPreferredValues", {}), text).x; }
@@ -316,6 +341,7 @@ std::string MeasureDetail(void* text) {
     return b;
 }
 void ForgetMeasures() { measures.clear(); }
+void ForgetMeasure(void* text) { measures.erase(text); }
 // A wrapped paragraph; returns its height.
 float Paragraph(void* parent, const char* name, float x, float y, float w, const Style& s, const std::string& value) {
     void* t = TextBox(parent, name, x, y, w, LineHeight(s), s, value);

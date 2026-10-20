@@ -50,11 +50,21 @@ def native(kind, **fields):
     return {"kind": "native", "native": kind, **fields}
 
 
-def settings(title, ids, text=None, note=None, overrides=None, head=None, facts=None, note_tail=None, tail=None, tail_controls=None):
+def settings(title, ids, text=None, note=None, overrides=None, head=None, facts=None, note_tail=None, tail=None, tail_controls=None, tab=None, look=None,
+             details=None):
     """A settingPanel: heading (its badge, or head="refresh": a Refresh button as the Weaver's Will
     panel has), optional muted paragraph, the cards, optional note below. tail: a native part inside
-    the panel after the cards (ingame_sections.cpp RegisterTail); tail_controls are the controls it shows."""
+    the panel after the cards (ingame_sections.cpp RegisterTail); tail_controls are the controls it shows.
+    tab: the page's tab it belongs to; look "craft": the Crafting content's cards (no icon, no
+    description min-height, a lone card spans the grid); details: the panel inside a <details>
+    {"summary", "key"}."""
     section = {"kind": "settings", "title": title, "controls": ids}
+    if tab:
+        section["tab"] = tab
+    if look:
+        section["look"] = look
+    if details:
+        section["details"] = details
     if text:
         section["text"] = text
     if note:
@@ -87,6 +97,18 @@ GRAPHICS_NOTE = ("Graphics overrides last for this character session. Turning th
                  "Your saved graphics preferences are kept.")
 MONOLITH_NOTE = ("Monster density is shared with General settings and applies to eligible packs in other combat areas too. "
                  "×1 uses normal pack sizes. Apply before entering the next Echo; restarting the game resets these session settings.")
+
+
+# Crafting (app.js renderCrafting): three tabs; Apply changes belongs to Forge Settings.
+PAGE_EXTRA = {"crafting": {"tab": "forge", "draftTab": "forge", "hero": "compact"}}
+CRAFT_OVERRIDES = {
+    "craft_shards": {"label": "Keep affix shards", "description": "Keep the shard used for a craft. You need at least one to begin."},
+    "craft_runes": {"label": "Keep runes", "description": "Keep the rune used for a craft. You need at least one to begin."},
+    "craft_glyphs": {"label": "Keep glyphs", "description": "Keep the glyph used for a craft. You need at least one to begin."},
+    "craft_fp": {"label": "Forging Potential cost", "description": "0 = no FP cost · 0.5 = half cost · 1 = normal cost. Does not add FP to an item."},
+    "craft_level": {"label": "Ignore affix crafting level",
+                    "description": "Skip the selected affix upgrade’s level check. Equipment level requirements stay unchanged."},
+}
 
 
 DEATH_TEXT = ("When your character dies, the hits of the 10 seconds before it are kept: who hit, with which skill or ailment, the damage by type and the "
@@ -178,6 +200,25 @@ def sections(page, controls, counts):
                 settings("Gain, drop and quality multipliers", [c["id"] for c in controls if c["group"] == "cof" and c["lifetime"] == "session"])]
     if page == "factions":
         return [native("factions")]
+    if page == "crafting":
+        forge = {"tab": "forge", "look": "craft"}
+        ws = {"tab": "custom", "group": "workshop"}
+        over = lambda *ids: {i: CRAFT_OVERRIDES[i] for i in ids}  # noqa: E731
+        return [native("craft_tabs"),
+                native("craft_note", tab="forge"),
+                settings("Affix upgrade limit", ["craft_t7"], **forge),
+                settings("Preserve materials", ["craft_shards", "craft_runes", "craft_glyphs"], overrides=over("craft_shards", "craft_runes", "craft_glyphs"), **forge),
+                settings("Forging Potential cost", ["craft_fp"], overrides=over("craft_fp"), **forge),
+                native("glyph_chances", tab="forge", controls=["craft_hope", "craft_despair"]),
+                settings("Level requirement", ["craft_level"], overrides=over("craft_level"), tail="craft_forge", tail_controls=["craft_read", "craft_forge"],
+                         details={"summary": "Advanced forge options", "key": "advanced"}, **forge),
+                native("craft_defaults", tab="forge", controls=["craft_reset"]),
+                native("craft_materials", tab="materials", controls=["craft_materials_read", "craft_materials"]),
+                # Custom Items (customWorkshop): one panel, built in parts
+                native("ws_head", controls=["craft_custom_catalog"], **ws), native("ws_item", **ws), native("ws_template", **ws),
+                native("ws_affix_head", **ws), native("ws_affix_list", **ws), native("ws_affix_rows", **ws),
+                native("ws_extra_head", **ws), native("ws_mod_list", **ws), native("ws_mod_rows", **ws),
+                native("ws_review", controls=["craft_custom"], **ws)]
     return [pending(dict((p[0], p[1]) for p in PAGES)[page])]
 
 

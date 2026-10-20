@@ -32,12 +32,15 @@ struct Hit {
     std::vector<HoverPart> hover;
     bool enabled = true, visible = true;
     Action action;                       // HitKind::Action, Input
+    std::function<void(float x)> drag;   // HitKind::Track of a native section: pressed and dragged, x from the hit's left edge
+    Action release;                      // ... and let go (input type=range: its change event)
     std::string name;                    // for tests ("panel read"): a control id or a short label
 };
 void AddHover(Hit& h, void* graphic, Color normal, Color hover, float seconds = 0.15f);
 
 // ------------------------------------------------------------------------------- sections
 struct Section;
+struct Panel;
 struct PanelState;  // a setting panel kept for changes in place: its facts note and tail (ingame_panel.cpp)
 // Where a widget is drawn: a parent node and that node's place in its hit list's coordinates.
 struct Ctx {
@@ -72,6 +75,15 @@ struct Section {
     struct Wheel { float x = 0, y = 0, w = 0, h = 0; std::function<void(float notches)> scroll; };
     std::vector<Wheel> wheels;
     std::shared_ptr<PanelState> panelState;    // settings: the panel, its facts note and its tail
+    // Settings a native section draws itself (the glyph chances): onSetting runs when one of them
+    // changes (a value read, a draft, Applying…, Applied).
+    std::set<std::string> settings;
+    std::function<void(Section&, const std::string& id)> onSetting;
+    std::function<void(Section&)> onTab;       // its page shows another tab (ShowTab)
+    bool hidden = false;                       // on another tab of its page (ui.json "tab")
+    // A panel group (ui.json "group"): consecutive sections drawn in one panel, so each part is
+    // built again on its own; the group's first section makes the panel, Relayout sizes it.
+    std::shared_ptr<Panel> frame;
     bool built = false;
     Ctx Body(void* parent) { return {&hits, Area::Main, parent, 0, 0, id}; }
 };
@@ -86,6 +98,9 @@ void RegisterDisplaySections();          // ingame_display.cpp
 void RegisterInventorySections();        // ingame_inventory.cpp
 void RegisterCofSections();              // ingame_cof.cpp
 void RegisterMonolithSections();         // ingame_monolith.cpp
+void RegisterCraftSections();            // ingame_craft.cpp
+void RegisterWorkshopSections();         // ingame_workshop.cpp
+std::string WorkshopState();             // for "panel read": the Custom Items draft
 std::string SectionsState();             // for "panel read": the pickers' choices, the pickups kept
 Section* FindSection(int id);
 void Rebuild(int sectionId);             // build its body again and move the sections below
@@ -122,6 +137,19 @@ struct Control {
     std::vector<Param> params;
 };
 const Control* ControlById(const std::string& id);
+// A page with tabs (Crafting): the shown tab, kept while the game runs; ShowTab shows the sections
+// of another (ui.json "tab") and moves the page.
+std::string PageTab(int page);
+void ShowTab(int page, const std::string& tab);
+// The setting values the window keeps (app.js values) for a native section's own cards: false when
+// not known yet; NaN is null (the game's default; Apply sends "reset").
+bool SettingValue(const std::string& id, double* v);
+bool Typing(int sectionId);                      // one of the section's text fields has the keyboard
+bool& Disclosure(const std::string& key);        // a <details> open (app.js craftDisclosure), while the game runs
+void SetDraft(const std::string& id, double v);  // a draft for Apply changes
+std::string SettingFeedback(const std::string& id, Color* color, float* size);  // settingFeedback: Draft, Applying…, Applied
+int DraftCount(const std::string& prefix);       // drafts whose id starts so
+void ClearDrafts(const std::string& prefix);     // back to the applied values (Restore normal crafting)
 // The desktop app's stored choice for a key (preferences.json, read when the window opens); null if none.
 json::Value Preference(const std::string& key);
 // Stores a choice there as the app does (the JSON text; nullptr removes it): kept for the app and the next game.
@@ -187,8 +215,8 @@ bool WindowPoint(const Ctx& c, float x, float y, float* wx, float* wy);
 void WatchInput(const Ctx& c, void* field, const std::string& value, std::function<void(const std::string&)> onChange, const std::string& name);
 
 // -------------------------------------------------------------------------------- widgets
-struct Button { Node node; float w = 0, h = 0; int hit = -1; Pin group; };
-enum class Look { Normal, Quiet, Primary, Small };
+struct Button { Node node; float w = 0, h = 0; int hit = -1; Pin group, label; Color labelColor{}; };
+enum class Look { Normal, Quiet, Primary, Small, Inline13 };  // Inline13: a button in 13px text (line-height 1.6)
 // Builds a button (style.css button / .quiet / .primary); its hit gets hover parts and size.
 Button MakeButton(void* parent, const std::string& label, Look look, Hit& hit);
 // A positioned, clickable button in ctx; right-aligned when right is true (x is its right edge).
@@ -218,14 +246,22 @@ float SelectField(const Ctx& c, float x, float y, float w, const std::string& la
 // form-grid label + a number/text input (TMP_InputField); onChange gets the text as typed
 float InputField(const Ctx& c, float x, float y, float w, const std::string& label, const std::string& value, const std::string& placeholder,
                  bool number, std::function<void(const std::string&)> onChange, const std::string& name = "");
+// input[type=checkbox] (Chrome's dark control): returns its border
+void* CheckBox(void* parent, float x, float y, float size, bool checked);
 // .inline-check: an 18px checkbox and its label
 float CheckField(const Ctx& c, float x, float y, const std::string& label, bool checked, std::function<void(bool)> changed, const std::string& name = "",
                  float size = 12, float gap = 8, float* width = nullptr);
 // A plain table: header row (gold) and rows; column widths as fractions of w
 float Table(void* parent, float x, float y, float w, const std::vector<std::string>& head, const std::vector<std::vector<std::string>>& rows,
             const std::vector<float>& widths, float size = 12);
-// <details><summary>: a gold 12px line with ▸/▾; returns its height
-float Details(const Ctx& c, float x, float y, const std::string& summary, bool open, Action toggle);
+// <details><summary>: a gold line (12px, or size) with the disclosure triangle; returns its height.
+// marker: the triangle's text, for a summary that turns in place.
+float Details(const Ctx& c, float x, float y, const std::string& summary, bool open, Action toggle, float size = 12, void** marker = nullptr);
+// A bare input (TMP_InputField) in a box of (w, h): text style, horizontal padding, optional
+// background and border; onChange gets the text as typed.
+struct InputLook { Color background{}, border{}; bool filled = true, framed = true; float padX = 11, padRight = -1; };  // padRight < 0: padX
+void* MakeInput(const Ctx& c, float x, float y, float w, float h, const Style& s, const InputLook& look, const std::string& value, const std::string& placeholder,
+               bool number, std::function<void(const std::string&)> onChange, const std::string& name);
 
 // A card's box (.control-card): border, gradient; rows of a CSS grid stretch it to the tallest.
 struct CardBox { float h = 0; Pin node, frame, grad; };
@@ -234,8 +270,10 @@ void CloseCard(CardBox& b, float w, float h);
 // actionCard (app.js): title (Georgia 15/600), lifetime badge, description, fields, the reason line
 // and the submit button. fields draws into the form grid at (x, y, w) and returns its height.
 using Fields = std::function<float(const Ctx& c, float x, float y, float w)>;
+// minDescription: the description's min-height (0 in the Crafting page's content).
 CardBox ActionCard(const Ctx& c, float x, float y, float w, const Control& control, const std::string& caption, bool primary, Action submit,
-                   const std::string& reason, Fields fields = {}, const std::string& title = "", const std::string& description = "");
+                   const std::string& reason, Fields fields = {}, const std::string& title = "", const std::string& description = "",
+                   float minDescription = 40);
 std::string ActionCaption(const Control& control);
 // Cards in a 2-column grid (gap 15); rows share the tallest card. Returns the grid height.
 using CardMaker = std::function<CardBox(const Ctx&, float x, float y, float w)>;

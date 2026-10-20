@@ -59,7 +59,8 @@ EXTRA_SOURCES = {
     "inventory_autosort": ("invread", "autosort"), "inventory_autosortall": ("invread", "autosortAll"), "inventory_sellkeep": ("invread", "sellKeep"),
 }
 # Reads whose results are JSON objects the panel can follow a path into.
-JSON_READS = {"buildread", "qolread", "rageread", "effectsread", "deathrecap", "pickupradius", "tierread", "mapsettings", "invread", "fontread"}
+JSON_READS = {"buildread", "qolread", "rageread", "effectsread", "deathrecap", "pickupradius", "tierread", "mapsettings", "invread", "fontread",
+              "craftread"}
 # Interface texts the desktop app does not have; translated here (the app's own strings come from ui/i18n-*.json).
 OWN_TEXTS = {
     "This section is not in the in-game window yet. Use the EpochPact app for it.": {
@@ -260,9 +261,10 @@ def cover(art, width, height, y_position):
     return out.convert("RGBA")
 
 
-def hero_image(art):
-    """.hero (#07100d) under .hero-art: gradient over the art, the whole layer at opacity .85."""
-    width, height = 1185 * S, 226 * S   # the main area less its 15px scrollbar
+def hero_image(art, height_css):
+    """.hero (#07100d) under .hero-art: gradient over the art, the whole layer at opacity .85.
+    .hero-art fills the hero inside its 1px bottom border: 225px, or 155px on a page with tabs."""
+    width, height = 1185 * S, height_css * S   # the main area less its 15px scrollbar
     layer = cover(art, width, height, 0.48)
     layer.alpha_composite(linear_gradient(width, height, 90, [(0.05, rgba("#08120fff")), (0.38, rgba("#08120fca")), (0.72, (8, 18, 15, 0))]))
     base = solid(width, height, "#07100d")
@@ -464,13 +466,17 @@ def build_data():
         # the face the browser draws the navigation symbol with: Inter when Inter has it, else the
         # system fallback (Segoe UI Symbol)
         face = "body" if all(ord(ch) in inter_cmap() for ch in symbol) else "symbol"
-        pages.append({"id": page_id, "nav": nav, "symbol": symbol, "symbolFace": face, "title": title, "subtitle": subtitle,
+        # a page with tabs: its first tab, the tab whose drafts Apply changes sends, its hero
+        pages.append({**ingame_pages.PAGE_EXTRA.get(page_id, {}), "id": page_id, "nav": nav, "symbol": symbol, "symbolFace": face, "title": title, "subtitle": subtitle,
                       "sections": sections})
     data = {"version": VERSION, "reference": [1440, 900], "theme": THEME, "lifetimes": LIFETIME, "pages": pages,
             "controls": {i: control_entry(c, english) for i, c in used.items()}}
     data["counts"] = catalog["counts"]
     data["campaignQuests"] = catalog["optionCatalogs"]["campaignQuests"]  # the static coverage table of Campaign
     data["lensCatalog"] = catalog["optionCatalogs"]["lenses"]  # the Circle of Fortune lens catalog before a live read
+    # the names the Custom Items workshop builds its extra effects' names from (workshopModifierEntries)
+    stats = catalog["characterStats"]
+    data["characterStats"] = {k: [{"id": x["id"], "name": x["name"]} for x in stats[k]] for k in ("properties", "tags", "ailments")}
     data["appVersion"] = re.search(r'#define EP_VERSION_STR "([^"]+)"', (ROOT / "native/version_info.h").read_text(encoding="utf-8"))[1]
     data["i18n"] = translations(data)
     # every character the window's texts use in each language: the fonts' atlases are filled with
@@ -499,6 +505,8 @@ def texts_of(data):
         texts |= {page["nav"], page["title"], page["subtitle"]}  # the breadcrumb is "EpochPact / " + the translated nav
         for section in page["sections"]:
             texts |= {v for k, v in section.items() if k in ("title", "text", "note") and isinstance(v, str)}
+            if section.get("details"):
+                texts.add(section["details"]["summary"])
             for item in section.get("items", []):
                 texts.add(item[1])
             for target in section.get("pages", []):
@@ -588,7 +596,8 @@ def build(out: Path):
     for name, position in {"default": (-162, -190), "speed": (-163, -260), "gold": (-436, -263), "drops": (-436, -189), "cooldown": (-14, -9)}.items():
         save(f"icon-{name}.png", reference_crop(reference, (714, 446), position, (55, 61), 0.60, 0.77), optimize=True)
     save("icon-density.png", density_icon(Image.open(ASSETS / "monster-density-256.png").convert("RGBA")), optimize=True)
-    save("hero.jpg", hero_image(art), "JPEG", quality=92, optimize=True)
+    save("hero.jpg", hero_image(art, 225), "JPEG", quality=92, optimize=True)
+    save("hero-compact.jpg", hero_image(art, 155), "JPEG", quality=92, optimize=True)
     save("sidebar.jpg", sidebar_image(art), "JPEG", quality=92, optimize=True)
     save("main.png", main_background(), optimize=True)
     slices = {}
@@ -604,6 +613,7 @@ def build(out: Path):
         slices[f"band-{width}"] = edge
     save("corner.png", corner_sprite(), optimize=True)
     save("ring-34.png", circle_sprite(34, ring=True), optimize=True)
+    save("ring-30.png", circle_sprite(30, ring=True), optimize=True)  # .craft-step h3>span
     save("circle-17.png", circle_sprite(17), optimize=True)
     save("track.png", track_sprite(), optimize=True)
     save("thumb.png", thumb_sprite(), optimize=True)

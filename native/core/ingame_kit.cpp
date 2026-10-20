@@ -11,7 +11,10 @@
 namespace ep::ingame::view {
 using namespace managed;
 
+// The colour is the renderer's (CrossFadeColor multiplies it with the graphic's own): the graphic
+// itself is white, whatever it was made with.
 void AddHover(Hit& h, void* graphic, Color normal, Color hover, float seconds) {
+    Tint(graphic, kWhite);
     Fade(graphic, normal, 0);
     h.hover.push_back({graphic, normal, hover, seconds});
 }
@@ -31,6 +34,7 @@ Button MakeButton(void* parent, const std::string& label, Look look, Hit& hit) {
     float padX = 15, padY = 10;
     if (look == Look::Quiet) { s.size = 12; padX = 12; padY = 9; }
     if (look == Look::Small) { s.size = 11; padX = 10; padY = 8; }
+    if (look == Look::Inline13) { s.size = 13; s.line = 1.6f; }
     if (look == Look::Primary) { s = Style{Face::Serif, 17, Hex("#fff0d3")}; padX = 25; padY = 12; }
     s.align = kCenter;
     Button b;
@@ -40,6 +44,8 @@ Button MakeButton(void* parent, const std::string& label, Look look, Hit& hit) {
     void* ring = look == Look::Primary ? Picture(b.node.rt, "Ring", 1, 1, 8, 8, "band-2.png", true, Hex("#b9955133"), true) : nullptr;
     void* frame = Outline(b.node.rt, "Border", 0, 0, 10, 10, kWhite, 3);
     void* text = TextBox(b.node.rt, "Label", 0, 0, 10, 10, s, label);
+    b.label.Set(text);
+    b.labelColor = s.color;
     b.w = std::ceil(TextWidth(text)) + 2 * padX + 2;
     b.h = LineHeight(s) + 2 * padY + 2;
     Resize(b.node.rt, b.w, b.h);
@@ -71,6 +77,7 @@ void SetEnabled(const Ctx& c, Button& b, bool on) {
     float alpha = on ? 1.f : 0.45f;
     void* a[]{&alpha};
     Invoke(Find("UnityEngine.UIModule.dll", "UnityEngine", "CanvasGroup", "set_alpha", 1), b.group.Get(), a);
+    if (b.label) InkRaw(b.label.Get(), Alpha(b.labelColor, on ? 1.f : kDisabledTextAlpha));
     if (b.hit >= 0) (*c.hits)[b.hit].enabled = on;
 }
 void SetSelected(const Ctx& c, Button& b, bool on) {
@@ -235,7 +242,7 @@ float SelectField(const Ctx& c, float x, float y, float w, const std::string& la
     const float top = FieldLabel(c.parent, x, y, w, label);
     Style s{Face::Body, 12, C("ink")};
     s.align = kLeft;
-    const float h = LineHeight(s) + 22;
+    const float h = SelectHeight(s);
     Fill(c.parent, "Select", x, y + top, w, h, Hex("#080e0e"), 3);
     void* frame = Outline(c.parent, "Select border", x, y + top, w, h, Hex("#7b745a99"), 3);
     TextBox(c.parent, "Choice", x + 11, y + top, w - 40, h, s, current >= 0 && current < static_cast<int>(options.size()) ? options[current] : "");
@@ -264,7 +271,12 @@ float InputField(const Ctx& c, float x, float y, float w, const std::string& lab
     Style s{Face::Body, 12, C("ink")};
     s.align = kLeft;
     const float h = LineHeight(s) + 22;
-    Node box = New(name.empty() ? "Input" : name.c_str(), c.parent, x, y + top, w, h);
+    MakeInput(c, x, y + top, w, h, s, InputLook{Hex("#080e0e"), Hex("#7b745a99")}, value, placeholder, number, std::move(onChange), name);
+    return top + h;
+}
+void* MakeInput(const Ctx& c, float x, float y, float w, float h, const Style& s, const InputLook& look, const std::string& value, const std::string& placeholder,
+               bool number, std::function<void(const std::string&)> onChange, const std::string& name) {
+    Node box = New(name.empty() ? "Input" : name.c_str(), c.parent, x, y, w, h);
     // its own background takes the pointer: TMP_InputField places the caret and selects text
     void* bg = Add(box.go, "UnityEngine.UI.dll", "UnityEngine.UI", "Image");
     void* sa[]{assets::Sprite("fill-r3.png", true)};
@@ -272,15 +284,16 @@ float InputField(const Ctx& c, float x, float y, float w, const std::string& lab
     int sliced = 1;
     void* ta[]{&sliced};
     Invoke(UI("Image", "set_type", 1), bg, ta);
-    Tint(bg, Hex("#080e0e"));
+    Tint(bg, look.filled ? look.background : Color{0, 0, 0, 0});
     Raycast(bg, true);
-    Outline(box.rt, "Border", 0, 0, w, h, Hex("#7b745a99"), 3);
-    Node area = New("Text Area", box.rt, 11, 0, w - 22, h);
+    if (look.framed) Outline(box.rt, "Border", 0, 0, w, h, look.border, 3);
+    const float areaW = w - look.padX - (look.padRight < 0 ? look.padX : look.padRight);
+    Node area = New("Text Area", box.rt, look.padX, 0, areaW, h);
     Add(area.go, "UnityEngine.UI.dll", "UnityEngine.UI", "RectMask2D");
     Style ps = s;
     ps.color = Hex("#8b8f8c");
-    void* hint = TextBox(area.rt, "Placeholder", 0, 0, w - 22, h, ps, placeholder);
-    void* text = TextBox(area.rt, "Text", 0, 0, w - 22, h, s, "");
+    void* hint = TextBox(area.rt, "Placeholder", 0, 0, areaW, h, ps, placeholder);
+    void* text = TextBox(area.rt, "Text", 0, 0, areaW, h, s, "");
     void* field = Add(box.go, "Unity.TextMeshPro.dll", "TMPro", "TMP_InputField");
     const auto call = [&](const char* method, void* arg) {
         void* a[]{arg};
@@ -292,7 +305,7 @@ float InputField(const Ctx& c, float x, float y, float w, const std::string& lab
     call("set_textViewport", area.rt);
     call("set_textComponent", text);
     call("set_placeholder", hint);
-    float size = 12;
+    float size = s.size;
     call("set_pointSize", &size);
     int contentType = number ? 3 : 0, lineType = 0;  // DecimalNumber / Standard; SingleLine
     call("set_contentType", &contentType);
@@ -312,7 +325,7 @@ float InputField(const Ctx& c, float x, float y, float w, const std::string& lab
     hit.kind = HitKind::Input;
     hit.name = name;
     hit.x = x;
-    hit.y = y + top;
+    hit.y = y;
     hit.w = w;
     hit.h = h;
     void* go = box.go;
@@ -325,19 +338,24 @@ float InputField(const Ctx& c, float x, float y, float w, const std::string& lab
         Invoke(Find("Unity.TextMeshPro.dll", "TMPro", "TMP_InputField", "ActivateInputField", 0), field);
     };
     c.Add(std::move(hit));
-    return top + h;
+    return field;
+}
+// input[type=checkbox] as Chrome draws it here (dark controls): #3b3b3b with a #858585 border, or
+// checked: the accent colour with a #3b3b3b mark; radius 2. Returns the border (for hover).
+void* CheckBox(void* parent, float x, float y, float size, bool checked) {
+    Fill(parent, "Check", x, y, size, size, checked ? C("accent") : Hex("#3b3b3b"), 2);
+    void* frame = Outline(parent, "Check border", x, y, size, size, checked ? C("accent") : Hex("#858585"), 2);
+    if (checked) {
+        Style m{Face::Body, size * 13 / 18, Hex("#3b3b3b")};
+        m.align = kCenter;
+        TextBox(parent, "Check mark", x, y, size, size, m, "\xE2\x9C\x93");
+    }
+    return frame;
 }
 // .inline-check: flex, gap 8, centred, 12px; the 18px checkbox (accent-color accent)
 float CheckField(const Ctx& c, float x, float y, const std::string& label, bool checked, std::function<void(bool)> changed, const std::string& name, float size,
                  float gap, float* width) {
-    void* box = Fill(c.parent, "Check", x, y, 18, 18, checked ? C("accent") : Hex("#0f1513"), 3);
-    void* frame = Outline(c.parent, "Check border", x, y, 18, 18, checked ? C("accent") : Hex("#7b745a99"), 3);
-    (void)box;
-    if (checked) {
-        Style m{Face::Body, 13, C("bg")};
-        m.align = kCenter;
-        TextBox(c.parent, "Check mark", x, y, 18, 18, m, "\xE2\x9C\x93");
-    }
+    void* frame = CheckBox(c.parent, x, y, 18, checked);
     Style s{Face::Body, size, C("ink")};
     s.align = kLeft;
     const float lineH = std::max(18.f, LineHeight(s));
@@ -350,7 +368,7 @@ float CheckField(const Ctx& c, float x, float y, const std::string& label, bool 
     hit.w = 18 + gap + std::ceil(TextWidth(t));
     hit.h = 18;
     if (width) *width = hit.w;
-    AddHover(hit, frame, checked ? C("accent") : Hex("#7b745a99"), C("accent"));
+    AddHover(hit, frame, checked ? C("accent") : Hex("#858585"), checked ? C("accent") : Hex("#acacac"));
     hit.action = [changed, checked] { changed(!checked); };
     c.Add(std::move(hit));
     return 18;
@@ -376,20 +394,21 @@ float Table(void* parent, float x, float y, float w, const std::vector<std::stri
     for (const auto& r : rows) row(r, td);
     return cy - y;
 }
-float Details(const Ctx& c, float x, float y, const std::string& summary, bool open, Action toggle) {
-    Style s{Face::Body, 12, C("gold")};
+float Details(const Ctx& c, float x, float y, const std::string& summary, bool open, Action toggle, float size, void** marker) {
+    Style s{Face::Body, size, C("gold")};
     s.align = kLeft;
-    const float lh = LineHeight(s);
-    Style m{Face::Body, 8, C("gold")};
+    const float lh = LineHeight(s), indent = std::round(size * 1.15f);  // ::marker "▶ " (14 at 12px, 17 at 15px)
+    Style m{Face::Body, size * 2 / 3, C("gold")};
     m.align = kLeft;
-    TextBox(c.parent, "Marker", x, y, 12, lh, m, open ? "\xE2\x96\xBC" : "\xE2\x96\xB6");
-    void* t = TextBox(c.parent, "Summary", x + 14, y, 900, lh, s, summary);
+    void* mark = TextBox(c.parent, "Marker", x, y, indent, lh, m, open ? "\xE2\x96\xBC" : "\xE2\x96\xB6");
+    if (marker) *marker = mark;
+    void* t = TextBox(c.parent, "Summary", x + indent, y, 900, lh, s, summary);
     Hit hit;
     hit.kind = HitKind::Action;
     hit.name = summary;
     hit.x = x;
     hit.y = y;
-    hit.w = 14 + std::ceil(TextWidth(t));
+    hit.w = indent + std::ceil(TextWidth(t));
     hit.h = lh;
     hit.action = std::move(toggle);
     c.Add(std::move(hit));
@@ -424,7 +443,7 @@ std::string ActionCaption(const Control& c) {
     return "Apply";
 }
 CardBox ActionCard(const Ctx& c, float x, float y, float w, const Control& control, const std::string& caption, bool primary, Action submit,
-                   const std::string& reason, Fields fields, const std::string& title, const std::string& description) {
+                   const std::string& reason, Fields fields, const std::string& title, const std::string& description, float minDescription) {
     CardBox b = OpenCard(c.parent, x, y, w);
     void* rt = b.node.Get();
     const Ctx in = c.At(rt, x, y);
@@ -442,7 +461,7 @@ CardBox ActionCard(const Ctx& c, float x, float y, float w, const Control& contr
     ds.line = 1.65f;
     ds.wrap = true;
     cy += 6;
-    cy += std::max(40.f, Paragraph(rt, "Description", pad, cy, inner, ds, Tr(description.empty() ? control.description : description))) + 14;
+    cy += std::max(minDescription, Paragraph(rt, "Description", pad, cy, inner, ds, Tr(description.empty() ? control.description : description))) + 14;
     if (fields) cy += fields(in, pad, cy, inner);
     if (!reason.empty()) {
         // .action-reason: gold 12px, line-height 1.6, margin-top 12

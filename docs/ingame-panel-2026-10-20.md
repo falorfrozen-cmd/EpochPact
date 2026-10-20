@@ -39,9 +39,31 @@ Unity UI.
     lens / charges forms and the preview dialog; lens catalog; the session multipliers.
   - Monolith: management (target timeline and difficulty, unlock, select with the trip to
     Traveler's Rest and the wait for the timeline panel, Corruption, Stability).
-- Not yet in the window (heading and a pointer to the app): game setup, crafting, character,
-  Unique Atlas, Stash Assistant, Monolith Navigator, minion bonuses, loot filter files,
-  settings; the search box is drawn but not active.
+  - Crafting: the page's 156px hero and its three tabs (Forge Settings, Materials, Custom
+    Items; Apply changes only on Forge Settings; the note about Forge settings in draft on the
+    other tabs, its link back). Forge Settings: the setting panels with the page's own card look
+    (no icon; a lone card spans the grid), Glyph chances (Game default or a custom percentage:
+    the slider, typing, a draft sent as "reset" for the game's chance), Advanced forge options
+    (a setting panel inside a `<details>`, opened and closed in place; Craft from EpochPact with
+    Craft once), Restore game defaults. Materials: the stash's material kinds and Stock all
+    materials (confirm first). Custom Items: the workshop (below).
+  - Custom Items workshop (crafting-model.js in C++): the forge's equipment item, item choices
+    (five reads, parsed on a worker thread), the template search and type, T7 affixes and extra
+    effects in lists that scroll inside their 240px box (rows made as they come into view; a
+    tick changes its row in place and the list moves as the browser's does after it gave the
+    box the keyboard), each chosen affix with its tier (T8 primordial where it exists), roll
+    and Random, roll quality, the summary and its checks, Create custom item (confirm first).
+    One panel drawn by ten sections (a panel group), so each part is built again on its own.
+- Not yet in the window (heading and a pointer to the app): game setup, character, Unique
+  Atlas, Stash Assistant, Monolith Navigator, minion bonuses, loot filter files, settings; the
+  search box is drawn but not active.
+- Drawn as Chrome draws the desktop app (found comparing pictures): "normal" line heights are
+  the font's ascent and descent each rounded to a pixel (Inter 15px: 19, not 18.2); a select is
+  its line + 24 (12px: 39); checkboxes are Chrome's dark control (#3b3b3b, #858585 border,
+  checked: accent with a #3b3b3b mark); a hover colour is the renderer's (the graphic stays
+  white, else the colour was applied twice: select and checkbox borders were too dark); this
+  game's text shader draws alpha as if gamma-corrected, so a translucent text colour is given
+  as alpha^2.2 and a disabled button's label is dimmed to look like CSS opacity .45.
 - Keyboard: while a field of the window has the keyboard, the game's own "typing" switch
   (EpochInputManager.isInputFieldActive, what its own text fields use) is on, so typed keys do
   not drink a potion or cast a skill; it is off again when the field loses the keyboard, on

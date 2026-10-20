@@ -341,7 +341,7 @@ void MakeDamageMeter(Section& s) {
                 const float labelW = std::ceil(TextAdvance(Face::Body, 14, Tr("Damage type")));
                 float widest = 0;
                 for (const auto& o : options) widest = std::max(widest, TextAdvance(Face::Body, 14, o));
-                const float selW = std::ceil(widest) + 20 + 24, selH = LineHeight(ls) + 22;
+                const float selW = std::ceil(widest) + 20 + 24, selH = SelectHeight(ls);
                 TextBox(in.parent, "Label", kPanelPad, y, labelW + 4, selH, ls, Tr("Damage type"));
                 const float sx = kPanelPad + labelW + 8;
                 Fill(in.parent, "Select", sx, y, selW, selH, Hex("#080e0e"), 3);

@@ -223,7 +223,7 @@ void MakeStashRules(Section& s) {
             // the select column: at least its select (min-width 150) and the cell's padding, from Name
             const float need = selectW + 24 - widths[3];
             if (need > 0) { widths[3] += need; widths[2] = std::max(60.f, widths[2] - need); }
-            const float rowH = 12 * 1.21f + 22 + 20 + 1, headH = LineHeight(Style{Face::Body, 12}) + 21;
+            const float rowH = SelectHeight(Style{Face::Body, 12}) + 20 + 1, headH = LineHeight(Style{Face::Body, 12}) + 21;
             {
                 Style th{Face::Body, 12, C("gold")};
                 th.align = kLeft;
@@ -249,7 +249,7 @@ void MakeStashRules(Section& s) {
                         const int current = r["tab"].IsNumber() ? static_cast<int>(r["tab"].number) : 0;
                         int at = 0;
                         for (size_t k = 0; k < tabIds.size(); ++k) if (tabIds[k] == current) at = static_cast<int>(k);
-                        const float sx = cx + 12, sy = y + 10, sh = 12 * 1.21f + 22;
+                        const float sx = cx + 12, sy = y + 10, sh = SelectHeight(Style{Face::Body, 12});
                         Fill(in.parent, "Select", sx, sy, selectW, sh, Hex("#080e0e"), 3);
                         void* frame = Outline(in.parent, "Select border", sx, sy, selectW, sh, Hex("#7b745a99"), 3);
                         Style cs{Face::Body, 12, ink};

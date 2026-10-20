@@ -79,7 +79,7 @@ float ColumnSelect(const Ctx& c, float x, float y, const std::string& label, con
     cs.align = kLeft;
     float widest = 0;
     for (const auto& o : options) widest = std::max(widest, TextAdvance(Face::Body, 12, o));
-    const float w = std::ceil(widest) + 20 + 24, h = LineHeight(cs) + 22;
+    const float w = std::ceil(widest) + 20 + 24, h = SelectHeight(cs);
     *width = std::max(w, std::ceil(TextAdvance(Face::Body, 12, label)));
     Fill(c.parent, "Select", x, y + top, w, h, Hex("#080e0e"), 3);
     void* frame = Outline(c.parent, "Select border", x, y + top, w, h, Hex("#7b745a99"), 3);
@@ -303,7 +303,7 @@ void MakeInterfaceFont(Section& s) {
             for (size_t i = 0; i < values.size(); ++i) if (values[i] == current) at = static_cast<int>(i);
             Style vs{Face::Body, 14, C("ink")};
             vs.align = kLeft;
-            const float selH = LineHeight(vs) + 22;
+            const float selH = SelectHeight(vs);
             Fill(in.parent, "Select", kPanelPad, y, kPanelInner, selH, Hex("#080e0e"), 3);
             void* frame = Outline(in.parent, "Select border", kPanelPad, y, kPanelInner, selH, Hex("#7b745a99"), 3);
             TextBox(in.parent, "Choice", kPanelPad + 11, y, kPanelInner - 40, selH, vs, labels[at]);

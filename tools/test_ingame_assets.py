@@ -39,6 +39,13 @@ def app_panel_ids(title):
         return re.findall(r'"(\w+)"', re.search(r'function ragePanel\(\)\{\s*const list=\[([^\]]*)\]\.map\(controlById\)', APP)[1])
     at = APP.find(f'settingPanel("{title}",')
     if at < 0:
+        # renderCrafting writes its panels with single quotes and craftingControl(id,label,text)
+        quoted = APP.find(f"settingPanel('{title}',")
+        if quoted >= 0:
+            rest = APP[quoted + len(f"settingPanel('{title}',"):]
+            listed = re.match(r"\[\s*((?:(?:controlById\('\w+'\)|craftingControl\('\w+','[^']*','[^']*'\))\s*,?\s*)+)\]\)", rest)
+            if listed:
+                return re.findall(r"(?:controlById|craftingControl)\('(\w+)'", listed[1])
         raise AssertionError(f"app.js has no settingPanel {title!r}")
     rest = APP[at + len(f'settingPanel("{title}",'):]
     literal = re.match(r'\[((?:"[\w]+",?)+)\]\.map\(controlById\)', rest)
@@ -90,6 +97,20 @@ class PagesTests(unittest.TestCase):
                     self.assertIn(i, CONTROLS, f"{page}: {section['title']}: {i}")
                 checked += 1
         self.assertGreaterEqual(checked, 20)
+
+    def test_crafting_labels_match_app_js(self):
+        # craftingControl(id,label,text): the labels and descriptions the Crafting page shows
+        found = {m[0]: {"label": m[1], "description": m[2]} for m in re.findall(r"craftingControl\('(\w+)','([^']*)','([^']*)'\)", APP)}
+        shown = {}
+        for section in ingame_pages.sections("crafting", CATALOG["controls"], CATALOG["counts"]):
+            shown.update(section.get("overrides", {}))
+        for i, words in shown.items():
+            self.assertEqual(words, found[i], i)
+        self.assertEqual(set(shown), set(found) - {"craft_materials", "craft_reset"}, "the cards of setting panels (the action cards are native)")
+        # the panels' places: the tabs and the Advanced forge options disclosure
+        titles = {s.get("title"): s for s in ingame_pages.sections("crafting", CATALOG["controls"], CATALOG["counts"]) if s["kind"] == "settings"}
+        self.assertEqual(titles["Level requirement"]["details"]["summary"], "Advanced forge options")
+        self.assertIn("<summary>Advanced forge options</summary>${settingPanel('Level requirement'", APP)
 
     def test_automatic_settings_follow_app_js(self):
         # automaticSetting(): the general group on General/Overview, or one of these commands

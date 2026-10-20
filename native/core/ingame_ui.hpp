@@ -52,6 +52,7 @@ inline constexpr float kTopH = 67;                                              
 inline constexpr float kMainX = 239, kMainY = 68, kMainW = 1200, kMainH = 748, kContentW = kMainW - kBar;
 inline constexpr float kFootY = kMainY + kMainH, kFootH = 83;
 inline constexpr float kHeroH = 226, kPadX = 28, kPadTop = 24, kPadBottom = 30;
+inline constexpr float kHeroCompactH = 156;                                         // .main-scroll:has(.craft-categories) .hero
 inline constexpr float kPanelW = kContentW - 2 * kPadX, kPanelPad = 24;           // 1px border + 23 padding
 inline constexpr float kPanelInner = kPanelW - 2 * kPanelPad, kGap = 15;
 inline constexpr float kCardW = (kPanelInner - kGap) / 2, kCardPad = 20;          // 1px border + 19 padding
@@ -101,13 +102,25 @@ struct Style {
     int align = kTopLeft;
     bool wrap = false;
     bool upper = false;
+    bool rich = false;   // TMP tags (<b>, <color>): the caller wraps outside words in <noparse>
 };
 std::string Upper(const std::string& s);
+// The CSS line box: line-height times the size, or for "normal" what Chrome uses: the face's
+// ascent and descent at this size, each rounded to a whole pixel.
 float LineHeight(const Style& s);
+// A select's height in Chrome: its line, the menu list's own 1px above and below, padding 10, border 1.
+inline float SelectHeight(const Style& s) { return LineHeight(s) + 24; }
+// A text's colour. TMP draws this game's text alpha as if gamma-corrected (alpha a looks like
+// a^(1/2.2) next to the browser's): a translucent colour's alpha is a^2.2, so it looks like CSS a.
 void Ink(void* text, Color c);
+void InkRaw(void* text, Color c);  // the alpha as given (a CanvasGroup's dimming adds to it)
+inline constexpr float kDisabledTextAlpha = 0.3832f;  // with a CanvasGroup at .45: 0.45^2.2 / 0.45, the label looks .45 as in CSS
 void SetText(void* text, const std::string& value);
 extern bool scaleStatic;  // TMP_Text.isTextObjectScaleStatic exists in this game
 void* TextBox(void* parent, const char* name, float x, float y, float w, float h, const Style& s, const std::string& value);
+// How far below the top of its CSS line box TextBox puts a top-aligned text, so its baseline is
+// where the browser draws it.
+float TopOffset(const Style& s);
 float TextWidth(void* text);
 // A single-line text's width from the faces' character advances (ui.json "advances"; no kerning):
 // for layouts the browser computes from text widths (table columns), without a pass in the game.

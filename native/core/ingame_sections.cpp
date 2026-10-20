@@ -555,7 +555,7 @@ float DrawPicker(Section& s, const Ctx& c, float x, float y, float w, const std:
         TextBox(c.parent, "Label", x + searchW + 18, y, sortW, LineHeight(ls), ls, Tr("Sort"));
         Style cs{Face::Body, 12, C("ink")};
         cs.align = kLeft;
-        const float h = LineHeight(cs) + 22;
+        const float h = SelectHeight(cs);
         const float sx = x + searchW + 18;
         Fill(c.parent, "Select", sx, y + top, sortW, h, Hex("#080e0e"), 3);
         void* frame = Outline(c.parent, "Select border", sx, y + top, sortW, h, Hex("#7b745a99"), 3);
@@ -989,7 +989,7 @@ std::string SectionsState() {
                ",\"dirty\":" + (st.dirty ? "true" : "false") + ",\"query\":" + managed::Json(st.query) + ",\"order\":" + managed::Json(st.order) + "}";
         comma = true;
     }
-    return out + "}}";
+    return out + "},\"workshop\":" + WorkshopState() + "}";
 }
 void RegisterNativeSections() {
     RegisterWeaverTail();
@@ -998,6 +998,8 @@ void RegisterNativeSections() {
     RegisterInventorySections();
     RegisterCofSections();
     RegisterMonolithSections();
+    RegisterCraftSections();
+    RegisterWorkshopSections();
     RegisterSection("cached_summary", MakeCachedSummary);
     RegisterSection("skill_budgets", MakeSkillBudgets);
     RegisterSection("free_respec", MakeFreeRespec);

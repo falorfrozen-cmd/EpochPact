@@ -118,6 +118,7 @@ struct Card {
     float trackX = 0, trackW = 0;        // card coords
     Pin node, frame, grad, tools, value, thumb, knob, knobImage, switchFill, switchFrame, onOff, feedback, choiceText;
     std::vector<int> hits;               // in its section's hits
+    float w = kCardW;                    // full width: the only card of a Crafting panel
     std::string valueShown = "\x01", feedbackShown = "\x01";
     bool placeholder = false;
     float knobFrom = 4, knobTo = 4;
@@ -125,6 +126,9 @@ struct Card {
 };
 struct Page {
     std::string id, nav, symbol, symbolFace, title, subtitle;
+    std::string tab, draftTab;           // the shown tab; the tab whose drafts Apply changes sends
+    bool compact = false;                // the hero of a page with tabs (Crafting): 156px
+    float heroH = kHeroH;
     Pin root, canvas;
     float height = 0;
     bool built = false, queued = false;
@@ -133,7 +137,7 @@ struct Page {
 struct Watched { int section = -1; Pin field; std::string last, name; std::function<void(const std::string&)> onChange; };
 struct Window {
     Pin rootGo, rootCanvas, windowRt, listener, mainContent, sideContent, mainThumb, sideThumb, crumb, connection, draftLabel, applyGroup, applyGo, discardGo,
-        heroEyebrow, heroTitle, heroSub, popup, toast, dialog, raycaster;
+        heroEyebrow, heroTitle, heroSub, heroArt, heroArtCompact, heroBorder, popup, toast, dialog, raycaster, applyLabel;
     std::vector<Pin> navFill, navFrame, navBar;
     std::vector<Page> pages;
     std::vector<std::unique_ptr<Section>> sections;
@@ -143,6 +147,7 @@ struct Window {
     int page = 0, applyHit = -1, discardHit = -1;
     bool built = false, shown = false, dialogOpen = false, listOpen = false;
     bool parked = false;  // the root canvas stays on, drawn on a display nobody uses while closed
+    bool heroCompact = false;
     std::function<void(float)> popupWheel;  // the open list scrolls (a long one)
     uint64_t toastUntil = 0;
     float scale = 1, mainScroll = 0, mainTarget = 0, sideScroll = 0, sideTarget = 0, sideHeight = 0;
@@ -150,6 +155,10 @@ struct Window {
     std::string lang;
 } win;
 
+std::map<std::string, std::string>& RememberedTabs() {
+    static std::map<std::string, std::string> tabs;  // page id -> tab (app.js craftingSection)
+    return tabs;
+}
 std::map<std::string, SectionMaker>& Makers() {
     static std::map<std::string, SectionMaker> makers;
     return makers;
@@ -217,6 +226,8 @@ void UpdateFooter();
 void Paint(Card& k, bool animate);
 void PaintId(const std::string& id) {
     for (auto& k : win.cards) if (k.c->id == id) Paint(k, true);
+    for (auto& s : win.sections)
+        if (s->built && s->onSetting && s->settings.count(id)) s->onSetting(*s, id);
     UpdateFooter();
 }
 double Shown(const Control& c) {
@@ -280,47 +291,52 @@ void Paint(Card& k, bool animate) {
 
 // ----------------------------------------------------------------------------------- cards
 // settingCard (app.js) at (x, y) in the panel; (ox, oy) is the panel's place in its section.
-float BuildCard(Section& s, void* panel, float ox, float oy, float x, float y, const Control& c, bool automatic, const JValue* override_) {
+// craft: in the Crafting page's content (#craft-category-content): no icon, no description
+// min-height; width: the card's (the only card of a panel spans the grid).
+float BuildCard(Section& s, void* panel, float ox, float oy, float x, float y, const Control& c, bool automatic, const JValue* override_, float width = kCardW,
+                bool craft = false) {
     stage = "card " + c.id;
+    const float cardW = width, cardInner = width - 2 * kCardPad;  // this card's own width
     Card k;
     k.c = &c;
     k.automatic = automatic;
     k.section = s.id;
     k.x = ox + x;
     k.y = oy + y;
+    k.w = width;
     const int index = static_cast<int>(win.cards.size());
-    Node card = New(c.id.c_str(), panel, x, y, kCardW, 10);
+    Node card = New(c.id.c_str(), panel, x, y, cardW, 10);
     k.node.Set(card.rt);
-    k.grad.Set(TransformOf(Picture(card.rt, "Gradient", 0, 0, kCardW, 10, "grad-card.png", false, kWhite)));
-    k.frame.Set(TransformOf(Outline(card.rt, "Border", 0, 0, kCardW, 10, Hex("#5e644e77"), 4)));
+    k.grad.Set(TransformOf(Picture(card.rt, "Gradient", 0, 0, cardW, 10, "grad-card.png", false, kWhite)));
+    k.frame.Set(TransformOf(Outline(card.rt, "Border", 0, 0, cardW, 10, Hex("#5e644e77"), 4)));
     const std::string label = Tr(override_ ? (*override_)["label"].Str(c.label) : c.label);
     const std::string description = Tr(override_ ? (*override_)["description"].Str(c.description) : c.description);
     const bool choice = c.widget == "choice";
     // .control-top: icon, title, badge (margin-left auto); aligned to the top
     float badgeH = 0;
-    const float badgeW = Badge(card.rt, kCardW - kCardPad, kCardPad, LifetimeLabel(c.lifetime), &badgeH);
-    const float titleRight = kCardW - kCardPad - badgeW - 14;
+    const float badgeW = Badge(card.rt, cardW - kCardPad, kCardPad, LifetimeLabel(c.lifetime), &badgeH);
+    const float titleRight = cardW - kCardPad - badgeW - 14;
     float topH = badgeH;
     if (choice) {
         Style h3{Face::Serif, 20, C("ink")};
         h3.wrap = true;
         topH = std::max(topH, Paragraph(card.rt, "Title", kCardPad, kCardPad, titleRight - kCardPad, h3, label) + 12);
     } else {
-        Picture(card.rt, "Icon", kCardPad, kCardPad, 55, 61, "icon-" + c.icon + ".png", false, kWhite);
+        if (!craft) Picture(card.rt, "Icon", kCardPad, kCardPad, 55, 61, "icon-" + c.icon + ".png", false, kWhite);
         Style ts{Face::BodySemi, 15, C("ink")};
         ts.line = 1.45f;
         ts.wrap = true;
-        const float tx = kCardPad + 55 + 14;
-        topH = std::max({topH, 61.f, Paragraph(card.rt, "Title", tx, kCardPad, titleRight - tx, ts, label) + 8});
+        const float tx = craft ? kCardPad : kCardPad + 55 + 14;
+        topH = std::max({topH, craft ? 0.f : 61.f, Paragraph(card.rt, "Title", tx, kCardPad, titleRight - tx, ts, label) + 8});
     }
     // .control-description: margin 6px 0 14px, min-height 40px
     Style ds{Face::Body, 12, C("muted")};
     ds.line = 1.65f;
     ds.wrap = true;
     float cy = kCardPad + topH + 6;
-    cy += std::max(40.f, Paragraph(card.rt, "Description", kCardPad, cy, kCardInner, ds, description)) + 14;
+    cy += std::max(craft ? 0.f : 40.f, Paragraph(card.rt, "Description", kCardPad, cy, cardInner, ds, description)) + 14;
     k.toolsY = cy;
-    Node tools = New("Tools", card.rt, 0, cy, kCardW, 10);
+    Node tools = New("Tools", card.rt, 0, cy, cardW, 10);
     k.tools.Set(tools.rt);
     float toolsH = 0;
     Hit def;
@@ -334,7 +350,7 @@ float BuildCard(Section& s, void* panel, float ox, float oy, float x, float y, c
     if (c.widget == "number") {
         toolsH = 38;
         Button d = MakeButton(tools.rt, Tr("Default"), Look::Quiet, def);
-        const float dx = kCardW - kCardPad - d.w, dy = (toolsH - d.h) / 2;
+        const float dx = cardW - kCardPad - d.w, dy = (toolsH - d.h) / 2;
         Move(d.node.rt, dx, dy);
         place(def, dx, dy);
         // .unit (an empty one still takes its gaps)
@@ -386,7 +402,7 @@ float BuildCard(Section& s, void* panel, float ox, float oy, float x, float y, c
         // label.toggle (margin-left auto): "On"/"Off", gap 10, the 48x25 switch; gap 10, Default
         Button d = MakeButton(tools.rt, Tr("Default"), Look::Quiet, def);
         toolsH = d.h;
-        const float dx = kCardW - kCardPad - d.w;
+        const float dx = cardW - kCardPad - d.w;
         Move(d.node.rt, dx, 0);
         place(def, dx, 0);
         const float sx = dx - 10 - 48, sy = (toolsH - 25) / 2;
@@ -412,19 +428,19 @@ float BuildCard(Section& s, void* panel, float ox, float oy, float x, float y, c
         // select (width 100%), then Default wrapped onto the next line (row gap 10)
         Style cs{Face::Body, 14, C("ink")};
         cs.align = kLeft;
-        const float selH = LineHeight(cs) + 22;
-        Fill(tools.rt, "Select", kCardPad, 0, kCardInner, selH, Hex("#080e0e"), 3);
-        Outline(tools.rt, "Select border", kCardPad, 0, kCardInner, selH, Hex("#7b745a99"), 3);
-        k.choiceText.Set(TextBox(tools.rt, "Choice", kCardPad + 11, 0, kCardInner - 40, selH, cs, ""));
+        const float selH = SelectHeight(cs);
+        Fill(tools.rt, "Select", kCardPad, 0, cardInner, selH, Hex("#080e0e"), 3);
+        Outline(tools.rt, "Select border", kCardPad, 0, cardInner, selH, Hex("#7b745a99"), 3);
+        k.choiceText.Set(TextBox(tools.rt, "Choice", kCardPad + 11, 0, cardInner - 40, selH, cs, ""));
         Style ar{Face::Body, 12, C("ink")};
         ar.align = kCenter;
-        TextBox(tools.rt, "Arrow", kCardPad + kCardInner - 26, 0, 16, selH, ar, "\xE2\x8C\x84");
+        TextBox(tools.rt, "Arrow", kCardPad + cardInner - 26, 0, 16, selH, ar, "\xE2\x8C\x84");
         Hit sel;
         sel.kind = HitKind::Choice;
         sel.area = Area::Main;
         sel.a = index;
         sel.name = c.id;
-        sel.w = kCardInner;
+        sel.w = cardInner;
         sel.h = selH;
         place(sel, kCardPad, 0);
         push(std::move(sel));
@@ -439,17 +455,17 @@ float BuildCard(Section& s, void* panel, float ox, float oy, float x, float y, c
     const float ly = toolsH + 10;
     float limitsH = 0, fx = kCardPad;
     if (!choice) {
-        void* lt = TextBox(tools.rt, "Limits", kCardPad, ly, kCardInner, LineHeight(ls), ls, Tr(c.defaultText));
+        void* lt = TextBox(tools.rt, "Limits", kCardPad, ly, cardInner, LineHeight(ls), ls, Tr(c.defaultText));
         limitsH = LineHeight(ls);
         fx += std::ceil(TextWidth(lt)) + 2.8f + 8.4f;
     }
     Style fs{Face::Body, 10, C("accent")};
-    k.feedback.Set(TextBox(tools.rt, "Feedback", fx, ly - 0.5f, kCardW - kCardPad - fx, 16, fs, ""));
+    k.feedback.Set(TextBox(tools.rt, "Feedback", fx, ly - 0.5f, cardW - kCardPad - fx, 16, fs, ""));
     k.h = cy + ly + limitsH + kCardPad;
-    Resize(tools.rt, kCardW, ly + limitsH);
-    Resize(card.rt, kCardW, k.h);
-    Resize(k.frame.Get(), kCardW, k.h);
-    Resize(k.grad.Get(), kCardW, k.h);
+    Resize(tools.rt, cardW, ly + limitsH);
+    Resize(card.rt, cardW, k.h);
+    Resize(k.frame.Get(), cardW, k.h);
+    Resize(k.grad.Get(), cardW, k.h);
     win.cards.push_back(std::move(k));
     Paint(win.cards.back(), false);
     if (!c.read.empty()) s.polls.insert(c.read);
@@ -461,9 +477,9 @@ void Stretch(int cardIndex, float rowH) {
     Card& k = win.cards[cardIndex];
     const float extra = rowH - k.h;
     if (extra <= 0.01f) return;
-    Resize(k.node.Get(), kCardW, rowH);
-    Resize(k.frame.Get(), kCardW, rowH);
-    Resize(k.grad.Get(), kCardW, rowH);
+    Resize(k.node.Get(), k.w, rowH);
+    Resize(k.frame.Get(), k.w, rowH);
+    Resize(k.grad.Get(), k.w, rowH);
     Move(k.tools.Get(), 0, k.toolsY + extra);
     for (int h : k.hits) win.sections[k.section]->hits[h].y += extra;
 }
@@ -480,10 +496,17 @@ void NewBody(Section& s) {
 struct SettingsBuild {
     int section = 0;
     view::Panel panel;
-    float y = 0;
+    float y = 0, top = kPanelPad;  // top: the heading row (below the summary of a <details> panel)
+    bool craft = false;            // ui.json look "craft": the Crafting page's cards
     std::vector<const Control*> list;
     std::vector<bool> automatic;
 };
+// <details> panels open or closed (app.js craftDisclosure), while the game runs.
+std::map<std::string, bool>& DetailsOpen() {
+    static std::map<std::string, bool> open;
+    return open;
+}
+void ToggleDetails(int sectionId);
 }  // namespace
 namespace view {
 // A setting panel kept after it is built, for its parts that change in place: the facts note
@@ -499,12 +522,30 @@ struct PanelState {
     float tailY = 0, tailH = 0;
     size_t tailHits = 0;  // the section's hits from here on are the tail's
     Pin afterNote;        // p.note after the panel
+    float afterNoteH = 0;
+    // a <details class="panel"> (ui.json "details"): its summary, and the setting panel inside it
+    bool details = false, open = true;
+    std::string detailsKey;
+    Pin content, marker, ring;
+    float closedH = 0;
+    size_t detailsHits = 0;  // the section's hits from here on are the content's
 };
+// Where a setting panel's cards and tail are drawn: the panel, or the content of its <details>.
+void* PanelParent(const PanelState& ps) { return ps.details ? ps.content.Get() : ps.panel.rt.Get(); }
 }  // namespace view
 namespace {
 std::map<std::string, Tail>& Tails() {
     static std::map<std::string, Tail> tails;
     return tails;
+}
+// The panel's shown height (a closed <details>: its summary), its note after it, the page below.
+void FitPanel(Section& s, bool relayout = true) {
+    PanelState& ps = *s.panelState;
+    const float shown = ps.details && !ps.open ? ps.closedH : ps.panelH;
+    ClosePanel(ps.panel, kPanelW, shown);
+    if (ps.afterNote) Move(ps.afterNote.Get(), kPadX, shown + 20);
+    s.h = shown + (ps.afterNote ? 20 + ps.afterNoteH : 0);
+    if (relayout) Relayout(s.page);
 }
 // Everything of a setting panel from fromY down moves by dy; the panel and the page follow.
 void ShiftBelow(Section& s, float fromY, float dy) {
@@ -522,10 +563,7 @@ void ShiftBelow(Section& s, float fromY, float dy) {
         Move(ps.tailNode.Get(), 0, ps.tailY);
     }
     ps.panelH += dy;
-    ClosePanel(ps.panel, kPanelW, ps.panelH);
-    if (ps.afterNote) Move(ps.afterNote.Get(), kPadX, ps.panelH + 20);
-    s.h += dy;
-    Relayout(s.page);
+    FitPanel(s);
 }
 std::string FactsText(const std::string& kind);
 void UpdateFacts(Section& s) {
@@ -564,7 +602,28 @@ void QueueSettings(std::vector<std::function<void()>>& out, int sectionId) {
         PanelState& ps = *s.panelState;
         NewBody(s);
         b->panel = OpenPanel(s.body.Get(), kPadX, 0, kPanelW);
+        b->craft = spec["look"].Str() == "craft";
         void* rt = b->panel.rt.Get();
+        if (const JValue* details = spec.Find("details")) {
+            // <details class="panel craft-advanced">: the summary (15px), then the setting panel as
+            // its content (margin 20px 0; no border, padding or background; its inset shadow and
+            // corners stay: .craft-advanced>.panel)
+            ps.details = true;
+            ps.detailsKey = (*details)["key"].Str();
+            ps.open = DetailsOpen()[ps.detailsKey];
+            const int id = s.id;
+            void* marker = nullptr;
+            const float summaryH = Details(Ctx{&s.hits, Area::Main, rt, kPadX, 0, s.id}, kPanelPad, kPanelPad, Tr((*details)["summary"].Str()), ps.open,
+                                           [id] { ToggleDetails(id); }, 15, &marker);
+            ps.marker.Set(marker);
+            ps.closedH = kPanelPad + summaryH + kPanelPad;
+            ps.detailsHits = s.hits.size();
+            Node content = New("Details", rt, 0, 0, kPanelW, 10);
+            ps.content.Set(content.rt);
+            rt = content.rt;
+            b->top = kPanelPad + summaryH + 20;
+            ps.ring.Set(TransformOf(Picture(rt, "Inset", kPanelPad, b->top, kPanelInner, 8, "band-4.png", true, Hex("#02070466"), true)));
+        }
         // .section-head: h2 (Georgia 27) and, centred beside it, the badge; margin-bottom 16
         Style h2{Face::Serif, 27, C("ink")};
         const float lh = LineHeight(h2);
@@ -589,22 +648,22 @@ void QueueSettings(std::vector<std::function<void()>>& out, int sectionId) {
             const auto buttons = tail->second.head(s);
             float right = kPanelW - kPanelPad;
             for (auto it = buttons.rbegin(); it != buttons.rend(); ++it) {
-                Button btn = AddButton(hc, right, kPanelPad, it->label, it->primary ? Look::Primary : Look::Normal, it->action, true, it->name);
+                Button btn = AddButton(hc, right, b->top, it->label, it->primary ? Look::Primary : Look::Normal, it->action, true, it->name);
                 placed.push_back({btn.node.rt, right - btn.w, btn.h, btn.hit});
                 row = std::max(row, btn.h);
                 right -= btn.w + 10;
             }
         } else if (spec["head"].Str() != "none") {
-            const float badgeY = kPanelPad + (lh - (LineHeight(Style{Face::Body, 10}) + 12)) / 2;
+            const float badgeY = b->top + (lh - (LineHeight(Style{Face::Body, 10}) + 12)) / 2;
             Badge(rt, kPanelW - kPanelPad, badgeY, Tr(allAutomatic ? "Changes apply automatically" : "Use Apply changes below"));
         }
         for (const auto& b2 : placed) {
-            const float by = kPanelPad + (row - b2.h) / 2;
+            const float by = b->top + (row - b2.h) / 2;
             Move(b2.rt, b2.x, by);
             s.hits[b2.hit].y = by;
         }
-        TextBox(rt, "Title", kPanelPad, kPanelPad + (row - lh) / 2, kPanelInner - 300, lh, h2, Tr(spec["title"].Str()));
-        b->y = kPanelPad + row + 16;
+        TextBox(rt, "Title", kPanelPad, b->top + (row - lh) / 2, kPanelInner - 300, lh, h2, Tr(spec["title"].Str()));
+        b->y = b->top + row + 16;
         if (spec["text"].IsString()) {
             // p.muted: its 10px top margin collapses into the heading's 16
             b->y += Muted(rt, kPanelPad, b->y, kPanelInner, Tr(spec["text"].Str())) + 10;
@@ -631,10 +690,14 @@ void QueueSettings(std::vector<std::function<void()>>& out, int sectionId) {
             const JValue* overrides = s.spec->Find("overrides");
             const auto over = [&](const Control* c) { return overrides ? overrides->Find(c->id) : nullptr; };
             const int before = static_cast<int>(win.cards.size());
-            float rowH = BuildCard(s, b->panel.rt.Get(), kPadX, 0, kPanelPad, b->y, *b->list[first], b->automatic[first], over(b->list[first]));
+            // the panel is the build's until its last job (ps.panel then)
+            void* parent = s.panelState->details ? s.panelState->content.Get() : b->panel.rt.Get();
+            // #craft-category-content .control-grid:has(>article:only-child): one column
+            const float w = b->craft && b->list.size() == 1 ? kPanelInner : kCardW;
+            float rowH = BuildCard(s, parent, kPadX, 0, kPanelPad, b->y, *b->list[first], b->automatic[first], over(b->list[first]), w, b->craft);
             if (first + 1 < b->list.size())
-                rowH = std::max(rowH, BuildCard(s, b->panel.rt.Get(), kPadX, 0, kPanelPad + kCardW + kGap, b->y, *b->list[first + 1], b->automatic[first + 1],
-                                                over(b->list[first + 1])));
+                rowH = std::max(rowH, BuildCard(s, parent, kPadX, 0, kPanelPad + kCardW + kGap, b->y, *b->list[first + 1], b->automatic[first + 1],
+                                                over(b->list[first + 1]), w, b->craft));
             for (int i = before; i < static_cast<int>(win.cards.size()); ++i) Stretch(i, rowH);
             b->y += rowH + kGap;
         });
@@ -647,8 +710,9 @@ void QueueSettings(std::vector<std::function<void()>>& out, int sectionId) {
             if (it == Tails().end()) return;
             PanelState& ps = *s.panelState;
             ps.tailKind = it->first;
-            ps.tailY = b->list.empty() ? b->y : b->y - kGap;
-            Node node = New("Tail", b->panel.rt.Get(), 0, ps.tailY, kPanelW, 10);
+            // in a <details>: after the inner panel's 20px margin
+            ps.tailY = (b->list.empty() ? b->y : b->y - kGap) + (ps.details ? 20 : 0);
+            Node node = New("Tail", ps.details ? ps.content.Get() : b->panel.rt.Get(), 0, ps.tailY, kPanelW, 10);
             ps.tailNode.Set(node.rt);
             ps.tailHits = s.hits.size();
             ps.tailH = it->second.build(s, Ctx{&s.hits, Area::Main, node.rt, kPadX, ps.tailY, s.id});
@@ -657,21 +721,33 @@ void QueueSettings(std::vector<std::function<void()>>& out, int sectionId) {
     out.push_back([b] {
         Section& s = Sec(b->section);
         PanelState& ps = *s.panelState;
-        const float end = ps.tailNode ? ps.tailY + ps.tailH : b->list.empty() ? b->y : b->y - kGap;
-        const float h = end + kPanelPad;
-        ClosePanel(b->panel, kPanelW, h);
+        const float cardsEnd = b->list.empty() ? b->y : b->y - kGap;
+        if (ps.details) {
+            // the inner panel: its inset shadow down to the cards' end, its corners over its content
+            const float innerH = cardsEnd - b->top;
+            Resize(ps.ring.Get(), kPanelInner, innerH);
+            void* content = ps.content.Get();
+            Picture(content, "Corner", kPanelPad + 4, b->top + 4, 13, 13, "corner.png", false, C("gold"));
+            void* br = Picture(content, "Corner", kPanelPad + kPanelInner - 4, b->top + innerH - 4, 13, 13, "corner.png", false, C("gold"));
+            Turn(TransformOf(br), 180);
+        }
+        const float end = ps.tailNode ? ps.tailY + ps.tailH : ps.details ? cardsEnd + 20 : cardsEnd;
         ps.panel = std::move(b->panel);
-        ps.panelH = h;
-        s.h = h;
+        ps.panelH = end + kPanelPad;
         s.after = 20;
         if ((*s.spec)["note"].IsString()) {
             // p.note after the panel: its margin-top collapses into the panel's 20; margin-bottom 18;
             // a tail as written (the rule name examples)
             NoteParts note;
-            s.h += 20 + NoteBox(s.body.Get(), kPadX, h + 20, kPanelW, Tr((*s.spec)["note"].Str()) + (*s.spec)["noteTail"].Str(), &note);
+            ps.afterNoteH = NoteBox(s.body.Get(), kPadX, ps.panelH + 20, kPanelW, Tr((*s.spec)["note"].Str()) + (*s.spec)["noteTail"].Str(), &note);
             ps.afterNote.Set(note.root.Get());
             s.after = 18;
         }
+        if (ps.details && !ps.open) {
+            SetActive(GameObjectOf(ps.content.Get()), false);
+            for (size_t i = ps.detailsHits; i < s.hits.size(); ++i) s.hits[i].visible = false;
+        }
+        FitPanel(s, false);
         s.built = true;
     });
 }
@@ -810,6 +886,20 @@ void QueuePage(int index, bool front = false) {
 }
 
 // ------------------------------------------------------------------------------- the shell
+// The hero's text styles (BuildBase), the h1 at a size: 3vw, or clamp(28px, 2.5vw, 38px) on a page
+// with tabs.
+Style HeroTitleStyle(float size) {
+    Style h1{Face::Serif, size, C("ink")};
+    h1.spacing = -0.5f;
+    h1.wrap = true;
+    return h1;
+}
+Style HeroSubStyle() {
+    Style sub{Face::Body, 15, Hex("#c6d1c8")};
+    sub.line = 1.65f;
+    sub.wrap = true;
+    return sub;
+}
 void BuildBase() {
     Node rootGo = New("EpochPact In-game Window", nullptr, 0, 0, 0, 0);
     win.rootGo.Set(rootGo.go);
@@ -850,14 +940,14 @@ void BuildBase() {
     Clip(viewport);
     Node content = New("Main content", viewport.rt, 0, 0, kContentW, kMainH);
     win.mainContent.Set(content.rt);
-    Picture(content.rt, "Hero", 0, 0, kContentW, kHeroH, "hero.jpg", false, kWhite);
-    Solid(content.rt, "Hero border", 0, kHeroH - 1, kContentW, 1, C("line"));
-    Style eyebrow{Face::Body, 10, C("accent")}, h1{Face::Serif, 43.2f, C("ink")}, sub{Face::Body, 15, Hex("#c6d1c8")};
+    // .hero-art (inside the bottom border); a page with tabs has its own, 156px hero
+    win.heroArt.Set(TransformOf(Picture(content.rt, "Hero", 0, 0, kContentW, kHeroH - 1, "hero.jpg", false, kWhite)));
+    win.heroArtCompact.Set(TransformOf(Picture(content.rt, "Hero compact", 0, 0, kContentW, kHeroCompactH - 1, "hero-compact.jpg", false, kWhite)));
+    SetActive(GameObjectOf(win.heroArtCompact.Get()), false);
+    win.heroBorder.Set(TransformOf(Solid(content.rt, "Hero border", 0, kHeroH - 1, kContentW, 1, C("line"))));
+    Style eyebrow{Face::Body, 10, C("accent")};
     eyebrow.spacing = 2;
-    h1.spacing = -0.5f;
-    h1.wrap = true;
-    sub.line = 1.65f;
-    sub.wrap = true;
+    const Style h1 = HeroTitleStyle(43.2f), sub = HeroSubStyle();
     win.heroEyebrow.Set(TextBox(content.rt, "Eyebrow", 32, 0, kHeroTextW, LineHeight(eyebrow), eyebrow, Tr("CHRONOFORGE")));
     win.heroTitle.Set(TextBox(content.rt, "Title", 32, 0, kHeroTextW, LineHeight(h1), h1, ""));
     win.heroSub.Set(TextBox(content.rt, "Subtitle", 32, 0, kHeroTextW, LineHeight(sub), sub, ""));
@@ -932,6 +1022,7 @@ void BuildFooter() {
     Move(d.node.rt, discard.x, discard.y);
     // disabled (opacity .45) while there is no draft to apply
     win.applyGroup.Set(Add(a.node.go, "UnityEngine.UIModule.dll", "UnityEngine", "CanvasGroup"));
+    win.applyLabel.Set(a.label.Get());
     win.applyGo.Set(a.node.go);
     win.discardGo.Set(d.node.go);
     win.hits.push_back(std::move(apply));
@@ -1070,19 +1161,44 @@ void BuildFrame() {
 // ------------------------------------------------------------------------------ show a page
 void PlaceHero() {
     const Page& p = win.pages[win.page];
+    // .hero: padding 35px 32px (a page with tabs: 156px tall, padding 20px 28px, h1 36px with
+    // margins 8/10), its text block centred in the box less the 1px bottom border. The eyebrow
+    // sits on the baseline of the 14px strut's line.
+    const bool compact = p.compact;
+    const float padY = compact ? 20.f : 35.f, padX = compact ? 28.f : 32.f, m1 = compact ? 8.f : 12.f, m2 = compact ? 10.f : 14.f;
+    const Style h1 = HeroTitleStyle(compact ? 36.f : 43.2f), sub = HeroSubStyle();
+    if (compact != win.heroCompact) {
+        win.heroCompact = compact;
+        SetActive(GameObjectOf(win.heroArt.Get()), !compact);
+        SetActive(GameObjectOf(win.heroArtCompact.Get()), compact);
+        Move(win.heroBorder.Get(), 0, p.heroH - 1);
+        // the title's size and its line spacing for that size (TextBox's)
+        const auto m = assets::FontMetrics(Face::Serif);
+        float size = h1.size, spacing = h1.spacing / h1.size * 100.f, lineSpacing = (LineHeight(h1) / h1.size - m.line) * 100.f;
+        void* za[]{&size};
+        void* ca[]{&spacing};
+        void* la[]{&lineSpacing};
+        Invoke(T("set_fontSize", 1), win.heroTitle.Get(), za);
+        Invoke(T("set_characterSpacing", 1), win.heroTitle.Get(), ca);
+        Invoke(T("set_lineSpacing", 1), win.heroTitle.Get(), la);
+        // .hero>div max-width 70% of the content box
+        const float textW = (kContentW - 2 * padX) * 0.7f;
+        for (void* t : {win.heroEyebrow.Get(), win.heroTitle.Get(), win.heroSub.Get()}) Resize(TransformOf(t), textW, 100);
+    }
     SetText(win.heroTitle.Get(), Tr(p.title));
     SetText(win.heroSub.Get(), Tr(p.subtitle));
-    // .hero: padding 35px 32px, its text block centred. The eyebrow's line box is the 14px strut
-    // and the eyebrow sits on its baseline; h1 margin 12/14; the subtitle 15px/1.65.
-    const auto body = assets::FontMetrics(Face::Body), serif = assets::FontMetrics(Face::Serif);
-    const float strut = body.line * 14, h1Line = serif.line * 43.2f, subLine = 15 * 1.65f;
+    const Style strutStyle{Face::Body, 14};
+    const float strut = LineHeight(strutStyle), h1Line = LineHeight(h1), subLine = LineHeight(sub);
     const int titleLines = TextLines(win.heroTitle.Get()), subLines = TextLines(win.heroSub.Get());
-    const float block = strut + 12 + titleLines * h1Line + 14 + subLines * subLine;
-    const float top = 35 + (kHeroH - 70 - block) / 2;
-    const float baseline = top + (strut - (body.ascent - body.descent) * 14) / 2 + body.ascent * 14;
-    Move(TransformOf(win.heroEyebrow.Get()), 32, baseline - body.ascent * 10);
-    Move(TransformOf(win.heroTitle.Get()), 32, top + strut + 12);
-    Move(TransformOf(win.heroSub.Get()), 32, top + strut + 12 + titleLines * h1Line + 14 + (subLine - (body.ascent - body.descent) * 15) / 2);
+    const float block = strut + m1 + titleLines * h1Line + m2 + subLines * subLine;
+    const float top = padY + (p.heroH - 2 * padY - 1 - block) / 2;
+    // the strut's baseline: its rounded ascent below the line's top; TMP puts a text's baseline its
+    // face's ascent below the text's top
+    const auto body = assets::FontMetrics(Face::Body);
+    const float baseline = top + std::round(body.ascent * 14);
+    Move(TransformOf(win.heroEyebrow.Get()), padX, baseline - body.ascent * 10);
+    Move(TransformOf(win.heroTitle.Get()), padX, top + strut + m1 + TopOffset(h1));
+    Move(TransformOf(win.heroSub.Get()), padX, top + strut + m1 + titleLines * h1Line + m2 + TopOffset(sub));
 }
 void UpdateFooter() {
     if (!win.built) return;
@@ -1099,9 +1215,12 @@ void UpdateFooter() {
     float alpha = canApply ? 1.f : 0.45f;
     void* a[]{&alpha};
     Invoke(Find("UnityEngine.UIModule.dll", "UnityEngine", "CanvasGroup", "set_alpha", 1), win.applyGroup.Get(), a);
+    InkRaw(win.applyLabel.Get(), Alpha(Hex("#fff0d3"), canApply ? 1.f : kDisabledTextAlpha));
     win.hits[win.applyHit].enabled = canApply;
-    // hidden on the pages whose settings all apply automatically (and on Game setup)
-    const bool buttons = !autoPage && id != "game_setup";
+    // hidden on the pages whose settings all apply automatically (and on Game setup), and on a tab
+    // other than the one with the drafts (Crafting: Materials, Custom Items)
+    const Page& shown = win.pages[win.page];
+    const bool buttons = !autoPage && id != "game_setup" && (shown.draftTab.empty() || shown.tab == shown.draftTab);
     if (buttons != win.hits[win.discardHit].visible) {
         SetActive(win.applyGo.Get(), buttons);
         SetActive(win.discardGo.Get(), buttons);
@@ -1111,6 +1230,19 @@ void UpdateFooter() {
 float MaxMain() { return std::max(0.f, win.pages[win.page].height - kMainH); }
 float MaxSide() { return std::max(0.f, win.sideHeight - (kH - 2)); }
 void ReleaseKeyboard(int section = -2);  // every field, or one section's
+// A <details> setting panel opens or closes in place: its content on or off, the page moves.
+void ToggleDetails(int sectionId) {
+    Section& s = Sec(sectionId);
+    if (!s.panelState || !s.panelState->details) return;
+    PanelState& ps = *s.panelState;
+    ps.open = !ps.open;
+    DetailsOpen()[ps.detailsKey] = ps.open;
+    ReleaseKeyboard(sectionId);
+    SetActive(GameObjectOf(ps.content.Get()), ps.open);
+    SetText(ps.marker.Get(), ps.open ? "\xE2\x96\xBC" : "\xE2\x96\xB6");
+    for (size_t i = ps.detailsHits; i < s.hits.size(); ++i) s.hits[i].visible = ps.open;
+    FitPanel(s);
+}
 void ShowPage(int index) {
     if (index < 0 || index >= static_cast<int>(win.pages.size())) return;
     const double start = Ms();
@@ -1202,6 +1334,8 @@ void ReadInto(const std::string& read, const std::string& reply) {
                 if (c.read != read || pending.count(id) || drafts.count(id) || sendingId == id) continue;
                 const JValue* x = v->Path(c.path);
                 if (x && (x->IsNumber() || x->IsBool())) values[id] = appliedValues[id] = x->Num();
+                // a chance left to the game (hopePercent null): NaN, sent as "reset"
+                else if (x && x->IsNull() && c.widget == "selector") values[id] = appliedValues[id] = std::nan("");
             }
         }
         Kept& kept = cache[read];
@@ -1263,16 +1397,23 @@ void Change(const Control& c, double v, unsigned delay = 250) {
 }
 std::string CommandFor(const Control& c, double v) {
     std::string line = c.command;
-    for (size_t at = line.find("{value}"); at != std::string::npos; at = line.find("{value}")) line.replace(at, 7, Num(v));
+    // app.js applyDraft: value ?? "reset"
+    for (size_t at = line.find("{value}"); at != std::string::npos; at = line.find("{value}")) line.replace(at, 7, std::isnan(v) ? "reset" : Num(v));
     return line;
 }
-void SendSetting(const std::string& id, double v, std::function<void()> after = {}) {
+// One setting to the game. A draft (Apply changes) that is refused stays a draft with its value,
+// as app.js keeps it; an automatic one shows the error and goes back to the applied value. after
+// gets whether the game took it; the setting's read follows (or, in Apply changes, after the last).
+std::set<std::string>* applyReads = nullptr;
+void SendSetting(const std::string& id, double v, std::function<void(bool)> after = {}, bool draft = false) {
     const Control& c = controls.at(id);
     sendingId = id;
-    Send(CommandFor(c, v), [id, v, after](const std::string& reply) {
+    Send(CommandFor(c, v), [id, v, after, draft](const std::string& reply) {
         if (sendingId == id) sendingId.clear();
         std::string why;
-        if (Refused(reply, &why)) {
+        const bool ok = !Refused(reply, &why);
+        if (!ok && draft) drafts.insert(id);
+        else if (!ok) {
             errors[id] = why;
             if (appliedValues.count(id)) values[id] = appliedValues[id];
         } else {
@@ -1281,9 +1422,12 @@ void SendSetting(const std::string& id, double v, std::function<void()> after = 
         }
         PaintId(id);
         const Control& sent = controls.at(id);
-        if (!sent.read.empty() && sent.read != "status") Read(sent.read);
+        if (!sent.read.empty() && sent.read != "status") {
+            if (applyReads) applyReads->insert(sent.read);
+            else Read(sent.read);
+        }
         if (id == "speed") Send("statraw 9 0 0 0", [](const std::string& text) { ReadInto("statraw 9 0 0 0", text); });
-        if (after) after();
+        if (after) after(ok);
     });
     PaintId(id);
 }
@@ -1299,11 +1443,40 @@ void FlushPending() {
         return;  // one at a time, as app.js does
     }
 }
-void ApplyDrafts() {
-    if (drafts.empty() || !sendingId.empty()) return;
+// Apply changes (app.js applyDraft): the drafts one after another; a refused one stops the rest,
+// which stay drafts. The settings' reads once at the end ("craft_read is read once after this batch").
+int applyCount = -1;  // settings applied in the running Apply changes; -1 when none runs
+std::set<std::string> batchReads;
+void ApplyNext() {
+    if (drafts.empty()) {
+        applyReads = nullptr;
+        for (const auto& r : batchReads) Read(r);
+        Toast(Fmt("{0} settings applied in order.", {std::to_string(applyCount)}));
+        applyCount = -1;
+        UpdateFooter();
+        return;
+    }
     const std::string id = *drafts.begin();
     drafts.erase(drafts.begin());
-    SendSetting(id, values[id], [] { ApplyDrafts(); });
+    SendSetting(id, values[id], [](bool ok) {
+        if (!ok) {
+            applyReads = nullptr;
+            for (const auto& r : batchReads) Read(r);
+            Toast(Fmt("{0} settings applied; stopped after an error. Remaining drafts are kept.", {std::to_string(applyCount)}), true);
+            applyCount = -1;
+            UpdateFooter();
+            return;
+        }
+        ++applyCount;
+        ApplyNext();
+    }, true);
+}
+void ApplyDrafts() {
+    if (drafts.empty() || !sendingId.empty() || applyCount >= 0) return;
+    applyCount = 0;
+    batchReads.clear();
+    applyReads = &batchReads;
+    ApplyNext();
 }
 void DiscardDrafts() {
     const auto ids = drafts;
@@ -1362,7 +1535,7 @@ bool Placed(int list, const Hit& h, float* x, float* y) {
     *y = h.y;
     if (list >= 0) {
         const Section& s = Sec(list);
-        if (s.page != win.page) return false;
+        if (s.page != win.page || s.hidden) return false;
         *x += kMainX;
         *y += kMainY - win.mainScroll + s.y;
     } else if (h.area == Area::Sidebar) {
@@ -1379,7 +1552,7 @@ bool Inside(int list, const Hit& h, float px, float py) {
     return true;
 }
 
-HitRef hovered{kFixed, -1}, pressed{kFixed, -1};
+HitRef hovered{kFixed, -1}, pressed{kFixed, -1}, dragHit{kFixed, -1};
 int dragCard = -1;
 bool mouseDown = false;
 enum class Drag { None, Main, Side } scrollDrag = Drag::None;
@@ -1401,6 +1574,14 @@ void DragSlider(int cardIndex, float px) {
     v = std::round(std::clamp(v, c.min, c.max) * 1e6) / 1e6;
     if (values.count(c.id) && values[c.id] == v) return;
     Change(c, v);
+}
+// A native section's slider: its drag gets the pointer's x from the hit's left edge.
+void DragHit(float px) {
+    Hit* h = HitAt(dragHit);
+    float x = 0, y = 0;
+    if (!h || !h->drag || !Placed(dragHit.list, *h, &x, &y)) return;
+    const auto drag = h->drag;  // a copy: the drag may rebuild its section
+    drag(px - x);
 }
 void ClearLayer(void* rt) {
     const int n = Value<int>(U("Transform", "get_childCount", 0), rt);
@@ -1521,6 +1702,7 @@ void Input(float dt) {
         pressed = hovered;
         const Hit* p = HitAt(pressed);
         if (win.listOpen && pressed.list != kPopup) { CloseList(); pressed = {kFixed, -1}; }
+        else if (p && p->kind == HitKind::Track && p->drag) { dragHit = pressed; DragHit(px); }
         else if (p && p->kind == HitKind::Track) { dragCard = p->a; DragSlider(dragCard, px); }
         else if (!win.dialogOpen && px >= kMainX + kContentW && px < kMainX + kMainW && py >= kMainY && py < kMainY + kMainH && MaxMain() > 0) {
             scrollDrag = Drag::Main;
@@ -1533,12 +1715,21 @@ void Input(float dt) {
         }
     } else if (down && mouseDown) {
         if (dragCard >= 0) DragSlider(dragCard, px);
+        if (dragHit.index >= 0) DragHit(px);
         if (scrollDrag == Drag::Main)
             win.mainTarget = win.mainScroll = std::clamp(dragStartScroll + (py - dragStartY) * win.pages[win.page].height / (kMainH - 2 * kBar), 0.f, MaxMain());
         else if (scrollDrag == Drag::Side)
             win.sideTarget = win.sideScroll = std::clamp(dragStartScroll + (py - dragStartY) * win.sideHeight / (kH - 2 - 2 * kBar), 0.f, MaxSide());
     } else if (!down && mouseDown) {
         const Hit* p = HitAt(pressed);
+        if (dragHit.index >= 0) {
+            const Hit* d = HitAt(dragHit);
+            const Action release = d ? d->release : Action{};  // a copy: it may rebuild the section
+            dragHit = {kFixed, -1};
+            pressed = {kFixed, -1};
+            p = nullptr;
+            if (release) release();
+        }
         if (dragCard < 0 && scrollDrag == Drag::None && p && Inside(pressed.list, *p, px, py)) {
             const Hit h = *p;  // a copy: a click may rebuild sections and their hits
             const int list = pressed.list;
@@ -1546,6 +1737,7 @@ void Input(float dt) {
             Click(list, h);
         }
         dragCard = -1;
+        dragHit = {kFixed, -1};
         pressed = {kFixed, -1};
         scrollDrag = Drag::None;
     }
@@ -1558,6 +1750,7 @@ void Input(float dt) {
         bool used = false;
         if (px >= kMainX && px < kMainX + kContentW && py >= kMainY && py < kMainY + kMainH)
             for (int id : win.pages[win.page].sections) {
+                if (Sec(id).hidden) continue;
                 for (auto& w : Sec(id).wheels) {
                     const float wx = kMainX + w.x, wy = kMainY - win.mainScroll + Sec(id).y + w.y;
                     if (px >= wx && px < wx + w.w && py >= wy && py < wy + w.h) { if (w.scroll) w.scroll(wheel); used = true; break; }
@@ -1618,6 +1811,11 @@ void ReleaseKeyboard(int section) {
         }
     }
     if (section == -2) BlockGameKeys(false);
+}
+bool FieldFocused(void* field) {
+    static game::MethodRef focusedMethod;
+    if (!focusedMethod) focusedMethod = game::FindMethod("Unity.TextMeshPro.dll", "TMPro", "TMP_InputField", "get_isFocused", 0);
+    return field && focusedMethod && reinterpret_cast<bool (*)(void*, const il2cpp::Method*)>(focusedMethod.code)(field, focusedMethod.info);
 }
 void PollInputs() {
     static game::MethodRef focusedMethod, textMethod;
@@ -1736,6 +1934,7 @@ void Show(bool open) {
         win.shown = false;
         mouseDown = false;
         dragCard = -1;
+        dragHit = {kFixed, -1};
         pressed = {kFixed, -1};
         scrollDrag = Drag::None;
         ++closes;
@@ -1752,7 +1951,7 @@ void Destroy() {
     win = Window{};
     ForgetMeasures();
     jobs.clear();
-    hovered = pressed = {kFixed, -1};
+    hovered = pressed = dragHit = {kFixed, -1};
     dragCard = -1;
     mouseDown = false;
 }
@@ -1772,6 +1971,11 @@ void QueueAll() {
         p.symbolFace = spec["symbolFace"].Str("symbol");
         p.title = spec["title"].Str();
         p.subtitle = spec["subtitle"].Str();
+        p.tab = spec["tab"].Str();  // the first tab; the one shown last while the game runs
+        if (auto t = RememberedTabs().find(p.id); t != RememberedTabs().end()) p.tab = t->second;
+        p.draftTab = spec["draftTab"].Str();
+        p.compact = spec["hero"].Str() == "compact";
+        p.heroH = p.compact ? kHeroCompactH : kHeroH;
         win.pages.push_back(std::move(p));
     }
     for (size_t i = 0; i < win.pages.size(); ++i) if (win.pages[i].id == "general") win.page = static_cast<int>(i);
@@ -1784,7 +1988,7 @@ void QueueAll() {
         for (size_t i = 0; i < chars.size();) {
             const unsigned char c = chars[i];
             const size_t n = c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : c >= 0xC0 ? 2 : 1;
-            if (count == 12) { chunks.emplace_back(); count = 0; }
+            if (count == 4) { chunks.emplace_back(); count = 0; }  // about 4 ms of glyph drawing a job
             chunks.back() += chars.substr(i, n);
             ++count;
             i += n;
@@ -1929,7 +2133,7 @@ void Step() {
     Animate();
     Record("animate", Ms() - t0);
     for (int id : win.pages[win.page].sections)
-        if (Sec(id).tick && Sec(id).built) {
+        if (Sec(id).tick && Sec(id).built && !Sec(id).hidden) {
             t0 = Ms();
             stage = "tick " + Sec(id).kind;
             Sec(id).tick(Sec(id));
@@ -2034,7 +2238,7 @@ std::string State() {
     bool ok = false;
     const bool prepared = assets::Prepared(&ok);
     out << "{\"ok\":true,\"key\":" << Json(KeyName(hotkey.load())) << ",\"prepared\":" << Boolean(prepared && ok) << ",\"built\":" << Boolean(win.built)
-        << ",\"shown\":" << Boolean(win.shown) << ",\"parked\":" << Boolean(win.parked) << ",\"gameKeysBlocked\":" << Boolean(gameKeysBlocked) << ",\"language\":" << Json(language) << ",\"page\":" << Json(win.built ? win.pages[win.page].id : "")
+        << ",\"shown\":" << Boolean(win.shown) << ",\"parked\":" << Boolean(win.parked) << ",\"gameKeysBlocked\":" << Boolean(gameKeysBlocked) << ",\"language\":" << Json(language) << ",\"page\":" << Json(win.built ? win.pages[win.page].id : "") << ",\"tab\":" << Json(win.built ? win.pages[win.page].tab : "")
         << ",\"jobs\":" << jobs.size() << ",\"cards\":" << win.cards.size() << ",\"sections\":" << win.sections.size() << ",\"scale\":" << win.scale
         << ",\"screen\":[" << screenW << ',' << screenH << ']' << ",\"scaleStatic\":" << Boolean(scaleStatic) << ",\"opens\":" << opens.load()
         << ",\"closes\":" << closes.load() << ",\"faults\":" << faults.load() << ",\"broken\":" << Boolean(broken) << ",\"error\":" << Json(lastError)
@@ -2080,7 +2284,12 @@ std::string State() {
     }
     out << ",\"values\":{";
     bool comma = false;
-    for (const auto& [id, v] : values) { out << (comma ? "," : "") << Json(id) << ':' << v; comma = true; }
+    for (const auto& [id, v] : values) {
+        out << (comma ? "," : "") << Json(id) << ':';
+        if (std::isnan(v)) out << "null";  // a chance left to the game
+        else out << v;
+        comma = true;
+    }
     out << "},\"feedback\":{";
     comma = false;
     for (const auto& k : win.cards) {
@@ -2095,7 +2304,7 @@ std::string State() {
     comma = false;
     for (const auto& s : win.sections) {
         out << (comma ? "," : "") << "{\"id\":" << s->id << ",\"page\":" << Json(win.pages[s->page].id) << ",\"kind\":" << Json(s->kind)
-            << ",\"y\":" << s->y << ",\"h\":" << s->h << ",\"built\":" << Boolean(s->built) << '}';
+            << ",\"y\":" << s->y << ",\"h\":" << s->h << ",\"built\":" << Boolean(s->built) << ",\"hidden\":" << Boolean(s->hidden) << '}';
         comma = true;
     }
     out << "],\"inputs\":[";
@@ -2193,6 +2402,67 @@ JValue Preference(const std::string& key) {
     if (!stored || !stored->IsString() || !json::Parse(stored->text, inner)) return JValue{};
     return inner;
 }
+std::string PageTab(int page) { return page >= 0 && page < static_cast<int>(win.pages.size()) ? win.pages[page].tab : ""; }
+void ShowTab(int page, const std::string& tab) {
+    if (page < 0 || page >= static_cast<int>(win.pages.size())) return;
+    Page& p = win.pages[page];
+    if (p.tab == tab) return;
+    if (page == win.page) {
+        ReleaseKeyboard();
+        CloseList();
+        ClearHover();
+    }
+    p.tab = tab;
+    RememberedTabs()[p.id] = tab;
+    for (int id : p.sections)
+        if (Sec(id).built && Sec(id).onTab) Sec(id).onTab(Sec(id));
+    Relayout(page);
+    UpdateFooter();
+}
+bool Typing(int sectionId) {
+    for (const auto& w : win.inputs)
+        if (w.section == sectionId && FieldFocused(w.field.Get())) return true;
+    return false;
+}
+bool& Disclosure(const std::string& key) { return DetailsOpen()[key]; }
+bool SettingValue(const std::string& id, double* v) {
+    const auto it = values.find(id);
+    if (it == values.end()) return false;
+    *v = it->second;
+    return true;
+}
+void SetDraft(const std::string& id, double v) {
+    values[id] = v;
+    errors.erase(id);
+    applied.erase(id);
+    drafts.insert(id);
+    PaintId(id);
+}
+std::string SettingFeedback(const std::string& id, Color* color, float* size) {
+    *color = C("accent");
+    *size = 10;
+    if (auto e = errors.find(id); e != errors.end()) { *color = Hex("#f2a594"); return e->second.substr(0, e->second.find('\n')); }
+    if (pending.count(id) || sendingId == id) { *size = 11; return Tr("Applying\xE2\x80\xA6"); }
+    if (drafts.count(id)) { *size = 11; return Tr("Draft"); }
+    if (applied.count(id)) return Tr("Applied");
+    return "";
+}
+int DraftCount(const std::string& prefix) {
+    int n = 0;
+    for (const auto& id : drafts) n += id.rfind(prefix, 0) == 0;
+    return n;
+}
+void ClearDrafts(const std::string& prefix) {
+    std::vector<std::string> ids;
+    for (const auto& id : drafts) if (id.rfind(prefix, 0) == 0) ids.push_back(id);
+    for (const auto& id : ids) {
+        drafts.erase(id);
+        if (appliedValues.count(id)) values[id] = appliedValues[id];
+        else values.erase(id);
+        PaintId(id);
+    }
+    UpdateFooter();
+}
 void RegisterSection(const std::string& kind, SectionMaker make) { Makers()[kind] = std::move(make); }
 void RegisterTail(const std::string& kind, Tail tail) { Tails()[kind] = std::move(tail); }
 void RebuildTail(int sectionId) {
@@ -2212,18 +2482,26 @@ void RebuildTail(int sectionId) {
     SetActive(go, false);
     void* d[]{go};
     Invoke(U("Object", "Destroy", 1), nullptr, d);
-    Node node = New("Tail", ps.panel.rt.Get(), 0, ps.tailY, kPanelW, 10);
+    Node node = New("Tail", PanelParent(ps), 0, ps.tailY, kPanelW, 10);
     ps.tailNode.Set(node.rt);
     stage = "tail " + ps.tailKind;
+    // TMP measures only texts that are switched on: a closed <details> or a section on another tab
+    // is on while its new tail is made
+    void* asleep = s->hidden ? GameObjectOf(s->root.Get()) : nullptr;
+    void* closed = ps.details && !ps.open ? GameObjectOf(ps.content.Get()) : nullptr;
+    if (asleep) SetActive(asleep, true);
+    if (closed) SetActive(closed, true);
     const float h = it->second.build(*s, Ctx{&s->hits, Area::Main, node.rt, kPadX, ps.tailY, s->id});
+    if (closed) {
+        SetActive(closed, false);
+        for (size_t i = ps.tailHits; i < s->hits.size(); ++i) s->hits[i].visible = false;
+    }
+    if (asleep) SetActive(asleep, false);
     const float dy = h - ps.tailH;
     ps.tailH = h;
     if (std::fabs(dy) >= 0.01f) {
         ps.panelH += dy;
-        ClosePanel(ps.panel, kPanelW, ps.panelH);
-        if (ps.afterNote) Move(ps.afterNote.Get(), kPadX, ps.panelH + 20);
-        s->h += dy;
-        Relayout(s->page);
+        FitPanel(*s);
     }
     timing.rebuildMs = Ms() - start;
     Record("rebuild tail " + ps.tailKind, timing.rebuildMs);
@@ -2232,14 +2510,38 @@ Section* FindSection(int id) { return id >= 0 && id < static_cast<int>(win.secti
 void Relayout(int page) {
     if (page < 0 || page >= static_cast<int>(win.pages.size()) || !win.pages[page].root) return;
     Page& p = win.pages[page];
-    float y = kHeroH + kPadTop;
+    float y = p.heroH + kPadTop;
+    // a panel group: one panel from its first section's top to its last section's bottom
+    Section* groupFirst = nullptr;
+    std::string group;
+    float bottom = y;
+    const auto closeGroup = [&] {
+        if (groupFirst && groupFirst->frame) ClosePanel(*groupFirst->frame, kPanelW, bottom - groupFirst->y);
+        groupFirst = nullptr;
+        group.clear();
+    };
     for (int id : p.sections) {
         Section& s = Sec(id);
         if (!s.built || !s.root) continue;
+        // a section of another tab: switched off, no place on the page
+        const std::string tab = (*s.spec)["tab"].Str();
+        const bool hidden = !tab.empty() && tab != p.tab;
+        if (hidden != s.hidden) {
+            SetActive(GameObjectOf(s.root.Get()), !hidden);
+            s.hidden = hidden;
+        }
+        if (hidden) continue;
+        const std::string g = (*s.spec)["group"].Str();
+        if (g != group) {
+            closeGroup();
+            if (!g.empty()) { groupFirst = &s; group = g; }
+        }
         s.y = y;
         Move(s.root.Get(), 0, y);
+        bottom = y + s.h;
         y += s.h + s.after;
     }
+    closeGroup();
     p.height = y + kPadBottom;
     Resize(p.root.Get(), kContentW, p.height);
     if (page == win.page && win.built) {
@@ -2268,7 +2570,11 @@ void Rebuild(int sectionId) {
     s->live.reset();  // its widgets were in the old body
     NewBody(*s);
     stage = "rebuild " + s->kind;
+    // TMP measures only texts that are switched on: a section on another tab is on while it is made
+    void* asleep = s->hidden ? GameObjectOf(s->root.Get()) : nullptr;
+    if (asleep) SetActive(asleep, true);
     s->h = s->build(*s, s->Body(s->body.Get()));
+    if (asleep) SetActive(asleep, false);
     Relayout(s->page);
     timing.rebuildMs = Ms() - start;
     Record("rebuild " + s->kind, timing.rebuildMs);
@@ -2569,7 +2875,7 @@ void OpenList(float x, float y, float w, float h, const std::vector<std::string>
                 hit.name = st->labels[index];
                 const Color normal = index == st->current ? C("soft") : Alpha(C("soft"), 0);
                 if (!hit.hover.empty()) hit.hover[0].normal = normal;
-                Tint(st->fills[i].Get(), normal);
+                Fade(st->fills[i].Get(), normal, 0);  // the renderer's colour (AddHover)
             }
             const float track = st->rowH * st->visible + 2 - 4, thumbH = std::max(16.f, track * st->visible / total);
             Move(st->thumb.Get(), st->x + st->w - 9, st->top + 2 + (track - thumbH) * offset / std::max(1, total - st->visible));
@@ -2780,10 +3086,50 @@ void Frame() {
     }
 }
 
+// "panel kern": does TMP kern this game's texts? A line of kerning pairs: TMP's width, the faces'
+// advances without kerning, the switch and the font assets' pair records (the browser kerns).
+std::string Kerning() {
+    if (!win.built) return "{\"ok\":false,\"error\":\"the window is not built yet\"}";
+    const std::string sample = "AVAVAVAVAV To To Ty Wa Yo LT";
+    std::ostringstream out;
+    out << "{\"ok\":true,\"sample\":" << Json(sample);
+    for (Face face : {Face::Body, Face::Serif}) {
+        Style s{face, 100, C("ink")};
+        void* t = TextBox(win.windowRt.Get(), "Kern probe", 0, 0, 4000, 200, s, sample);
+        out << ",\"" << (face == Face::Body ? "body" : "serif") << "\":{\"tmp\":" << TextWidth(t) << ",\"advances\":" << TextAdvance(face, 100, sample);
+        if (const auto* get = Find("Unity.TextMeshPro.dll", "TMPro", "TMP_Text", "get_enableKerning", 0, false)) {
+            out << ",\"enableKerning\":" << Boolean(Value<bool>(get, t));
+            if (const auto* set = Find("Unity.TextMeshPro.dll", "TMPro", "TMP_Text", "set_enableKerning", 1, false)) {
+                bool on = true;
+                void* a[]{&on};
+                Invoke(set, t, a);
+                Layout(t);
+                out << ",\"tmpKerningOn\":" << TextWidth(t);
+            }
+        }
+        if (const auto* features = Find("Unity.TextMeshPro.dll", "TMPro", "TMP_FontAsset", "get_fontFeatureTable", 0, false)) {
+            void* asset = assets::Font(face);
+            void* table = asset ? Invoke(features, asset) : nullptr;
+            if (table) {
+                if (const auto* records = Find("Unity.TextMeshPro.dll", "TMPro", "TMP_FontFeatureTable", "get_glyphPairAdjustmentRecords", 0, false)) {
+                    void* list = Invoke(records, table);
+                    if (list) out << ",\"pairRecords\":" << Value<int>(Method(list, "get_Count", 0), list);
+                }
+            }
+        }
+        out << '}';
+        void* go = GameObjectOf(t);
+        SetActive(go, false);
+        void* d[]{go};
+        Invoke(U("Object", "Destroy", 1), nullptr, d);
+    }
+    return out.str() + "}";
+}
 std::string Panel(const std::string& action) {
     if (action == "read") return Run([] { return State(); });
     if (action == "measure") return Run([] { return Measure(); });
-    if (action != "0" && action != "1") return "{\"ok\":false,\"error\":\"use panel read|measure|0|1\"}";
+    if (action == "kern") return Run([] { return Kerning(); });
+    if (action != "0" && action != "1") return "{\"ok\":false,\"error\":\"use panel read|measure|kern|0|1\"}";
     const bool open = action == "1";
     return Run([open] {
         if (open != win.shown) toggleRequested = true;
