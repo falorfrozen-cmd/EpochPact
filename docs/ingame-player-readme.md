@@ -24,6 +24,9 @@ WebView2, MelonLoader or a separate EpochPact.Core.dll. Press **F6** in the game
 ## Using it
 
 - F6 opens and closes the window. The search box finds settings on every page.
+- **Window** (top bar): Full screen, Left half, Right half or Default size. Drag the
+  top bar to move the window, drag the dots in its bottom-right corner to resize it,
+  or double-click the top bar for full screen. The window remembers its place.
 - Settings that say "Changes apply automatically" apply right away; panels that
   say "Use Apply changes below" wait for the Apply changes button.
 - Actions that change your save (stocking materials, crafting, custom items,

@@ -57,14 +57,16 @@ inline constexpr float kPanelPad = 24, kGap = 15, kCardPad = 20;
 inline float kPanelW = kContentW - 2 * kPadX, kPanelInner = kPanelW - 2 * kPanelPad;
 inline float kCardW = (kPanelInner - kGap) / 2, kCardInner = kCardW - 2 * kCardPad;
 inline float kHeroTextW = (kContentW - 64) * 0.7f;
-// CSS zoom: shrink logical viewport and enlarge its canvas together, keeping the whole window
-// on screen. Simply scaling a 1440x900 canvas would push controls outside the game at 150%.
-inline void ConfigureGeometry(float zoom) {
-    kW = 1440 / zoom; kH = 900 / zoom; kMainW = kW - kMainX - 1; kMainH = kH - kMainY - kFootH - 1;
+// The window's size in css px: the main column, its panels and cards take the width left of the
+// sidebar. CSS zoom (the text size) shrinks this logical viewport and enlarges its canvas together,
+// keeping the whole window on screen; a resized window gets its own width and height.
+inline void ConfigureSize(float w, float h) {
+    kW = w; kH = h; kMainW = kW - kMainX - 1; kMainH = kH - kMainY - kFootH - 1;
     kContentW = kMainW - kBar; kFootY = kMainY + kMainH;
     kPanelW = kContentW - 2 * kPadX; kPanelInner = kPanelW - 2 * kPanelPad;
     kCardW = (kPanelInner - kGap) / 2; kCardInner = kCardW - 2 * kCardPad; kHeroTextW = (kContentW - 64) * .7f;
 }
+inline void ConfigureGeometry(float zoom) { ConfigureSize(1440 / zoom, 900 / zoom); }
 inline constexpr int kTopLeft = 257, kTop = 258, kTopRight = 260, kLeft = 513, kCenter = 514, kRight = 516;  // TMP alignments
 
 // ----------------------------------------------------------------------------- Unity calls

@@ -165,7 +165,8 @@ struct Page {
 struct Watched { int section = -1; Pin field; std::string last, name; std::function<void(const std::string&)> onChange; };
 struct Window {
     Pin rootGo, rootCanvas, windowRt, listener, mainContent, sideContent, mainThumb, sideThumb, crumb, connection, draftLabel, applyGroup, applyGo, discardGo,
-        heroEyebrow, heroTitle, heroSub, heroArt, heroArtCompact, heroBorder, popup, toast, dialog, raycaster, applyLabel, navRoot, captionRoot, searchField, padFocus, dialogContent;
+        heroEyebrow, heroTitle, heroSub, heroArt, heroArtCompact, heroBorder, popup, toast, dialog, raycaster, applyLabel, navRoot, captionRoot, searchField, padFocus, dialogContent,
+        canvasRt, resizeFrame;
     std::vector<Pin> navFill, navFrame, navBar;
     std::vector<Page> pages;
     std::vector<std::unique_ptr<Section>> sections;
@@ -182,6 +183,8 @@ struct Window {
     std::function<void(float)> popupWheel;  // the open list scrolls (a long one)
     uint64_t toastUntil = 0;
     float scale = 1, mainScroll = 0, mainTarget = 0, sideScroll = 0, sideTarget = 0, sideHeight = 0, brandHeight = 0;
+    float left = 0, top = 0, zoom = 1;  // the window's top-left corner on screen (px) and the text size it was built for
+    std::string placement = "default";  // its mode (PlacementFor)
     float thumbsAt[2] = {-1, -1};
     std::string lang;
     int padList = -1, padIndex = -1;
@@ -386,21 +389,25 @@ float BuildCard(Section& s, void* panel, float ox, float oy, float x, float y, c
     const auto place = [&](Hit& h, float hx, float hy) { h.x = k.x + hx; h.y = k.y + cy + hy; };
     const auto push = [&](Hit h) { s.hits.push_back(std::move(h)); k.hits.push_back(static_cast<int>(s.hits.size()) - 1); };
     if (c.widget == "number") {
-        toolsH = 38;
+        // one row: the range, the stepper, the unit and Default. A narrow card (a small window, a
+        // large text size) has no room left for the range: it gets a row of its own above them.
         Button d = MakeButton(tools.rt, Tr("Default"), Look::Quiet, def);
-        const float dx = cardW - kCardPad - d.w, dy = (toolsH - d.h) / 2;
-        Move(d.node.rt, dx, dy);
-        place(def, dx, dy);
+        const float dx = cardW - kCardPad - d.w;
         // .unit (an empty one still takes its gaps)
         Style us{Face::Body, 13, C("gold")};
         us.align = kLeft;
         const std::string unitText = Tr(Trim(c.unit));
-        void* unit = TextBox(tools.rt, "Unit", 0, 0, 120, toolsH, us, unitText);
+        void* unit = TextBox(tools.rt, "Unit", 0, 0, 120, 38, us, unitText);
         const float unitX = dx - 10 - (unitText.empty() ? 0 : std::ceil(TextWidth(unit)));
-        Move(TransformOf(unit), unitX, 0);
         // .stepper: 144x38 with a line border; buttons 33x36 with the button gradient; value 74 wide
         const float stepX = unitX - 10 - 144;
-        Outline(tools.rt, "Stepper", stepX, 0, 144, 38, C("line"), 3);
+        const float rowY = stepX - 10 - 2 - (kCardPad + 2) < 100 ? 40.f : 0.f;
+        toolsH = 38 + rowY;
+        const float dy = rowY + (38 - d.h) / 2;
+        Move(d.node.rt, dx, dy);
+        place(def, dx, dy);
+        Move(TransformOf(unit), unitX, rowY);
+        Outline(tools.rt, "Stepper", stepX, rowY, 144, 38, C("line"), 3);
         for (int side = 0; side < 2; ++side) {
             Hit h;
             h.kind = side ? HitKind::Plus : HitKind::Minus;
@@ -408,23 +415,23 @@ float BuildCard(Section& s, void* panel, float ox, float oy, float x, float y, c
             h.a = index;
             h.name = c.id;
             const float bx = side ? stepX + 1 + 33 + 74 : stepX + 1;
-            void* soft = Fill(tools.rt, "Step hover", bx, 1, 33, 36, kWhite);
-            Picture(tools.rt, "Step gradient", bx, 1, 33, 36, "grad-button.png", false, kWhite);
+            void* soft = Fill(tools.rt, "Step hover", bx, rowY + 1, 33, 36, kWhite);
+            Picture(tools.rt, "Step gradient", bx, rowY + 1, 33, 36, "grad-button.png", false, kWhite);
             Style ss{Face::Body, 20, C("ink")};
             ss.align = kCenter;
-            TextBox(tools.rt, side ? "Plus" : "Minus", bx, 1, 33, 36, ss, side ? "+" : "\xE2\x88\x92");
+            TextBox(tools.rt, side ? "Plus" : "Minus", bx, rowY + 1, 33, 36, ss, side ? "+" : "\xE2\x88\x92");
             AddHover(h, soft, Alpha(C("soft"), 0), C("soft"));
             h.w = 33;
             h.h = 36;
-            place(h, bx, 1);
+            place(h, bx, rowY + 1);
             push(std::move(h));
         }
         Style vs{Face::Body, 15, C("ink")};
         vs.align = kCenter;
-        k.value.Set(TextBox(tools.rt, "Value", stepX + 34, 1, 74, 36, vs, ""));
-        // input[type=range]: margin 2px, 8px tall, centred; takes the rest of the row
+        k.value.Set(TextBox(tools.rt, "Value", stepX + 34, rowY + 1, 74, 36, vs, ""));
+        // input[type=range]: margin 2px, 8px tall, centred; takes the rest of the row (or a row)
         k.trackX = kCardPad + 2;
-        k.trackW = stepX - 10 - 2 - k.trackX;
+        k.trackW = rowY > 0 ? cardInner - 4 : stepX - 10 - 2 - k.trackX;
         Picture(tools.rt, "Track", k.trackX, 15, k.trackW, 8, "track.png", false, kWhite);
         k.thumb.Set(TransformOf(Picture(tools.rt, "Thumb", 0, 0, 44, 44, "thumb.png", false, kWhite)));
         Hit track;
@@ -433,7 +440,7 @@ float BuildCard(Section& s, void* panel, float ox, float oy, float x, float y, c
         track.a = index;
         track.name = c.id;
         track.w = k.trackW + 4;
-        track.h = toolsH;
+        track.h = 38;
         place(track, k.trackX - 2, 0);
         push(std::move(track));
     } else if (c.widget == "toggle") {
@@ -940,6 +947,80 @@ Style HeroSubStyle() {
     sub.wrap = true;
     return sub;
 }
+// ------------------------------------------------------------------- the window's place and size
+// "epochpact.ingame-window.v1": {"mode": "default" | "full" | "left" | "right" | "custom", and for
+// custom "x", "y", "w", "h" as fractions of the screen}. Default is the window as it always was,
+// centred at 94% of the screen. The text keeps the size it has there; the layout reflows into the
+// rest of the room, between the 150% text size layout (960x600) and 1920x1200, and the text gets
+// smaller only where a window is smaller than that.
+constexpr const char* kPlacementKey = "epochpact.ingame-window.v1";
+constexpr float kMinLayoutW = 960, kMinLayoutH = 600, kMaxLayoutW = 1920, kMaxLayoutH = 1200;
+struct Placement { std::string mode; float scale, w, h, left, top; };
+Placement PlacementFor(float zoom) {
+    const float sw = static_cast<float>(screenW), sh = static_cast<float>(screenH);
+    const float baseW = 1440 / zoom, baseH = 900 / zoom;
+    const float base = std::max(0.4f, std::min(sw / baseW, sh / baseH) * 0.94f);
+    const JValue p = Preference(kPlacementKey);
+    std::string mode = p["mode"].Str("default");
+    float rx = 0, ry = 0, rw = sw, rh = sh;
+    const auto fraction = [&p](const char* k) { return p[k].IsNumber() ? static_cast<float>(p[k].number) : -1.f; };
+    if (mode == "left" || mode == "right") { rw = sw / 2; rx = mode == "left" ? 0 : sw - rw; }
+    else if (mode == "custom" && fraction("w") > 0.1f && fraction("h") > 0.1f && fraction("w") <= 1.f && fraction("h") <= 1.f) {
+        rw = fraction("w") * sw; rh = fraction("h") * sh; rx = fraction("x") * sw; ry = fraction("y") * sh;
+    } else if (mode != "full") {
+        mode = "default";
+        rw = baseW * base; rh = baseH * base; rx = (sw - rw) / 2; ry = (sh - rh) / 2;
+    }
+    float scale = std::min({base, rw / kMinLayoutW, rh / kMinLayoutH});
+    scale = std::max({scale, rw / kMaxLayoutW, rh / kMaxLayoutH, 0.3f});
+    const float w = std::clamp(rw / scale, kMinLayoutW * 0.8f, kMaxLayoutW), h = std::clamp(rh / scale, kMinLayoutH * 0.8f, kMaxLayoutH);
+    // on screen, with its top bar reachable
+    const float left = std::clamp(rx, -w * scale + 160, sw - 160), top = std::clamp(ry, 0.f, std::max(0.f, sh - 60));
+    return {mode, scale, std::round(w), std::round(h), std::round(left), std::round(top)};
+}
+// Places the built window at win.left/top: the window is centred on the screen canvas, so its
+// anchored position is the offset of its centre from the screen's, in canvas units.
+void PlaceWindow() {
+    void* rt = win.windowRt.Get();
+    if (!rt || win.scale <= 0) return;
+    V2 at{(win.left + kW * win.scale / 2 - screenW / 2.f) / win.scale, -(win.top + kH * win.scale / 2 - screenH / 2.f) / win.scale};
+    void* a[]{&at};
+    Invoke(U("RectTransform", "set_anchoredPosition", 1), rt, a);
+}
+// Stores a window mode; custom stores the rectangle (screen px) as fractions of the screen.
+bool StorePlacement(const std::string& mode, float x = 0, float y = 0, float w = 0, float h = 0) {
+    std::string text = "{\"mode\":" + Json(mode);
+    if (mode == "custom" && screenW > 0 && screenH > 0)
+        text += ",\"x\":" + Num(x / screenW) + ",\"y\":" + Num(y / screenH) + ",\"w\":" + Num(w / screenW) + ",\"h\":" + Num(h / screenH);
+    text += "}";
+    return StorePreference(kPlacementKey, &text);
+}
+bool placementReload = false;  // a new window size: built again at once, in one frame
+// The stored place: moved where it is when only the position changes, otherwise built again.
+void ApplyPlacement() {
+    const Placement p = PlacementFor(win.zoom);
+    win.placement = p.mode;
+    if (std::fabs(p.scale - win.scale) <= 0.001f && p.w == kW && p.h == kH) {
+        win.left = p.left;
+        win.top = p.top;
+        PlaceWindow();
+        return;
+    }
+    placementReload = true;
+    ReloadWindow();
+}
+void ChooseWindowMode(const std::string& mode) {
+    if (StorePlacement(mode)) ApplyPlacement();
+}
+// ▢ Window: the list of places, under the button (right-aligned to it).
+void OpenWindowModes(float right, float y, float h) {
+    static const char* modes[]{"full", "left", "right", "default"};
+    const std::vector<std::string> labels{Tr("Full screen"), Tr("Left half"), Tr("Right half"), Tr("Default size")};
+    int current = -1;
+    for (int i = 0; i < 4; ++i) if (win.placement == modes[i]) current = i;
+    const float w = 190;
+    OpenList(right - w, y, w, h, labels, current, [](int i) { if (i >= 0 && i < 4) ChooseWindowMode(modes[i]); });
+}
 void BuildBase() {
     Node rootGo = New("EpochPact In-game Window", nullptr, 0, 0, 0, 0);
     win.rootGo.Set(rootGo.go);
@@ -947,6 +1028,7 @@ void BuildBase() {
     Node canvasNode = New("Window canvas", rootGo.rt, 0, 0, 0, 0);
     void* canvas = AddCanvas(canvasNode.go);
     win.rootCanvas.Set(canvas);
+    win.canvasRt.Set(canvasNode.rt);
     int overlay = 0, order = 30000;
     void* ma[]{&overlay};
     void* oa[]{&order};
@@ -967,6 +1049,7 @@ void BuildBase() {
     for (const char* field : {"set_anchorMin", "set_anchorMax", "set_pivot"}) Invoke(U("RectTransform", field, 1), w.rt, mida);
     Invoke(U("RectTransform", "set_anchoredPosition", 1), w.rt, za);
     win.windowRt.Set(w.rt);
+    PlaceWindow();
     AddCanvas(w.go);
     win.raycaster.Set(Add(w.go, "UnityEngine.UI.dll", "UnityEngine.UI", "GraphicRaycaster"));
     // The page colour on the window itself catches the pointer, so the game treats the window like
@@ -1028,11 +1111,18 @@ void BuildTopbar() {
     Move(b.node.rt, rx, ry);
     win.hits[b.hit].y = ry;
     win.hits[b.hit].kind = HitKind::Refresh;
+    // ▢ Window, 10px left of Refresh: full screen, half of the screen or the default size. The
+    // top bar also moves the window (a double click: full screen), the corner dots resize it.
+    Button wb = AddButton(FixedCtx(), rx - 10, 0, "\xE2\x96\xA2 " + Tr("Window"), Look::Quiet, [] {}, true, "window-mode");
+    const float wx = win.hits[wb.hit].x, wy = 1 + (kTopH - 1 - wb.h) / 2, ww = wb.w, wh = wb.h;
+    Move(wb.node.rt, wx, wy);
+    win.hits[wb.hit].y = wy;
+    win.hits[wb.hit].action = [wx, wy, ww, wh] { OpenWindowModes(wx + ww, wy, wh); };
     Style cs{Face::Body, 12, C("muted")};
     cs.align = kRight;
     cs.line = 1.3f;
-    const float connectionW = std::min(380.f, rx - kMainX - 36);
-    win.connection.Set(TextBox(w, "Connection", rx - 16 - connectionW, 1, connectionW, kTopH - 1, cs, Tr("Checking connection")));
+    const float connectionW = std::min(380.f, wx - kMainX - 36);
+    win.connection.Set(TextBox(w, "Connection", wx - 16 - connectionW, 1, connectionW, kTopH - 1, cs, Tr("Checking connection")));
     if (kW < 1200) SetActive(GameObjectOf(win.crumb.Get()), false);
 }
 void ApplyDrafts();
@@ -1074,6 +1164,12 @@ void BuildFooter() {
     win.applyHit = static_cast<int>(win.hits.size()) - 1;
     win.hits.push_back(std::move(discard));
     win.discardHit = static_cast<int>(win.hits.size()) - 1;
+    // the resize grip: six dots in the bottom-right corner; dragging them resizes the window
+    for (const auto& [gx, gy] : std::initializer_list<std::pair<float, float>>{{4, 4}, {8, 4}, {12, 4}, {4, 8}, {8, 8}, {4, 12}})
+        Solid(w, "Resize grip", kW - 3 - gx, kH - 3 - gy, 2, 2, C("gold"));
+    // the size a resize will give, shown while the grip is dragged (on the screen canvas)
+    win.resizeFrame.Set(TransformOf(Solid(win.canvasRt.Get(), "Resize preview", 0, 0, 10, 10, Hex("#ac895040"))));
+    SetActive(GameObjectOf(win.resizeFrame.Get()), false);
 }
 void BuildSidebarTop() {
     void* w = win.windowRt.Get();
@@ -1561,8 +1657,8 @@ bool GameInFront(HWND* window = nullptr) {
     if (window) *window = w;
     return pid == GetCurrentProcessId();
 }
-// The cursor in window css px; false outside the game's window.
-bool Cursor(float* x, float* y) {
+// The cursor in the game's screen px; false outside the game's window.
+bool ScreenCursor(float* ux, float* uy) {
     HWND window = nullptr;
     if (!GameInFront(&window)) return false;
     POINT p{};
@@ -1570,9 +1666,16 @@ bool Cursor(float* x, float* y) {
     if (!GetCursorPos(&p) || !ScreenToClient(window, &p) || !GetClientRect(window, &client)) return false;
     const int cw = client.right - client.left, ch = client.bottom - client.top;
     if (cw <= 0 || ch <= 0 || p.x < 0 || p.y < 0 || p.x >= cw || p.y >= ch) return false;
-    const float ux = p.x * static_cast<float>(screenW) / cw, uy = p.y * static_cast<float>(screenH) / ch;
-    *x = (ux - (screenW - kW * win.scale) / 2) / win.scale;
-    *y = (uy - (screenH - kH * win.scale) / 2) / win.scale;
+    *ux = p.x * static_cast<float>(screenW) / cw;
+    *uy = p.y * static_cast<float>(screenH) / ch;
+    return true;
+}
+// The cursor in window css px; false outside the game's window.
+bool Cursor(float* x, float* y) {
+    float ux, uy;
+    if (!ScreenCursor(&ux, &uy)) return false;
+    *x = (ux - win.left) / win.scale;
+    *y = (uy - win.top) / win.scale;
     return true;
 }
 // A hit list: -1 the window's own, -2 the open list, -3 the dialog, 0.. a section.
@@ -1620,6 +1723,56 @@ int dragCard = -1;
 bool mouseDown = false;
 enum class Drag { None, Main, Side } scrollDrag = Drag::None;
 float dragStartY = 0, dragStartScroll = 0;
+// Moving the window by its top bar, or resizing it by the corner dots (screen px).
+enum class WindowDrag { None, Move, Resize } windowDrag = WindowDrag::None;
+float dragScreenX = 0, dragScreenY = 0, dragLeft = 0, dragTop = 0, dragW = 0, dragH = 0, dragNewW = 0, dragNewH = 0;
+uint64_t lastBarPress = 0;
+std::string lastPress;  // what the last press in the window did (panel read)
+void ShowResizeFrame(bool on) {
+    void* rt = win.resizeFrame.Get();
+    if (!rt) return;
+    if (on) {
+        Move(rt, dragLeft / win.scale, dragTop / win.scale);
+        Resize(rt, dragNewW / win.scale, dragNewH / win.scale);
+        Invoke(U("Transform", "SetAsLastSibling", 0), rt);
+    }
+    SetActive(GameObjectOf(rt), on);
+}
+void StartWindowDrag(WindowDrag kind) {
+    if (!ScreenCursor(&dragScreenX, &dragScreenY)) return;
+    windowDrag = kind;
+    dragLeft = win.left;
+    dragTop = win.top;
+    dragNewW = dragW = kW * win.scale;
+    dragNewH = dragH = kH * win.scale;
+    if (kind == WindowDrag::Resize) ShowResizeFrame(true);
+}
+void DragWindow() {
+    float ux, uy;
+    if (!ScreenCursor(&ux, &uy)) return;
+    const float dx = ux - dragScreenX, dy = uy - dragScreenY;
+    if (windowDrag == WindowDrag::Move) {
+        win.left = std::round(std::clamp(dragLeft + dx, -dragW + 160, screenW - 160.f));
+        win.top = std::round(std::clamp(dragTop + dy, 0.f, std::max(0.f, screenH - 60.f)));
+        PlaceWindow();
+    } else if (windowDrag == WindowDrag::Resize) {
+        const float minW = std::max(400.f, screenW * 0.25f), minH = std::max(300.f, screenH * 0.3f);
+        dragNewW = std::clamp(dragW + dx, std::min(minW, screenW - dragLeft), std::max(minW, screenW - dragLeft));
+        dragNewH = std::clamp(dragH + dy, std::min(minH, screenH - dragTop), std::max(minH, screenH - dragTop));
+        ShowResizeFrame(true);
+    }
+}
+// Releasing: a moved window keeps its size (no rebuild); a resized one is built for its new size.
+void EndWindowDrag() {
+    const WindowDrag kind = windowDrag;
+    windowDrag = WindowDrag::None;
+    if (kind == WindowDrag::Move && (std::fabs(win.left - dragLeft) > 1 || std::fabs(win.top - dragTop) > 1)) {
+        if (StorePlacement("custom", win.left, win.top, kW * win.scale, kH * win.scale)) win.placement = "custom";
+    } else if (kind == WindowDrag::Resize) {
+        ShowResizeFrame(false);
+        if ((std::fabs(dragNewW - dragW) > 4 || std::fabs(dragNewH - dragH) > 4) && StorePlacement("custom", dragLeft, dragTop, dragNewW, dragNewH)) ApplyPlacement();
+    }
+}
 
 void SetHover(HitRef r) {
     if (r == hovered) return;
@@ -1781,9 +1934,16 @@ void Input(float dt) {
     if (down && !mouseDown) {
         pressed = hovered;
         const Hit* p = HitAt(pressed);
+        lastPress = std::to_string(static_cast<int>(px)) + "," + std::to_string(static_cast<int>(py)) + " " + (p ? p->name : std::string("-"));
         if (win.listOpen && pressed.list != kPopup) { CloseList(); pressed = {kFixed, -1}; }
         else if (p && p->kind == HitKind::Track && p->drag) { dragHit = pressed; DragHit(px); }
         else if (p && p->kind == HitKind::Track) { dragCard = p->a; DragSlider(dragCard, px); }
+        else if (!win.dialogOpen && !p && px >= kW - 18 && px < kW && py >= kH - 18 && py < kH) { StartWindowDrag(WindowDrag::Resize); lastPress += " resize"; }
+        else if (!win.dialogOpen && !p && px >= kMainX && px < kW && py >= 0 && py < kTopH) {
+            // the top bar: drag to move; a double click switches between full screen and the default size
+            if (Now() - lastBarPress < GetDoubleClickTime()) { lastBarPress = 0; lastPress += " double"; ChooseWindowMode(win.placement == "full" ? "default" : "full"); }
+            else { lastBarPress = Now(); StartWindowDrag(WindowDrag::Move); lastPress += windowDrag == WindowDrag::Move ? " move" : " no-cursor"; }
+        }
         else if (!win.dialogOpen && px >= kMainX + kContentW && px < kMainX + kMainW && py >= kMainY && py < kMainY + kMainH && MaxMain() > 0) {
             scrollDrag = Drag::Main;
             dragStartY = py;
@@ -1794,6 +1954,7 @@ void Input(float dt) {
             dragStartScroll = win.sideTarget;
         }
     } else if (down && mouseDown) {
+        if (windowDrag != WindowDrag::None) DragWindow();
         if (dragCard >= 0) DragSlider(dragCard, px);
         if (dragHit.index >= 0) DragHit(px);
         if (scrollDrag == Drag::Main)
@@ -1801,6 +1962,7 @@ void Input(float dt) {
         else if (scrollDrag == Drag::Side)
             win.sideTarget = win.sideScroll = std::clamp(dragStartScroll + (py - dragStartY) * win.sideHeight / (kH - 2 - 2 * kBar), 0.f, MaxSide());
     } else if (!down && mouseDown) {
+        if (windowDrag != WindowDrag::None) EndWindowDrag();
         const Hit* p = HitAt(pressed);
         if (dragHit.index >= 0) {
             const Hit* d = HitAt(dragHit);
@@ -2009,7 +2171,6 @@ void HideToast() {
 }
 
 // --------------------------------------------------------------------------- open and close
-float ScaleFor() { return std::max(0.4f, std::min(screenW / kW, screenH / kH) * 0.94f); }
 // The desktop app's stored choices (%LOCALAPPDATA%\EpochPact\preferences.json: {"values": {key: JSON
     // text}}), shared with the desktop preference store.
 JValue preferences;
@@ -2085,6 +2246,8 @@ void Show(bool open) {
         dragHit = {kFixed, -1};
         pressed = {kFixed, -1};
         scrollDrag = Drag::None;
+        if (windowDrag == WindowDrag::Resize) ShowResizeFrame(false);
+        windowDrag = WindowDrag::None;
         ++closes;
         timing.framesSinceClose = 0;
         timing.spikeAfterClose = 0;
@@ -2106,16 +2269,29 @@ void Destroy() {
     dragCard = -1;
     mouseDown = false;
 }
+float TextZoom() {
+    const float zoom = static_cast<float>(Preference("epochpact.text-scale.v1").Num(1));
+    return zoom == .9f || zoom == 1 || zoom == 1.1f || zoom == 1.25f || zoom == 1.4f || zoom == 1.5f ? zoom : 1;
+}
+// The window was built for another place and size than its preference and the screen now give.
+bool PlacementChanged() {
+    const Placement p = PlacementFor(TextZoom());
+    return std::fabs(p.scale - win.scale) > 0.001f || p.w != kW || p.h != kH || p.left != win.left || p.top != win.top || TextZoom() != win.zoom;
+}
 // Build everything ahead of time: the shell, the page shown first, then every other page.
 void QueueAll() {
     win = Window{};
-    float zoom = static_cast<float>(Preference("epochpact.text-scale.v1").Num(1));
-    if (zoom != .9f && zoom != 1 && zoom != 1.1f && zoom != 1.25f && zoom != 1.4f && zoom != 1.5f) zoom = 1;
-    ConfigureGeometry(zoom);
+    const float zoom = TextZoom();
+    const Placement place = PlacementFor(zoom);
+    ConfigureSize(place.w, place.h);
     eligibleBuilt = Eligible();
     nextEligibleCheck = Now() + 1000;
     win.lang = language;
-    win.scale = ScaleFor();
+    win.scale = place.scale;
+    win.left = place.left;
+    win.top = place.top;
+    win.zoom = zoom;
+    win.placement = place.mode;
     LoadControls();
     for (const auto& spec : D()["pages"].items) {
         Page p;
@@ -2216,6 +2392,8 @@ void Step() {
         const auto page = win.pages[win.page].id; const bool shown = win.shown;
         ReleaseKeyboard(); language = ReadLanguage(); Destroy(); QueueAll();
         jobs.push_back([page, shown] { Navigate(page); if (shown) Show(true); });
+        // a new window size: built in this frame (under a second), so the window is not gone meanwhile
+        if (placementReload) { placementReload = false; RunJobs(1e9); }
     }
     const bool toggle = toggleRequested.exchange(false);
     // the screen size: on opening and once a second while open (a resolution change)
@@ -2233,7 +2411,7 @@ void Step() {
         broken = false;
         // a new language or screen size builds the window again (rare; nothing else is rebuilt)
         language = ReadLanguage();
-        if (win.rootGo && (language != win.lang || std::fabs(ScaleFor() - win.scale) > 0.001f)) Destroy();
+        if (win.rootGo && (language != win.lang || PlacementChanged())) Destroy();
     }
     if (!win.rootGo && jobs.empty()) {
         bool start = toggle;
@@ -2409,6 +2587,8 @@ std::string State() {
     out << "{\"ok\":true,\"key\":" << Json(KeyName(hotkey.load())) << ",\"prepared\":" << Boolean(prepared && ok) << ",\"built\":" << Boolean(win.built)
         << ",\"shown\":" << Boolean(win.shown) << ",\"parked\":" << Boolean(win.parked) << ",\"gameKeysBlocked\":" << Boolean(gameKeysBlocked) << ",\"language\":" << Json(language) << ",\"page\":" << Json(win.built ? win.pages[win.page].id : "") << ",\"tab\":" << Json(win.built ? win.pages[win.page].tab : "")
         << ",\"jobs\":" << jobs.size() << ",\"cards\":" << win.cards.size() << ",\"sections\":" << win.sections.size() << ",\"scale\":" << win.scale
+        << ",\"inFront\":" << Boolean(GameInFront()) << ",\"lastPress\":" << Json(lastPress)
+        << ",\"placement\":{\"mode\":" << Json(win.placement) << ",\"left\":" << win.left << ",\"top\":" << win.top << ",\"w\":" << kW << ",\"h\":" << kH << '}' 
         << ",\"screen\":[" << screenW << ',' << screenH << ']' << ",\"scaleStatic\":" << Boolean(scaleStatic) << ",\"opens\":" << opens.load()
         << ",\"closes\":" << closes.load() << ",\"faults\":" << faults.load() << ",\"broken\":" << Boolean(broken) << ",\"error\":" << Json(lastError)
         << ",\"scroll\":" << win.mainScroll << ",\"sideScroll\":" << win.sideScroll << ",\"pending\":" << pending.size() << ",\"drafts\":" << drafts.size()
@@ -3520,7 +3700,7 @@ std::string Panel(const std::string& action) {
     if (action == "kern") return Run([] { return Kerning(); });
     // View/local-preference navigation for background verification. No arbitrary hit
     // invocation: opening these views can only request data, never apply a bonus/save action.
-    if (action.rfind("page:", 0) == 0 || action.rfind("stat:", 0) == 0 || action.rfind("collection:", 0) == 0 || action.rfind("search:",0)==0 || action.rfind("scroll:",0)==0 || action.rfind("dialogscroll:",0)==0 || action.rfind("hud:",0)==0 || action.rfind("layout:",0)==0 || action.rfind("tab:",0)==0 || action == "dismiss" || action == "statadvanced") return Run([action] {
+    if (action.rfind("page:", 0) == 0 || action.rfind("stat:", 0) == 0 || action.rfind("collection:", 0) == 0 || action.rfind("search:",0)==0 || action.rfind("scroll:",0)==0 || action.rfind("dialogscroll:",0)==0 || action.rfind("hud:",0)==0 || action.rfind("layout:",0)==0 || action.rfind("window:",0)==0 || action.rfind("tab:",0)==0 || action == "dismiss" || action == "statadvanced") return Run([action] {
         if (!win.built || !win.shown) return std::string("{\"ok\":false,\"error\":\"open the ready panel first\"}");
         if (action == "dismiss") { CloseDialog(); CloseList(); return State(); }
         if (!view::Eligible()) return std::string("{\"ok\":false,\"error\":\"offline character is not ready\"}");
@@ -3530,6 +3710,13 @@ std::string Panel(const std::string& action) {
         if(action.rfind("dialogscroll:",0)==0){char* end=nullptr;const auto n=std::strtof(action.c_str()+13,&end);if(!end||*end||!std::isfinite(n))return std::string("{\"ok\":false,\"error\":\"invalid dialog scroll position\"}");ScrollDialog(n);return State();}
         if(action.rfind("scroll:",0)==0){char* end=nullptr;const auto n=std::strtof(action.c_str()+7,&end);if(!end||*end||!std::isfinite(n))return std::string("{\"ok\":false,\"error\":\"invalid scroll position\"}");win.mainScroll=win.mainTarget=std::clamp(n,0.f,MaxMain());Move(win.mainContent.Get(),0,-win.mainScroll);return State();}
         if(action.rfind("hud:",0)==0){const auto name=action.substr(4);if(name!="damage"&&name!="feed")return std::string("{\"ok\":false,\"error\":\"unknown HUD\"}");ToggleHud(name);return State();}
+        if(action.rfind("window:",0)==0){
+            // window:full|left|right|default, or window:custom:x,y,w,h in screen px (what a drag stores)
+            const auto v=action.substr(7);
+            if(v=="full"||v=="left"||v=="right"||v=="default")ChooseWindowMode(v);
+            else{float x=0,y=0,w=0,h=0;if(std::sscanf(v.c_str(),"custom:%f,%f,%f,%f",&x,&y,&w,&h)!=4||w<=0||h<=0)return std::string("{\"ok\":false,\"error\":\"use window:full|left|right|default|custom:x,y,w,h\"}");
+                if(!StorePlacement("custom",x,y,w,h))return std::string("{\"ok\":false,\"error\":\"preference write failed\"}");ApplyPlacement();}
+            return State();}
         if(action.rfind("layout:",0)==0){const auto v=action.substr(7);if(v!="90"&&v!="100"&&v!="110"&&v!="125"&&v!="140"&&v!="150")return std::string("{\"ok\":false,\"error\":\"unsupported text scale\"}");const auto json=Num(std::atoi(v.c_str())/100.);if(!StorePreference("epochpact.text-scale.v1",&json))return std::string("{\"ok\":false,\"error\":\"preference write failed\"}");ReloadWindow();return State();}
         if (action.rfind("stat:", 0) == 0) {
             if (!view::OpenStatView(action.substr(5))) return std::string("{\"ok\":false,\"error\":\"unknown stat view\"}");

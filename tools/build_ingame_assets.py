@@ -68,6 +68,11 @@ OWN_TEXTS = {
         "ru": "Этого раздела пока нет в игровом окне. Используйте для него приложение EpochPact."},
     "F6 closes this window.": {"tr": "F6 bu pencereyi kapatır.", "ru": "F6 закрывает это окно."},
     "In game": {"tr": "Oyunda", "ru": "В игре"},
+    "Window": {"tr": "Pencere", "ru": "Окно"},
+    "Full screen": {"tr": "Tam ekran", "ru": "Во весь экран"},
+    "Left half": {"tr": "Sol yarı", "ru": "Левая половина"},
+    "Right half": {"tr": "Sağ yarı", "ru": "Правая половина"},
+    "Default size": {"tr": "Varsayılan boyut", "ru": "Обычный размер"},
 }
 
 
