@@ -10,6 +10,10 @@ Your timeline. Your rules. Last Epoch offline tools for Windows x64.
 
 Keep the **EpochPact** app folder complete, including **EpochPact.exe.config** and **_internal**. Do not copy the whole ZIP into your game folder.
 
+## In-game window (F6)
+
+The game file this app installs also contains EpochPact's window inside the game: with an offline character loaded, press **F6** to open or close it. It has the same pages as this app, so you can also play without keeping the app open.
+
 ## Requirements
 
 - Legitimate Steam Last Epoch **1.5.2.1**, build **25816319** (internal version 1.5.2.2). Unknown GameAssembly.dll builds are refused by Game setup.

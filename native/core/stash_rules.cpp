@@ -10,6 +10,7 @@
 #include "stash_rules.hpp"
 #include "common.hpp"
 #include "game.hpp"
+#include "inventory_tools.hpp"
 #include "mainthread.hpp"
 #include "managed.hpp"
 #include "progression.hpp"
@@ -525,12 +526,13 @@ std::string Sort(const std::string& id) {
     std::vector<Move> moves;
     std::string result, why;
     size_t next = 0;
-    int moved = 0, full = 0, unmatched = 0, unlinked = 0;
+    int moved = 0, full = 0, unmatched = 0, unlinked = 0, drawn = 0, drawWaits = 0;
     bool planned = false;
     // Plan once, then move a few items per frame like Stash all.
     if (!mainthread::RunSteps([&] {
         try {
             const auto c = Current(id);
+            if (!invtools::InventorySettled(drawn, drawWaits)) return false;
             const auto view = View(c.manager);
             void* inventory = Get<void*>(c.manager, F("ItemContainersManager", "inventory"));
             const auto tabs = Tabs(view.stash);
@@ -581,6 +583,7 @@ std::string Sort(const std::string& id) {
                 ++full;
             }
             if (next < moves.size()) return false;
+            game::Guarded([] { invtools::RedrawStale(); }, nullptr);
             progression::SaveCurrent(id);
             std::string state = State(c);
             state.pop_back();

@@ -1637,7 +1637,7 @@ std::string SellAll(const std::string& id){
     progression::SnapshotData snapshot;std::string why;
     if(!mainthread::Run([&]{snapshot=progression::CaptureSnapshotCurrent(id,"sell-all");},5000,&why))return "{\"ok\":false,\"error\":"+Json(why)+"}";
     const std::string backup=progression::WriteCapturedSnapshot(snapshot);
-    std::string result;std::vector<XY> positions;size_t index=0;int sold=0,kept=0,refused=0,goldBefore=0,waits=0;bool requested=false,planned=false;
+    std::string result;std::vector<XY> positions;size_t index=0;int sold=0,kept=0,refused=0,goldBefore=0,waits=0,drawn=0,drawWaits=0;bool requested=false,planned=false;
     if(!mainthread::RunSteps([&]{try{
         const auto c=Current(id);void* ui=Ui();
         if(!Value<bool>(Method(ui,"IsShopOpen",0),ui)){
@@ -1646,6 +1646,7 @@ std::string SellAll(const std::string& id){
             void* inventoryArgs[]{&show,&appearances,&stash,&tab,&sound};Invoke(Method(ui,"openInventory",5),ui,inventoryArgs);
             void* a[]{&show};Invoke(Method(ui,"openShop",1),ui,a);return false;
         }
+        if(!invtools::InventorySettled(drawn,drawWaits))return false;
         void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
         void* gold=Get<void*>(c.actor,F("Actor","goldTracker"));
         if(!planned){planned=true;goldBefore=gold?Get<int>(gold,F("GoldTracker","value")):0;
@@ -1657,6 +1658,7 @@ std::string SellAll(const std::string& id){
             void* a[]{&source,&destination,&p,&autoEquip,&autoStack};
             if(Value<bool>(M("ItemContainersManager","TryQuickMove",5),c.manager,a))++sold;else ++refused;}
         if(index<positions.size())return false;
+        game::Guarded([]{invtools::RedrawStale();},nullptr);
         progression::SaveCurrent(id);
         const int goldAfter=gold?Get<int>(gold,F("GoldTracker","value")):0;
         result="{\"ok\":true,\"player\":"+Player(c)+",\"sold\":"+std::to_string(sold)+",\"kept\":"+std::to_string(kept)+",\"refused\":"+std::to_string(refused)
@@ -1688,14 +1690,16 @@ std::string Inventory(const std::string& id,const std::string& action){
     if(action!="stashall")return "{\"ok\":false,\"error\":\"Unknown inventory action.\"}";
     progression::SnapshotData snapshot;std::string why;
     if(!mainthread::Run([&]{snapshot=progression::CaptureSnapshotCurrent(id,"stash-all");},5000,&why))return "{\"ok\":false,\"error\":"+Json(why)+"}";
-    const std::string backup=progression::WriteCapturedSnapshot(snapshot);std::string result;std::vector<XY> positions;size_t index=0;int moved=0,remaining=0;
+    const std::string backup=progression::WriteCapturedSnapshot(snapshot);std::string result;std::vector<XY> positions;size_t index=0;int moved=0,remaining=0,drawn=0,drawWaits=0;
     if(!mainthread::RunSteps([&]{try{
         const auto c=Current(id);void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
+        if(!invtools::InventorySettled(drawn,drawWaits))return false;
         if(index==0&&positions.empty()){Root content(Invoke(Method(inventory,"GetContent",0),inventory));for(void* entry:Entries(content.Get()))if(entry)positions.push_back(Get<XY>(entry,F("ItemContainerEntry","<Position>k__BackingField")));}
         for(int n=0;n<4&&index<positions.size();++n,++index){int source=1,destination=21;bool autoEquip=false,autoStack=true;XY p=positions[index];
             void* a[]{&source,&destination,&p,&autoEquip,&autoStack};
             if(Value<bool>(M("ItemContainersManager","TryQuickMove",5),c.manager,a))++moved;else ++remaining;}
         if(index<positions.size())return false;
+        game::Guarded([]{invtools::RedrawStale();},nullptr);
         progression::SaveCurrent(id);result="{\"ok\":true,\"player\":"+Player(c)+",\"moved\":"+std::to_string(moved)+",\"remaining\":"+std::to_string(remaining)+"}";
     }catch(const std::exception& e){result="{\"ok\":false,\"error\":"+Json(e.what())+",\"moved\":"+std::to_string(moved)+"}";}return true;},5000,&why))result="{\"ok\":false,\"error\":"+Json(why)+"}";
     if(result.empty())result="{\"ok\":false,\"error\":\"Inventory operation did not complete.\"}";
@@ -1902,6 +1906,26 @@ std::string Test(const std::string& id,const std::string& action){
         return out.str()+"}";
     }
     if(action=="inventory-open"){bool show=true,appearances=false,stash=false,last=false;int tab=0;void* a[]{&show,&appearances,&stash,&tab,&last};Invoke(Method(ui,"openInventory",5),ui,a);return State();}
+    if(action=="inventory-open-sort"){
+        // The 0.1.2-dev.35 automatic sort, for the picture check: the inventory sorted in the frame it opens.
+        bool show=true,appearances=false,stash=false,last=false;int tab=0;void* a[]{&show,&appearances,&stash,&tab,&last};Invoke(Method(ui,"openInventory",5),ui,a);
+        void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
+        return "{\"ok\":true,\"sorted\":"+std::string(Boolean(Value<bool>(Method(inventory,"TrySort",0),inventory)))+"}";
+    }
+    if(action=="inventory-sort"){
+        // The game's Sort with no wait, sent at chosen times after inventory-open.
+        void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
+        return "{\"ok\":true,\"sorted\":"+std::string(Boolean(Value<bool>(Method(inventory,"TrySort",0),inventory)))+"}";
+    }
+    if(action=="inventory-redraw")return "{\"ok\":true,\"redrawn\":"+std::to_string(invtools::RedrawStale())+"}";
+    if(action=="inventory-ghost"){
+        // A second picture of the first inventory item, like the ones a sort during drawing left behind.
+        void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
+        Root content(Invoke(Method(inventory,"GetContent",0),inventory));const auto entries=Entries(content.Get());
+        if(entries.empty())throw std::runtime_error("The inventory is empty.");
+        for(void* view:Find("LE.dll","","InventoryContainerUI"))if(game::IsAlive(view)){void* a[]{entries.front()};Invoke(Method(view,"AddItemUI",1),view,a);return std::string("{\"ok\":true}");}
+        throw std::runtime_error("Open the inventory first.");
+    }
     if(action=="skills-open"){Invoke(Method(ui,"SkillsKeyDown",0),ui);return "{\"ok\":true}";}
     if(action=="inventory-open-beside"){bool overlapping=false,cosmetics=false,dontOpen=false,sound=false;int tab=0;void* a[]{&overlapping,&cosmetics,&dontOpen,&tab,&sound};Invoke(Method(ui,"openInventory",5),ui,a);return State();}
     if(action=="passives-open"){bool respec=false;void* a[]{&respec};Invoke(Method(ui,"OpenPassivePanel",1),ui,a);return "{\"ok\":true,\"passivesOpen\":"+std::string(Boolean(Value<bool>(Method(ui,"IsPassivesPanelOpen",0),ui)))+"}";}

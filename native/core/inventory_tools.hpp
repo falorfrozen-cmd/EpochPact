@@ -17,4 +17,11 @@ std::string Set(const std::string& key, int value);
 std::string SetTab(int tabId, bool on);
 // Sell all keeps this item (the sellkeep setting).
 bool KeepWhenSelling(void* itemData);
+// Main thread, once per frame of a RunSteps job that moves inventory items: true once every open
+// inventory window has finished drawing its items for ten frames in a row (an item moved while
+// a window draws can leave its picture behind). Counts in the two ints; throws after 600 frames.
+bool InventorySettled(int& drawnFrames, int& waits);
+// Main thread, after EpochPact moved items: redraws the open inventory and stash windows whose
+// pictures no longer match their items. Returns how many were redrawn.
+int RedrawStale();
 }
