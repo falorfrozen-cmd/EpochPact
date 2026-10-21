@@ -36,7 +36,7 @@ class IngamePackageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);build=self.fixture(root)
             (build/'player'/'private.log').write_text('not for players')
-            with patch('tools.package_ingame_player._version_strings',return_value={'FileVersion':'0.1.2-dev.39'}):
+            with patch('tools.package_ingame_player._version_strings',return_value={'FileVersion':'0.1.2-dev.40'}):
                 result=package(build,root/'out')
                 self.assertTrue(result['verified'])
                 archive=root/'out'/result['file']

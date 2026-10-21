@@ -16,7 +16,7 @@ The game file this app installs also contains EpochPact's window inside the game
 
 ## Requirements
 
-- Legitimate Steam Last Epoch **1.5.2.1**, build **25816319** (internal version 1.5.2.2). Unknown GameAssembly.dll builds are refused by Game setup.
+- Legitimate Steam Last Epoch **1.5.3**, build **26087601** (1.5.2.1, build 25816319, is still accepted). Unknown GameAssembly.dll builds are refused by Game setup.
 - Windows 10/11 x64, .NET Framework 4.8 and Microsoft Edge WebView2 Runtime. No separate Python installation is needed.
 - The included **version.dll** (EpochPact's loader, with the mod's core built into it) is necessary. Do not remove runtime DLLs from the extracted app folder.
 - Offline characters only. Online play is unsupported.

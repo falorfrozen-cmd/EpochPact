@@ -2,6 +2,14 @@
   "schema": 1,
   "builds": [
     {
+      "gameVersion": "1.5.3",
+      "internalVersion": "1.5.3",
+      "steamBuild": "26087601",
+      "file": "GameAssembly.dll",
+      "bytes": 97256960,
+      "sha256": "323e9183f3bee600b6c9e1c469218b9de926e9044f2ca3d44fae8a0ec9a91464"
+    },
+    {
       "gameVersion": "1.5.2.1",
       "internalVersion": "1.5.2.2",
       "steamBuild": "25816319",

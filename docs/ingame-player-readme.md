@@ -1,6 +1,6 @@
 # EpochPact {{VERSION}} — in-game edition
 
-Unofficial offline mod for **Last Epoch 1.5.2.1** (Windows x64, **offline play only**).
+Unofficial offline mod for **Last Epoch 1.5.3** (Windows x64, **offline play only**).
 The supported game build is listed in supported-game-builds.json.
 
 The whole mod is one file: **version.dll**. The EpochPact core, its interface,
