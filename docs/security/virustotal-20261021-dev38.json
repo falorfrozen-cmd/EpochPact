@@ -1,0 +1,50 @@
+{
+  "version": "0.1.2-dev.38",
+  "observed": "2026-10-21 (UTC+03:00), fresh uploads through the VirusTotal web interface",
+  "build": "ingame-ui commit 9b99845 (player flavor; build-info loaderSha256 = version.dll below)",
+  "files": {
+    "version.dll": {
+      "sha256": "1196bf61ba3a990b509828beda4e1091903f2f02f129cfc6cb67f776e2efbb4a",
+      "bytes": 7884288,
+      "in": ["EpochPact-0.1.2-dev.38-InGame.zip", "EpochPact-0.1.2-dev.38.zip (Manual Installation and the app's player files)"],
+      "virusTotal": "0/71",
+      "report": "https://www.virustotal.com/gui/file/1196bf61ba3a990b509828beda4e1091903f2f02f129cfc6cb67f776e2efbb4a"
+    },
+    "EpochPact.Core.dll": {
+      "sha256": "a9df4dc039263dde32c86facdee841061dbe0b4ca2c8f4d986769744071a7aab",
+      "bytes": 7876096,
+      "in": ["EpochPact-0.1.2-dev.38.zip (MelonLoader path)"],
+      "virusTotal": "0/63",
+      "report": "https://www.virustotal.com/gui/file/a9df4dc039263dde32c86facdee841061dbe0b4ca2c8f4d986769744071a7aab"
+    },
+    "EpochPact.exe": {
+      "sha256": "8fd60306df16b4320d315500ae24cf394415d58fcc8fe3ca0066eb2488c7bb3e",
+      "bytes": 372347,
+      "in": ["EpochPact-0.1.2-dev.38.zip"],
+      "virusTotal": "0/71",
+      "report": "https://www.virustotal.com/gui/file/8fd60306df16b4320d315500ae24cf394415d58fcc8fe3ca0066eb2488c7bb3e"
+    },
+    "EpochPact.MelonBridge.dll": {
+      "sha256": "5dcd987ab4a91cfdca26db82e281534bc5b7e1e40ff7812ea6a662b25647cf86",
+      "virusTotal": "0/71 (0.1.2-dev.36, unchanged)"
+    }
+  },
+  "packages": {
+    "EpochPact-0.1.2-dev.38-InGame.zip": {
+      "sha256": "858317aab89caa624764fa2aeb85c87626ddcd56ab006903030d61e4a2e87c4d",
+      "bytes": 3427704,
+      "virusTotal": "0/71",
+      "report": "https://www.virustotal.com/gui/file/858317aab89caa624764fa2aeb85c87626ddcd56ab006903030d61e4a2e87c4d",
+      "localDefender": "No threats found"
+    },
+    "EpochPact-0.1.2-dev.38.zip": {
+      "sha256": "9d40118e5c0eebd1a05ded8b65ed1481846f61bda12f345f5a509309dddaadeb",
+      "bytes": 35893210,
+      "virusTotal": "not uploaded (over the 10 MB browser upload limit); its new binaries are listed above",
+      "localDefender": "No threats found (folder and ZIP)"
+    }
+  },
+  "localDefender": "signatures 1.461.118.0",
+  "checks": "package_ingame_player and package_player_folder verified; verify_player_package and verify_connection_package passed; Python 380, JavaScript 238, native 26 tests",
+  "note": "Scan counts describe these exact bytes on this date only; they are not a safety certification."
+}
