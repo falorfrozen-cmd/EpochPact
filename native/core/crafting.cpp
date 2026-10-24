@@ -40,6 +40,11 @@ game::MethodRef capability, requiredLevel, itemConstructor, maxCraftTier, addTie
 using MaxTierFn=bool(*)(void*,int,const il2cpp::Method*);
 using AddTierFn=bool(*)(void*,int,bool,bool,bool,bool,bool,bool,void**,void*,const il2cpp::Method*);
 MaxTierFn originalMaxTier=nullptr; AddTierFn originalAddTier=nullptr;
+// AffixSlotForge.SetVisuals(ItemAffix, AffixList.Affix, bool zeroForgingPotential, Color, bool forceDisableAddButton)
+struct Rgba { float r, g, b, a; };
+using RowVisualsFn=void(*)(void*,void*,void*,bool,Rgba,bool,const il2cpp::Method*);
+RowVisualsFn originalRowVisuals=nullptr;
+game::MethodRef rowVisuals;  // optional: without it T5/T6 upgrades need their shard put in the slot by hand
 using ItemConstructorFn=void(*)(void*,void*,const il2cpp::Method*);
 ItemConstructorFn originalItemConstructor=nullptr;
 using ForgeFn=void (*)(void*,const il2cpp::Method*);
@@ -194,6 +199,30 @@ bool MaxTierDetour(void* item,int id,const il2cpp::Method* method){
     if(!Checked([&]{void* args[]{&id};tier=Value<int>(Method(item,"GetAffixTier",1),item,args);} ))return normal;
     return tier<4 || tier>=6;
 }
+// The forge window shows a row's upgrade button only below T5 (a fixed tier check in
+// AffixSlotForge.SetVisuals, not the max-tier query), so with T7 crafting only the shard already
+// in the slot could go past T5, and no other affix could be chosen (player report). A seven-tier
+// affix at T5/T6 gets its row's button the way the game gives one below T5: shards in stock,
+// Forging Potential left, not the shard already selected, and no glyph but Basic Glyph of Hope
+// (ExtendedSelection). The button selects the shard with the game's own PopShardToModifierSlot.
+void RowVisualsDetour(void* slot,void* itemAffix,void* affix,bool zeroFP,Rgba color,bool forceDisable,const il2cpp::Method* method){
+    originalRowVisuals(slot,itemAffix,affix,zeroFP,color,forceDisable,method);
+    if(!allowT7.load() || !slot || !itemAffix || zeroFP || forceDisable || !game::IsOfflinePlay())return;
+    Checked([&]{
+        int id=Get<uint16_t>(itemAffix,affixId);const int tier=Get<uint8_t>(itemAffix,affixTier);
+        if((tier!=4 && tier!=5) || !sevenTierAffixes.contains(id))return;
+        const auto c=Current();
+        if(!c.main || (c.support && !Glyph(c.support,0)))return;
+        if(c.modifier && Value<bool>(shardCheck,c.modifier) && Get<uint16_t>(c.modifier,itemSubtype)==id)return;
+        void* countArgs[]{&id};
+        if(Value<int>(Method(slot,"NumberOfShardsAvailable",1),slot,countArgs)<=0)return;
+        static const size_t buttonField=Offset("AffixSlotForge","upgradeButton"),availableField=Offset("AffixSlotForge","<availableUpgrade>k__BackingField");
+        void* button=Get<void*>(slot,buttonField);
+        if(!button)return;
+        bool on=true;void* args[]{&id,&on};Invoke(Method(button,"UpdateButton",2),button,args);
+        *reinterpret_cast<bool*>(static_cast<char*>(slot)+availableField)=true;
+    });
+}
 bool AddTierDetour(void* item,int id,bool free,bool reroll,bool preserve,bool sealAffix,bool experimental,bool unpredictable,void** stats,void* results,const il2cpp::Method* method){
     bool handled=false,success=false;
     // T1–T5 and every unrelated crafting operation use the original method.
@@ -290,6 +319,7 @@ std::vector<Hook> Hooks() {
     if(allowT7.load()){
         result.push_back({maxCraftTier,reinterpret_cast<void*>(&MaxTierDetour),reinterpret_cast<void**>(&originalMaxTier)});
         result.push_back({addTier,reinterpret_cast<void*>(&AddTierDetour),reinterpret_cast<void**>(&originalAddTier)});
+        if(rowVisuals)result.push_back({rowVisuals,reinterpret_cast<void*>(&RowVisualsDetour),reinterpret_cast<void**>(&originalRowVisuals)});
     }
     return result;
 }
@@ -300,7 +330,7 @@ void Reconcile() {
             if(!hook::Install(h.m.code,h.detour,h.original,&why)) throw std::runtime_error(why);
             installed.push_back(h.m.code);
         }
-        for(const auto& m:{forge,cost,setFP,seal,roll,capability,requiredLevel,maxCraftTier,addTier}) if(std::none_of(required.begin(),required.end(),[&](const Hook& h){return h.m.code==m.code;}) &&
+        for(const auto& m:{forge,cost,setFP,seal,roll,capability,requiredLevel,maxCraftTier,addTier,rowVisuals}) if(m.code && std::none_of(required.begin(),required.end(),[&](const Hook& h){return h.m.code==m.code;}) &&
             hook::IsInstalled(m.code) && !hook::Remove(m.code,&why)) throw std::runtime_error(why);
     } catch(...) { for(void* ptr:installed) hook::Remove(ptr,nullptr); throw; }
 }
@@ -379,6 +409,7 @@ bool Init() {
         capability=Resolve("CraftingManager","CheckForgeCapability",4);
         requiredLevel=Resolve("ItemData","CalculateLevelRequirementAfterShard",2);
         maxCraftTier=Resolve("ItemData","AffixIsAtMaxCraftableTierOrAbove",1);addTier=Resolve("ItemData","AddAffixTier",9);
+        rowVisuals=game::FindMethod("LE.dll","","AffixSlotForge","SetVisuals",5);
         affixStats=Resolve("ItemData","AddAffixValueToStatList",3);shardCost=Resolve("ItemData","applyForgingPotentialCostFromShard",4);
         rebuild=Resolve("ItemData","RebuildID",0);rarityFromAffixes=Resolve("ItemData","setRarityFromAffixesForNormalMagicOrRareItem",0);
         randomByte=game::FindMethod("LE.Core.dll","LE.Core","RngElement","RandomByte",0);
@@ -447,6 +478,8 @@ std::string Set(const std::string& key,double value) {
         try { Reconcile(); } catch(...) { fpFactor=oldFP; hope=oldHope; despair=oldDespair; preserveShards=oldShards;
             preserveRunes=oldRunes; preserveGlyphs=oldGlyphs; bypassLevel=oldLevel;allowT7=oldT7;
             try {Reconcile();} catch(...) {Log("crafting rollback failed");} throw; }
+        // an open forge window redraws its rows with or without the T5/T6 upgrade buttons
+        if(allowT7.load()!=oldT7) game::Guarded([]{const auto c=Current();Invoke(Method(c.manager,"UpdateCraftingSlotManagerItemInfo",0),c.manager);},nullptr);
         return Settings();
     });
 }
@@ -877,16 +910,16 @@ std::string Test(const std::string& id,const std::string& action) {
         if(action=="zerofp"){
             if(!c.main)throw std::runtime_error("test forge item required");int fp=0;void* args[]{&fp};Invoke(setFP,c.main,args);Invoke(rebuild,c.main);return "{\"ok\":true,\"preview\":"+Preview()+"}";
         }
-        if(action=="setup" || action=="lowsetup" || action=="t7setup") {
+        if(action=="setup" || action=="lowsetup" || action=="t7setup" || action=="t7setup2") {
             (void)progression::SnapshotFixtureCurrent(id,"crafting-test-setup");
             // Empty through the normal return-to-inventory APIs. This command is
             // compile-time research only and refuses every owner character.
             const auto mainContainer=Get<void*>(c.craft,forgeMain);
             if(c.main) throw std::runtime_error("remove the previous test item from the forge first");
             void* tracker=Get<void*>(c.actor,actorTracker); void* character=Get<void*>(tracker,trackerData);
-            if(action!="lowsetup" && Get<int>(character,Offset("CharacterData","<Level>k__BackingField","LE.Data"))<(action=="t7setup"?90:55)) {
+            if(action!="lowsetup" && Get<int>(character,Offset("CharacterData","<Level>k__BackingField","LE.Data"))<(action.rfind("t7setup",0)==0?90:55)) {
                 int64_t target=0;
-                for(int level=1;level<(action=="t7setup"?90:55);++level) {void* args[]{&level}; target+=Value<int64_t>(Resolve("PlayerUtility","NextLevelExpFromLevel",1),nullptr,args);}
+                for(int level=1;level<(action.rfind("t7setup",0)==0?90:55);++level) {void* args[]{&level}; target+=Value<int64_t>(Resolve("PlayerUtility","NextLevelExpFromLevel",1),nullptr,args);}
                 int64_t amount=target-Get<int64_t>(character,Offset("CharacterData","<CurrentExp>k__BackingField","LE.Data"));
                 if(amount<=0) throw std::runtime_error("test level/XP mismatch");
                 Root holder(Invoke(Resolve("Actor","getPlayerQuestListHolder",0),c.actor));
@@ -894,10 +927,18 @@ std::string Test(const std::string& id,const std::string& action) {
                 void* experience=Get<void*>(quests,Offset("StatefulQuestList","experienceTracker"));
                 bool noFavor=true; void* args[]{&amount,&noFavor}; Invoke(Method(experience,"GainExpDirect",2),experience,args);
             }
-            std::unique_ptr<Root> item; int selected=-1;
-            for(int attempt=0;attempt<16 && selected<0;++attempt) {
+            std::unique_ptr<Root> item; int selected=-1, second=-1;
+            for(int attempt=0;attempt<(action=="t7setup2"?256:16) && selected<0;++attempt) {
                 auto candidate=std::make_unique<Root>(Fixture(c,0,0,2,false,-1,-1,action=="lowsetup"?55:8));
                 const auto aff=Entries(Invoke(Method(candidate->Get(),"GetNonSealedAffixes",0),candidate->Get()));
+                if(action=="t7setup2") {
+                    // two affixes that go to T7 (a player report: after one reached T6/T7 the forge
+                    // would not select the other)
+                    std::vector<int> ids;
+                    for(void* a:aff)if(Get<uint8_t>(a,affixTier)<4&&sevenTierAffixes.contains(Get<uint16_t>(a,affixId)))ids.push_back(Get<uint16_t>(a,affixId));
+                    if(ids.size()>=2){selected=ids[0];second=ids[1];item=std::move(candidate);}
+                    continue;
+                }
                 for(void* a:aff) {
                     if(Get<uint8_t>(a,affixTier)>=4)continue;
                     int candidateId=Get<uint16_t>(a,affixId),tiers=1;void* args[]{&candidateId,&tiers};
@@ -906,16 +947,66 @@ std::string Test(const std::string& id,const std::string& action) {
                 }
             }
             if(!item)throw std::runtime_error("native generation did not produce a qualifying upgrade fixture in bounded attempts");
-            if(action=="t7setup"){
+            if(action.rfind("t7setup",0)==0){
                 if(!sevenTierAffixes.contains(selected))throw std::runtime_error("enable T7 and select a seven-tier fixture first");
-                for(void* a:Entries(Invoke(Method(item->Get(),"GetNonSealedAffixes",0),item->Get())))if(Get<uint16_t>(a,affixId)==selected)*reinterpret_cast<uint8_t*>(static_cast<char*>(a)+affixTier)=4;
+                for(void* a:Entries(Invoke(Method(item->Get(),"GetNonSealedAffixes",0),item->Get())))
+                    if(Get<uint16_t>(a,affixId)==selected||Get<uint16_t>(a,affixId)==second)*reinterpret_cast<uint8_t*>(static_cast<char*>(a)+affixTier)=4;
             }
             int fp=63; void* fpArgs[]{&fp}; Invoke(setFP,item->Get(),fpArgs); Invoke(Method(item->Get(),"RebuildID",0),item->Get());
             int quantity=1, context=0; void* addArgs[]{item->Get(),&quantity,&context};
             if(!Value<bool>(Method(mainContainer,"TryAddItem",3),mainContainer,addArgs)) throw std::runtime_error("normal forge insertion refused");
             int shardId=selected, amount=20; bool notify=false; void* shardArgs[]{&shardId,&amount,&notify}; Invoke(Method(c.storage,"AddShard",3),c.storage,shardArgs);
+            if(second>=0){int otherId=second;void* otherArgs[]{&otherId,&amount,&notify};Invoke(Method(c.storage,"AddShard",3),c.storage,otherArgs);}
             void* popArgs[]{&shardId}; if(!Value<bool>(Method(c.craft,"PopShardToModifierSlot",1),c.craft,popArgs)) throw std::runtime_error("normal shard selection refused");
-            return std::string("{\"ok\":true,\"selectedAffix\":")+std::to_string(selected)+",\"preview\":"+Preview()+"}";
+            return std::string("{\"ok\":true,\"selectedAffix\":")+std::to_string(selected)+",\"secondAffix\":"+std::to_string(second)+",\"preview\":"+Preview()+"}";
+        }
+        if(action=="forge-slots") {
+            // The forge window's affix rows as the game shows them: each row's upgrade button
+            // (availableUpgrade) and the forge's own verdict on the current selection.
+            void* ui=game::StaticObject(game::FindStaticField("LE.dll","","UIBase","instance"));
+            if(!ui)throw std::runtime_error("game interface unavailable");
+            bool no=false;void* openArgs[]{&no};Invoke(Method(ui,"openCraftingPanel",1),ui,openArgs);
+            Invoke(Method(c.manager,"UpdateCraftingSlotManagerItemInfo",0),c.manager);
+            const auto find=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Object","FindObjectsOfType",2);
+            Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","CraftingSlotManager"))));
+            bool inactive=false;void* findArgs[]{type.Get(),&inactive};Root found(Invoke(find,nullptr,findArgs));
+            if(!Get<uintptr_t>(found.Get(),0x18))throw std::runtime_error("the forge window is not open");
+            void* slots=Get<void*>(Get<void*>(found.Get(),0x20),Offset("CraftingSlotManager","affixSlots"));
+            std::ostringstream out;out<<"{\"ok\":true,\"rows\":[";bool comma=false;
+            for(void* slot:Entries(slots)){if(!slot)continue;
+                const int affix=Get<int>(slot,Offset("AffixSlotForge","affixID"));int tier=-1;
+                if(c.main&&affix>=0){int a=affix;void* tierArgs[]{&a};tier=Value<int>(Method(c.main,"GetAffixTier",1),c.main,tierArgs);}
+                out<<(comma?",":"")<<"{\"affix\":"<<affix<<",\"tier\":"<<(tier+1)<<",\"slot\":"<<Boolean(Get<bool>(slot,Offset("AffixSlotForge","<availableSlot>k__BackingField")))
+                   <<",\"upgrade\":"<<Boolean(Get<bool>(slot,Offset("AffixSlotForge","<availableUpgrade>k__BackingField")))<<'}';comma=true;}
+            void* error=nullptr;void* success=nullptr;bool warning=false,green=false;void* checkArgs[]{&error,&warning,&green,&success};
+            const bool can=Value<bool>(Method(c.craft,"CheckForgeCapability",4),c.craft,checkArgs);
+            out<<"],\"canForge\":"<<Boolean(can)<<",\"message\":"<<Json(Text(error))<<",\"preview\":"<<Preview()<<'}';
+            return out.str();
+        }
+        if(action.rfind("click-",0)==0 || action.rfind("upclick-",0)==0) {
+            // A player's click on an affix of the forge window: the row itself (SlotClicked) or
+            // its upgrade button (UpgradeButtonClicked, only while the row shows the button).
+            const bool upgrade=action[0]=='u';
+            const int wanted=std::stoi(action.substr(upgrade?8:6));
+            const auto find=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Object","FindObjectsOfType",2);
+            Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","CraftingSlotManager"))));
+            bool inactive=false;void* findArgs[]{type.Get(),&inactive};Root found(Invoke(find,nullptr,findArgs));
+            if(!Get<uintptr_t>(found.Get(),0x18))throw std::runtime_error("the forge window is not open");
+            void* slots=Get<void*>(Get<void*>(found.Get(),0x20),Offset("CraftingSlotManager","affixSlots"));
+            for(void* slot:Entries(slots))if(slot&&Get<int>(slot,Offset("AffixSlotForge","affixID"))==wanted){
+                if(upgrade){
+                    if(!Get<bool>(slot,Offset("AffixSlotForge","<availableUpgrade>k__BackingField")))throw std::runtime_error("the row shows no upgrade button");
+                    void* button=Get<void*>(slot,Offset("AffixSlotForge","upgradeButton"));
+                    Invoke(Method(button,"UpgradeButtonClicked",0),button);
+                } else Invoke(Method(slot,"SlotClicked",0),slot);
+                return std::string("{\"ok\":true,\"clicked\":")+std::to_string(wanted)+",\"preview\":"+Preview()+"}";}
+            throw std::runtime_error("no forge row for that affix");
+        }
+        if(action.rfind("select-",0)==0) {
+            // The affix's shard into the modifier slot, as the forge window's upgrade button does.
+            int shardId=std::stoi(action.substr(7));void* popArgs[]{&shardId};
+            const bool popped=Value<bool>(Method(c.craft,"PopShardToModifierSlot",1),c.craft,popArgs);
+            return std::string("{\"ok\":true,\"selected\":")+Boolean(popped)+",\"preview\":"+Preview()+"}";
         }
         if(action=="materials") {
             return std::string("{\"ok\":true,\"runeCount\":")+std::to_string(MaterialCount(c,102,1))+

@@ -1,4 +1,4 @@
-# Last Epoch 1.5.3 compatibility (0.1.2-dev.40)
+# Last Epoch 1.5.3 compatibility (prepared as 0.1.2-dev.40, released in 0.1.2-dev.41)
 
 ## Report
 
