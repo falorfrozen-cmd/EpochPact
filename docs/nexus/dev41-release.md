@@ -41,6 +41,11 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 - Description (`description-dev41.bbcode`): version line `0.1.2-dev.41 | Last Epoch 1.5.3 (Steam)`;
   "Made for Last Epoch 1.5.3 (1.5.2.1 works too)"; Safety line "VirusTotal (24 October 2026):
   version.dll 0/70, ZIP 0/67".
+- File description: "... No EXE needed. For Last Epoch 1.5.3 (1.5.2.1 works too). Do not use with
+  MelonLoader." (was "Last Epoch 1.5.2.1 only").
+
+Published 2026-10-24: GitHub release `v0.1.2-dev.41` (latest; the app updater offers it from
+0.1.2-dev.39), Nexus main file, mod version, file description and page description.
 
 ## Discord announcement (draft; owner approves the text first)
 
