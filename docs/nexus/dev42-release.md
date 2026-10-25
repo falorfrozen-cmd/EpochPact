@@ -15,7 +15,7 @@ Both ZIPs carry the same `version.dll` (`e875e265…`); `EpochPact.Core.dll` `ed
 `EpochPact.exe` `2b502401…`. Built from 4301d73 (with remembered character bonuses; the earlier
 dev.42 build from 73feb5e is in the `release-dev42-*-old` folders, never published). Package
 checks passed (desktop verify, connection test); Microsoft Defender (signatures 1.461.194.0) found
-nothing. VirusTotal not scanned yet.
+nothing. VirusTotal: `docs/security/virustotal-20261025-dev42.json`.
 
 ## GitHub release
 
@@ -37,7 +37,7 @@ Both contain the same `version.dll`, so both have the in-game window.
 - **Colours come back after a restart (F6 window).** The interaction area colour, the tier colours and the rule line colour are sent to the game again when your character is ready. Before, the window showed your colour but the game drew its default until you chose it again.
 - **Export and import profiles.** Settings → Draft profiles → **Export profile** saves one profile as a small .json file (`%LOCALAPPDATA%\EpochPact\profile-exports`) to share. **Import profile…** adds a shared file as a new profile; your existing profiles are never replaced.
 
-Last Epoch 1.5.3 (Steam), offline only. VirusTotal: (after scanning).
+Last Epoch 1.5.3 (Steam), offline only. VirusTotal: version.dll 0/67, InGame ZIP 0/66. In the Desktop ZIP only Microsoft's machine-learning engine flags EpochPact.exe and EpochPact.Core.dll (1 engine; the dev.41 EXE with the same code is clean, and Microsoft Defender with cloud protection finds nothing).
 Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 ```
 
@@ -49,7 +49,8 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
   settings that differ are sent; a refused setting no longer stops the rest, also in Apply
   changes). The interaction area colour, tier colours and rule line colour come back after a
   restart. New: Export profile / Import profile in Settings → Draft profiles.
-- Description: version line `0.1.2-dev.42`; Safety line with the new VirusTotal results.
+- Description (`description-dev42.bbcode`): version line `0.1.2-dev.42`; Safety line
+  "VirusTotal (25 October 2026): version.dll 0/67, ZIP 0/66".
 
 ## Discord announcement (draft; owner approves the text first)
 

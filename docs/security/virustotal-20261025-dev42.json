@@ -1,0 +1,58 @@
+{
+  "version": "0.1.2-dev.42",
+  "observed": "2026-10-25 (UTC+03:00), fresh uploads through the VirusTotal web interface",
+  "build": "ingame-ui commit 4301d73 (player flavor; build-info loaderSha256 = version.dll below)",
+  "files": {
+    "version.dll": {
+      "sha256": "e875e26569cb40e609de5824853bb5f71093522ea210834a0572c14ff2a92632",
+      "bytes": 8027136,
+      "in": [
+        "EpochPact-0.1.2-dev.42-InGame.zip",
+        "EpochPact-0.1.2-dev.42.zip (Manual Installation and the app's player files)"
+      ],
+      "virusTotal": "0/67",
+      "report": "https://www.virustotal.com/gui/file/e875e26569cb40e609de5824853bb5f71093522ea210834a0572c14ff2a92632"
+    },
+    "EpochPact.Core.dll": {
+      "sha256": "edcd380b5fc30a8d882a96de54ec1155cec43270f97908fe72bfc0cbea2970a0",
+      "bytes": 8018432,
+      "in": [
+        "EpochPact-0.1.2-dev.42.zip (MelonLoader path)"
+      ],
+      "virusTotal": "1/70: Microsoft Trojan:Win32/Wacatac.C!ml (machine-learning verdict on a new file); all others undetected",
+      "report": "https://www.virustotal.com/gui/file/edcd380b5fc30a8d882a96de54ec1155cec43270f97908fe72bfc0cbea2970a0"
+    },
+    "EpochPact.exe": {
+      "sha256": "2b5024016807b7c8aa0ef9b4fcd5a85cea6b00a8241e6eaaa24e397b0e9d0303",
+      "bytes": 372347,
+      "in": [
+        "EpochPact-0.1.2-dev.42.zip"
+      ],
+      "virusTotal": "1/53 when read: Microsoft Trojan:Win32/Wacatac.B!ml (machine-learning verdict on a new file); all others undetected",
+      "report": "https://www.virustotal.com/gui/file/2b5024016807b7c8aa0ef9b4fcd5a85cea6b00a8241e6eaaa24e397b0e9d0303",
+      "comparison": "13 bytes differ from the 0.1.2-dev.41 EpochPact.exe (15697739…): PE timestamps, checksum and the version resource; the dev.41 file, reanalysed the same day, was undetected by Microsoft"
+    },
+    "EpochPact.MelonBridge.dll": {
+      "sha256": "5dcd987ab4a91cfdca26db82e281534bc5b7e1e40ff7812ea6a662b25647cf86",
+      "virusTotal": "0/71 (0.1.2-dev.36, unchanged)"
+    }
+  },
+  "packages": {
+    "EpochPact-0.1.2-dev.42-InGame.zip": {
+      "sha256": "c7ac027c1863b43d9e543a444421a96ffe2d5d9b8fb571ae06fba164d197661e",
+      "bytes": 3487491,
+      "virusTotal": "0/66",
+      "report": "https://www.virustotal.com/gui/file/c7ac027c1863b43d9e543a444421a96ffe2d5d9b8fb571ae06fba164d197661e",
+      "localDefender": "No threats found"
+    },
+    "EpochPact-0.1.2-dev.42.zip": {
+      "sha256": "c677f317df27106f644c9e22ef0cb202769bc7a77810a4f26aa2635e32eca143",
+      "bytes": 36080682,
+      "virusTotal": "not uploaded (over the 10 MB browser upload limit); its new binaries are listed above",
+      "localDefender": "No threats found (folder and ZIP)"
+    }
+  },
+  "localDefender": "signatures 1.461.199.0 after an update, cloud protection (MAPS advanced) and block at first sight on: EpochPact.exe, EpochPact.Core.dll, version.dll and the desktop ZIP found no threats",
+  "checks": "package_ingame_player and package_player_folder verified; verify_player_package and verify_connection_package passed; Python 387, JavaScript 241, native 26 tests",
+  "note": "Scan counts describe these exact bytes on this date only; they are not a safety certification. A reanalysis of the dev.42 files was blocked by a VirusTotal CAPTCHA."
+}
