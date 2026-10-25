@@ -1,6 +1,7 @@
 # 0.1.2-dev.42: release texts
 
-dev.42: saved profiles apply reliably; profiles can be exported and imported as files.
+dev.42: saved profiles apply reliably; stored colours come back after a restart (F6); profiles can
+be exported and imported as files.
 Report: `docs/startup-profiles-2026-10-25.md`.
 
 Files (C:\Users\falor\EpochPactLab\builds):
@@ -28,8 +29,9 @@ Both contain the same `version.dll`, so both have the in-game window.
 
 ## Changes
 
-- **Saved profiles apply reliably.** At startup and after a character change, the in-game window now checks the game's values first and sends only what differs: a full profile in about 10 seconds instead of 20, last used settings in about 1 second. It says "Applying …" and "Applied …", and the window shows the applied values.
+- **Saved profiles apply reliably.** At startup and after a character change, the in-game window now checks the game's values first and sends only what differs: a full profile in about 10–15 seconds instead of 20, last used settings in about 1 second. It says "Applying …" and "Applied …", and the window shows the applied values.
 - **A refused setting no longer stops the rest.** In a startup profile and in Apply changes, a setting the game refuses stays in the draft and all other settings are still applied.
+- **Colours come back after a restart (F6 window).** The interaction area colour, the tier colours and the rule line colour are sent to the game again when your character is ready. Before, the window showed your colour but the game drew its default until you chose it again.
 - **Export and import profiles.** Settings → Draft profiles → **Export profile** saves one profile as a small .json file (`%LOCALAPPDATA%\EpochPact\profile-exports`) to share. **Import profile…** adds a shared file as a new profile; your existing profiles are never replaced.
 
 Last Epoch 1.5.3 (Steam), offline only. VirusTotal: (after scanning).
@@ -41,7 +43,8 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 - Version: 0.1.2-dev.42 (file description unchanged)
 - Changelog: Saved profiles apply reliably at startup and after a character change (only the
   settings that differ are sent; a refused setting no longer stops the rest, also in Apply
-  changes). New: Export profile / Import profile in Settings → Draft profiles.
+  changes). The interaction area colour, tier colours and rule line colour come back after a
+  restart. New: Export profile / Import profile in Settings → Draft profiles.
 - Description: version line `0.1.2-dev.42`; Safety line with the new VirusTotal results.
 
 ## Discord announcement (draft; owner approves the text first)
@@ -49,6 +52,7 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 > @everyone
 > **EpochPact 0.1.2-dev.42**
 > • **Saved profiles fixed:** after a restart or a character change your profile is applied again, faster, with an "Applying … / Applied …" notice. A setting the game refuses no longer stops the rest of the profile (also in Apply changes).
+> • **Colours stay after a restart:** interaction area, tier and rule line colours no longer need to be chosen again (F6 window).
 > • **New: Export / Import profile** in Settings → Draft profiles. Share your setup as a small .json file; importing adds it as a new profile and never replaces yours.
 > **Desktop app (EXE):** in EpochPact open *What's new → Install update*, or download it here:
 > https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.42

@@ -376,6 +376,18 @@ void MakeAreaColour(Section& s) {
 }
 }  // namespace
 
+// The stored colours the game does not keep (app.js applyTierPalette, applyAreaColor): the commands
+// that bring them back for a loaded character, only those that differ from the game's own colours.
+std::vector<std::string> StoredColourCommands() {
+    std::vector<std::string> out;
+    const auto palette = StoredPalette();
+    for (size_t i = 0; i < palette.size(); ++i)
+        if (palette[i] != kDefaultPalette[i]) out.push_back("tiercolor " + std::to_string(i + 1) + " " + palette[i]);
+    if (const auto rule = StoredRuleColor(); rule != "label") out.push_back("tiercolor rule " + rule);
+    if (const auto area = StoredAreaColor(); area != "3FD0FF") out.push_back("qolarea color " + area);
+    return out;
+}
+
 void RegisterDisplaySections() {
     RegisterSection("tier_colours", MakeTierColours);
     RegisterSection("interface_font", MakeInterfaceFont);

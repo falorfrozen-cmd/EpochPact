@@ -188,7 +188,7 @@ std::string Owner(const J& id) {
         ? Pack(List({id["player"]["id"], id["player"]["name"], id["player"]["load"]})) : "";
 }
 struct StartupRun {
-    std::deque<std::pair<std::string, J>> settings; std::deque<std::string> choices, reads;
+    std::deque<std::pair<std::string, J>> settings; std::deque<std::string> choices, reads, colours;
     std::map<std::string, double> game;  // the values the game has now (read when the run starts)
     std::string owner, name; uint64_t generation = 0; int count = 0, sent = 0, refused = 0; bool compared = false;
 };
@@ -236,6 +236,17 @@ void StartupNext(std::shared_ptr<StartupRun> run) {
         if (n) Toast(n == 1 ? Fmt("Applying {0} (1 setting).", {run->name}) : Fmt("Applying {0} ({1} settings).", {run->name, std::to_string(n)}));
     }
     if (run->settings.empty() && run->choices.empty()) {
+        // The stored colours last (app.js applyTierPalette, applyAreaColor): display choices kept
+        // apart from profiles, also with the startup profile off; a refusal is only logged.
+        if (!run->colours.empty()) {
+            const auto line = run->colours.front(); run->colours.pop_front();
+            Send(line, [run, line](const std::string& reply) {
+                std::string why;
+                if (Refused(reply, &why)) Log("startup colours: %s refused: %s", line.c_str(), why.substr(0, 300).c_str());
+                StartupNext(run);
+            });
+            return;
+        }
         startupBusy = false;
         const auto total = std::to_string(run->count + run->refused);
         if (run->refused)
@@ -514,17 +525,19 @@ void RememberChoice(const std::string& command) {
     Save(kReplay, entries);
 }
 void SettingsStep() {
-    if (startupBusy || !Eligible() || GetTickCount64() < nextOwnerRead || Startup() == "__off__") return;
+    if (startupBusy || !Eligible() || GetTickCount64() < nextOwnerRead) return;
     nextOwnerRead = GetTickCount64() + 1000;
     Send("identityread", [](const std::string& text) {
         J identity; json::Parse(text, identity); const auto owner = Owner(identity);
-        if (startupBusy || owner.empty() || !Eligible() || startupOwners.count(owner) || Startup() == "__off__") return;
-        const auto choice = Startup(); const auto saved = choice == "__last__" ? ObjPref(kLast) : ObjPref(kProfiles)[choice];
+        if (startupBusy || owner.empty() || !Eligible() || startupOwners.count(owner)) return;
+        const auto choice = Startup();
+        const auto saved = choice == "__off__" ? Object() : choice == "__last__" ? ObjPref(kLast) : ObjPref(kProfiles)[choice];
         startupOwners.insert(owner); // once, including failures; no hidden retries of writes
         auto run = std::make_shared<StartupRun>(); run->owner = owner; run->generation = startupGeneration;
         run->name = choice == "__last__" ? Tr("your last used settings") : Tr("profile “") + choice + "”";
         for (const auto& [key, value] : saved.members) if (ProfileSetting(D()["controls"][key], value)) run->settings.emplace_back(key, value);
         if (choice == "__last__") for (const auto& [_, entry] : ObjPref(kReplay).members) { auto command = ReplayCommand(entry); if (!command.empty()) run->choices.push_back(command); }
+        for (auto& line : StoredColourCommands()) run->colours.push_back(std::move(line));
         run->reads = ReadsFor(run->settings);
         startupBusy = true; StartupNext(run);
     });
