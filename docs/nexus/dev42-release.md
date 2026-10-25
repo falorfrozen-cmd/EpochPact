@@ -8,12 +8,12 @@ Files (C:\Users\falor\EpochPactLab\builds):
 
 | File | Where | SHA-256 |
 |---|---|---|
-| `release-dev42-desktop\share\EpochPact-0.1.2-dev.42.zip` (36,013,054 bytes) | GitHub only | `d3decf6325ba2fb1985175d07cf0400f7fe8f990cbe7741d497a95d4d7ae22b6` |
-| `release-dev42-package\EpochPact-0.1.2-dev.42-InGame.zip` (3,465,422 bytes) | GitHub and Nexus | `9e983971c551549ca03b4856a9f32bcca6e1e0e5be23f6df7276bc6a8611a445` |
+| `release-dev42-desktop\share\EpochPact-0.1.2-dev.42.zip` (36,019,123 bytes) | GitHub only | `284a36f9f0ced04680420ff80b4e5fb4abe9ec751100928810dac55f2e757680` |
+| `release-dev42-package\EpochPact-0.1.2-dev.42-InGame.zip` (3,467,542 bytes) | GitHub and Nexus | `f651ce2866affa696c5252d5ecded3d45a1dae8608d7526328c7c1597da9ed36` |
 
-Both ZIPs carry the same `version.dll` (`5fa9daa2…`); `EpochPact.Core.dll` `40386b10…`,
-`EpochPact.exe` `81af229c…`. Package checks passed (desktop verify, connection test); Microsoft
-Defender (signatures 1.461.194.0) found nothing. VirusTotal not scanned yet.
+Both ZIPs carry the same `version.dll` (`36297ac7…`); `EpochPact.Core.dll` `5b98d678…`,
+`EpochPact.exe` `fb9d4620…`. Built from 73feb5e. Package checks passed (desktop verify, connection
+test); Microsoft Defender (signatures 1.461.194.0) found nothing. VirusTotal not scanned yet.
 
 ## GitHub release
 
