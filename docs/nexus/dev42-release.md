@@ -52,6 +52,11 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 - Description (`description-dev42.bbcode`): version line `0.1.2-dev.42`; Safety line
   "VirusTotal (25 October 2026): version.dll 0/67, ZIP 0/66".
 
+Published 2026-10-25 with the owner's approval: GitHub release `v0.1.2-dev.42` (latest, both ZIPs;
+main = 971c30c; the app updater offers it as installable from 0.1.2-dev.41), Nexus main file
+updated to 0.1.2-dev.42 (dev.41 archived to Old files), mod version, changelog and page
+description (version and Safety lines).
+
 ## Discord announcement (draft; owner approves the text first)
 
 > @everyone
