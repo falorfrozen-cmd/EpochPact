@@ -38,6 +38,24 @@ profile or theme action invokes it.
 - **Full set bonuses from one piece:** adds only the set bonuses missing at the current
   equipped-piece count. Repeated refreshes do not duplicate bonuses; resetting removes
   the mod's contributions. The normal equipped item bonuses are retained.
+- **Wear any number of primordial items:** the game lets a character wear one
+  primordial item (Primordial Unique or Exalted) plus a bonus from
+  `CharacterMutator.additionalMaximumPrimordialItems`. `CharacterMutator.GetMaxPrimordialItems`
+  (that field + 1) is its only limit in 1.5.3: `ItemContainersManager.CanEquipAnotherPrimordialItem`
+  and `ItemEquipManager.AfterStatsUpdate` (which removes or applies the bonuses of
+  primordial items above or within the limit) both call it. The switch hooks this getter
+  for the loaded offline character only and returns 99; switching it on or off calls
+  `AfterStatsUpdate` once so the bonuses of items already worn follow at once. Switched
+  off, the game's own rule returns: with more than one worn, their bonuses stop until
+  the extra items are taken off. The save holds only the equipped items, never a limit.
+  Live check 2026-10-25 (EpFeedbackTest clone, `builds\prim-live1`): three rare items
+  (helmet, boots, gloves) sealed primordial with the game's own method. Switch off: the
+  game's quick-equip took the first and refused the other two. Switch on: limit 99, both
+  equipped, all three with the game's `StatsApplied`. Off again: limit 1, all three
+  without bonuses (the game's rule); on again: all three applied. After a restart the
+  game loaded the three worn items without bonuses until the switch was on again.
+  Test-core fixtures: `qoltest <id> drop-item-<d>-<rarity>-t<base type>` and
+  `buildtest <id> primordial-make-<base type>|primordial-equip|primordial-worn`.
 
 ## General settings, Monolith and Summons
 

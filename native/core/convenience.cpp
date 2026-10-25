@@ -2426,23 +2426,25 @@ std::string Test(const std::string& id,const std::string& action){
     }
     if(action.rfind("drop-item-",0)==0){
         // Disposable test character only: one generated item on the ground,
-        // via the game's own generator and drop call. Format drop-item-<distance>-<rarity>[-<affix id>|-w<weaver's will>|-ww];
+        // via the game's own generator and drop call. Format drop-item-<distance>-<rarity>[-<affix id>|-w<weaver's will>|-ww|-t<base type>];
         // the affix id replaces the first affix's id (for loot filter affix rules); w<n> gives a Unique
         // Weaver's Will n instead of Legendary Potential; ww asks the generator for a random Unique of
-        // the Weaver's Will legendary type, so the game rolls its Weaver's Will itself.
+        // the Weaver's Will legendary type, so the game rolls its Weaver's Will itself; t<n> asks for base type n (subtype 0).
         const auto dash=action.find('-',10);if(dash==std::string::npos)throw std::runtime_error("use drop-item-<distance>-<rarity>");
         const auto affixDash=action.find('-',dash+1);
         const int distance=std::stoi(action.substr(10,dash-10));int rarity=std::stoi(action.substr(dash+1,affixDash==std::string::npos?std::string::npos:affixDash-dash-1));
         const bool rolledWeaver=affixDash!=std::string::npos&&action.substr(affixDash+1)=="ww";
         const bool anyUnique=affixDash!=std::string::npos&&action.substr(affixDash+1)=="any";
         const bool weaver=!rolledWeaver&&!anyUnique&&affixDash!=std::string::npos&&action.compare(affixDash+1,1,"w")==0;
-        const int affixId=affixDash==std::string::npos||weaver||rolledWeaver||anyUnique?-1:std::stoi(action.substr(affixDash+1));
+        const bool typed=affixDash!=std::string::npos&&action.compare(affixDash+1,1,"t")==0;
+        const int baseType=typed?std::stoi(action.substr(affixDash+2)):0;
+        const int affixId=affixDash==std::string::npos||weaver||rolledWeaver||anyUnique||typed?-1:std::stoi(action.substr(affixDash+1));
         const int weaversWill=weaver?std::stoi(action.substr(affixDash+2)):-1;
         if(weaver&&(rarity!=7||weaversWill<1||weaversWill>255))throw std::runtime_error("use drop-item-<distance>-7-w<1..255>");
         if((rolledWeaver||anyUnique)&&rarity!=7)throw std::runtime_error("use drop-item-<distance>-7-ww or -7-any");
-        if(distance<1||distance>80||rarity<0||rarity>7)throw std::runtime_error("Unsupported item fixture.");
+        if(distance<1||distance>80||rarity<0||rarity>7||(typed&&(rarity==7||baseType<0||baseType>40)))throw std::runtime_error("Unsupported item fixture.");
         void* generator=Get<void*>(c.actor,F("Actor","generateItems"));if(!generator)throw std::runtime_error("Item generator unavailable.");
-        bool no=false,requireType=rolledWeaver;int level=rolledWeaver||anyUnique?50:20,location=0,type=rarity==7?-1:0,subtype=rarity==7?-1:0,sockets=0,unique=rarity==7&&!rolledWeaver&&!anyUnique?1:-1,lp=0,rank=0,legendaryType=rolledWeaver?1:0,corrupt=0;
+        bool no=false,requireType=rolledWeaver;int level=rolledWeaver||anyUnique?50:20,location=0,type=rarity==7?-1:baseType,subtype=rarity==7?-1:0,sockets=0,unique=rarity==7&&!rolledWeaver&&!anyUnique?1:-1,lp=0,rank=0,legendaryType=rolledWeaver?1:0,corrupt=0;
         alignas(8) unsigned char faction[8]{},replacement[8]{},corruption[8]{},effectiveness[8]{},special[8]{},minSpecial[8]{},overrideLP[8]{};
         void* gen[]{&no,&level,&no,&location,&type,&subtype,&rarity,&sockets,&unique,&no,&lp,faction,&rank,&requireType,&legendaryType,&no,
             replacement,corruption,&corrupt,effectiveness,nullptr,nullptr,special,&no,minSpecial,overrideLP};

@@ -31,6 +31,8 @@ int main() {
     check(RaisedLimit(2,3)==5 && RaisedLimit(2,0)==2 && RaisedLimit(2,-4)==2,"extra minions add to the skill's own limit");
     check(RaisedLimit(195,20)==MaximumSummonLimit && RaisedLimit(250,5)==250 && RaisedLimit(-1,5)==-1,"bounded, never lowered, invalid passes through");
     check(RaisedCompanions(2,2)==4 && RaisedCompanions(1,0)==1 && RaisedCompanions(19,10)==MaximumCompanions && RaisedCompanions(25,1)==25,"companion limit");
+    check(PrimordialLimit(1,true)==UnlimitedPrimordials && PrimordialLimit(2,true)==UnlimitedPrimordials && PrimordialLimit(1,false)==1,"primordial limit raised only when on");
+    check(PrimordialLimit(150,true)==150 && PrimordialLimit(-1,true)==-1,"primordial limit never lowered, invalid passes through");
     // GlobalTreeData.NodeData fields as the game declares them.
     check(CopyKind(0x0e)==FieldCopy::Reference && CopyKind(0x15)==FieldCopy::Reference,"name and requirements copy the reference");
     check(CopyKind(0x05)==FieldCopy::Value,"byte ids, caps and thresholds copy their data");

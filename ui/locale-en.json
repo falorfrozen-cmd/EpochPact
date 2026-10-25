@@ -413,6 +413,10 @@
       "Full set bonuses from one piece",
       "Activate the missing bonuses of each equipped set. Removing its last piece removes the bonuses."
     ],
+    "build_primordials": [
+      "Wear any number of primordial items",
+      "Wear more than one primordial item (Primordial Unique or Exalted) and get the bonuses of all of them. Switched off, the game's limit of one returns: while you wear more, their bonuses stop until you take the extra items off."
+    ],
     "build_zoom": [
       "Camera distance",
       "Move the overhead camera farther away. This changes distance, not field of view; 1× restores the normal distance."

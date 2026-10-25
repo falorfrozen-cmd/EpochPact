@@ -15,7 +15,7 @@ PAGES = [
     ("crafting", "Crafting", "⚒", "Make every craft count.", "Forge your selected item, preserve materials and customize crafting costs."),
     ("stats", "Character", "♜", "Refine your character.", "Find a stat and customize its bonus."),
     ("skills", "Skills & Trees", "✧", "Build beyond the branches.", "Skill experience, point budgets, tree connections and projectiles."),
-    ("equipment", "Equipment", "⚔", "Equip your imagination.", "Offhand combinations and full set bonuses."),
+    ("equipment", "Equipment", "⚔", "Equip your imagination.", "Offhand combinations, full set bonuses and primordial items."),
     ("summons", "Summons", "♧", "Command your companions.", "Minion bonuses and temporary summon duration."),
     ("display", "Display & Camera", "◉", "See Eterra your way.", "Camera pitch, zoom and temporary graphics overrides."),
     ("world", "World & Exploration", "⌖", "Explore without friction.", "Map visibility and nearby chest, shrine and portal interactions."),
@@ -180,7 +180,7 @@ def sections(page, controls, counts):
                 settings("Projectiles", ["build_projectiles", "build_projectileflat"]),
                 native("free_respec", controls=["respec_skills", "respec_passives", "respec_weaver"])]
     if page == "equipment":
-        return [native("cached_summary", read="buildread"), settings("Equipment rules", ["build_offhand", "build_fullsets"])]
+        return [native("cached_summary", read="buildread"), settings("Equipment rules", ["build_offhand", "build_fullsets", "build_primordials"])]
     if page == "summons":
         return [native("damage_meter", controls=["damage_session", "damage_session_read"]),
                 settings("Death recap", ["death_recap"], text=DEATH_TEXT, head="tail", tail="death_recap",

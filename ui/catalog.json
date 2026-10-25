@@ -448,6 +448,33 @@
       "documentation": "docs/build-controls.md"
     },
     {
+      "id": "build_primordials",
+      "group": "equipment",
+      "label": "Wear any number of primordial items",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "buildset primordials {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "buildset primordials 0",
+      "lifetime": "session",
+      "description": "Wear more than one primordial item (Primordial Unique or Exalted) and get the bonuses of all of them. Switched off, the game's limit of one returns: while you wear more, their bonuses stop until you take the extra items off.",
+      "currentSource": "liveState.buildread.settings.primordials.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
       "id": "build_zoom",
       "group": "display",
       "label": "Camera distance",
@@ -34320,7 +34347,7 @@
     ]
   },
   "counts": {
-    "controls": 199,
+    "controls": 200,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

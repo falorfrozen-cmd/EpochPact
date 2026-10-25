@@ -410,9 +410,11 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 |---|---|---|---|---|
 | `build_offhand` — Unrestricted offhand equipment | `buildset offhand {value}` | value: 0…1 | 0 | Oturum |
 | `build_fullsets` — Full set bonuses from one piece | `buildset fullsets {value}` | value: 0…1 | 0 | Oturum |
+| `build_primordials` — Wear any number of primordial items | `buildset primordials {value}` | value: 0…1 | 0 | Oturum |
 
 - **Unrestricted offhand equipment:** Allow weapons in the offhand and remove linked two-handed equipment conflicts. Normal level and class requirements still apply. Reset: `buildset offhand 0`.
 - **Full set bonuses from one piece:** Activate the missing bonuses of each equipped set. Removing its last piece removes the bonuses. Reset: `buildset fullsets 0`.
+- **Wear any number of primordial items:** Wear more than one primordial item (Primordial Unique or Exalted) and get the bonuses of all of them. Switched off, the game's limit of one returns: while you wear more, their bonuses stop until you take the extra items off. Reset: `buildset primordials 0`.
 
 ## Summons
 

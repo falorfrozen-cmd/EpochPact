@@ -21,7 +21,7 @@ const pages = {
  crafting: ["Crafting", "⚒", "Make every craft count.", "Forge your selected item, preserve materials and customize crafting costs."],
  stats: ["Character", "♜", "Refine your character.", "Find a stat and customize its bonus."],
  skills: ["Skills & Trees", "✧", "Build beyond the branches.", "Skill experience, point budgets, tree connections and projectiles."],
- equipment: ["Equipment", "⚔", "Equip your imagination.", "Offhand combinations and full set bonuses."],
+ equipment: ["Equipment", "⚔", "Equip your imagination.", "Offhand combinations, full set bonuses and primordial items."],
  summons: ["Summons", "♧", "Command your companions.", "Minion bonuses and temporary summon duration."],
  display: ["Display & Camera", "◉", "See Eterra your way.", "Camera pitch, zoom and temporary graphics overrides."],
  world: ["World & Exploration", "⌖", "Explore without friction.", "Map visibility and nearby chest, shrine and portal interactions."],
@@ -700,7 +700,7 @@ function renderPage(){
   const ids=keys=>keys.map(key=>controlById("build_"+key));
   content.innerHTML=cachedSummary("build_read")+`<section class="panel"><div class="section-head"><h2>Skill and point budgets</h2><button data-refresh="build_read" data-control-id="build_read">Refresh live</button></div><div class="summary-grid"><div class="summary"><strong>${cache.build_read?.passivePoints??"—"}</strong><span>Passive budget</span></div><div class="summary"><strong>${cache.build_read?.weaverPoints??"—"}</strong><span>Weaver budget</span></div></div><p class="note">Point multipliers are session settings. Individual node caps still apply. Existing allocations stay when you lower a budget. Available points stop at zero until the budget covers those allocations.</p></section>`+settingPanel("Experience and skill points",ids(["skillxp","skillpoints","passivepoints"]))+settingPanel("Weaver points",ids(["weaverpoints","weaverflat"]))+settingPanel("Tree connections",ids(["skillnodes","passivenodes","weavernodes"]))+settingPanel("Projectiles",ids(["projectiles","projectileflat"]))+`<section class="panel"><h2>Free respec</h2><p class="note">Refund points from the selected tree group. Levels and earned budgets stay. Each action creates a recovery backup and runs only after confirmation.</p><div class="control-grid">${["respec_skills","respec_passives","respec_weaver"].map(id=>actionCard(controlById(id))).join("")}</div></section>`;
  }else if(page==="equipment"){
-  content.innerHTML=cachedSummary("build_read")+settingPanel("Equipment rules",["offhand","fullsets"].map(key=>controlById("build_"+key)));
+  content.innerHTML=cachedSummary("build_read")+settingPanel("Equipment rules",["offhand","fullsets","primordials"].map(key=>controlById("build_"+key)));
  }else if(page==="summons"){
   const aliases=catalog.characterStats.aliases;
   const summonStats=aliases.map((row,index)=>({row,index})).filter(x=>/^minion|^maxcompanions/.test(x.row.name));

@@ -21,16 +21,16 @@ Setting skillXp{"skillxp",1,100,1}, passive{"passivepoints",1,10,1}, skills{"ski
     weaver{"weaverpoints",1,10,1}, weaverFlat{"weaverflat",0,500,0,true}, zoom{"zoom",1,2,1}, angle{"cameraangle",0,85,0},
     projectile{"projectiles",1,8,1}, projectileFlat{"projectileflat",0,32,0,true},
     blessings{"blessingoptions",0,5,0,true}, perfectBlessings{"blessingrolls",0,1,0,true},
-    summonDuration{"summonduration",1,10,1}, offhand{"offhand",0,1,0,true}, fullSets{"fullsets",0,1,0,true},
+    summonDuration{"summonduration",1,10,1}, offhand{"offhand",0,1,0,true}, fullSets{"fullsets",0,1,0,true}, primordials{"primordials",0,1,0,true},
     freeSkills{"skillnodes",0,1,0,true}, freePassives{"passivenodes",0,1,0,true}, freeWeaver{"weavernodes",0,1,0,true},
     minionExtra{"minionextra",0,20,0,true}, companionExtra{"companionextra",0,10,0,true}, totemExtra{"totemextra",0,10,0,true},
     ballistaExtra{"ballistaextra",0,10,0,true}, forgedExtra{"forgedextra",0,20,0,true}, immortal{"immortalminions",0,1,0,true};
-std::array<Setting*,23> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&freeSkills,&freePassives,&freeWeaver,
+std::array<Setting*,24> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&primordials,&freeSkills,&freePassives,&freeWeaver,
     &minionExtra,&companionExtra,&totemExtra,&ballistaExtra,&forgedExtra,&immortal};
 game::MethodRef getActor, offline, xpRef, skillRef, passiveRef, weaverRef, zoomRef, projectileRef, blessingRef, populateRef, optionsRef;
 game::MethodRef summonRef, slotRef, alternateSlotRef, linkedRef, invalidRef, enforceRef, mainRestrictionRef, offRestrictionRef, equipRef;
 game::MethodRef constructionRef, drainRef, summonedTickRef;
-game::MethodRef sedSummonRef, maxCompanionsRef, summonedInitRef;
+game::MethodRef sedSummonRef, maxCompanionsRef, summonedInitRef, maxPrimordialsRef;
 game::MethodRef skillUnspentRef, passiveUnspentRef, weaverUnspentRef;
 game::MethodRef requirementRef, requirementPreviewRef, passiveRequirementRef, uiRequirementRef, reachableRef,
     globalNodeRef, passiveSpendRef, passiveBulkRef, masteryRef, masteryUpdateRef, respecCostRef;
@@ -516,6 +516,28 @@ void EquipDetour(void* self,void* item,bool adding,bool unequipping,float global
     originalEquip(self,item,adding,unequipping,global,prefix,suffix,idol,method);
     if(fullSets.value==1 || !setEntries.empty())Checked([&]{ReconcileSets(self);});
 }
+// ---- Primordial items. CharacterMutator.GetMaxPrimordialItems (one plus a
+// bonus) is the game's only limit: equipping another primordial item and
+// applying or removing their bonuses (ItemEquipManager.AfterStatsUpdate) ask it.
+using PrimordialsFn=int(*)(void*,M);PrimordialsFn originalPrimordials=nullptr;
+std::atomic<uint64_t> raisedPrimordialReads{0};
+int PrimordialsDetour(void* self,M method){
+    const int native=originalPrimordials(self,method);
+    int result=native;
+    if(primordials.value==1)Checked([&]{void* local=Actor();if(local&&self==Get<void*>(local,F("Actor","characterMutator")))result=rules::PrimordialLimit(native,true);});
+    if(result!=native)++raisedPrimordialReads;
+    return result;
+}
+void* EquipManager(){
+    void* containers=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));
+    void* manager=containers?Get<void*>(containers,Offset("ItemContainersManager","itemEquipManager")):nullptr;
+    void* actor=Actor();return actor&&manager&&Get<void*>(manager,Offset("ItemEquipManager","actor"))==actor?manager:nullptr;
+}
+// Applies (or, when switched off, removes) the bonuses of primordial items already worn.
+void RefreshPrimordials(){
+    void* manager=EquipManager();
+    if(manager)Invoke(game::FindMethod("LE.dll","","ItemEquipManager","AfterStatsUpdate",0),manager);
+}
 bool LocalCreation(void* component) {
     void* references=Component(component,"CreationReferences");
     void* actor=Actor();return actor && references && Get<void*>(references,Offset("CreationReferences","creator"))==actor;
@@ -627,7 +649,8 @@ Hook xpHook{&xpRef,reinterpret_cast<void*>(&XpDetour),reinterpret_cast<void**>(&
     enforceHook{&enforceRef,reinterpret_cast<void*>(&EnforceDetour),reinterpret_cast<void**>(&originalEnforce)},
     mainRestrictionHook{&mainRestrictionRef,reinterpret_cast<void*>(&MainRestrictionDetour),reinterpret_cast<void**>(&originalMainRestriction)},
     offRestrictionHook{&offRestrictionRef,reinterpret_cast<void*>(&OffRestrictionDetour),reinterpret_cast<void**>(&originalOffRestriction)},
-    equipHook{&equipRef,reinterpret_cast<void*>(&EquipDetour),reinterpret_cast<void**>(&originalEquip)};
+    equipHook{&equipRef,reinterpret_cast<void*>(&EquipDetour),reinterpret_cast<void**>(&originalEquip)},
+    primordialsHook{&maxPrimordialsRef,reinterpret_cast<void*>(&PrimordialsDetour),reinterpret_cast<void**>(&originalPrimordials)};
 Hook passiveUnspentHook{&passiveUnspentRef,reinterpret_cast<void*>(&PassiveUnspentDetour),reinterpret_cast<void**>(&originalPassiveUnspent)},
     weaverUnspentHook{&weaverUnspentRef,reinterpret_cast<void*>(&WeaverUnspentDetour),reinterpret_cast<void**>(&originalWeaverUnspent)};
 Hook requirementHook{&requirementRef,reinterpret_cast<void*>(&RequirementDetour),reinterpret_cast<void**>(&originalRequirement)},
@@ -654,6 +677,7 @@ Hook* For(const Setting& s) {
     if(&s==&immortal)return &summonedInitHook;
     if(&s==&offhand)return &slotHook;
     if(&s==&fullSets)return &equipHook;
+    if(&s==&primordials)return &primordialsHook;
     if(&s==&freeSkills||&s==&freePassives||&s==&freeWeaver)return &requirementHook;
     return &blessingHook;
 }
@@ -695,6 +719,10 @@ std::string State() {
     out<<"},\"counters\":{\"skillXp\":"<<xpCalls<<",\"projectiles\":"<<projectileCalls<<",\"projectileRetrofits\":"<<retrofits<<",\"summonDecayTicks\":"<<drainCalls<<",\"lastProjectileNative\":"<<lastProjectileNative<<",\"lastProjectileTotal\":"<<lastProjectileTotal<<",\"blessings\":"<<blessingCalls<<",\"faults\":"<<faults<<'}';
     out<<",\"summons\":{\"limitsRaised\":"<<raisedSummons<<",\"companionLimitReads\":"<<raisedCompanionReads<<",\"immortal\":"<<immortalHealth.size()<<",\"immortalAdded\":"<<immortalAdded
        <<",\"lastAbility\":"<<Json(lastSummonAbility)<<",\"lastKind\":"<<Json(lastSummonKind)<<",\"lastNative\":"<<lastSummonNative<<",\"lastLimit\":"<<lastSummonLimit<<'}';
+    std::string worn;  // built whole: a failed read must not leave half an object in the reply
+    Checked([&]{void* containers=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));if(!containers||!EquipManager())return;
+        worn=",\"primordials\":{\"limit\":"+std::to_string(Value<int>(Method(containers,"GetMaxPrimordialItems",0),containers))+",\"equipped\":"+std::to_string(Value<int>(Method(containers,"NumberOfEquippedPrimordialItems",0),containers))+",\"limitReads\":"+std::to_string(raisedPrimordialReads.load())+'}';});
+    out<<worn;
     void* actor=Actor();void* tree=Tree(actor);
     if(tree){void* character=Get<void*>(Get<void*>(actor,actorTracker),trackerData);
         out<<",\"player\":{\"id\":"<<Json(Text(Invoke(Method(character,"get_Id",0),character)))<<",\"name\":"<<Json(Text(Get<void*>(character,Offset("CharacterData","<CharacterName>k__BackingField","LE.Data"))))<<'}';
@@ -731,6 +759,7 @@ bool Init() {
         summonedTickRef=game::FindMethod("LE.dll","","Summoned","OnUpdateTick",1);
         sedSummonRef=game::FindMethod("LE.dll","","SummonEntityOnDeath","Summon",0);
         maxCompanionsRef=game::FindMethod("LE.dll","","Stats","getMaximumCompanions",0);
+        maxPrimordialsRef=game::FindMethod("LE.dll","","CharacterMutator","GetMaxPrimordialItems",0);
         summonedInitRef=game::FindMethod("LE.dll","","Summoned","initialise",0);
         constructionRef=game::FindMethod("LE.dll","","AbilityObjectConstructor","constructAbilityObject",14);
         durationOffset=Offset("DestroyAfterDuration","duration");
@@ -789,8 +818,9 @@ std::string Set(const std::string& key,double value) {
             if(s==&zoom || s==&angle){void* camera=game::StaticObject(game::FindStaticField("LE.dll","","CameraManager","instance"));if(camera)Invoke(zoomRef,camera);}
             if(s==&immortal)SetImmortal(value!=0);
             if(s==&fullSets){void* manager=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));if(manager)ReconcileSets(Get<void*>(manager,Offset("ItemContainersManager","itemEquipManager")));}
+            if(s==&primordials)RefreshPrimordials();
             for(auto* entry:hooks)if(!Needed(entry)&&hook::IsInstalled(entry->ref->code)&&!hook::Remove(entry->ref->code,&why))throw std::runtime_error("cannot restore feature hook: "+why);
-        }catch(...){s->value=previous;Checked([&]{if(s==&passive||s==&skills||s==&weaver||s==&weaverFlat)RefreshBudgets();if(s==&immortal)SetImmortal(previous!=0);});for(auto* back:fresh)if(!Needed(back))hook::Remove(back->ref->code,nullptr);throw;}
+        }catch(...){s->value=previous;Checked([&]{if(s==&passive||s==&skills||s==&weaver||s==&weaverFlat)RefreshBudgets();if(s==&immortal)SetImmortal(previous!=0);if(s==&primordials)RefreshPrimordials();});for(auto* back:fresh)if(!Needed(back))hook::Remove(back->ref->code,nullptr);throw;}
         return State();
     });
 }
@@ -845,6 +875,44 @@ std::string Test(const std::string& id,const std::string& action) {
         const auto name=Text(Get<void*>(character,Offset("CharacterData","<CharacterName>k__BackingField","LE.Data")));
         if(Text(Invoke(Method(character,"get_Id",0),character))!=id || (name!="EpFeatureTest"&&name!="EpFeedbackTest"))throw std::runtime_error("feature tests require an isolated feature test clone");
         void* tree=Tree(actor);
+        if(action.rfind("primordial-",0)==0){
+            // Primordial items through the game's own methods: seal an inventory item's
+            // first affix as primordial, quick-equip from the inventory (the game's
+            // limit check), and read which worn primordial items have their bonuses.
+            void* containers=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));
+            if(!containers||Get<void*>(containers,managerActor)!=actor)throw std::runtime_error("item containers unavailable");
+            void* inventory=Get<void*>(containers,F("ItemContainersManager","inventory"));
+            Root content(Invoke(Method(inventory,"GetContent",0),inventory));
+            std::vector<std::unique_ptr<Root>> entries;for(void* e:Entries(content.Get()))if(e)entries.push_back(std::make_unique<Root>(e));
+            auto primordial=[](void* data){return Value<bool>(Method(data,"IsPrimordialItem",0),data);};
+            auto type=[](void* data){return std::to_string(Get<uint8_t>(data,F("ItemData","itemType")));};
+            if(action.rfind("primordial-make-",0)==0){
+                const int wanted=std::stoi(action.substr(16));
+                for(auto& e:entries){void* data=Get<void*>(e->Get(),F("ItemContainerEntry","data"));
+                    if(!data||Get<uint8_t>(data,F("ItemData","itemType"))!=wanted||primordial(data))continue;
+                    auto affixes=Entries(Get<void*>(data,F("ItemData","affixes")));if(affixes.size()<2||!affixes.front())continue;
+                    bool keepRoll=true;void* a[]{affixes.front(),&keepRoll};Invoke(Method(data,"MakeAffixSealedPrimordialAffix",2),data,a);
+                    return "{\"ok\":true,\"type\":"+type(data)+",\"primordial\":"+Boolean(primordial(data))+"}";}
+                throw std::runtime_error("no inventory item of this type with two affixes");
+            }
+            if(action=="primordial-equip"){
+                std::string out="{\"ok\":true,\"tried\":[";
+                for(auto& e:entries){void* data=Get<void*>(e->Get(),F("ItemContainerEntry","data"));if(!data||!primordial(data))continue;
+                    struct Cell{int x,y;} at=Get<Cell>(e->Get(),F("ItemContainerEntry","<Position>k__BackingField"));int inventoryId=1;bool alternative=false;
+                    void* a[]{&inventoryId,&at,&alternative};const bool equipped=Value<bool>(Method(containers,"TryQuickEquip",3),containers,a);
+                    if(out.back()!='[')out+=',';out+="{\"type\":"+type(data)+",\"equipped\":"+Boolean(equipped)+"}";}
+                return out+"]}";
+            }
+            if(action=="primordial-worn"){
+                void* manager=EquipManager();if(!manager)throw std::runtime_error("equip manager unavailable");
+                std::string out="{\"ok\":true,\"limit\":"+std::to_string(Value<int>(Method(containers,"GetMaxPrimordialItems",0),containers))+",\"worn\":[";
+                for(void* item:Entries(Get<void*>(manager,F("ItemEquipManager","equippedItems")))){if(!item)continue;
+                    void* unpacked=Get<void*>(item,F("ItemEquipManager.EquippedItem","Item"));if(!unpacked||!primordial(unpacked))continue;
+                    if(out.back()!='[')out+=',';out+="{\"type\":"+type(unpacked)+",\"statsApplied\":"+Boolean(Get<bool>(item,F("ItemEquipManager.EquippedItem","StatsApplied")))+"}";}
+                return out+"]}";
+            }
+            throw std::runtime_error("unknown primordial test action");
+        }
         if(action=="creation-probe"){
             std::string why;if(!hook::Install(constructionRef.code,reinterpret_cast<void*>(&ConstructionDetour),reinterpret_cast<void**>(&originalConstruction),&why))throw std::runtime_error(why);
             return std::string("{\"ok\":true}");

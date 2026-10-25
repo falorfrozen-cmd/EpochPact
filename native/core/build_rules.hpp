@@ -60,6 +60,13 @@ inline int RaisedCompanions(int native, int extra) {
     if (native < 0 || extra <= 0 || native >= MaximumCompanions) return native;
     return std::min(MaximumCompanions, native + extra);
 }
+// Primordial items a character may wear: the game allows one plus a bonus.
+// "Any number" is more than there are equipment slots; never lowered.
+constexpr int UnlimitedPrimordials = 99;
+inline int PrimordialLimit(int native, bool unlimited) {
+    if (!unlimited || native < 0 || native >= UnlimitedPrimordials) return native;
+    return UnlimitedPrimordials;
+}
 // How il2cpp_field_set_value expects a field's source, from the IL2CPP type
 // code of the field (Il2CppTypeEnum): a reference field takes the reference
 // itself, a primitive value field takes the address of its data. Anything else
