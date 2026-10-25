@@ -1440,10 +1440,30 @@ void Notify(const std::string& read) {
         else if (s->build) Rebuild(s->id);
     }
 }
-void ReadInto(const std::string& read, const std::string& reply) {
+// The setting values a JSON read carries (its controls' paths); a chance left to the game
+// (hopePercent null) is NaN, sent as "reset".
+void JsonValues(const std::string& read, const JValue& v, std::map<std::string, double>& out) {
+    if (v.Find("ok") && v["ok"].IsBool() && !v["ok"].boolean) return;
+    for (const auto& [id, c] : controls) {
+        if (c.read != read) continue;
+        const JValue* x = v.Path(c.path);
+        if (x && (x->IsNumber() || x->IsBool())) out[id] = x->Num();
+        else if (x && x->IsNull() && c.widget == "selector") out[id] = std::nan("");
+    }
+}
+// The speed bonus EpochPact attached (ui_bridge): "increased" is x-1.
+double SpeedValue(const std::string& reply) {
+    double speed = 1;
+    const size_t at = reply.find("EpochPact added=");
+    if (at != std::string::npos) {
+        const size_t inc = reply.find(" increased=", at), att = reply.find(" attached=1", at);
+        if (inc != std::string::npos && att != std::string::npos && inc < att) speed = 1 + std::strtod(reply.c_str() + inc + 11, nullptr);
+    }
+    return speed;
+}
+std::map<std::string, double> ReadValues(const std::string& read, const std::string& reply) {
+    std::map<std::string, double> out;
     if (read == "status") {
-        statusKnown = true;
-        offlinePlay = reply.find("gate: offline play") != std::string::npos;
         // ui_bridge: "^name: x<number>", "^weaversdrop: <n>%", "^autopickup: on|off"
         std::map<std::string, double> found;
         std::istringstream lines(reply);
@@ -1463,11 +1483,25 @@ void ReadInto(const std::string& read, const std::string& reply) {
                 found.emplace(name, rest[1] == 'n' ? 1 : 0);
             }
         }
-        for (auto& [id, c] : controls) {
-            if (c.read != "status" || c.id == "speed" || !found.count(c.path)) continue;
-            if (pending.count(id) || drafts.count(id) || sendingId == id) continue;
-            values[id] = appliedValues[id] = found[c.path];
-        }
+        for (const auto& [id, c] : controls)
+            if (c.read == "status" && c.id != "speed" && found.count(c.path)) out[id] = found[c.path];
+    } else if (read == "statraw 9 0 0 0") {
+        out["speed"] = SpeedValue(reply);
+    } else if (read != "sessionread") {
+        JValue v;
+        if (json::Parse(reply, v)) JsonValues(read, v, out);
+    }
+    return out;
+}
+void ReadInto(const std::string& read, const std::string& reply) {
+    const auto keep = [](const std::map<std::string, double>& found) {
+        for (const auto& [id, v] : found)
+            if (!pending.count(id) && !drafts.count(id) && sendingId != id) values[id] = appliedValues[id] = v;
+    };
+    if (read == "status") {
+        statusKnown = true;
+        offlinePlay = reply.find("gate: offline play") != std::string::npos;
+        keep(ReadValues(read, reply));
     } else if (read == "sessionread") {
         JValue v;
         if (json::Parse(reply, v)) {
@@ -1475,26 +1509,15 @@ void ReadInto(const std::string& read, const std::string& reply) {
             transitioning = v["transitioning"].IsBool() && v["transitioning"].boolean;
         }
     } else if (read == "statraw 9 0 0 0") {
-        // ui_bridge: the movement speed bonus EpochPact attached; "increased" is x-1
-        double speed = 1;
-        const size_t at = reply.find("EpochPact added=");
-        if (at != std::string::npos) {
-            const size_t inc = reply.find(" increased=", at), att = reply.find(" attached=1", at);
-            if (inc != std::string::npos && att != std::string::npos && inc < att) speed = 1 + std::strtod(reply.c_str() + inc + 11, nullptr);
-        }
-        if (!pending.count("speed") && !drafts.count("speed") && sendingId != "speed") values["speed"] = appliedValues["speed"] = speed;
+        keep(ReadValues(read, reply));
     } else {
         // a JSON read: the setting values it carries, and kept for the sections
         auto v = std::make_shared<JValue>();
         const bool parsed = json::Parse(reply, *v);
-        if (parsed && !(v->Find("ok") && (*v)["ok"].IsBool() && !(*v)["ok"].boolean)) {
-            for (auto& [id, c] : controls) {
-                if (c.read != read || pending.count(id) || drafts.count(id) || sendingId == id) continue;
-                const JValue* x = v->Path(c.path);
-                if (x && (x->IsNumber() || x->IsBool())) values[id] = appliedValues[id] = x->Num();
-                // a chance left to the game (hopePercent null): NaN, sent as "reset"
-                else if (x && x->IsNull() && c.widget == "selector") values[id] = appliedValues[id] = std::nan("");
-            }
+        if (parsed) {
+            std::map<std::string, double> found;
+            JsonValues(read, *v, found);
+            keep(found);
         }
         Kept& kept = cache[read];
         const bool changed = kept.text != reply;
@@ -1602,37 +1625,38 @@ void FlushPending() {
         return;  // one at a time, as app.js does
     }
 }
-// Apply changes (app.js applyDraft): the drafts one after another; a refused one stops the rest,
-// which stay drafts. The settings' reads once at the end ("craft_read is read once after this batch").
-int applyCount = -1;  // settings applied in the running Apply changes; -1 when none runs
+// Apply changes (app.js applyDraft): the drafts one after another; a refused one stays a draft and
+// the others are still sent. The settings' reads once at the end ("craft_read is read once after
+// this batch").
+int applyCount = -1, applyRefused = 0;  // settings applied/refused in the running Apply changes; -1 when none runs
+std::deque<std::string> applyIds;
 std::set<std::string> batchReads;
 void ApplyNext() {
-    if (drafts.empty()) {
+    while (!applyIds.empty() && !drafts.count(applyIds.front())) applyIds.pop_front();  // discarded meanwhile
+    if (applyIds.empty()) {
         applyReads = nullptr;
         for (const auto& r : batchReads) Read(r);
-        Toast(Fmt("{0} settings applied in order.", {std::to_string(applyCount)}));
+        if (applyRefused)
+            Toast(Fmt("{0} of {1} settings applied; the others were refused and stay in the draft.",
+                      {std::to_string(applyCount), std::to_string(applyCount + applyRefused)}), true);
+        else Toast(Fmt("{0} settings applied in order.", {std::to_string(applyCount)}));
         applyCount = -1;
         UpdateFooter();
         return;
     }
-    const std::string id = *drafts.begin();
-    drafts.erase(drafts.begin());
+    const std::string id = applyIds.front();
+    applyIds.pop_front();
+    drafts.erase(id);
     SendSetting(id, values[id], [](bool ok) {
-        if (!ok) {
-            applyReads = nullptr;
-            for (const auto& r : batchReads) Read(r);
-            Toast(Fmt("{0} settings applied; stopped after an error. Remaining drafts are kept.", {std::to_string(applyCount)}), true);
-            applyCount = -1;
-            UpdateFooter();
-            return;
-        }
-        ++applyCount;
+        ++(ok ? applyCount : applyRefused);
         ApplyNext();
     }, true);
 }
 void ApplyDrafts() {
     if (drafts.empty() || !sendingId.empty() || applyCount >= 0) return;
     applyCount = 0;
+    applyRefused = 0;
+    applyIds.assign(drafts.begin(), drafts.end());
     batchReads.clear();
     applyReads = &batchReads;
     ApplyNext();
@@ -2865,6 +2889,20 @@ void SetDraft(const std::string& id, double v) {
     drafts.insert(id);
     PaintId(id);
 }
+std::map<std::string, double> ReadSettings(const std::string& read, const std::string& reply) { return ReadValues(read, reply); }
+std::filesystem::path PreferencesFolder() { const auto path = PreferencesPath(); return path.empty() ? path : path.parent_path(); }
+bool AppliedValue(const std::string& id, double* v) {
+    if (pending.count(id) || drafts.count(id) || sendingId == id) return false;
+    const auto it = appliedValues.find(id);
+    if (it == appliedValues.end()) return false;
+    *v = it->second;
+    return true;
+}
+void MarkApplied(const std::string& id, double v) {
+    if (pending.count(id) || drafts.count(id) || sendingId == id) return;
+    values[id] = appliedValues[id] = v;
+    PaintId(id);
+}
 std::string SettingFeedback(const std::string& id, Color* color, float* size) {
     *color = C("accent");
     *size = 10;
@@ -3689,7 +3727,8 @@ std::string Panel(const std::string& action) {
         const auto name=action.substr(6);
         if(name.rfind("profile-name=",0)==0){for(auto& field:win.inputs)if(field.name=="profile-name"){const auto value=name.substr(13);managed::Root text(il2cpp::api().string_new(value.c_str()));void* a[]{text.Get()};Invoke(Find("Unity.TextMeshPro.dll","TMPro","TMP_InputField","set_text",1),field.field.Get(),a);field.last=value;if(field.onChange)field.onChange(value);return State();}}
         if(name=="discard"){DiscardDrafts();return State();}
-        const bool allowed=name=="profile-save"||name=="profile-load"||name=="profile-delete"||name=="display-preferences-reset"||name=="show-all-parts"||name.rfind("nav-visible:",0)==0||name.rfind("nav-favorite:",0)==0||name.rfind("hide:",0)==0||name.rfind("show-part:",0)==0;
+        if(name.rfind("profile-import=",0)==0){view::ImportProfile(name.substr(15));return State();}
+        const bool allowed=name=="profile-save"||name=="profile-load"||name=="profile-delete"||name=="profile-export"||name=="display-preferences-reset"||name=="show-all-parts"||name.rfind("nav-visible:",0)==0||name.rfind("nav-favorite:",0)==0||name.rfind("hide:",0)==0||name.rfind("show-part:",0)==0;
         if(!allowed)return std::string("{\"ok\":false,\"error\":\"not a local preference action\"}");
         for(int id:win.pages[win.page].sections)for(const auto& h:Sec(id).hits)if(h.name==name&&h.action){const auto act=h.action;act();return State();}
         return std::string("{\"ok\":false,\"error\":\"local preference control not found\"}");

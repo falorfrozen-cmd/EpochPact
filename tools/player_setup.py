@@ -16,7 +16,7 @@ import subprocess
 import sys
 
 from . import le_session as le, progression_backend as progression
-from . import filter_manager, melon_compat, overlay_follow, support_report
+from . import filter_manager, melon_compat, overlay_follow, profile_files, support_report
 from .app_paths import (user_root, installer_result_root, validate_installer_result,
                         INSTALL_RESULT_INVALID, INSTALL_RESULT_WRITE_FAILED)
 from .ui_language import english_exception
@@ -276,6 +276,18 @@ class PlayerSetup:
                 'message': f'Support report saved as {path.name}. Its folder is open: attach the ZIP to your message in the EpochPact Discord. '
                            'Your Windows user name is masked; logs can contain character names.'}
 
+    def profiles(self, action, args):
+        """Profile files to share. Nothing here applies a setting or changes a saved profile."""
+        if action == 'profile_import':
+            return profile_files.import_profile(args.get('path'))
+        result = profile_files.export_profile(args.get('name'), args.get('settings'))
+        reveal = getattr(self, 'reveal', None) or (lambda folder: os.startfile(folder))
+        try:
+            reveal(Path(result['folder']))
+        except OSError:
+            pass
+        return result
+
     def filters(self, action, args):
         """Loot filter files. Existing filters are never edited or deleted."""
         reveal = getattr(self, 'reveal', None) or (lambda folder: os.startfile(folder))
@@ -386,10 +398,13 @@ class PlayerSetup:
                 return self.report(args)
             if action in FILTER_ACTIONS:
                 return self.filters(action, args)
+            if action in PROFILE_ACTIONS:
+                return self.profiles(action, args)
             raise ValueError('Unknown game setup action.')
 
 
 FILTER_ACTIONS = ('filters', 'filter_import', 'filter_export', 'filter_duplicate', 'filter_backup', 'filter_folder')
+PROFILE_ACTIONS = ('profile_export', 'profile_import')
 
 
 class FeedWindowApi:
@@ -686,6 +701,13 @@ class DesktopDialogs:
         start = filter_manager.filters_root().parent
         chosen = self._window.create_file_dialog(webview.FileDialog.OPEN, directory=str(start if start.is_dir() else Path.home()),
                                                 allow_multiple=False, file_types=('Loot filters and backups (*.xml;*.zip)',))
+        return chosen[0] if chosen else None
+
+    def choose_profile_file(self):
+        import webview
+        start = user_root() / 'profile-exports'
+        chosen = self._window.create_file_dialog(webview.FileDialog.OPEN, directory=str(start if start.is_dir() else Path.home()),
+                                                allow_multiple=False, file_types=('EpochPact profiles (*.json)',))
         return chosen[0] if chosen else None
 
     def choose_game_executable(self):

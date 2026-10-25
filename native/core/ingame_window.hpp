@@ -8,6 +8,7 @@
 #pragma once
 #include "ingame_ui.hpp"
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <memory>
@@ -126,6 +127,7 @@ float DrawHudRecap(const Ctx& c, float x, float y, float w, int* index, Action c
 void SettingsStep();                     // once per ready offline owner, even with F6 closed
 void RememberSetting(const Control& c, double value);
 void RememberChoice(const std::string& command);
+bool ImportProfile(const std::string& path);  // a shared profile file as a new profile (Settings)
 void NavigationChanged();
 void ReloadWindow();
 void Navigate(const std::string& page, const std::string& tab = "");
@@ -189,6 +191,12 @@ bool SettingValue(const std::string& id, double* v);
 bool Typing(int sectionId);                      // one of the section's text fields has the keyboard
 bool& Disclosure(const std::string& key);        // a <details> open (app.js craftDisclosure), while the game runs
 void SetDraft(const std::string& id, double v);  // a draft for Apply changes
+// The setting values a read's reply carries (the window's own parsing), by setting id.
+std::map<std::string, double> ReadSettings(const std::string& read, const std::string& reply);
+// The game's value of a setting as the window last read or applied it; false while it is a draft,
+// waits or is being sent, or when it is not known.
+bool AppliedValue(const std::string& id, double* v);
+void MarkApplied(const std::string& id, double v);  // the game took it outside the window (a startup profile)
 std::string SettingFeedback(const std::string& id, Color* color, float* size);  // settingFeedback: Draft, Applying…, Applied
 int DraftCount(const std::string& prefix);       // drafts whose id starts so
 void ClearDrafts(const std::string& prefix);     // back to the applied values (Restore normal crafting)
@@ -196,6 +204,7 @@ void ClearDrafts(const std::string& prefix);     // back to the applied values (
 json::Value Preference(const std::string& key);
 // Stores a choice there as the app does (the JSON text; nullptr removes it): kept for the app and the next game.
 bool StorePreference(const std::string& key, const std::string* value);
+std::filesystem::path PreferencesFolder();  // the folder of that file (%LOCALAPPDATA%\EpochPact); empty if unknown
 std::string LifetimeLabel(const std::string& lifetime);
 
 // Commands: one at a time through commands::SubmitUi, replies handled on the main thread.

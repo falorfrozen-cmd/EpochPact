@@ -153,7 +153,7 @@ test('a character loaded again gets the last used settings again, even when the 
  assert.deepEqual(JSON.parse(t.run('JSON.stringify(applied)')),[['xp'],['xp']]);
 });
 
-test('the profile waits while another task runs, goes on past a refused setting and says so once',async()=>{
+test('the profile waits while another task runs, goes on past a refused setting and says so when it starts and ends',async()=>{
  const t=load({realDraft:true});
  t.run('catalog.controls.push({id:"gold",group:"general",lifetime:"session",widget:"number",default:1,requirements:["offline"],parameters:[]})');
  t.store.set('epochpact.last-settings.live',JSON.stringify({xp:5,speed:2,gold:3}));
@@ -165,10 +165,33 @@ test('the profile waits while another task runs, goes on past a refused setting 
  t.run('busy=false');t.run('timers.shift()')();
  for(let i=0;i<20;i++)await new Promise(r=>setImmediate(r));
  assert.deepEqual(JSON.parse(t.run('JSON.stringify(sent)')).sort(),['gold','speed','xp']);
- const notes=JSON.parse(t.run('JSON.stringify(notes)'));
- assert.equal(notes.length,1,'one notification');
- assert.equal(notes[0],'!2 of 3 settings of your last used settings applied; the others were refused and stay in the draft.');
+ assert.deepEqual(JSON.parse(t.run('JSON.stringify(notes)')),['Applying your last used settings (3 settings).',
+  '!2 of 3 settings of your last used settings applied; the others were refused and stay in the draft.']);
  assert.equal(t.run('dirty.has("speed")'),true);assert.equal(t.run('appliedValues.xp'),5);
+});
+
+test('Apply changes goes on past a refused setting and keeps it as a draft',async()=>{
+ const t=load({realDraft:true});
+ t.run('catalog.controls.push({id:"gold",group:"general",lifetime:"session",widget:"number",default:1,requirements:["offline"],parameters:[]})');
+ t.run('var sent=[];runTask=async p=>{sent.push(p.id);return p.id==="gold"?null:{ok:true};};renderPage=()=>{};syncLootCraft=()=>false');
+ t.run('values.xp=4;values.gold=3;values.speed=2;dirty.add("xp");dirty.add("gold");dirty.add("speed")');
+ await t.run('applyDraft()');
+ assert.deepEqual(JSON.parse(t.run('JSON.stringify(sent)')),['xp','gold','speed'],'the setting after the refused one is still sent');
+ assert.deepEqual(JSON.parse(t.run('JSON.stringify(notes)')),['!2 of 3 settings applied; the others were refused and stay in the draft.']);
+ assert.equal(t.run('dirty.has("gold")'),true);assert.equal(t.run('dirty.has("xp")||dirty.has("speed")'),false);
+ assert.equal(t.run('appliedValues.speed'),2);
+});
+
+test('a shared profile file becomes a new profile with only the settings a profile may hold',()=>{
+ const t=load();
+ t.run('catalog.controls.push({id:"gold",group:"general",lifetime:"session",widget:"number",default:1,requirements:["offline"],parameters:[{name:"value",type:"number",minimum:1,maximum:100}]})');
+ t.store.set('epochpact.profiles.live',JSON.stringify({Mine:{xp:2}}));
+ const added=JSON.parse(t.run(`JSON.stringify(addSharedProfile("Mine",JSON.parse('{"xp":5,"speed":2,"gold":500,"campaign_complete":1,"loot_mode":"filter","unknown":3,"__proto__":{"xp":9}}')))`));
+ assert.deepEqual(added,{name:'Mine (2)',count:2},'the existing profile is kept; a save action, a choice, an unknown ID and an out-of-range value are dropped');
+ assert.deepEqual(JSON.parse(t.store.get('epochpact.profiles.live')),{Mine:{xp:2},'Mine (2)':{xp:5,speed:2}});
+ assert.equal(t.run('addSharedProfile("",{campaign_complete:1})'),null);
+ assert.deepEqual(Object.keys(JSON.parse(t.store.get('epochpact.profiles.live'))),['Mine','Mine (2)'],'nothing is stored without usable settings');
+ assert.equal(t.run('addSharedProfile("  ",{xp:3}).name'),'Imported profile');
 });
 
 test('changing one setting never drops the others from the last used settings',async()=>{
