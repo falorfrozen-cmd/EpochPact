@@ -587,6 +587,26 @@ class BridgeTests(unittest.TestCase):
             r = preview.execute('raw_stat', {'sp':prop['id'],'tags':0,'special':0,'extra':0,'mode':'added','value':1})
             self.assertTrue(r['ok'])
 
+    def test_restored_bonuses_are_released_on_close_and_stay_remembered(self):
+        reply = ('statrestore: restored 2 of 2 bonuses (0 already applied)\n'
+                 'bonus 17 0 0 0 added=50 increased=0 more=0\nbonus 116 0 0 0 added=0 increased=0.5 more=0')
+        mocked = self.send
+        def send(command, **kwargs):
+            if command == 'statrestore':
+                self.commands.append(command)
+                return reply
+            return mocked(command, **kwargs)
+        with patch.object(ui.le, 'send', side_effect=send):
+            result = self.bridge.execute('stat_restore', {})
+            self.assertTrue(result['ok'])
+            self.assertEqual(result['actorValues']['17:0:0:0']['modes'], {'added': 50.0})
+            self.assertEqual(result['actorValues']['116:0:0:0']['modes'], {'increased': 0.5})
+            self.commands.clear()
+            self.assertEqual(self.bridge.restore_session()['restored'], 2)
+        self.assertIn('statraw 17 0 0 0 release', self.commands)
+        self.assertIn('statraw 116 0 0 0 release', self.commands)
+        self.assertFalse(any(c.startswith('statraw') and c.endswith(' reset') for c in self.commands))
+
     def test_stat_read_reset_and_mode_floor(self):
         self.bridge.execute('stat_alias', {'name':'strength','value':80})
         self.bridge.execute('stat_alias', {'name':'strength'}, 'reset')

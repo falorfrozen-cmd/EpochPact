@@ -11,6 +11,8 @@ std::string RawCommand(const std::vector<std::string>& args);
 std::string SheetCommand(const std::vector<std::string>& args);
 std::string Catalog();
 std::string ResetAll();
+// The loaded character's remembered bonuses (stat_memory.hpp), applied again after a restart or a load.
+std::string Restore();
 std::string PlayerRead();
 std::string PlayOffline();
 std::string SheetOpen(bool open);

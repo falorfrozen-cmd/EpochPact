@@ -206,3 +206,21 @@ test('changing one setting never drops the others from the last used settings',a
  await t.run("runTask({type:'control',id:'xp',args:{value:1}},{silent:true})");
  assert.deepEqual(JSON.parse(t.store.get('epochpact.last-settings.live')),{},'the default removes it');
 });
+
+test('the character bonuses come back after the settings, quietly when there are none, never with the startup profile off',async()=>{
+ const restore="catalog.controls.push({id:'stat_restore',group:'stats',lifetime:'actor',widget:'button',default:null,requirements:['offline','loaded_actor'],parameters:[]})";
+ const reply=n=>`var tasks=[];runTask=async p=>{tasks.push([applied.length,p.id]);return {ok:true,text:'statrestore: restored ${n} of 3 bonuses (0 already applied)'};}`;
+ const t=load();t.run(restore);t.run(reply(2));
+ t.store.set('epochpact.last-settings.live',JSON.stringify({xp:5}));
+ t.run('applyStartupProfile()');await new Promise(r=>setImmediate(r));
+ assert.deepEqual(JSON.parse(t.run('JSON.stringify(tasks)')),[[1,'stat_restore']],'after the settings');
+ assert.equal(t.run('notes[notes.length-1]'),'2 character bonuses restored.');
+ const none=load();none.run(restore);none.run(reply(0));
+ none.run('applyStartupProfile()');await new Promise(r=>setImmediate(r));
+ assert.deepEqual(JSON.parse(none.run('JSON.stringify(tasks)')),[[0,'stat_restore']],'also with no settings stored');
+ assert.equal(none.run('notes.length'),0,'nothing to say');
+ const off=load();off.run(restore);off.run(reply(2));
+ off.store.set('epochpact.startup-profile.live',JSON.stringify('__off__'));
+ off.run('applyStartupProfile()');await new Promise(r=>setImmediate(r));
+ assert.equal(off.run('tasks.length'),0);
+});

@@ -329,7 +329,8 @@ void MakeFilters(Section& s) {
                 ActionRun run; run.command = "statreset"; run.success = [](const J&) { return Tr("All character bonuses reset."); }; RunAction(std::move(run));
             });
         }, true, "stat-reset-all");
-        y += Muted(c.parent, kPanelPad, y, kPanelInner, Tr("Choose a stat, adjust your bonus, then apply.")) + 20;
+        y += Muted(c.parent, kPanelPad, y, kPanelInner, Tr("Choose a stat, adjust your bonus, then apply.")) + 4;
+        y += Muted(c.parent, kPanelPad, y, kPanelInner, Tr("Your bonuses are remembered for this character and applied again when it loads, unless Apply at startup is Off. Reset all bonuses removes them.")) + 20;
         float x = kPanelPad;
         for (const auto& [tab, label] : std::vector<std::pair<std::string, std::string>>{{"sheet", "Character sheet"}, {"aliases", "Common stats"}, {"raw", "All stats"}}) {
             auto b = AddButton(c, x, y, Tr(label) + "  " + std::to_string(D()["statBrowser"][tab].items.size()), Look::Normal, [tab] {

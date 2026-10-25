@@ -37,7 +37,7 @@ const pages = {
 const lifetime = {session:"Session",actor:"Character",game_save:"Game save",read_only:"Read only",view:"View",recovery:"Recovery"};
 const description = c => c.description;
 let catalog, token, preview = false, developer = false, page = "overview", busy = false;
-const developerControls=new Set(["density_read","map_read","pickup_radius_read","tier_read","map_settings_read","font_read","sheet_catalog","sheet_open","resistance_labels","session_read","status","player_read","characters","play_offline","load_character"]);
+const developerControls=new Set(["density_read","map_read","pickup_radius_read","tier_read","map_settings_read","font_read","sheet_catalog","sheet_open","resistance_labels","session_read","status","player_read","characters","play_offline","load_character","stat_restore"]);
 function playerControl(c){return developer||!developerControls.has(c.id);}
 let connected = {connected:false,offline:false}, values = {}, appliedValues = {}, dirty = new Set(), cache = {}, history = [], actorValues = {};
 const craftingModel=window.EpochCrafting;
@@ -182,9 +182,18 @@ function applyStartupProfile(){
  for(const [id,v] of Object.entries(profile.values||{})){const c=controlById(id);
   if(profileSetting(c)&&eligible(c)){values[id]=v;dirty.add(id);ids.push(id);}}
  const replays=profile.replay?Object.keys(readStored("last-settings-replay",{})).length:0;
- if(!ids.length&&!replays)return;
+ const bonuses=controlById("stat_restore");
+ if(!ids.length&&!replays&&!bonuses)return;
  if(ids.length)notify(ids.length===1?`Applying ${tr(profile.name)} (1 setting).`:`Applying ${tr(profile.name)} (${ids.length} settings).`);
- setTimeout(async()=>{if(ids.length)await applyDraft({profile:true,ids,name:profile.name});if(replays)await replayLastSettings();},0);
+ setTimeout(async()=>{if(ids.length)await applyDraft({profile:true,ids,name:profile.name});if(replays)await replayLastSettings();if(bonuses)await restoreBonuses();},0);
+}
+// The character bonuses the core remembers for this character (ingame_settings.cpp does the same);
+// nothing is said when there are none or the game has them already.
+async function restoreBonuses(){
+ if(!eligible(controlById("stat_restore")))return;
+ const result=await runTask({type:"control",id:"stat_restore",args:{}},{silent:true});
+ const n=Number(/^statrestore: restored (\d+) /.exec(result?.text||"")?.[1]||0);
+ if(n)notify(n===1?"1 character bonus restored.":`${n} character bonuses restored.`);
 }
 function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|qolarea|pickupradius|pickupinterval|autopickup|mapreveal|mapset|tierset|fontset|effectsset|deathrecap|rageset|invset) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
 function automaticOwner(){
@@ -740,7 +749,7 @@ function statName(row){return ST.name(row,"sheet");}
 function renderStats(){
  const source=statSource(),categories=["All",...new Set(source.map(r=>ST.category(r,statsTab)))];
  if(!categories.includes(statsCategory))statsCategory="All";
- content.innerHTML=`<section class="panel stat-browser"><div class="section-head"><div><h2>Character bonuses</h2><p class="muted">Choose a stat, adjust your bonus, then apply.</p></div><button class="quiet" data-control-id="stat_reset" id="all-stats-reset">Reset all bonuses</button></div><div class="tabs">${[["sheet","Character sheet",catalog.counts.sheetRows],["aliases","Common stats",catalog.counts.statAliases],["raw",developer?"Advanced types":"All stats",catalog.counts.properties]].map(([id,name,count])=>`<button data-stat-tab="${id}" class="${statsTab===id?"selected":""}" aria-pressed="${statsTab===id}">${name}<small>${count}</small></button>`).join("")}</div><div class="filter-row"><input id="stat-search" aria-label="Search stats" placeholder="Find health, damage, resistance…" value="${esc(statsQuery)}"><button id="stat-favorites-filter" class="${statsFavoritesOnly?"selected":""}" aria-pressed="${statsFavoritesOnly}">★ Favorites</button></div><div class="stat-categories" role="group" aria-label="Stat categories">${categories.map(name=>`<button data-stat-category="${esc(name)}" aria-pressed="${name===statsCategory}" class="${name===statsCategory?"selected":""}">${esc(name)}</button>`).join("")}</div><div class="stat-results-head"><span id="stat-count"></span><span>☆ Save your most-used stats</span></div><div id="stat-results"></div></section>${developer?`<details class="panel stat-tools"><summary>Advanced game tools</summary><div class="control-grid">${["sheet_catalog","resistance_labels","sheet_open"].map(id=>actionCard(controlById(id))).join("")}</div><p class="muted">Sheet labels can be stale while the game's character panel is closed. Stat editing uses verified property keys.</p></details>`:""}`;
+ content.innerHTML=`<section class="panel stat-browser"><div class="section-head"><div><h2>Character bonuses</h2><p class="muted">Choose a stat, adjust your bonus, then apply.</p><p class="muted">Your bonuses are remembered for this character and applied again when it loads, unless Apply at startup is Off. Reset all bonuses removes them.</p></div><button class="quiet" data-control-id="stat_reset" id="all-stats-reset">Reset all bonuses</button></div><div class="tabs">${[["sheet","Character sheet",catalog.counts.sheetRows],["aliases","Common stats",catalog.counts.statAliases],["raw",developer?"Advanced types":"All stats",catalog.counts.properties]].map(([id,name,count])=>`<button data-stat-tab="${id}" class="${statsTab===id?"selected":""}" aria-pressed="${statsTab===id}">${name}<small>${count}</small></button>`).join("")}</div><div class="filter-row"><input id="stat-search" aria-label="Search stats" placeholder="Find health, damage, resistance…" value="${esc(statsQuery)}"><button id="stat-favorites-filter" class="${statsFavoritesOnly?"selected":""}" aria-pressed="${statsFavoritesOnly}">★ Favorites</button></div><div class="stat-categories" role="group" aria-label="Stat categories">${categories.map(name=>`<button data-stat-category="${esc(name)}" aria-pressed="${name===statsCategory}" class="${name===statsCategory?"selected":""}">${esc(name)}</button>`).join("")}</div><div class="stat-results-head"><span id="stat-count"></span><span>☆ Save your most-used stats</span></div><div id="stat-results"></div></section>${developer?`<details class="panel stat-tools"><summary>Advanced game tools</summary><div class="control-grid">${["sheet_catalog","resistance_labels","sheet_open"].map(id=>actionCard(controlById(id))).join("")}</div><p class="muted">Sheet labels can be stale while the game's character panel is closed. Stat editing uses verified property keys.</p></details>`:""}`;
  renderStatResults();
 }
 function renderStatResults(){

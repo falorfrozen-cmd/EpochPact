@@ -37,6 +37,8 @@ WebView2, MelonLoader or a separate EpochPact.Core.dll. Press **F6** in the game
   use the gear for options.
 - Settings has the language, saved profiles, what to apply at startup, text
   size, navigation, hidden parts and a support report.
+- Character bonuses are remembered for each character and applied again when it
+  loads (unless Apply at startup is Off). Reset all bonuses removes them.
 - Loot filters: import an XML or ZIP by its full path; imports create new files
   and never overwrite your filters. Backups and exports are kept in the local
   EpochPact folder.

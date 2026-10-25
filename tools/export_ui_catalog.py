@@ -440,6 +440,8 @@ def controls():
     items[-1]["resetCommandSource"] = "characterStats.aliases[name].resetCommand"
     add("stat_reset", "stats", "Tüm mod stat katkılarını kaldır", "button", "statreset", "actor",
         "Yalnız EpochPact'in sahip olduğu kayıtları kaldırır; aynı key'i kullanan tüm UI kontrollerini yenile.", response="text", requires=stat_requires, doc="docs/stat-editor.md")
+    add("stat_restore", "stats", "Hatırlanan karakter bonuslarını geri yükle", "button", "statrestore", "actor",
+        "Yüklü karakter için hatırlanan bonusları yeniden uygular (yeniden başlatma veya karakter yükleme sonrası); oyunda zaten olanları göndermez.", response="text", requires=stat_requires, doc="docs/stat-editor.md")
     add("sheet_open", "stats", "C panelini aç / kapat", "toggle", "sheetopen {value}", "view",
         "Normal UIBase aç/kapat; salt veri yenilemesi değildir.", params=[value(0, 1)], response="text", requires=stat_requires, doc="docs/stat-editor.md")
     add("resistance_labels", "stats", "Direnç yazılarını oku", "read", "sheetread", "read_only",

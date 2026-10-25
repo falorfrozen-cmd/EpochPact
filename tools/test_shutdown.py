@@ -35,7 +35,7 @@ class ShutdownTests(unittest.TestCase):
         self.bridge.actor = {'21:0:0:0': {'key': {'sp': 21, 'tags': 0, 'special': 0, 'extra': 0}, 'modes': {'increased': 1}}}
         result = self.bridge.restore_session()
         self.assertEqual(result['restored'], 4)
-        self.assertEqual(self.commands, ['identityread', 'xp 1', 'mapreveal 0', 'lootcategory gold 1', 'statraw 21 0 0 0 reset'])
+        self.assertEqual(self.commands, ['identityread', 'xp 1', 'mapreveal 0', 'lootcategory gold 1', 'statraw 21 0 0 0 release'])
         self.assertFalse(self.bridge.temporary_resets or self.bridge.actor)
 
     def test_other_loaded_character_is_never_reset(self):
@@ -49,7 +49,7 @@ class ShutdownTests(unittest.TestCase):
         self.bridge.actor_owner = ('42', 'Test')
         self.bridge.actor = {'9:0:0:0': {'key': {'sp':9, 'tags':0, 'special':0, 'extra':0}, 'modes': {'increased':.5}}}
         self.bridge.restore_session()
-        self.assertEqual(self.commands, ['identityread', 'speed 1', 'statraw 9 0 0 0 reset'])
+        self.assertEqual(self.commands, ['identityread', 'speed 1', 'statraw 9 0 0 0 release'])
         self.assertFalse(self.bridge.actor)
 
     def test_already_closed_game_needs_no_ipc(self):

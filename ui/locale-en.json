@@ -185,6 +185,10 @@
       "Reset all mod stat contributions",
       "Removes only contributions owned by EpochPact. Controls sharing the same stat key are updated together."
     ],
+    "stat_restore": [
+      "Restore remembered character bonuses",
+      "Applies the bonuses remembered for the loaded character again (after a restart or a character load); bonuses the game already has are not sent."
+    ],
     "sheet_open": [
       "Open / close character sheet",
       "Toggles the game's normal character panel. This also changes its visible state."

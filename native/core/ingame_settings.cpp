@@ -6,6 +6,7 @@
 #include <shellapi.h>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <cwctype>
 #include <deque>
@@ -190,7 +191,8 @@ std::string Owner(const J& id) {
 struct StartupRun {
     std::deque<std::pair<std::string, J>> settings; std::deque<std::string> choices, reads, colours;
     std::map<std::string, double> game;  // the values the game has now (read when the run starts)
-    std::string owner, name; uint64_t generation = 0; int count = 0, sent = 0, refused = 0; bool compared = false;
+    std::string owner, name; uint64_t generation = 0; int count = 0, sent = 0, refused = 0, bonuses = 0; bool compared = false;
+    bool restore = false;  // the character's remembered bonuses (statrestore), unless the startup profile is off
 };
 double ValueOf(const J& v) { return v.IsNull() ? std::numeric_limits<double>::quiet_NaN() : v.IsBool() ? (v.boolean ? 1 : 0) : v.number; }
 // The game has this value already: read now, or the last value the window read or applied in this game.
@@ -236,6 +238,18 @@ void StartupNext(std::shared_ptr<StartupRun> run) {
         if (n) Toast(n == 1 ? Fmt("Applying {0} (1 setting).", {run->name}) : Fmt("Applying {0} ({1} settings).", {run->name, std::to_string(n)}));
     }
     if (run->settings.empty() && run->choices.empty()) {
+        // Then the character bonuses the core remembers for this character (app.js restoreBonuses).
+        if (run->restore) {
+            run->restore = false;
+            Send("statrestore", [run](const std::string& reply) {
+                std::string why;
+                Log("startup bonuses: %s", reply.substr(0, reply.find('\n')).substr(0, 300).c_str());
+                if (Refused(reply, &why)) Log("startup bonuses: refused: %s", why.substr(0, 300).c_str());
+                else if (reply.rfind("statrestore: restored ", 0) == 0) run->bonuses = std::atoi(reply.c_str() + 22);
+                StartupNext(run);
+            });
+            return;
+        }
         // The stored colours last (app.js applyTierPalette, applyAreaColor): display choices kept
         // apart from profiles, also with the startup profile off; a refusal is only logged.
         if (!run->colours.empty()) {
@@ -249,9 +263,12 @@ void StartupNext(std::shared_ptr<StartupRun> run) {
         }
         startupBusy = false;
         const auto total = std::to_string(run->count + run->refused);
-        if (run->refused)
-            Toast(Fmt("{0} of {1} settings of {2} applied; the others were refused and stay in the draft.", {std::to_string(run->count), total, run->name}), true);
-        else if (run->sent) Toast(run->count == 1 ? Fmt("Applied {0} (1 setting).", {run->name}) : Fmt("Applied {0} ({1} settings).", {run->name, total}));
+        std::string text;
+        if (run->refused) text = Fmt("{0} of {1} settings of {2} applied; the others were refused and stay in the draft.", {std::to_string(run->count), total, run->name});
+        else if (run->sent) text = run->count == 1 ? Fmt("Applied {0} (1 setting).", {run->name}) : Fmt("Applied {0} ({1} settings).", {run->name, total});
+        if (run->bonuses)
+            text += (text.empty() ? "" : " ") + (run->bonuses == 1 ? Tr("1 character bonus restored.") : Fmt("{0} character bonuses restored.", {std::to_string(run->bonuses)}));
+        if (!text.empty()) Toast(text, run->refused > 0);
         return;
     }
     // Recheck before each change. Never replay a save action or retry a refused command: a refused
@@ -535,10 +552,13 @@ void SettingsStep() {
         startupOwners.insert(owner); // once, including failures; no hidden retries of writes
         auto run = std::make_shared<StartupRun>(); run->owner = owner; run->generation = startupGeneration;
         run->name = choice == "__last__" ? Tr("your last used settings") : Tr("profile “") + choice + "”";
+        run->restore = choice != "__off__";
         for (const auto& [key, value] : saved.members) if (ProfileSetting(D()["controls"][key], value)) run->settings.emplace_back(key, value);
         if (choice == "__last__") for (const auto& [_, entry] : ObjPref(kReplay).members) { auto command = ReplayCommand(entry); if (!command.empty()) run->choices.push_back(command); }
         for (auto& line : StoredColourCommands()) run->colours.push_back(std::move(line));
         run->reads = ReadsFor(run->settings);
+        Log("startup run: %s, %zu settings, %zu choices, %zu colours", choice == "__off__" ? "off" : choice == "__last__" ? "last used" : "profile",
+            run->settings.size(), run->choices.size(), run->colours.size());
         startupBusy = true; StartupNext(run);
     });
 }

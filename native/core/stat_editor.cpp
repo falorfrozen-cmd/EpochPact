@@ -4,12 +4,18 @@
 #include "mainthread.hpp"
 #include "managed.hpp"
 #include "hook.hpp"
+#include "stat_memory.hpp"
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
 #include <functional>
+#include <iterator>
 #include <map>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
+
+namespace ep::ingame::view { std::filesystem::path PreferencesFolder(); }
 
 namespace ep::statedit {
 namespace {
@@ -360,21 +366,97 @@ std::string SetImpl(void* stats, Key key, Mode mode, double value) {
     if (At<float>(entry, o_added) == 0 && At<float>(entry, o_increased) == 0 && MoreValues(entry).empty()) RemoveOwned(stats, key);
     return std::string("EpochPact ") + ModeName(mode) + "=" + std::to_string(v) + "; " + ReadImpl(stats, key);
 }
+
+// Remembered bonuses (stat_memory.hpp): a change by the player updates the loaded character's entry,
+// so statrestore can apply them again after a restart or a character load. Reads never write.
+std::filesystem::path MemoryFile() {
+    const auto folder = ingame::view::PreferencesFolder();
+    return folder.empty() ? folder : folder / L"character-bonuses.json";
+}
+memory::Characters LoadMemory() {
+    const auto path = MemoryFile();
+    std::error_code ec;
+    if (path.empty() || std::filesystem::file_size(path, ec) > 4 * 1024 * 1024 || ec) return {};
+    std::ifstream in(path, std::ios::binary);
+    const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    return memory::Parse(text);
+}
+bool SaveMemory(const memory::Characters& all) {
+    const auto path = MemoryFile();
+    if (path.empty()) return false;
+    std::error_code ec;
+    std::filesystem::create_directories(path.parent_path(), ec);
+    auto temp = path;
+    temp += L".tmp";
+    {
+        std::ofstream out(temp, std::ios::binary | std::ios::trunc);
+        if (!(out << memory::Text(all)) || !out.flush()) return false;
+    }
+    return MoveFileExW(temp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+}
+std::string CharacterOf(void* data) {
+    return memory::Character(String(Invoke(managed::Method(data, "get_Id", 0), data)), String(At<void*>(data, o_charName)));
+}
+// This mod's contribution to a key now (all zero when it has none).
+memory::Bonus Current(Key key) {
+    memory::Bonus b{key};
+    if (auto* item = FindOwned(key)) {
+        if (CoreAttribute(key)) { b.added = item->flat; b.increased = item->increase; b.more = item->more; }
+        else {
+            void* entry = item->entry.Get();
+            const auto more = MoreValues(entry);
+            b.added = At<float>(entry, o_added); b.increased = At<float>(entry, o_increased); b.more = more.empty() ? 0 : more.front();
+        }
+    }
+    return b;
+}
+// After the change itself succeeded: a failure here is only logged, never reported as a refusal.
+void Remember(void* data, Key key) {
+    if (!memory::Kept(key)) return;
+    try {
+        const auto character = CharacterOf(data);
+        if (character.empty()) return;
+        auto all = LoadMemory();
+        auto& list = all[character];
+        const auto before = list;
+        memory::Put(list, Current(key));
+        if (list == before) return;
+        if (list.empty()) all.erase(character);
+        if (!SaveMemory(all)) Log("statedit: character bonuses could not be saved");
+    } catch (const std::exception& e) { Log("statedit: character bonuses not remembered: %s", e.what()); }
+}
+void ForgetCharacter(void* data) {
+    try {
+        auto all = LoadMemory();
+        if (all.erase(CharacterOf(data)) && !SaveMemory(all)) Log("statedit: character bonuses could not be saved");
+    } catch (const std::exception& e) { Log("statedit: character bonuses not forgotten: %s", e.what()); }
+}
+std::string BonusLine(const memory::Bonus& b) {
+    return std::to_string(b.key.sp) + " " + std::to_string(b.key.tags) + " " + std::to_string(b.key.special) + " " + std::to_string(b.key.extra) +
+        " added=" + memory::Number(b.added) + " increased=" + memory::Number(b.increased) + " more=" + memory::Number(b.more);
+}
+
 bool Property(const std::string& s, uint8_t* sp) {
     int64_t n = 0;
     if (Integer(s, 0, 255, &n) && properties.contains(static_cast<uint8_t>(n))) { *sp = static_cast<uint8_t>(n); return true; }
     for (const auto& [id, name] : properties) if (NormalName(name) == NormalName(s)) { *sp = id; return true; }
     return false;
 }
-std::string Action(void* stats, Key key, const std::vector<std::string>& args, size_t start) {
+std::string Action(void* stats, void* data, Key key, const std::vector<std::string>& args, size_t start) {
     if (args.size() == start) return ReadImpl(stats, key);
-    if (args[start] == "reset" && args.size() == start + 1) {
-        RemoveOwned(stats, key); Recalculate(stats); RemoveIdleAttributeHook(); return "EpochPact modifier reset; " + ReadImpl(stats, key);
+    // "release" (the desktop app's close) takes the bonus out of the game but keeps it remembered.
+    if ((args[start] == "reset" || args[start] == "release") && args.size() == start + 1) {
+        const bool reset = args[start] == "reset";
+        RemoveOwned(stats, key); Recalculate(stats); RemoveIdleAttributeHook();
+        if (reset) Remember(data, key);
+        return std::string(reset ? "EpochPact modifier reset; " : "EpochPact modifier released (still remembered); ") + ReadImpl(stats, key);
     }
     Mode mode{}; double value = 0;
     if (args.size() != start + 2 || !ParseMode(args[start], &mode) || !Number(args[start + 1], &value))
         return "stat: refused: use [added|increased|more <raw value>] or [reset]; fractions: 0.65 = 65%";
-    return SetImpl(stats, key, mode, value);
+    auto reply = SetImpl(stats, key, mode, value);
+    Remember(data, key);
+    return reply;
 }
 
 struct Row { void* display; std::string name; Key base; Key modifier; bool useModifier = false; void* label = nullptr; bool derived = false; };
@@ -561,11 +643,47 @@ bool Init() {
 std::string Read(Key key) { return Run([key] { RequireKey(key); return ReadImpl(Player(), key); }); }
 std::string Set(Key key, Mode mode, double value) {
     if (!ValidValue(mode, value)) return "stat: refused: value must fit a finite float; increased/more must be >= -1";
-    return Run([=] { RequireKey(key); return SetImpl(Player(), key, mode, value); });
+    return Run([=] {
+        RequireKey(key);
+        void* data = nullptr;
+        auto reply = SetImpl(Player(&data), key, mode, value);
+        Remember(data, key);  // not the Speed setting's own key (stat_memory.hpp Kept)
+        return reply;
+    });
+}
+std::string Restore() {
+    return Run([] {
+        void* data = nullptr;
+        void* stats = Player(&data);
+        const auto all = LoadMemory();
+        const auto it = all.find(CharacterOf(data));
+        if (it == all.end()) return std::string("statrestore: restored 0 of 0 bonuses");
+        // A bonus the game has already is not sent again; one it refuses is skipped and stays remembered.
+        int restored = 0, already = 0;
+        std::string lines;
+        for (const auto& b : it->second) {
+            const auto now = Current(b.key);
+            if (now == b) { ++already; lines += "\nbonus " + BonusLine(b); continue; }
+            try {
+                RequireKey(b.key);
+                if (b.added != now.added) SetImpl(stats, b.key, Mode::Added, b.added);
+                if (b.increased != now.increased) SetImpl(stats, b.key, Mode::Increased, b.increased);
+                if (b.more != now.more) SetImpl(stats, b.key, Mode::More, b.more);
+                ++restored; lines += "\nbonus " + BonusLine(b);
+            } catch (const std::exception& e) {
+                Log("statrestore: %s skipped: %s", BonusLine(b).c_str(), e.what());
+                lines += "\nskipped " + BonusLine(b) + " (" + e.what() + ")";
+            }
+        }
+        const auto summary = "statrestore: restored " + std::to_string(restored) + " of " + std::to_string(it->second.size()) + " bonuses (" +
+            std::to_string(already) + " already applied)";
+        Log("%s", summary.c_str());
+        return summary + lines;
+    });
 }
 std::string RawCommand(const std::vector<std::string>& args) {
     if (args.empty()) {
-        std::string out = "statraw <SP name/id> <tags> <special> <extra> [added|increased|more <raw value>|reset]\n";
+        std::string out = "statraw <SP name/id> <tags> <special> <extra> [added|increased|more <raw value>|reset|release]\n";
         for (const auto& [sp, name] : properties) out += std::to_string(sp) + "=" + name + " ";
         return out + "\nPercent fractions: 0.65=65%; more 0.5=x1.5. Set replaces only the EpochPact contribution. statreset removes all mod contributions.";
     }
@@ -574,7 +692,7 @@ std::string RawCommand(const std::vector<std::string>& args) {
         !Integer(args[2], 0, 255, &special) || !Integer(args[3], INT32_MIN, INT32_MAX, &extra))
         return "statraw: refused: use a defined SP, int32 tags/extra, and byte special (0..255)";
     key.tags = static_cast<int32_t>(tags); key.special = static_cast<uint8_t>(special); key.extra = static_cast<int32_t>(extra);
-    return Run([=] { return Action(Player(), key, args, 4); });
+    return Run([=] { void* data = nullptr; void* stats = Player(&data); return Action(stats, data, key, args, 4); });
 }
 std::string Catalog() {
     return Run([] {
@@ -588,7 +706,7 @@ std::string Catalog() {
 std::string SheetCommand(const std::vector<std::string>& args) {
     if (args.empty()) return Catalog();
     return Run([args] {
-        void* stats = Player(); const auto rows = Rows(stats);
+        void* data = nullptr; void* stats = Player(&data); const auto rows = Rows(stats);
         size_t selected = rows.size(); int64_t id = 0;
         if (Integer(args[0], 0, static_cast<int64_t>(rows.size()) - 1, &id)) selected = static_cast<size_t>(id);
         else for (size_t i = 0; i < rows.size(); ++i) if (NormalName(rows[i].name) == NormalName(args[0])) {
@@ -602,13 +720,14 @@ std::string SheetCommand(const std::vector<std::string>& args) {
             if (!row.useModifier) return std::string("sheetstat: this row has no secondary modifier");
             key = row.modifier; ++start;
         }
-        return RowText(row, selected) + "\n" + Action(stats, key, args, start);
+        return RowText(row, selected) + "\n" + Action(stats, data, key, args, start);
     });
 }
 std::string ResetAll() {
     return Run([] {
-        void* stats = Player(); const size_t n = owned.size();
+        void* data = nullptr; void* stats = Player(&data); const size_t n = owned.size();
         while (!owned.empty()) RemoveOwned(stats, owned.back().key);
+        ForgetCharacter(data);
         Recalculate(stats); RemoveIdleAttributeHook(); return "statreset: removed " + std::to_string(n) + " EpochPact modifiers; equipment entries preserved";
     });
 }

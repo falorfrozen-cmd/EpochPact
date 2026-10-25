@@ -4174,6 +4174,27 @@
       "documentation": "docs/stat-editor.md"
     },
     {
+      "id": "stat_restore",
+      "group": "stats",
+      "label": "Hatırlanan karakter bonuslarını geri yükle",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "statrestore",
+      "pythonApi": null,
+      "responseFormat": "text",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "actor",
+      "description": "Yüklü karakter için hatırlanan bonusları yeniden uygular (yeniden başlatma veya karakter yükleme sonrası); oyunda zaten olanları göndermez.",
+      "currentSource": null,
+      "requirements": [
+        "offline",
+        "loaded_actor"
+      ],
+      "documentation": "docs/stat-editor.md"
+    },
+    {
       "id": "sheet_open",
       "group": "stats",
       "label": "C panelini aç / kapat",
@@ -34299,7 +34320,7 @@
     ]
   },
   "counts": {
-    "controls": 198,
+    "controls": 199,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

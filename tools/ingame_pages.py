@@ -240,4 +240,5 @@ def sections(page, controls, counts):
 
 
 DEVELOPER_CONTROLS = {"density_read", "map_read", "pickup_radius_read", "tier_read", "map_settings_read", "font_read", "sheet_catalog",
-                      "sheet_open", "resistance_labels", "session_read", "status", "player_read", "characters", "play_offline", "load_character"}
+                      "sheet_open", "resistance_labels", "session_read", "status", "player_read", "characters", "play_offline", "load_character",
+                      "stat_restore"}

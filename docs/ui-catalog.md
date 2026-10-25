@@ -13,7 +13,7 @@ JSON yüklemek hiçbir ayarı oyuna uygulamaz; kayıtlı mod profili oluşturmaz
 
 | Katalog | Adet |
 |---|---:|
-| Panel kontrolü / işlem | 198 |
+| Panel kontrolü / işlem | 199 |
 | SP stat türü | 134 |
 | Hazır stat adı | 72 |
 | Doğrulanmış C satırı | 206 |
@@ -134,6 +134,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `raw_stat` — Full-key stat düzenleyici | `statraw {sp} {tags} {special} {extra} {mode} {value}` | sp: characterStats.properties.id; tags: -2147483648…2147483647; special: 0…255; extra: -2147483648…2147483647; mode: added/increased/more; value: -3.4028234663852886e+38…3.4028234663852886e+38 | 0 | Yüklü aktör |
 | `stat_alias` — Hazır stat adları | `stat {name} {value}` | value: -3.4028234663852886e+38…3.4028234663852886e+38 | 0 | Yüklü aktör |
 | `stat_reset` — Tüm mod stat katkılarını kaldır | `statreset` | — | — | Yüklü aktör |
+| `stat_restore` — Hatırlanan karakter bonuslarını geri yükle | `statrestore` | — | — | Yüklü aktör |
 | `sheet_open` — C panelini aç / kapat | `sheetopen {value}` | value: 0…1 | — | Görünüm |
 | `resistance_labels` — Direnç yazılarını oku | `sheetread` | — | — | Okuma |
 

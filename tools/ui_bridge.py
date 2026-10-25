@@ -43,6 +43,10 @@ def raw_command(key):
     return "statraw " + " ".join(str(key[x]) for x in ("sp", "tags", "special", "extra"))
 
 
+# A bonus line of the native statrestore reply (stat_editor.cpp BonusLine).
+RESTORED_BONUS = re.compile(r"bonus (\d+) (-?\d+) (\d+) (-?\d+) added=(\S+) increased=(\S+) more=(\S+)")
+
+
 def text_ok(reply):
     if not reply:
         raise RuntimeError("The game did not respond. The action was not automatically retried.")
@@ -445,7 +449,7 @@ class UiBridge:
                     raise RuntimeError("The loaded character has changed. Refresh this section and try again.")
                 if supplied.get("expected_name") and live_player and live_player.get("name") != supplied["expected_name"]:
                     raise RuntimeError("The loaded character has changed. Refresh this section and try again.")
-            if cid in ("speed", "stat_reset"):
+            if cid in ("speed", "stat_reset", "stat_restore"):
                 identity = identity or self._actor_identity()
                 if self.actor_owner != identity:
                     self.actor.clear()
@@ -494,6 +498,14 @@ class UiBridge:
                 result["forgePreview"] = result.pop("preview")
             if result.get("ok") and cid == "stat_reset":
                 self.actor.clear()
+            if result.get("ok") and cid == "stat_restore":
+                # The restored bonuses are this session's contributions too: closing the app releases them.
+                for line in result.get("text", "").splitlines():
+                    match = RESTORED_BONUS.fullmatch(line)
+                    if match:
+                        key = dict(zip(("sp", "tags", "special", "extra"), map(int, match.group(1, 2, 3, 4))))
+                        modes = {mode: float(value) for mode, value in zip(("added", "increased", "more"), match.group(5, 6, 7)) if float(value)}
+                        self.actor[key_id(key)] = {"key": key, "modes": modes}
             if result.get("ok") and cid == "speed":
                 value = 1 if operation == "reset" else args["value"]
                 entry = self.actor.setdefault("9:0:0:0", {"key": {"sp": 9, "tags": 0, "special": 0, "extra": 0}, "modes": {}})
@@ -540,7 +552,8 @@ class UiBridge:
                     # legacy status meter reporting the old multiplier.
                     reset("speed 1")
                 for identity, entry in list(self.actor.items()):
-                    reset(raw_command(entry["key"]) + " reset")
+                    # "release": out of the game, still remembered for the character's next load.
+                    reset(raw_command(entry["key"]) + " release")
                     del self.actor[identity]; restored += 1
             else:
                 self.actor.clear()  # Do not reset a different loaded character.

@@ -1,4 +1,4 @@
-# Saved profiles: applied reliably, and shared as files (0.1.2-dev.42)
+# Saved profiles applied reliably and shared as files; character bonuses remembered (0.1.2-dev.42)
 
 ## Reports
 
@@ -7,6 +7,9 @@
 - "Where are the profiles saved? I want to share my config with someone."
 - "Some weird stuff on area of effect … I need to reapply every time I open Pact. It works when I
   configure it, but after a close and restart it seems not to work anymore."
+- "Character modifications like health regen / mana regen / area of effect etc. modifiers don't
+  remain after restart of the game." (the same player: "area of effect" was the Character bonus,
+  not the interaction area)
 
 ## What happened (0.1.2-dev.41 and earlier)
 
@@ -34,6 +37,12 @@ values (amber, drops, gold x2, xp x3).
   drew its default. Measured with last used settings radius 8, square, areas shown, and stored
   colours area FF0000, T7 112233, rule ABCDEF: after a restart radius, shape and show came back, the
   three colours were still the game's defaults after 45 seconds.
+
+- **Character bonuses were never kept.** The Character bonuses page (stat editor: `stat`,
+  `statraw`, `sheetstat`) changes the loaded character's stats in memory only, by design
+  (`docs/stat-editor.md`); they are not profile settings. Measured on the clone with health regen
+  +50, mana regen +20 and area +50 %: all three stay through a zone change (Z32 → End of Time) and
+  are gone after a restart; a character load also starts without them. The page did not say so.
 
 ## Change
 
@@ -63,6 +72,16 @@ values (amber, drops, gold x2, xp x3).
   when a character is ready, as the desktop app does: only those that differ from the game's own
   colours, also with the startup profile off (`StoredColourCommands`, `ingame_display.cpp`).
 
+- **Character bonuses are remembered per character** (`native/core/stat_memory.hpp`,
+  `stat_editor.cpp`; details in `docs/stat-editor.md`). The core writes every bonus change, from
+  either edition, to `%LOCALAPPDATA%\EpochPact\character-bonuses.json` under the character's save id
+  and name; a reset removes the key, Reset all bonuses the character, reads never write. Movement
+  speed stays with the Speed setting. When a character is ready, after the startup profile, both
+  editions send `statrestore` (unless Apply at startup is Off): bonuses the game already has are not
+  sent again, a refused one is skipped and kept. The notice adds "N character bonuses restored.".
+  The desktop app's close now sends `statraw … release` instead of `reset`: the bonus leaves the
+  game as before but stays remembered. A note on the Character bonuses page says all this.
+
 Stored profiles, the startup choice, last used settings and stored colours keep their keys and
 format.
 
@@ -81,9 +100,29 @@ Test build, EpCraftTest clone, commands only, isolated preferences
 | Restart with last used settings xp 4 + a refused choice (unknown affix ID) + loot mode filter | xp 4 after 1.1 s; the refused choice is logged and loot mode filter is still applied |
 | Restart with area radius 8, square, shown + colours area FF0000, T7 112233, rule ABCDEF (`area-new`) | all six in the game after 1.3 s (dev.41 code, `area-old`: the three colours missing after 45 s) |
 
+Character bonuses (`builds\bonus-live`, `bonus-live2` before the change; `bonus-live5` after it):
+
+| Step | Result |
+|---|---|
+| Health regen +50, mana regen +20, area +50 %, then a zone change (Z32 → End of Time), then a restart (dev.41 code) | all three kept through the zone change, all gone after the restart |
+| Same through `stat healthregen 50`, `statraw` and Strength +100 % (attribute), plus `speed 2` | `character-bonuses.json`: `6\|EpCraftTest` with the four keys, no movement speed; a read wrote nothing |
+| Restart with last used settings | all four in the game 0.35 s after the startup run started (`core.log`: "startup run: last used …", "statrestore: restored 4 of 4") |
+| `statraw 116 … reset`, `statraw 18 … release`, then `statrestore` | area forgotten; mana regen out of the game but kept, then "restored 1 of 3 bonuses (2 already applied)" |
+| Restart with Apply at startup Off | no bonus in the game, all still remembered; `statrestore` by hand: 3 of 3 |
+| `statreset` | none in the game, the character removed from the file |
+| The player's own `%LOCALAPPDATA%\EpochPact\character-bonuses.json` | not created by the tests (isolated preferences folder) |
+
+Strength shows `attached=0` right after it is set, as before this change: the attribute bonus is
+re-added by the attribute hook when the game recalculates. Not tested live: the desktop app (its
+restore, notice and close with `release` are covered by `test_startup_profile.cjs` and
+`test_ui_bridge.py`), and a second character (the file key is save id and name;
+`stat_key_test.cpp`).
+
 The session closed with exit code 0 each time; saves and the real preferences were restored.
 
-Tests: Python 386 (6 new in `test_profile_files.py`), JS 240 (2 new and 1 updated in
-`test_startup_profile.cjs`), native 26; translations 1738/1738 (tr, ru). In an earlier run the
+Tests: Python 387 (6 new in `test_profile_files.py`, 1 in `test_ui_bridge.py`; 2 in
+`test_shutdown.py` now expect `release`), JS 241 (3 new and 1 updated in
+`test_startup_profile.cjs`), native 26 (`stat_key_test` 49 checks, 9 new for
+`stat_memory.hpp`); translations 1743/1743 (tr, ru). In an earlier run the
 `test_le_session` two-process IPC test failed once with a temporary-file access error; it passed on
 three reruns and in the final run (unrelated to this change).

@@ -1,4 +1,5 @@
 #include "../core/stat_key.hpp"
+#include "../core/stat_memory.hpp"
 #include <cstdio>
 #include <limits>
 using namespace ep::statedit;
@@ -49,6 +50,41 @@ int main() {
     check(AttributeContribution(4, 0, -1, 0) == -4, "100 percent reduction removes all attribute points");
     check(AttributeContribution(4, 0, 0, 0) == 0, "neutral attribute bonus removes only the mod contribution");
     check(!std::isfinite(AttributeContribution(4, 0, 1e30, 0)), "attribute overflow refused before managed int conversion");
+    // Remembered character bonuses (stat_memory.hpp)
+    {
+        namespace mem = ep::statedit::memory;
+        mem::Characters all;
+        auto& hero = all[mem::Character("6", "Hero")];
+        mem::Put(hero, {{17, 0, 0, 0}, 50, 0, 0});
+        mem::Put(hero, {{116, 0, 0, 0}, 0, 0.5f, 0});
+        mem::Put(hero, {{0, 8192, 0, 0}, 0, 0, -0.25f});
+        mem::Put(hero, {{9, 0, 0, 0}, 0, 1, 0});
+        check(hero.size() == 3, "movement speed stays with the Speed setting");
+        mem::Put(hero, {{17, 0, 0, 0}, 80, 0.1f, 0});
+        check(hero.size() == 3 && hero[0].added == 80 && hero[0].increased == 0.1f, "a change replaces the key's entry");
+        mem::Put(hero, {{116, 0, 0, 0}});
+        check(hero.size() == 2, "a reset forgets the key");
+        all[mem::Character("7", "Na\"me\\")] = {{{18, 0, 0, 0}, 20, 0, 0}};
+        check(mem::Parse(mem::Text(all)) == all, "the file text reads back the same, also with quotes in a name");
+        check(mem::Character("6", "Hero") != mem::Character("6", "Other") && mem::Character("", "Hero").empty(), "a reused slot is another character");
+        const auto damaged = mem::Parse(R"({"version":1,"characters":{"6|Hero":[
+            {"key":[17,0,0,0],"added":5,"increased":0,"more":0},
+            {"key":[300,0,0,0],"added":1,"increased":0,"more":0},
+            {"key":[1,0,256,0],"added":1,"increased":0,"more":0},
+            {"key":[1,0,0,0.5],"added":1,"increased":0,"more":0},
+            {"key":[2,0,0,0],"added":1,"increased":-2,"more":0},
+            {"key":[3,0,0,0],"added":"1","increased":0,"more":0},
+            {"key":[4,0,0,0],"added":0,"increased":0,"more":0},
+            {"key":[9,0,0,0],"added":0,"increased":1,"more":0},
+            {"key":[17,0,0,0],"added":9,"increased":0,"more":0}],
+            "8|Empty":[], "9|Bad":{}}})");
+        check(damaged.size() == 1 && damaged.at("6|Hero").size() == 1 && damaged.at("6|Hero")[0].added == 5, "damaged entries are left out, the others count");
+        check(mem::Parse(R"({"version":2,"characters":{"6|Hero":[{"key":[17,0,0,0],"added":5,"increased":0,"more":0}]}})").empty(), "an unknown version is not read");
+        check(mem::Parse("not json").empty() && mem::Parse("").empty(), "a broken file reads as nothing remembered");
+        std::vector<mem::Bonus> full;
+        for (int i = 0; i < 400; ++i) mem::Put(full, {{static_cast<uint8_t>(i % 256), i, 0, 0}, 1, 0, 0});
+        check(full.size() == mem::kBonuses, "a character keeps at most 300 bonuses");
+    }
     std::printf("stat_key_test: %d passed, %d failed\n", passed, failed);
     return failed ? 1 : 0;
 }

@@ -405,6 +405,7 @@ std::string Execute(const std::string& line) {
     if (cmd == "statraw") return statedit::RawCommand(args);
     if (cmd == "sheetstat") return statedit::SheetCommand(args);
     if (cmd == "statreset") return args.empty() ? statedit::ResetAll() : "statreset: refused: no arguments expected";
+    if (cmd == "statrestore") return args.empty() ? statedit::Restore() : "statrestore: refused: no arguments expected";
     if (cmd == "playerread") return args.empty() ? statedit::PlayerRead() : "playerread: refused: no arguments expected";
     if (cmd == "characters") return args.empty() ? statedit::Characters() : "characters: refused: no arguments expected";
     if (cmd == "playoffline") return args.empty() ? statedit::PlayOffline() : "playoffline: refused: no arguments expected";

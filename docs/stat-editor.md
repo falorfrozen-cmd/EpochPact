@@ -23,7 +23,8 @@ Send these with `py -3 tools/le_session.py cmd "<command>"`.
 | `sheetstat <row> reset` | Removes this mod's whole contribution for that full key. |
 | `statraw` | Lists every supported SP name/id and full-key syntax. |
 | `statraw <SP name/id> <tags> <special> <extra> [mode value or reset]` | Reads/edits any defined SP with any int32 tags/extra and byte special. |
-| `statreset` | Removes all current actor's EpochPact stat contributions. |
+| `statreset` | Removes all current actor's EpochPact stat contributions (and forgets them for this character). |
+| `statrestore` | Applies the loaded character's remembered bonuses again; prints a `bonus …` line for each one the game now has. |
 | `stat <name> [value]` | Existing convenient aliases; uses the same isolated editor. |
 
 Examples:
@@ -80,8 +81,19 @@ environment and loaded `CharacterData.IsOffline` must confirm offline play. Inva
 keys/numbers/extra arguments are refused. A failed managed calculation restores the
 previous contribution and recalculates; a failed rollback explicitly requires restart.
 
-Settings live in the current actor's memory. They are not a saved configuration and
-are not automatically copied into a replacement actor after a zone/character load.
+Settings live in the current actor's memory; they stay through zone changes (the actor's
+stats object is kept) and end with the game or a character load. Since 0.1.2-dev.42 every
+change by `stat <name> <value>`, `statraw`, `sheetstat` and `statreset` is also remembered
+per character (save id and name) in `character-bonuses.json` next to the preferences file
+(`%LOCALAPPDATA%\EpochPact`, or the folder of `EPOCHPACT_PREFERENCES`):
+`{"version":1,"characters":{"<id>|<name>":[{"key":[sp,tags,special,extra],"added":a,"increased":i,"more":m}]}}`
+(`native/core/stat_memory.hpp`). A reset removes the key, `statreset` the character; reads
+never write. Movement speed (SP 9, untagged) is left to the Speed setting, which profiles
+keep. `statraw <key> release` takes a bonus out of the game but keeps it remembered (the
+desktop app's close). `statrestore` applies the loaded character's remembered bonuses
+again, skipping those the game already has; a refused one is reported as `skipped` and kept.
+Both editions send it when a character is ready, after the startup profile, unless
+"Apply at startup" is Off.
 Queries report whether an owned entry is still attached. Typed scene lookups and sheet
 scans run only on an IPC request; no permanent update hook is installed for the editor.
 
