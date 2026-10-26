@@ -3727,6 +3727,7 @@ std::string Panel(const std::string& action) {
         const auto name=action.substr(6);
         if(name.rfind("profile-name=",0)==0){for(auto& field:win.inputs)if(field.name=="profile-name"){const auto value=name.substr(13);managed::Root text(il2cpp::api().string_new(value.c_str()));void* a[]{text.Get()};Invoke(Find("Unity.TextMeshPro.dll","TMPro","TMP_InputField","set_text",1),field.field.Get(),a);field.last=value;if(field.onChange)field.onChange(value);return State();}}
         if(name=="discard"){DiscardDrafts();return State();}
+        if(name=="reset-all"){view::ResetAllSettings();return State();}
         if(name.rfind("profile-import=",0)==0){view::ImportProfile(name.substr(15));return State();}
         const bool allowed=name=="profile-save"||name=="profile-load"||name=="profile-delete"||name=="profile-export"||name=="display-preferences-reset"||name=="show-all-parts"||name.rfind("nav-visible:",0)==0||name.rfind("nav-favorite:",0)==0||name.rfind("hide:",0)==0||name.rfind("show-part:",0)==0;
         if(!allowed)return std::string("{\"ok\":false,\"error\":\"not a local preference action\"}");

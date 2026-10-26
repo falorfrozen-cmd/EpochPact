@@ -128,6 +128,7 @@ void SettingsStep();                     // once per ready offline owner, even w
 void RememberSetting(const Control& c, double value);
 void RememberChoice(const std::string& command);
 bool ImportProfile(const std::string& path);  // a shared profile file as a new profile (Settings)
+void ResetAllSettings();  // every profile setting back to the game's normal value (Settings)
 std::vector<std::string> StoredColourCommands();  // tier palette, rule and area colours to send again (ingame_display.cpp)
 void NavigationChanged();
 void ReloadWindow();

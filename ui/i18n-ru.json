@@ -1758,6 +1758,13 @@
 "s": "с",
 "Applying {0} (1 setting).": "Применение: {0} (1 настройка).",
 "Applying {0} ({1} settings).": "Применение: {0} (настроек: {1}).",
+"Reset all settings to default": "Сбросить все настройки по умолчанию",
+"Every EpochPact setting returns to the game's normal value now. Saved profiles, character bonuses and changes in your save are kept.": "Все настройки EpochPact сейчас вернутся к обычным значениям игры. Сохранённые профили, бонусы персонажа и изменения в сохранении останутся.",
+"Every setting a profile can hold returns to the game's normal value now, also in your last used settings. Saved profiles, character bonuses and changes in your save are kept.": "Все настройки, которые может хранить профиль, сейчас вернутся к обычным значениям игры, в том числе в последних использованных настройках. Сохранённые профили, бонусы персонажа и изменения в сохранении останутся.",
+"the game's normal values": "обычные значения игры",
+"All settings are back to the game's normal values.": "Все настройки вернулись к обычным значениям игры.",
+"All settings are already at the game's normal values.": "Все настройки уже имеют обычные значения игры.",
+"Wait until the startup profile is applied.": "Подождите, пока применится профиль запуска.",
 "Rule name only": "Только название правила",
 "Show only the rule name in the rule line, without \"Loot filter:\", the rule number and Show/Hide/Highlight.": "Показывать в строке правила только его название, без «Loot filter:», номера правила и Показать/Скрыть/Выделить.",
 "{0} The choice is undone when you choose Game font or close EpochPact.": "{0} Выбор отменяется, если выбрать «Шрифт игры» или закрыть EpochPact."

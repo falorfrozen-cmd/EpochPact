@@ -126,3 +126,27 @@ Tests: Python 387 (6 new in `test_profile_files.py`, 1 in `test_ui_bridge.py`; 2
 `stat_memory.hpp`); translations 1743/1743 (tr, ru). In an earlier run the
 `test_le_session` two-process IPC test failed once with a temporary-file access error; it passed on
 three reruns and in the final run (unrelated to this change).
+
+## Reset all settings to default (0.1.2-dev.43)
+
+Player question: "anyway to reset the whole thing to default after messed around with some settings?"
+Until now this took one Default button per card, or Apply at startup Off and a restart.
+
+Settings → Draft profiles → **Reset all settings to default** (both editions, after a confirmation)
+returns every setting a profile can hold to the game's normal value and removes it from the last used
+settings, so a restart does not bring it back. Saved profiles, the startup choice, character bonuses
+(Character → Reset all bonuses), loot/font choices and changes in the save are kept.
+
+- In-game window (`ResetAllSettings`, ingame_settings.cpp): a startup run with every profile setting at
+  its catalogue default. It reads the game's values first and sends only the settings that differ; a
+  refused one stays a draft. Notices "Applying the game's normal values (N settings)", then "All settings
+  are back to the game's normal values." (no count: the run also counts the settings the game already had),
+  or "All settings are already at the game's normal values." when nothing was sent (settings whose
+  default is the game's own value, such as rank bonuses, are always sent as `reset`).
+- Desktop (`resetAllSettings`, app.js): the startup profile's batch (`applyDraft`) for every profile
+  setting the window has not read at its default; each successful reset leaves the last used settings.
+
+Live check 2026-10-26 (EpFeedbackTest clone, `builds\reset-live1`): three settings came back from the last
+used settings at a restart (primordials 1, extra companions 3, offhand 1) and speed was set to 2. The reset
+(105 profile settings considered) returned all four to the game's values and emptied the last used
+settings; a second reset changed nothing; the next restart applied nothing.

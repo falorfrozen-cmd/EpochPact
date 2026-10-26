@@ -193,6 +193,7 @@ struct StartupRun {
     std::map<std::string, double> game;  // the values the game has now (read when the run starts)
     std::string owner, name; uint64_t generation = 0; int count = 0, sent = 0, refused = 0, bonuses = 0; bool compared = false;
     bool restore = false;  // the character's remembered bonuses (statrestore), unless the startup profile is off
+    bool reset = false;    // Reset all settings to default (ResetAllSettings)
 };
 double ValueOf(const J& v) { return v.IsNull() ? std::numeric_limits<double>::quiet_NaN() : v.IsBool() ? (v.boolean ? 1 : 0) : v.number; }
 // The game has this value already: read now, or the last value the window read or applied in this game.
@@ -265,6 +266,8 @@ void StartupNext(std::shared_ptr<StartupRun> run) {
         const auto total = std::to_string(run->count + run->refused);
         std::string text;
         if (run->refused) text = Fmt("{0} of {1} settings of {2} applied; the others were refused and stay in the draft.", {std::to_string(run->count), total, run->name});
+        // A reset counts the settings the game already had at their values too: no count is shown.
+        else if (run->reset) text = Tr(run->sent ? "All settings are back to the game's normal values." : "All settings are already at the game's normal values.");
         else if (run->sent) text = run->count == 1 ? Fmt("Applied {0} (1 setting).", {run->name}) : Fmt("Applied {0} ({1} settings).", {run->name, total});
         if (run->bonuses)
             text += (text.empty() ? "" : " ") + (run->bonuses == 1 ? Tr("1 character bonus restored.") : Fmt("{0} character bonuses restored.", {std::to_string(run->bonuses)}));
@@ -367,7 +370,12 @@ void ProfilesSection(Section& s) {
             ++startupGeneration; startupOwners.clear(); startupBusy = false;
             Rebuild(section); Toast(Tr(i == 0 ? "Startup profile turned off. EpochPact starts with the game's normal values." : "Startup profile saved. It applies when an offline character is ready."));
         }, "startup-profile") + 14;
-        y += Muted(in.parent, kPanelPad, y, kPanelInner, Tr("Applied once each time an offline character is ready. Your last used settings include loot modes, collection categories, wanted affixes and the font. Profiles and window preferences stay on this device."));
+        y += Muted(in.parent, kPanelPad, y, kPanelInner, Tr("Applied once each time an offline character is ready. Your last used settings include loot modes, collection categories, wanted affixes and the font. Profiles and window preferences stay on this device.")) + 20;
+        auto reset = AddButton(in, kPanelPad, y, Tr("Reset all settings to default"), Look::Normal, [] {
+            Confirm(Tr("Reset all settings to default"), Tr("Every EpochPact setting returns to the game's normal value now. Saved profiles, character bonuses and changes in your save are kept."), [] { ResetAllSettings(); });
+        }, false, "settings-reset-all");
+        y += reset.h + 12;
+        y += Muted(in.parent, kPanelPad, y, kPanelInner, Tr("Every setting a profile can hold returns to the game's normal value now, also in your last used settings. Saved profiles, character bonuses and changes in your save are kept."));
         return y;
     }); };
 }
@@ -512,6 +520,31 @@ void SearchSection(Section& s) {
     };
 }
 } // namespace
+// Settings: every profile setting back to the game's normal value, through the startup run (the game's
+// values read first, only the differing ones sent, a refusal stays a draft). The settings also leave the
+// last used settings. Saved profiles, character bonuses and changes in the save are kept (app.js resetAllSettings).
+void ResetAllSettings() {
+    if (startupBusy) { Toast(Tr("Wait until the startup profile is applied."), true); return; }
+    if (!Eligible()) { Toast(Tr("Load an offline character before changing this setting."), true); return; }
+    Send("identityread", [](const std::string& text) {
+        J identity; json::Parse(text, identity); const auto owner = Owner(identity);
+        if (startupBusy) { Toast(Tr("Wait until the startup profile is applied."), true); return; }
+        if (owner.empty() || !Eligible()) { Toast(Tr("Load an offline character before changing this setting."), true); return; }
+        CancelAutomaticSettings();
+        auto run = std::make_shared<StartupRun>(); run->owner = owner; run->generation = startupGeneration; run->reset = true;
+        run->name = Tr("the game's normal values");
+        auto last = ObjPref(kLast);
+        for (const auto& [key, c] : D()["controls"].members) {
+            const J& d = c["default"]; const J value = d.IsNumber() || d.IsBool() ? d : J{};
+            if (!ProfileSetting(c, value)) continue;
+            run->settings.emplace_back(key, value); Erase(last, key);
+        }
+        Save(kLast, last);
+        run->reads = ReadsFor(run->settings);
+        Log("reset all settings: %zu settings", run->settings.size());
+        startupBusy = true; StartupNext(run);
+    });
+}
 bool ImportProfile(const std::string& path) {
     try {
         size_t count = 0;

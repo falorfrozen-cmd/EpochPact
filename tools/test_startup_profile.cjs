@@ -224,3 +224,16 @@ test('the character bonuses come back after the settings, quietly when there are
  off.run('applyStartupProfile()');await new Promise(r=>setImmediate(r));
  assert.equal(off.run('tasks.length'),0);
 });
+
+test('Reset all settings sends every profile setting not read at its default, and only those',async()=>{
+ const t=load();
+ t.run("appliedValues={xp:5,speed:1};values={xp:5,speed:1};eligible=()=>true;renderPage=()=>{};");
+ await t.run('resetAllSettings()');
+ assert.deepEqual(JSON.parse(t.run('JSON.stringify(applied)')),[['xp']],'speed is read at its default; save actions and choices are not settings to reset');
+ assert.equal(t.run('values.xp'),1);
+ const t2=load();
+ t2.run("eligible=()=>true;renderPage=()=>{};");
+ await t2.run('resetAllSettings()');
+ assert.equal(t2.run('applied.length'),0);
+ assert.match(t2.run('notes.at(-1)'),/already at the game's normal values/);
+});
