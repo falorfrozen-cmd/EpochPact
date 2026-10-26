@@ -48,6 +48,12 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 - Description (`description-dev43.bbcode`): version line `0.1.2-dev.43`; Skills/Equipment line
   names primordial items; Safety line "VirusTotal (26 October 2026): version.dll 0/65, ZIP 0/66".
 
+Published 2026-10-26 with the owner's approval ("tamam düğmeyi ekle, sonra dev.43'ü yayınla"): GitHub
+release `v0.1.2-dev.43` (latest, both ZIPs, digests checked; main = bb68fa7; the app updater offers it as
+installable from 0.1.2-dev.42), Nexus main file updated to 0.1.2-dev.43 (dev.42 archived, changelog with
+the file, mod version updated with it) and page description (version, Skills/Equipment and Safety lines).
+Nexus's own virus scan of the new file was still running when this was written.
+
 ## Discord announcement (draft; the owner sends it)
 
 > @everyone
