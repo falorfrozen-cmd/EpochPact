@@ -27,9 +27,12 @@ using feature::Line;
 using feature::Set;
 
 // ---- gold: GroundItemManager.pickupGold(GroundItemList, Actor, uint) -> GoldTracker.modifyGold(int)
+// The loot log (items.cpp) hooks pickupGold from start-up and opens a GoldPickupScope around it. The
+// multiplier's own pickupGold hook goes in only when that one is missing, and only it takes it out.
 
 Feature g_gold;
-thread_local int t_pickupDepth = 0;
+game::MethodRef g_pickupRef;
+bool g_ownPickup = false;
 
 using PickupFn = bool (*)(void* self, void* list, void* actor, uint32_t id, const Method* m);
 using ModifyGoldFn = bool (*)(void* self, int32_t change, const Method* m);
@@ -37,16 +40,13 @@ PickupFn o_pickup = nullptr;
 ModifyGoldFn o_modifyGold = nullptr;
 
 bool d_pickup(void* self, void* list, void* actor, uint32_t id, const Method* m) {
-    struct Depth {
-        Depth() { ++t_pickupDepth; }
-        ~Depth() { --t_pickupDepth; }
-    } inside;
+    GoldPickupScope inside;
     return o_pickup(self, list, actor, id, m);
 }
 
 bool d_modifyGold(void* self, int32_t change, const Method* m) {
     double mult = 1.0;
-    if (t_pickupDepth > 0 && change > 0 && Active(g_gold, &mult)) {
+    if (goldPickupDepth > 0 && change > 0 && Active(g_gold, &mult)) {
         const long long v = std::llround(change * mult);
         const int32_t scaled = v >= INT32_MAX ? INT32_MAX : static_cast<int32_t>(v);
         if (g_gold.firstPending.exchange(false)) Log("gold: first boosted pickup %d -> %d (x%g)", change, scaled, mult);
@@ -55,7 +55,6 @@ bool d_modifyGold(void* self, int32_t change, const Method* m) {
     return o_modifyGold(self, change, m);
 }
 
-Hook h_pickup{"GroundItemManager.pickupGold", {}, reinterpret_cast<void*>(&d_pickup), reinterpret_cast<void**>(&o_pickup)};
 Hook h_modifyGold{"GoldTracker.modifyGold", {}, reinterpret_cast<void*>(&d_modifyGold), reinterpret_cast<void**>(&o_modifyGold)};
 
 game::MethodRef GoldPickupMethod() {
@@ -126,20 +125,38 @@ Hook h_dropItem{"ItemDrop.DropItem (static)", {}, reinterpret_cast<void*>(&d_dro
 bool Init() {
     g_gold.cmd = "gold";
     g_gold.max = 100;
-    g_gold.hooks = {&h_pickup, &h_modifyGold};
+    g_gold.hooks = {&h_modifyGold};
     g_drops.cmd = "drops";
     g_drops.max = 25;
     g_drops.hooks = {&h_dropItem};
 
-    h_pickup.ref = GoldPickupMethod();
+    g_pickupRef = GoldPickupMethod();
     h_modifyGold.ref = game::FindMethod("LE.dll", "", "GoldTracker", "modifyGold", 1);
     h_dropItem.ref = game::FindMethod("LE.dll", "", "ItemDrop", "DropItem", 18);
     Log("loot: pickupGold %s, modifyGold %s, DropItem(18) %s",
-        h_pickup.ref ? "found" : "MISSING", h_modifyGold.ref ? "found" : "MISSING", h_dropItem.ref ? "found" : "MISSING");
-    return h_pickup.ref && h_modifyGold.ref && h_dropItem.ref;
+        g_pickupRef ? "found" : "MISSING", h_modifyGold.ref ? "found" : "MISSING", h_dropItem.ref ? "found" : "MISSING");
+    return g_pickupRef && h_modifyGold.ref && h_dropItem.ref;
 }
 
-std::string SetGold(double m) { return Set(g_gold, m); }
+std::string SetGold(double m) {
+    if (!g_pickupRef) return "gold: refused: GroundItemManager.pickupGold was not found in this game build";
+    std::string result = Set(g_gold, m);
+    if (g_gold.value.load() == 1.0) {
+        std::string why;
+        if (g_ownPickup && hook::IsInstalled(g_pickupRef.code) && !hook::Remove(g_pickupRef.code, &why))
+            return result + "; the pickupGold hook stays: " + why;
+        g_ownPickup = false;
+        return result;
+    }
+    if (hook::IsInstalled(g_pickupRef.code)) return result;
+    std::string why;
+    if (!hook::Install(g_pickupRef.code, reinterpret_cast<void*>(&d_pickup), reinterpret_cast<void**>(&o_pickup), &why)) {
+        Set(g_gold, 1.0);
+        return "gold: refused: the hook on GroundItemManager.pickupGold did not go in: " + why;
+    }
+    g_ownPickup = true;
+    return result;
+}
 std::string SetDrops(double m) {
     if (m == 1 && cofDropDependency) {
         g_drops.value = 1; return "drops -> x1 (off; shared CoF enemy hook remains)";

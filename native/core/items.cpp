@@ -4,6 +4,7 @@
 #include "feature.hpp"
 #include "game.hpp"
 #include "hook.hpp"
+#include "loot.hpp"
 #include "smart_loot.hpp"
 #include "managed.hpp"
 #include "pickup_rules.hpp"
@@ -440,7 +441,11 @@ bool d_pickupGold(void* self, void* list, void* actor, uint32_t id, const Method
     int amount = 0;
     const bool automatic = t_autoPickup;
     game::Guarded([&] { if (void* r = FindRecord(list, 1, id)) amount = managed::Get<int>(r, g_goldValue); }, nullptr);
-    const bool picked = o_pickupGold(self, list, actor, id, m);
+    bool picked = false;
+    {
+        loot::GoldPickupScope gold;  // the gold multiplier counts what the game adds in here
+        picked = o_pickupGold(self, list, actor, id, m);
+    }
     if (picked && amount > 0) {
         LootEntry e; e.kind = "gold"; e.name = "Gold"; e.rarity = "Gold"; e.gold = amount; e.automatic = automatic;
         PushLoot(std::move(e));
