@@ -46,6 +46,12 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 - Description (`description-dev44.bbcode`): version line `0.1.2-dev.44`; General line names Legendary
   Potential rolls; Safety line "VirusTotal (27 October 2026): version.dll 0/70, ZIP 0/66".
 
+Published 2026-10-27 with the owner's approval ("devam et"): GitHub release `v0.1.2-dev.44` (latest, both
+ZIPs, digests checked; main = 3d39d67; the app updater offers it as installable from 0.1.2-dev.43), Nexus main
+file updated to 0.1.2-dev.44 (dev.43 archived, changelog with the file, mod version updated with it) and page
+description (version, General and Safety lines). Nexus's own virus scan of the new file was still running when
+this was written.
+
 ## Discord announcement (draft; the owner sends it)
 
 > @everyone
