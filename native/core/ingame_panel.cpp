@@ -3686,14 +3686,24 @@ std::string Panel(const std::string& action) {
         }
         if (name.rfind("field:", 0) == 0) {
             const auto eq = name.find('='); if (eq == std::string::npos) throw std::runtime_error("Expected field=value");
-            const auto field = name.substr(6, eq-6), value = name.substr(eq+1);
-            if (field != "craft_materials-value") throw std::runtime_error("Field not in QA allowlist");
+            const auto field = name.substr(6, eq-6);
+            std::string value = name.substr(eq+1);  // %20: a space (the command line splits at spaces)
+            for (size_t at; (at = value.find("%20")) != std::string::npos;) value.replace(at, 3, " ");
+            if (field != "craft_materials-value" && field != "spawn-search" && field != "spawn-level" && field != "spawn-count") throw std::runtime_error("Field not in QA allowlist");
             for (auto& input : win.inputs) if (input.name == field) {
                 managed::Root text(il2cpp::api().string_new(value.c_str())); void* args[]{text.Get()};
                 Invoke(Find("Unity.TextMeshPro.dll", "TMPro", "TMP_InputField", "set_text", 1), input.field.Get(), args);
                 input.last=value; if(input.onChange)input.onChange(value); return State();
             }
             throw std::runtime_error("QA field not built");
+        }
+        if (name.rfind("list:", 0) == 0) {
+            // a shown row of the open select, by its text
+            if (!win.listOpen) throw std::runtime_error("No open list");
+            std::string label = name.substr(5);  // %20: a space
+            for (size_t at; (at = label.find("%20")) != std::string::npos;) label.replace(at, 3, " ");
+            for (const auto& h : win.popupHits) if (h.name == label && h.action) { const auto act = h.action; act(); return State(); }
+            throw std::runtime_error("List row not shown");
         }
         if (name.rfind("confirm:", 0) == 0) {
             const auto expected = name.substr(8);
@@ -3707,7 +3717,7 @@ std::string Panel(const std::string& action) {
         if (name.rfind("click:", 0) == 0) {
             const auto control=name.substr(6);
             const bool save=control=="craft_materials" || control=="craft_forge" || control=="craft_custom";
-            const bool view=control=="craft_custom_catalog" || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0;
+            const bool view=control=="craft_custom_catalog" || control=="spawn_list" || control=="spawn-item" || control=="spawn-kind" || control=="spawn-rarity" || control=="spawn-lp" || control=="spawn_item" || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0;
             if (!save && !view) throw std::runtime_error("Control not in QA allowlist");
             if (win.dialogOpen || win.listOpen) throw std::runtime_error("Dismiss the current dialog first");
             for(int id:win.pages[win.page].sections) if(!Sec(id).hidden) for(const auto& h:Sec(id).hits)

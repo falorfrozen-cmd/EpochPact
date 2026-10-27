@@ -14,4 +14,8 @@ namespace ep::spawn {
 constexpr int kMaximumCount = 20;
 std::string List();
 std::string Spawn(const std::string& saveId, const std::string& item, int rarity, int lp, int level, int count);
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+// Test builds: every listed item from the generator at item level 100, compared with the request; nothing dropped.
+std::string Check(int rarity, int lp, int from, int count);
+#endif
 }  // namespace ep::spawn

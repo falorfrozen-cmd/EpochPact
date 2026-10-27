@@ -146,6 +146,12 @@ std::string Execute(const std::string& line) {
     }
     if(cmd=="affixinfo"){int id=-1;if(args.size()==1){const auto r=std::from_chars(args[0].data(),args[0].data()+args[0].size(),id);if(r.ec!=std::errc{}||r.ptr!=args[0].data()+args[0].size())id=-1;}return smartloot::AffixInfo(id);}
     if(cmd=="spawnlist")return args.empty()?spawn::List():"{\"ok\":false,\"error\":\"spawnlist expects no arguments\"}";
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+    if(cmd=="spawncheck"){long long rarity=0,lp=0,from=0,count=0;
+        if(args.size()==4&&statedit::Integer(args[0],0,3,&rarity)&&statedit::Integer(args[1],-1,4,&lp)&&statedit::Integer(args[2],0,100000,&from)&&statedit::Integer(args[3],1,200,&count))
+            return spawn::Check(static_cast<int>(rarity),static_cast<int>(lp),static_cast<int>(from),static_cast<int>(count));
+        return "{\"ok\":false,\"error\":\"use spawncheck rarity lp from count\"}";}
+#endif
     if(cmd=="spawnitem") {
         long long rarity=0,lp=0,level=0,count=0;
         if(args.size()==6&&args[1].size()<=16&&statedit::Integer(args[2],0,3,&rarity)&&statedit::Integer(args[3],-1,4,&lp)&&statedit::Integer(args[4],1,100,&level)&&

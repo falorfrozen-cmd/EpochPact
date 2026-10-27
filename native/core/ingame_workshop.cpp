@@ -1221,7 +1221,7 @@ void MakeReview(Section& s) {
 // The Crafting page's fourth tab (app.js spawnPanel): the game's base items, Uniques and Sets
 // (spawnlist), one chosen with its rarity or Legendary Potential, item level and count, dropped
 // next to the character by spawnitem.
-struct SpawnEntry { std::string id, label, lower, kind; bool weaver = false; };
+struct SpawnEntry { std::string id, label, lower, kind; bool weaver = false; int maxAffixes = 4; bool lp = true; };
 struct SpawnState { std::string filter, kind = "all", item, level = "100", count = "1"; int rarity = 2, lp = -1; };
 SpawnState& SP() {
     static SpawnState s;
@@ -1235,12 +1235,14 @@ std::vector<SpawnEntry> SpawnEntries() {
         const bool set = True(u.Find("set"));
         SpawnEntry e{"u" + IdOf(u.Find("id")), Tr(set ? "Set" : "Unique") + " \xC2\xB7 " + u["name"].Str() + " \xC2\xB7 " + u["baseType"].Str(), "",
                      set ? "set" : "unique", True(u.Find("weaver"))};
+        e.lp = !u.Find("lp") || True(u.Find("lp"));
         e.lower = Lower(e.label);
         out.push_back(std::move(e));
     }
     for (const auto& b : (*d)["bases"].items) {
         SpawnEntry e{"b" + IdOf(b.Find("type")) + "." + IdOf(b.Find("sub")),
-                     b["name"].Str() + " \xC2\xB7 " + b["baseType"].Str() + " \xC2\xB7 " + Fmt("Level {0}", {IdOf(b.Find("level"))}), "", "base"};
+                     b["name"].Str() + " \xC2\xB7 " + b["baseType"].Str() + " \xC2\xB7 " + Fmt("Level {0}", {IdOf(b.Find("level"))}), "", "base", false,
+                     static_cast<int>(b["maxAffixes"].Num(4))};
         e.lower = Lower(e.label);
         out.push_back(std::move(e));
     }
@@ -1250,12 +1252,17 @@ bool SpawnLoaded() {
     const JValue* d = Cached("spawnlist");
     return d && !(*d)["bases"].items.empty();
 }
+// translated: the note under the Item select
 std::string SpawnNote(const SpawnEntry* x) {
-    if (!x) return SpawnLoaded() ? "No matches. Try another search." : "Load the item list to choose an item.";
-    if (x->kind == "base") return "Rarity applies. The game rolls the affixes for the item level.";
-    if (x->kind == "set") return "Set items have no Legendary Potential.";
-    if (x->weaver) return "Weaver\xE2\x80\x99s Will Unique: the game rolls its Weaver\xE2\x80\x99s Will; Legendary Potential does not apply.";
-    return "Legendary Potential applies. Rarity does not.";
+    if (!x) return SpawnLoaded() ? Tr("No matches. Try another search.") : Tr("Load the item list to choose an item.");
+    if (x->kind == "base") {
+        if (x->maxAffixes <= 0) return Tr("This base has no affixes, so rarity does not apply.");
+        if (x->maxAffixes < 4) return Fmt("This base always rolls {0} affixes, so rarity does not apply.", {std::to_string(x->maxAffixes)});
+        return Tr("Rarity applies. The game rolls the affixes for the item level.");
+    }
+    if (x->kind == "set") return Tr("Set items have no Legendary Potential.");
+    if (x->weaver) return Tr("Weaver\xE2\x80\x99s Will Unique: the game rolls its Weaver\xE2\x80\x99s Will; Legendary Potential does not apply.");
+    return x->lp ? Tr("Legendary Potential applies. Rarity does not.") : Tr("This Unique has no Legendary Potential. Rarity does not apply.");
 }
 std::string SpawnShown() {
     const JValue* d = Cached("spawnlist");
@@ -1362,14 +1369,14 @@ void MakeSpawn(Section& s) {
                           ids.push_back(e.id);
                           labels.push_back(e.label);
                       }
-                      if (ids.empty()) { Toast(Tr(SpawnNote(nullptr))); return; }
+                      if (ids.empty()) { Toast(SpawnNote(nullptr)); return; }
                       OpenBelow(in, kPanelPad, iy, kPanelInner, selH, labels, at, [ids, sid](int i) {
                           SP().item = ids[i];
                           Rebuild(sid);
                       });
                   });
         y = iy + selH + 10;
-        y += StepText(in, y, Tr(SpawnNote(item))) + 14;
+        y += StepText(in, y, SpawnNote(item)) + 14;
         // Rarity and Legendary Potential; Item level and How many
         const float half = (kPanelInner - 14) / 2, hx = kPanelPad + half + 14;
         const float r1 = SelectField(in, kPanelPad, y, half, Tr("Rarity"), {Tr("Normal"), Tr("Magic"), Tr("Rare"), Tr("Exalted")}, SP().rarity,

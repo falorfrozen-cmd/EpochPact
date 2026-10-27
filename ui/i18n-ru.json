@@ -1805,5 +1805,8 @@
 "{0} × {1} dropped next to your character.": "{0} × {1}: предметы лежат рядом с персонажем.",
 "{0} · {1} · Level {2}": "{0} · {1} · Уровень {2}",
 "Load an offline character to spawn items.": "Загрузите офлайн-персонажа, чтобы создавать предметы.",
-"Load an offline character to spawn items. Preview does not create items.": "Загрузите офлайн-персонажа, чтобы создавать предметы. В режиме предпросмотра предметы не создаются."
+"Load an offline character to spawn items. Preview does not create items.": "Загрузите офлайн-персонажа, чтобы создавать предметы. В режиме предпросмотра предметы не создаются.",
+"This base has no affixes, so rarity does not apply.": "У этой базы нет аффиксов, поэтому редкость не применяется.",
+"This base always rolls {0} affixes, so rarity does not apply.": "У этой базы всегда {0} аффикса, поэтому редкость не применяется.",
+"This Unique has no Legendary Potential. Rarity does not apply.": "У этого уникального предмета нет легендарного потенциала. Редкость не применяется."
 }

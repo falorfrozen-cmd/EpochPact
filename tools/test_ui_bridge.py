@@ -99,6 +99,21 @@ class BridgeTests(unittest.TestCase):
                 self.bridge.execute(cid, {'value':value})
         self.assertEqual(self.commands, [])
 
+    def test_spawn_item_checks_the_item_and_character_before_ipc(self):
+        for item in ('', 'x5', 'u', 'b0', 'b0.', 'u5;status', 'b123.4', 'u1234567', 'b0.1 u5'):
+            with self.subTest(item=item), self.assertRaises(ValueError):
+                self.bridge.execute('spawn_item', {'item':item,'rarity':2,'lp':-1,'item_level':80,'count':1,'expected_id':'42'})
+        for name,value in (('rarity',4),('lp',5),('lp',-2),('item_level',0),('item_level',101),('count',0),('count',21)):
+            with self.subTest(name=name,value=value), self.assertRaises(ValueError):
+                self.bridge.execute('spawn_item', {**{'item':'u5','rarity':2,'lp':-1,'item_level':80,'count':1,'expected_id':'42'},name:value})
+        self.assertFalse(any(x.startswith('spawnitem') for x in self.commands))
+        with self.assertRaisesRegex(RuntimeError, 'character has changed'):
+            self.bridge.execute('spawn_item', {'item':'u5','rarity':2,'lp':-1,'item_level':80,'count':1,'expected_id':'41'})
+        self.assertFalse(any(x.startswith('spawnitem') for x in self.commands))
+        self.live['spawnitem 42 b0.13 3 4 100 20'] = {'ok':True,'name':'Burial Mask','spawned':20,'items':[]}
+        self.assertEqual(self.bridge.execute('spawn_item', {'item':'b0.13','rarity':3,'lp':4,'item_level':100,'count':20,'expected_id':'42'})['spawned'], 20)
+        self.assertEqual(self.commands.count('spawnitem 42 b0.13 3 4 100 20'), 1)
+
     def test_custom_crafting_requires_current_character(self):
         with self.assertRaisesRegex(RuntimeError, 'character has changed'):
             self.bridge.execute('craft_custom', {'template_id':-1, 'affixes':'0,1', 'perfect':1, 'expected_id':'41'})
@@ -199,6 +214,8 @@ class BridgeTests(unittest.TestCase):
         self.live['monolithread']['restContextReady'] = True
         self.live['atlasread'] = {'ok': True, 'player': dict(self.player), 'items': []}
         self.live['craftmods'] = {'ok':True,'modifiers':[]}
+        self.live['spawnlist'] = {'ok':True,'player':dict(self.player),'bases':[{'type':0,'sub':13,'name':'Burial Mask','baseType':'Helmet','level':30,'maxAffixes':4}],'uniques':[{'id':5,'name':"Isadora's Revenge",'baseType':'Helmet','set':True,'weaver':False,'level':39}]}
+        self.live['spawnitem 42 u5 0 0 1 1'] = {'ok':True,'name':"Isadora's Revenge",'spawned':1,'items':[]}
         for t in self.live['monolithread']['timelines']:
             for d in t['difficulties']:
                 d['unlocked'] = True
@@ -342,6 +359,8 @@ class BridgeTests(unittest.TestCase):
                         args[name] = 'all' if cid == 'loot_mode' else 'added'
                     elif name == 'ids':
                         args[name] = 'none'
+                    elif name == 'item':
+                        args[name] = 'u5'
                     elif name == 'affixes':
                         args[name] = 'keep'
                     elif name == 'color':

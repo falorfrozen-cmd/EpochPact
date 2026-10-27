@@ -1805,5 +1805,8 @@
 "{0} × {1} dropped next to your character.": "{0} × {1} karakterinizin yanına düştü.",
 "{0} · {1} · Level {2}": "{0} · {1} · Seviye {2}",
 "Load an offline character to spawn items.": "Eşya oluşturmak için çevrimdışı bir karakter yükleyin.",
-"Load an offline character to spawn items. Preview does not create items.": "Eşya oluşturmak için çevrimdışı bir karakter yükleyin. Önizleme eşya oluşturmaz."
+"Load an offline character to spawn items. Preview does not create items.": "Eşya oluşturmak için çevrimdışı bir karakter yükleyin. Önizleme eşya oluşturmaz.",
+"This base has no affixes, so rarity does not apply.": "Bu taban eşyanın affix'i yoktur, bu yüzden nadirlik uygulanmaz.",
+"This base always rolls {0} affixes, so rarity does not apply.": "Bu taban eşya her zaman {0} affix ile gelir, bu yüzden nadirlik uygulanmaz.",
+"This Unique has no Legendary Potential. Rarity does not apply.": "Bu Unique'te Legendary Potential yoktur. Nadirlik uygulanmaz."
 }

@@ -1,7 +1,9 @@
 #include "spawn_items.hpp"
 #include "managed.hpp"
+#include <algorithm>
 #include <cmath>
 #include <map>
+#include <memory>
 #include <sstream>
 
 // Spawn items: the game's own item generator (GenerateItems.initialiseRandomItemData) makes the chosen
@@ -45,17 +47,18 @@ std::vector<void*> ArrayEntries(void* array) {
 }
 // Gear and idols (EquipmentType 0-33) and idol altars (41); blessings and lenses are not ground items.
 bool SpawnableType(int type) { return (type >= 0 && type <= 33) || type == 41; }
-struct Base { int type, sub, level; void* entry; };
+struct Base { int type, sub, level, maxAffixes; };
 std::vector<Base> Bases(void* list) {
     std::vector<Base> bases;
     for (void* base : ArrayEntries(Get<void*>(list, F("ItemList", "EquippableItems")))) {
         if (!base || Get<bool>(base, F("ItemList.BaseItem", "obsoleteItemType"))) continue;
         const int type = Get<int>(base, F("ItemList.BaseItem", "baseTypeID"));
         if (!SpawnableType(type)) continue;
+        const int maxAffixes = Get<int>(base, F("ItemList.BaseItem", "maximumAffixes"));
         for (void* sub : Entries(Get<void*>(base, F("ItemList.BaseEquipmentItem", "subItems")))) {
             if (!sub || Get<bool>(sub, F("ItemList.SubItem", "obsoleteItem")) || Get<bool>(sub, F("ItemList.SubItem", "isLegacySubType")) ||
                 Value<bool>(Method(sub, "get_IsUniqueOnlyBase", 0), sub)) continue;
-            bases.push_back({type, Get<int>(sub, F("ItemList.SubItem", "subTypeID")), Get<int>(sub, F("ItemList.SubItem", "levelRequirement")), sub});
+            bases.push_back({type, Get<int>(sub, F("ItemList.SubItem", "subTypeID")), Get<int>(sub, F("ItemList.SubItem", "levelRequirement")), maxAffixes});
         }
     }
     return bases;
@@ -72,13 +75,98 @@ bool Number(const std::string& s, int* out) {
     *out = v;
     return true;
 }
+// The UI's rarity as the game's: Normal 0, Magic 2 and Rare 4 are numbers of affixes, never more than the
+// base can have (idols fewer, altars none); Exalted is the Rare roll with an exalted affix forced in.
+int GameRarity(int rarity, int maxAffixes) {
+    static constexpr int wanted[]{0, 2, 4, 4};
+    return std::clamp(wanted[rarity], 0, std::max(0, maxAffixes));
+}
+
+// What the player asked for, checked against the game's lists.
+struct Request {
+    int type = -1, sub = -1, uniqueId = -1, gameRarity = 0;
+    bool exalted = false, weaver = false, set = false;
+    void* entry = nullptr;  // the Unique's UniqueList.Entry (the game's list lives as long as the game)
+    std::string name;
+};
+Request Resolve(void* types, const std::string& item, int rarity) {
+    Request r;
+    if (item.size() > 1 && item[0] == 'b' && item.find('.') != std::string::npos) {
+        const auto dot = item.find('.');
+        if (!Number(item.substr(1, dot - 1), &r.type) || !Number(item.substr(dot + 1), &r.sub)) throw std::runtime_error("Unknown item.");
+        const auto bases = Bases(types);
+        const auto base = std::find_if(bases.begin(), bases.end(), [&](const Base& b) { return b.type == r.type && b.sub == r.sub; });
+        if (base == bases.end()) throw std::runtime_error("This item cannot be spawned.");
+        r.gameRarity = GameRarity(rarity, base->maxAffixes);
+        r.exalted = rarity == 3 && r.gameRarity == 4;
+        r.name = ItemName(types, r.type, r.sub);
+        return r;
+    }
+    if (item.size() > 1 && item[0] == 'u') {
+        if (!Number(item.substr(1), &r.uniqueId) || r.uniqueId > 65535) throw std::runtime_error("Unknown item.");
+        auto id = static_cast<uint16_t>(r.uniqueId);
+        void* a[]{&id};
+        void* entry = Invoke(M("UniqueList", "getUnique", 1), nullptr, a);
+        if (!Shown(entry) || Get<uint16_t>(entry, F("UniqueList.Entry", "uniqueID")) != id) throw std::runtime_error("This item cannot be spawned.");
+        r.entry = entry;
+        r.set = Get<bool>(entry, F("UniqueList.Entry", "isSetItem"));
+        r.weaver = Get<int>(entry, F("UniqueList.Entry", "legendaryType")) == 1;
+        r.gameRarity = r.set ? 8 : 7;
+        r.name = Text(Invoke(Method(entry, "getDisplayName", 0), entry));
+        return r;
+    }
+    throw std::runtime_error("Unknown item.");
+}
+// One item from the character's own generator, as it comes out of it.
+std::unique_ptr<Root> Generate(void* generator, const game::MethodRef& generate, const Request& r, int level) {
+    bool no = false, forceExalted = r.exalted;
+    int ilvl = level, location = 0, t = r.type, s = r.sub, rarity = r.gameRarity, sockets = 0, u = r.uniqueId, minimumLP = 0, rank = 0, legendaryType = 0, corrupt = 0;
+    alignas(8) unsigned char faction[8]{}, replacement[8]{}, corruption[8]{}, effectiveness[8]{}, special[8]{}, minSpecial[8]{}, overrideLP[8]{};
+    void* args[]{&no, &ilvl, &no, &location, &t, &s, &rarity, &sockets, &u, &forceExalted, &minimumLP, faction, &rank, &no, &legendaryType, &no,
+                 replacement, corruption, &corrupt, effectiveness, nullptr, nullptr, special, &no, minSpecial, overrideLP};
+    void* made = Invoke(generate, generator, args);
+    return made ? std::make_unique<Root>(made) : nullptr;
+}
+// The game's own check: a Unique (not a Set, Legendary or idol) whose legendary type is Legendary Potential.
+bool LegendaryPotentialItem(void* item) { return Value<bool>(Method(item, "isLegendaryPotentialItem", 0), item); }
+// The level the game rolls a Unique's Legendary Potential against; 200 marks the Uniques that never get any
+// (Cocooned items, Gambler's Fallacy, Avarice, ...); the others are 0-105 in 1.5.3.
+constexpr int kNoLegendaryPotential = 200;
+int LegendaryLevel(void* entry, int subType) {
+    auto sub = static_cast<uint8_t>(subType);
+    void* a[]{&sub};
+    return Value<uint8_t>(Method(entry, "getEffectiveLevelForLegendaryPotential", 1), entry, a);
+}
+// lp 0-4 on a Legendary Potential Unique, then the saved form (ItemData.id) rebuilt from the item and read back,
+// so what is dropped is exactly what the game saves when it is picked up.
+void Finish(void* item, const Request& r, int lp) {
+    if (r.entry && lp >= 0 && LegendaryPotentialItem(item) &&
+        LegendaryLevel(r.entry, Get<uint16_t>(item, F("ItemData", "subType"))) < kNoLegendaryPotential)
+        *reinterpret_cast<uint8_t*>(static_cast<char*>(item) + F("ItemData", "legendaryPotential")) = static_cast<uint8_t>(lp);
+    Invoke(Method(item, "RebuildID", 0), item);
+    Invoke(Method(item, "setValuesFromSerialisation", 0), item);
+}
+std::unique_ptr<Root> Make(void* generator, const game::MethodRef& generate, const Request& r, int level, int lp) {
+    auto root = Generate(generator, generate, r, level);
+    if (root) Finish(root->Get(), r, lp);
+    return root;
+}
+std::string Describe(void* made) {
+    void* affixes = Get<void*>(made, F("ItemData", "affixes"));
+    std::ostringstream out;
+    out << "{\"type\":" << static_cast<int>(Get<uint8_t>(made, F("ItemData", "itemType"))) << ",\"sub\":" << Get<uint16_t>(made, F("ItemData", "subType"))
+        << ",\"rarity\":" << static_cast<int>(Get<uint8_t>(made, F("ItemData", "rarity"))) << ",\"uniqueId\":" << Get<uint16_t>(made, F("ItemData", "uniqueID"))
+        << ",\"affixes\":" << (affixes ? Entries(affixes).size() : 0) << ",\"exalted\":" << Boolean(Value<bool>(Method(made, "isExaltedItem", 0), made))
+        << ",\"lp\":" << static_cast<int>(Get<uint8_t>(made, F("ItemData", "legendaryPotential")))
+        << ",\"weaversWill\":" << static_cast<int>(Get<uint8_t>(made, F("ItemData", "weaversWill"))) << '}';
+    return out.str();
+}
 }  // namespace
 
 std::string List() {
     return Run([] {
         const auto c = Current();
         Root types(Invoke(M("ItemList", "get", 0))), uniques(Invoke(M("UniqueList", "get", 0)));
-        if (!types.Get() || !uniques.Get()) throw std::runtime_error("The game's item lists are not loaded yet.");
         std::ostringstream out;
         out << "{\"ok\":true,\"player\":" << Player(c) << ",\"bases\":[";
         bool first = true;
@@ -86,7 +174,7 @@ std::string List() {
             if (!first) out << ',';
             first = false;
             out << "{\"type\":" << b.type << ",\"sub\":" << b.sub << ",\"name\":" << Json(ItemName(types.Get(), b.type, b.sub))
-                << ",\"baseType\":" << Json(BaseName(types.Get(), b.type)) << ",\"level\":" << b.level << '}';
+                << ",\"baseType\":" << Json(BaseName(types.Get(), b.type)) << ",\"level\":" << b.level << ",\"maxAffixes\":" << b.maxAffixes << '}';
         }
         out << "],\"uniques\":[";
         first = true;
@@ -95,9 +183,14 @@ std::string List() {
             if (!first) out << ',';
             first = false;
             const int type = Get<uint8_t>(e, F("UniqueList.Entry", "baseType"));
+            const bool set = Get<bool>(e, F("UniqueList.Entry", "isSetItem"));
+            const bool weaver = Get<int>(e, F("UniqueList.Entry", "legendaryType")) == 1;
+            // as isLegendaryPotentialItem and the level check above, without making the item (the level 200
+            // marker is the Unique's own, whatever the subtype)
+            const bool lp = !set && !weaver && !(type >= 25 && type <= 33) && LegendaryLevel(e, 0) < kNoLegendaryPotential;
             out << "{\"id\":" << Get<uint16_t>(e, F("UniqueList.Entry", "uniqueID")) << ",\"name\":" << Json(Text(Invoke(Method(e, "getDisplayName", 0), e)))
-                << ",\"baseType\":" << Json(BaseName(types.Get(), type)) << ",\"set\":" << Boolean(Get<bool>(e, F("UniqueList.Entry", "isSetItem")))
-                << ",\"weaver\":" << Boolean(Get<int>(e, F("UniqueList.Entry", "legendaryType")) == 1)
+                << ",\"baseType\":" << Json(BaseName(types.Get(), type)) << ",\"set\":" << Boolean(set)
+                << ",\"weaver\":" << Boolean(weaver) << ",\"lp\":" << Boolean(lp)
                 << ",\"level\":" << static_cast<int>(Value<uint8_t>(Method(e, "getDefaultLevelRequirement", 0), e)) << '}';
         }
         if (first) throw std::runtime_error("The game's Unique list is not loaded yet.");
@@ -114,34 +207,7 @@ std::string Spawn(const std::string& saveId, const std::string& item, int rarity
         const auto c = Current();
         if (c.id != saveId) throw std::runtime_error("The loaded character changed. Load the item list again.");
         Root types(Invoke(M("ItemList", "get", 0)));
-        if (!types.Get()) throw std::runtime_error("The game's item list is not loaded yet.");
-        // b<type>.<subtype>: a base item of the chosen rarity; u<id>: a Unique or Set item.
-        int type = -1, sub = -1, uniqueId = -1, gameRarity = 0;
-        bool exalted = false, weaver = false, set = false;
-        std::string name;
-        if (item.size() > 1 && item[0] == 'b' && item.find('.') != std::string::npos) {
-            const auto dot = item.find('.');
-            if (!Number(item.substr(1, dot - 1), &type) || !Number(item.substr(dot + 1), &sub)) throw std::runtime_error("Unknown item.");
-            bool known = false;
-            for (const auto& b : Bases(types.Get())) known |= b.type == type && b.sub == sub;
-            if (!known) throw std::runtime_error("This item cannot be spawned.");
-            static constexpr int rarities[]{0, 2, 4, 4};  // the number of affixes: Normal 0, Magic 2, Rare 4; Exalted: Rare with an exalted affix
-            gameRarity = rarities[rarity];
-            exalted = rarity == 3;
-            name = ItemName(types.Get(), type, sub);
-        } else if (item.size() > 1 && item[0] == 'u') {
-            if (!Number(item.substr(1), &uniqueId) || uniqueId > 65535) throw std::runtime_error("Unknown item.");
-            auto id = static_cast<uint16_t>(uniqueId);
-            void* a[]{&id};
-            Root entry(Invoke(M("UniqueList", "getUnique", 1), nullptr, a));
-            if (!Shown(entry.Get()) || Get<uint16_t>(entry.Get(), F("UniqueList.Entry", "uniqueID")) != id) throw std::runtime_error("This item cannot be spawned.");
-            set = Get<bool>(entry.Get(), F("UniqueList.Entry", "isSetItem"));
-            weaver = Get<int>(entry.Get(), F("UniqueList.Entry", "legendaryType")) == 1;
-            gameRarity = set ? 8 : 7;
-            name = Text(Invoke(Method(entry.Get(), "getDisplayName", 0), entry.Get()));
-        } else {
-            throw std::runtime_error("Unknown item.");
-        }
+        const Request request = Resolve(types.Get(), item, rarity);
         void* generator = Get<void*>(c.actor, F("Actor", "generateItems"));
         void* manager = game::StaticObject(game::FindStaticField("LE.dll", "", "GroundItemManager", "instance"));
         if (!generator || !manager) throw std::runtime_error("The game's item generator is not ready.");
@@ -150,34 +216,18 @@ std::string Spawn(const std::string& saveId, const std::string& item, int rarity
         Root transform(Invoke(M("Component", "get_transform", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), c.actor));
         const Vec3 at = Value<Vec3>(M("Transform", "get_position", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), transform.Get());
         std::ostringstream out;
-        out << "{\"ok\":true,\"player\":" << Player(c) << ",\"name\":" << Json(name) << ",\"items\":[";
+        out << "{\"ok\":true,\"player\":" << Player(c) << ",\"name\":" << Json(request.name) << ",\"items\":[";
         int spawned = 0;
         for (int i = 0; i < count; ++i) {
-            bool no = false, forceExalted = exalted;
-            int ilvl = level, location = 0, t = type, s = sub, r = gameRarity, sockets = 0, u = uniqueId, minimumLP = 0, rank = 0, legendaryType = 0, corrupt = 0;
-            alignas(8) unsigned char faction[8]{}, replacement[8]{}, corruption[8]{}, effectiveness[8]{}, special[8]{}, minSpecial[8]{}, overrideLP[8]{};
-            void* args[]{&no, &ilvl, &no, &location, &t, &s, &r, &sockets, &u, &forceExalted, &minimumLP, faction, &rank, &no, &legendaryType, &no,
-                         replacement, corruption, &corrupt, effectiveness, nullptr, nullptr, special, &no, minSpecial, overrideLP};
-            Root made(Invoke(generate, generator, args));
-            if (!made.Get()) break;
-            if (uniqueId >= 0 && !set && !weaver && lp >= 0)
-                *reinterpret_cast<uint8_t*>(static_cast<char*>(made.Get()) + F("ItemData", "legendaryPotential")) = static_cast<uint8_t>(lp);
+            const auto made = Make(generator, generate, request, level, lp);
+            if (!made) break;
             // around the character, one step apart
             const double angle = count == 1 ? 0.0 : 6.283185307179586 * i / count;
             Vec3 p{at.x + static_cast<float>(1.5 * std::cos(angle)), at.y, at.z + static_cast<float>(1.5 * std::sin(angle))};
             bool sound = i == 0;
-            void* dropArgs[]{c.actor, made.Get(), &p, &sound};
+            void* dropArgs[]{c.actor, made->Get(), &p, &sound};
             Invoke(drop, manager, dropArgs);
-            void* affixes = Get<void*>(made.Get(), F("ItemData", "affixes"));
-            if (spawned) out << ',';
-            out << "{\"type\":" << static_cast<int>(Get<uint8_t>(made.Get(), F("ItemData", "itemType")))
-                << ",\"sub\":" << Get<uint16_t>(made.Get(), F("ItemData", "subType"))
-                << ",\"rarity\":" << static_cast<int>(Get<uint8_t>(made.Get(), F("ItemData", "rarity")))
-                << ",\"uniqueId\":" << Get<uint16_t>(made.Get(), F("ItemData", "uniqueID"))
-                << ",\"affixes\":" << (affixes ? Entries(affixes).size() : 0)
-                << ",\"exalted\":" << Boolean(Value<bool>(Method(made.Get(), "isExaltedItem", 0), made.Get()))
-                << ",\"lp\":" << static_cast<int>(Get<uint8_t>(made.Get(), F("ItemData", "legendaryPotential")))
-                << ",\"weaversWill\":" << static_cast<int>(Get<uint8_t>(made.Get(), F("ItemData", "weaversWill"))) << '}';
+            out << (spawned ? "," : "") << Describe(made->Get());
             ++spawned;
         }
         if (!spawned) throw std::runtime_error("The game did not generate the item.");
@@ -185,5 +235,46 @@ std::string Spawn(const std::string& saveId, const std::string& item, int rarity
         return out.str();
     });
 }
+
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+std::string Check(int rarity, int lp, int from, int count) {
+    return Run([=] {
+        if (rarity < 0 || rarity > 3 || lp < -1 || lp > 4 || from < 0 || count < 1 || count > 200) throw std::runtime_error("use spawncheck rarity lp from count");
+        const auto c = Current();
+        Root types(Invoke(M("ItemList", "get", 0))), uniques(Invoke(M("UniqueList", "get", 0)));
+        std::vector<std::string> items;
+        for (const auto& b : Bases(types.Get())) items.push_back("b" + std::to_string(b.type) + "." + std::to_string(b.sub));
+        for (void* e : Entries(Get<void*>(uniques.Get(), F("UniqueList", "uniques"))))
+            if (Shown(e)) items.push_back("u" + std::to_string(Get<uint16_t>(e, F("UniqueList.Entry", "uniqueID"))));
+        void* generator = Get<void*>(c.actor, F("Actor", "generateItems"));
+        const auto generate = M("GenerateItems", "initialiseRandomItemData", 26);
+        std::ostringstream out;
+        out << "{\"ok\":true,\"total\":" << items.size() << ",\"results\":[";
+        for (int i = from; i < from + count && i < static_cast<int>(items.size()); ++i) {
+            const Request r = Resolve(types.Get(), items[i], rarity);
+            std::string made = "null", generated = "null", facts;
+            if (const auto root = Generate(generator, generate, r, 100)) {
+                void* item = root->Get();
+                generated = Describe(item);
+                if (r.entry) {
+                    auto sub = static_cast<uint8_t>(Get<uint16_t>(item, F("ItemData", "subType")));
+                    void* a[]{&sub};
+                    facts = ",\"lpItem\":" + std::string(Boolean(LegendaryPotentialItem(item))) +
+                            ",\"effectiveLevel\":" + std::to_string(Value<uint8_t>(Method(r.entry, "getEffectiveLevelForLegendaryPotential", 1), r.entry, a)) +
+                            ",\"overrideLevel\":" + Boolean(Get<bool>(r.entry, F("UniqueList.Entry", "overrideEffectiveLevelForLegendaryPotential"))) +
+                            ",\"canDropAsLegendary\":" + Boolean(Get<bool>(r.entry, F("UniqueList.Entry", "canDropAsLegendary"))) +
+                            ",\"cocooned\":" + Boolean(Get<bool>(r.entry, F("UniqueList.Entry", "isCocoonedItem"))) +
+                            ",\"primordial\":" + Boolean(Get<bool>(r.entry, F("UniqueList.Entry", "isPrimordialItem")));
+                }
+                Finish(item, r, lp);
+                made = Describe(item);
+            }
+            out << (i == from ? "" : ",") << "{\"item\":" << Json(items[i]) << ",\"wanted\":{\"rarity\":" << r.gameRarity << ",\"exalted\":" << Boolean(r.exalted)
+                << "},\"generated\":" << generated << ",\"made\":" << made << facts << '}';
+        }
+        return out.str() + "]}";
+    });
+}
+#endif
 
 }  // namespace ep::spawn

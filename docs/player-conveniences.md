@@ -424,21 +424,47 @@ drops it with `GroundItemManager.dropItemForPlayer`, in a ring around the charac
 monster drop would; nothing is saved until the player picks it up.
 
 - Base items (`b<type>.<subtype>`): Normal, Magic, Rare or Exalted are the game's rarity
-  0, 2 and 4 (the number of affixes) and 4 with `forceExalted`; the game rolls the affixes
-  for the item level.
-- Uniques and Sets (`u<id>`): the game's rarity 7 (Unique) or 8 (Set). Legendary Potential
-  is the game's roll, or the chosen 0–4 written on the new item; Weaver's Will Uniques
-  roll their Weaver's Will and Sets have neither.
+  0, 2 and 4 (the number of affixes) and 4 with `forceExalted`, never above the base's
+  `maximumAffixes`; the game rolls the affixes for the item level. Idols (types 25–33,
+  `maximumAffixes` 2) always come out Magic with one prefix and one suffix: the game's
+  `RollAffixes` forces that whatever rarity is asked for.
+- Uniques and Sets (`u<id>`): the game's rarity 7 (Unique) or 8 (Set); Exulis and Oculus of
+  Ruin come out of the generator as Legendary (rarity 9), as the game makes them.
+  Legendary Potential is the game's roll, or the chosen 0–4 written on the new item when
+  the game's own `ItemData.isLegendaryPotentialItem` agrees (a Unique, not an idol, of the
+  Legendary Potential type) and `UniqueList.Entry.getEffectiveLevelForLegendaryPotential` is
+  under 200. The game marks the Uniques that never get Legendary Potential with 200
+  (the 23 Cocooned items, Gambler's Fallacy, Avarice, Orchirian's Petals, Merophage, The
+  Cuckoo); the Uniques that can have it are at 0–105. Weaver's Will Uniques roll their
+  Weaver's Will and Sets have neither.
+- After it is made, the item's saved form (`ItemData.id`) is rebuilt (`RebuildID`) and read
+  back (`setValuesFromSerialisation`), as EpochPact's other item edits do. Without this the
+  first build's Legendary Potential was shown but not saved: after a restart it was 0.
 - Item level 1–100, 1–20 items at a time; offline only, and the list must belong to the
   loaded character.
 
-Live check 2026-10-27 (EpFeedbackTest clone, `builds\spawn-live2`): 457 base items and
-486 Uniques (61 Sets, 18 Weaver's Will). A level-80 helmet as Normal / Magic / Rare /
-Exalted came out as rarity 0 / 2 / 4 / 4 with 0 / 2 / 4 / 4 affixes, the last one
-exalted; Calamity with Legendary Potential 3 (twice) had LP 3, with the game's roll LP 0;
-a Weaver's Will Unique rolled Weaver's Will 13; Isadora's Revenge came out as a Set item
-(rarity 8); 20 Rare rings all dropped (29 items on the ground in all). A list from
-another character and an unknown item were refused.
+Live checks 2026-10-27 (EpFeedbackTest clone):
+
+- `builds\spawn-live2`: Calamity with Legendary Potential 3 had LP 3; a Weaver's Will Unique
+  rolled Weaver's Will 13; Isadora's Revenge came out as a Set item (rarity 8); 20 Rare rings
+  all dropped. A list from another character and an unknown item were refused.
+- `builds\spawn-full2` (test build command `spawncheck`, every listed item made and compared,
+  nothing dropped): 457 base items at Normal, Rare and Exalted and 486 Uniques with the
+  game's roll and with Legendary Potential 4 — every item of the requested base or Unique,
+  rarity and number of affixes as above, the Exalted ones exalted, and the saved form equal
+  to the made item. Real spawns of 11 items (an Exalted helmet, a Rare ring, a Normal sword,
+  two idols, an idol altar, Calamity LP 2, Fractured Crown LP 4, a Weaver's Will Unique,
+  Isadora's Revenge, plus three spawned through the window), picked up, the game closed and
+  started again: all 11 were in the inventory with the same values, Legendary Potential
+  included; the 14 items the character had before were unchanged. (In memory a new base
+  item carries the generator's unused Unique rolls; the game does not save them for base
+  items, so they read 0 after the restart.)
+- In the window: search, Type, the Item list, Rarity (Exalted) and How many chosen through the
+  window, then Spawn: 2 Isadora's Revenge and an Exalted Burial Mask on the ground.
+- `builds\spawn-final1`: the list marks 368 Uniques with Legendary Potential; with Legendary
+  Potential 4 asked for every Unique, the 366 that stay Uniques and can have it got 4, every
+  other one 0, and the list agreed with the game on each (Exulis and Oculus of Ruin came out
+  Legendary). The window's notes for an idol and for Gambler's Fallacy read as above.
 
 ## Inventory
 

@@ -619,8 +619,8 @@ function customWorkshop(){
 }
 function spawnEntries(){
  const d=cache.spawn_list;
- return [...(d?.uniques||[]).map(x=>({id:'u'+x.id,kind:x.set?'set':'unique',weaver:x.weaver,set:x.set,uiLabel:`${x.set?'Set':'Unique'} · ${x.name} · ${x.baseType}`})),
-  ...(d?.bases||[]).map(x=>({id:`b${x.type}.${x.sub}`,kind:'base',uiLabel:`${x.name} · ${x.baseType} · Level ${x.level}`}))];
+ return [...(d?.uniques||[]).map(x=>({id:'u'+x.id,kind:x.set?'set':'unique',weaver:x.weaver,set:x.set,lp:x.lp!==false,uiLabel:`${x.set?'Set':'Unique'} · ${x.name} · ${x.baseType}`})),
+  ...(d?.bases||[]).map(x=>({id:`b${x.type}.${x.sub}`,kind:'base',maxAffixes:x.maxAffixes??4,uiLabel:`${x.name} · ${x.baseType} · Level ${x.level}`}))];
 }
 function spawnOptions(){
  const words=spawnFilter.toLowerCase().split(/\s+/).filter(Boolean),all=spawnEntries();
@@ -633,10 +633,10 @@ function spawnChosen(){return spawnEntries().find(x=>x.id===spawnDraft.item);}
 function spawnNote(){
  const x=spawnChosen();
  if(!x)return cache.spawn_list?.bases?.length?'No matches. Try another search.':'Load the item list to choose an item.';
- if(x.kind==='base')return 'Rarity applies. The game rolls the affixes for the item level.';
+ if(x.kind==='base')return x.maxAffixes<=0?'This base has no affixes, so rarity does not apply.':x.maxAffixes<4?`This base always rolls ${x.maxAffixes} affixes, so rarity does not apply.`:'Rarity applies. The game rolls the affixes for the item level.';
  if(x.set)return 'Set items have no Legendary Potential.';
  if(x.weaver)return 'Weaver’s Will Unique: the game rolls its Weaver’s Will; Legendary Potential does not apply.';
- return 'Legendary Potential applies. Rarity does not.';
+ return x.lp?'Legendary Potential applies. Rarity does not.':'This Unique has no Legendary Potential. Rarity does not apply.';
 }
 function spawnFields(){
  const list=spawnOptions(),loaded=!!cache.spawn_list?.bases?.length;
