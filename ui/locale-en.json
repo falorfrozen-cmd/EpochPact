@@ -477,6 +477,14 @@
       "Create custom gear",
       "Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8 with a chosen or random roll; T8 is primordial, one per item) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling."
     ],
+    "spawn_list": [
+      "Load spawnable items",
+      "Read the base items, Uniques and Sets the game can make. Does not create items."
+    ],
+    "spawn_item": [
+      "Spawn item",
+      "The game makes the chosen base item, Unique or Set with its own rules and drops it next to your character, like a monster drop. Base items: Normal, Magic, Rare or Exalted. Uniques: the game's Legendary Potential roll or a chosen 0-4 (Weaver's Will Uniques and Sets roll their own). Item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up."
+    ],
     "craft_materials_read": [
       "Crafting material stock",
       "Read your current affix shard, rune and glyph quantities."

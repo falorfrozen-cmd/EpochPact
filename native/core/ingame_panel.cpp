@@ -3728,8 +3728,9 @@ std::string Panel(const std::string& action) {
         if(name.rfind("profile-name=",0)==0){for(auto& field:win.inputs)if(field.name=="profile-name"){const auto value=name.substr(13);managed::Root text(il2cpp::api().string_new(value.c_str()));void* a[]{text.Get()};Invoke(Find("Unity.TextMeshPro.dll","TMPro","TMP_InputField","set_text",1),field.field.Get(),a);field.last=value;if(field.onChange)field.onChange(value);return State();}}
         if(name=="discard"){DiscardDrafts();return State();}
         if(name=="reset-all"){view::ResetAllSettings();return State();}
+        if(name.rfind("spawn-pick:",0)==0){if(!view::SpawnPick(name.substr(11)))return std::string("{\"ok\":false,\"error\":\"not in the item list\"}");for(int id:win.pages[win.page].sections)Rebuild(id);return State();}
         if(name.rfind("profile-import=",0)==0){view::ImportProfile(name.substr(15));return State();}
-        const bool allowed=name=="profile-save"||name=="profile-load"||name=="profile-delete"||name=="profile-export"||name=="display-preferences-reset"||name=="show-all-parts"||name.rfind("nav-visible:",0)==0||name.rfind("nav-favorite:",0)==0||name.rfind("hide:",0)==0||name.rfind("show-part:",0)==0;
+        const bool allowed=name=="profile-save"||name=="profile-load"||name=="profile-delete"||name=="profile-export"||name=="display-preferences-reset"||name=="spawn_item"||name=="show-all-parts"||name.rfind("nav-visible:",0)==0||name.rfind("nav-favorite:",0)==0||name.rfind("hide:",0)==0||name.rfind("show-part:",0)==0;
         if(!allowed)return std::string("{\"ok\":false,\"error\":\"not a local preference action\"}");
         for(int id:win.pages[win.page].sections)for(const auto& h:Sec(id).hits)if(h.name==name&&h.action){const auto act=h.action;act();return State();}
         return std::string("{\"ok\":false,\"error\":\"local preference control not found\"}");
@@ -3746,7 +3747,7 @@ std::string Panel(const std::string& action) {
         if (!view::Eligible()) return std::string("{\"ok\":false,\"error\":\"offline character is not ready\"}");
         if(action=="statadvanced"){if(!AdvancedStatView())return std::string("{\"ok\":false,\"error\":\"stat view is still reading\"}");return State();}
         if(action.rfind("search:",0)==0){view::SearchChanged(action.substr(7));return State();}
-        if(action.rfind("tab:",0)==0){const auto tab=action.substr(4);if(win.pages[win.page].id!="crafting"||(tab!="forge"&&tab!="materials"&&tab!="custom"))return std::string("{\"ok\":false,\"error\":\"unknown page tab\"}");ShowTab(win.page,tab);return State();}
+        if(action.rfind("tab:",0)==0){const auto tab=action.substr(4);if(win.pages[win.page].id!="crafting"||(tab!="forge"&&tab!="materials"&&tab!="custom"&&tab!="spawn"))return std::string("{\"ok\":false,\"error\":\"unknown page tab\"}");ShowTab(win.page,tab);return State();}
         if(action.rfind("dialogscroll:",0)==0){char* end=nullptr;const auto n=std::strtof(action.c_str()+13,&end);if(!end||*end||!std::isfinite(n))return std::string("{\"ok\":false,\"error\":\"invalid dialog scroll position\"}");ScrollDialog(n);return State();}
         if(action.rfind("scroll:",0)==0){char* end=nullptr;const auto n=std::strtof(action.c_str()+7,&end);if(!end||*end||!std::isfinite(n))return std::string("{\"ok\":false,\"error\":\"invalid scroll position\"}");win.mainScroll=win.mainTarget=std::clamp(n,0.f,MaxMain());Move(win.mainContent.Get(),0,-win.mainScroll);return State();}
         if(action.rfind("hud:",0)==0){const auto name=action.substr(4);if(name!="damage"&&name!="feed")return std::string("{\"ok\":false,\"error\":\"unknown HUD\"}");ToggleHud(name);return State();}

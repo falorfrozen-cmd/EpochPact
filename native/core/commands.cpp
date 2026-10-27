@@ -8,6 +8,7 @@
 #include "map_view.hpp"
 #include "collection.hpp"
 #include "smart_loot.hpp"
+#include "spawn_items.hpp"
 #include "cof_tuning.hpp"
 #include "density.hpp"
 #include "factions.hpp"
@@ -144,6 +145,14 @@ std::string Execute(const std::string& line) {
         return "{\"ok\":false,\"error\":\"use craftmaterials save-id target-1-to-1000000\"}";
     }
     if(cmd=="affixinfo"){int id=-1;if(args.size()==1){const auto r=std::from_chars(args[0].data(),args[0].data()+args[0].size(),id);if(r.ec!=std::errc{}||r.ptr!=args[0].data()+args[0].size())id=-1;}return smartloot::AffixInfo(id);}
+    if(cmd=="spawnlist")return args.empty()?spawn::List():"{\"ok\":false,\"error\":\"spawnlist expects no arguments\"}";
+    if(cmd=="spawnitem") {
+        long long rarity=0,lp=0,level=0,count=0;
+        if(args.size()==6&&args[1].size()<=16&&statedit::Integer(args[2],0,3,&rarity)&&statedit::Integer(args[3],-1,4,&lp)&&statedit::Integer(args[4],1,100,&level)&&
+           statedit::Integer(args[5],1,spawn::kMaximumCount,&count))
+            return spawn::Spawn(args[0],args[1],static_cast<int>(rarity),static_cast<int>(lp),static_cast<int>(level),static_cast<int>(count));
+        return "{\"ok\":false,\"error\":\"use spawnitem save-id b<type>.<subtype>|u<unique id> rarity-0-3 lp-(-1)-4 level-1-100 count-1-20\"}";
+    }
     if(cmd=="craftmods")return args.empty()?workshop::Catalog():"{\"ok\":false,\"error\":\"craftmods expects no arguments\"}";
     if(cmd=="craftmix") {
         int templateId=0,perfect=0;

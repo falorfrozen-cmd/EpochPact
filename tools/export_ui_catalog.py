@@ -340,6 +340,17 @@ def controls():
         api="tools.build_backend.custom(save_id, template_id, affixes, perfect, modifiers='none')", requires=("loaded_actor",), doc="docs/build-controls.md")
     items[-1]["parameters"][2]["maximumLength"] = 160
     items[-1]["parameters"][4]["maximumLength"] = 2048
+    add("spawn_list", "crafting", "Load spawnable items", "read", "spawnlist", "read_only",
+        "Read the base items, Uniques and Sets the game can make. Does not create items.",
+        requires=("loaded_actor",), doc="docs/player-conveniences.md")
+    add("spawn_item", "crafting", "Spawn item", "button", "spawnitem {save_id} {item} {rarity} {lp} {item_level} {count}", "actor",
+        "The game makes the chosen base item, Unique or Set with its own rules and drops it next to your character, like a monster drop. "
+        "Base items: Normal, Magic, Rare or Exalted. Uniques: the game's Legendary Potential roll or a chosen 0-4 (Weaver's Will Uniques and Sets roll their own). "
+        "Item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up.",
+        params=[save_id, parameter("item", "single_token"), parameter("rarity", "integer", 0, 3), parameter("lp", "integer", -1, 4),
+                parameter("item_level", "integer", 1, 100), parameter("count", "integer", 1, 20)],
+        requires=("loaded_actor",), doc="docs/player-conveniences.md")
+    items[-1]["parameters"][1]["maximumLength"] = 16
     add('map_minimapsize',"display",'Minimap size',"number","mapset minimapsize {value}","session",
         "Scale the corner minimap, including its frame. 1 is the game's size.",
         params=[parameter("value","number",0.5,2.5)],default=1,reset="mapset minimapsize 1",doc="docs/player-conveniences.md")

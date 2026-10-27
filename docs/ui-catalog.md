@@ -210,6 +210,8 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `craft_forge` — Forge selected item | `craftforge {save_id}` | — | — | Oyun kaydı |
 | `craft_custom_catalog` — Load workshop templates | `craftmods` | — | — | Okuma |
 | `craft_custom` — Create custom gear | `craftmix {save_id} {template_id} {affixes} {perfect} {modifiers}` | template_id: -1…65535; affixes: single_token; perfect: 0…1; modifiers: optional_single_token | — | Oyun kaydı |
+| `spawn_list` — Load spawnable items | `spawnlist` | — | — | Okuma |
+| `spawn_item` — Spawn item | `spawnitem {save_id} {item} {rarity} {lp} {item_level} {count}` | item: single_token; rarity: 0…3; lp: -1…4; item_level: 1…100; count: 1…20 | — | Yüklü aktör |
 | `craft_reset` — Crafting ayarlarını normale döndür | `craftreset` | — | — | Oturum |
 
 - **Crafting önizleme / durum:** Normal forge eligibility, eşya/affix/FP, shard craft maliyet aralığı ve glyph ihtimalleri; kesin RNG sonucu vermez. Rune/Insight maliyet aralığı gösterilmez. API: `tools.loot_crafting_backend.craft_read()`.
@@ -226,6 +228,8 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Forge selected item:** Perform exactly one normal craft on the current game forge selection. Requires an eligible item/material and matching offline character; snapshot before craft. API: `tools.loot_crafting_backend.forge(save_id)`.
 - **Load workshop templates:** Read the game's public Unique/Set templates and affix names. Does not create or modify items. API: `tools.build_backend.workshop_catalog()`.
 - **Create custom gear:** Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8 with a chosen or random roll; T8 is primordial, one per item) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling. API: `tools.build_backend.custom(save_id, template_id, affixes, perfect, modifiers='none')`.
+- **Load spawnable items:** Read the base items, Uniques and Sets the game can make. Does not create items.
+- **Spawn item:** The game makes the chosen base item, Unique or Set with its own rules and drops it next to your character, like a monster drop. Base items: Normal, Magic, Rare or Exalted. Uniques: the game's Legendary Potential roll or a chosen 0-4 (Weaver's Will Uniques and Sets roll their own). Item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up.
 - **Crafting ayarlarını normale döndür:** FP=1, doğal glyph şansları, normal shard tüketimi; tüm crafting hook'ları kaldırılır. API: `tools.loot_crafting_backend.reset_craft()`.
 
 ## Kampanya ve waypoint

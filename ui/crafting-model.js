@@ -1,7 +1,7 @@
 /* Player-facing crafting selections. Rendering never submits a game action. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.EpochCrafting=api;})(typeof globalThis!=='undefined'?globalThis:this,()=>{
  'use strict';
- const sections=[{id:'forge',label:'Forge Settings',hint:'Costs, materials and glyph chances'},{id:'materials',label:'Materials',hint:'Stock your crafting stash'},{id:'custom',label:'Custom Items',hint:'Build an item step by step'}];
+ const sections=[{id:'forge',label:'Forge Settings',hint:'Costs, materials and glyph chances'},{id:'materials',label:'Materials',hint:'Stock your crafting stash'},{id:'custom',label:'Custom Items',hint:'Build an item step by step'},{id:'spawn',label:'Spawn Items',hint:'Drop any item at your feet'}];
  // settings: per chosen affix {tier:1-8, roll:1-100 or 'random'}. T8 is the
  // game's primordial tier: one per item, only for affixes that have it.
  const defaults=()=>({template_id:'-1',affixes:[],perfect:'1',modifiers:[],settings:{}});

@@ -147,6 +147,9 @@ bool AdvancedStatView();
 std::string DamageSourceLabel(const json::Value& source);
 void ReleaseStatRoots();                 // before IL2CPP shutdown, not static DLL destruction
 std::string WorkshopState();             // for "panel read": the Custom Items draft
+#if defined(EPOCHPACT_TESTING)
+bool SpawnPick(const std::string& id);   // private UI tests: Spawn Items' Item select
+#endif
 std::string SectionsState();             // for "panel read": the pickers' choices, the pickups kept
 Section* FindSection(int id);
 void Rebuild(int sectionId);             // build its body again and move the sections below

@@ -229,7 +229,8 @@ def sections(page, controls, counts):
                 native("ws_head", controls=["craft_custom_catalog"], **ws), native("ws_item", **ws), native("ws_template", **ws),
                 native("ws_affix_head", **ws), native("ws_affix_list", **ws), native("ws_affix_rows", **ws),
                 native("ws_extra_head", **ws), native("ws_mod_list", **ws), native("ws_mod_rows", **ws),
-                native("ws_review", controls=["craft_custom"], **ws)]
+                native("ws_review", controls=["craft_custom"], **ws),
+                native("spawn_items", tab="spawn", controls=["spawn_list", "spawn_item"])]
     if page == "settings":
         return [native("settings_language"), native("settings_profiles"), native("settings_version"),
                 native("settings_report"), native("settings_recovery"), native("settings_navigation"),

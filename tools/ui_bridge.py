@@ -264,6 +264,8 @@ class UiBridge:
                     raise ValueError("Enter a colour as six hexadecimal digits, or label for the label colour.")
                 if control["id"] == "damage_icon" and not re.fullmatch(r"a:[A-Za-z0-9_]{1,32}|c:\d{1,2}:\d{1,2}", value):
                     raise ValueError("Unknown damage window icon.")
+                if control["id"] == "spawn_item" and not re.fullmatch(r"b\d{1,2}\.\d{1,5}|u\d{1,5}", value):
+                    raise ValueError("Choose an item from the list.")
                 if control["id"] in ("loot_affixes", "weaver_affixes") and value != "none":
                     if not re.fullmatch(r"\d+(?:,\d+)*", value) or len(value.split(",")) > 64:
                         raise ValueError("Enter up to 64 comma-separated affix IDs, or none.")
@@ -633,6 +635,8 @@ class UiBridge:
             raise RuntimeError("This feature needs a loaded offline character. Preview does not invent collection or Echo data.")
         if cid in ("sheet_row", "raw_stat", "stat_alias"):
             return {**self._stat(cid, a, supplied, operation), "preview": True}
+        if cid in ("spawn_list", "spawn_item"):
+            raise RuntimeError("Load an offline character to spawn items. Preview does not create items.")
         if cid in ("craft_materials", "craft_materials_read"):
             raise RuntimeError("Load an offline character to read or stock real crafting materials. Preview does not change material quantities.")
         if cid in ("craft_forge", "craft_custom", "craft_custom_catalog"):

@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const C=require('../ui/crafting-model.js');
 const data={items:[{id:10,name:'Calamity',set:false},{id:11,name:'Isadora',set:true}],affixes:Array.from({length:8},(_,id)=>({id,name:`Affix ${id}`})),modifiers:Array.from({length:65},(_,id)=>({id:`u0:${id}`,name:`Effect ${id}`}))};
-test('crafting is split into three task categories',()=>assert.deepEqual(C.sections.map(x=>x.id),['forge','materials','custom']));
+test('crafting is split into four task categories',()=>assert.deepEqual(C.sections.map(x=>x.id),['forge','materials','custom','spawn']));
 test('search matches every word and supports Unique/Set filtering',()=>{
  assert.deepEqual(C.filtered(data.items,'CAL am'),[data.items[0]]);
  assert.deepEqual(C.filtered(data.items,'','set'),[data.items[1]]);

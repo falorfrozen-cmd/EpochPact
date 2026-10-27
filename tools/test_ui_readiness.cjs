@@ -435,7 +435,7 @@ test('player pages retain all usable controls and developer pages retain diagnos
  for(const mode of [false,true])for(const group of ['general','loot','crafting']){
   h.context.developerMode=mode;h.run('developer=developerMode');
   h.context.targetPage=group;h.run('page=targetPage;shippingRenderPage()');
-  const htmls=group==='crafting'?['forge','materials','custom'].map(section=>{h.context.testCraftSection=section;h.run('craftingSection=testCraftSection;shippingRenderPage()');return h.element('#page-content').innerHTML;}):[h.element('#page-content').innerHTML];
+  const htmls=group==='crafting'?['forge','materials','custom','spawn'].map(section=>{h.context.testCraftSection=section;h.run('craftingSection=testCraftSection;shippingRenderPage()');return h.element('#page-content').innerHTML;}):[h.element('#page-content').innerHTML];
   const html=htmls.join('');
   const displayed=[...html.matchAll(/(?:data-setting|data-id)="([^"]+)"/g)].map(x=>x[1]);
   const refreshes=[...html.matchAll(/data-refresh="([^"]+)"/g)].map(x=>x[1]);

@@ -368,6 +368,22 @@ LP 1 ×7 (Weaver's Will ×3); 10 rolls: LP 0 ×8, 1 ×24, 2 ×3 (Weaver's Will �
 corruption 0 in 1000 rolls); the Uniques left at 0 are most likely ones the game gives no
 Legendary Potential there.
 
+### Gold multiplier and Recent pickups
+
+The gold multiplier counts the gold `GoldTracker.modifyGold` adds while
+`GroundItemManager.pickupGold(GroundItemList, Actor, uint)` runs. From dev.17 the loot
+log (Recent pickups) hooked that same method at start-up, so the multiplier's own hook
+was refused as "already installed" and skipped without a word: the setting showed x10
+but pickups were not raised (player report 2026-10-27). Turning the multiplier off also
+took the loot log's hook out, so gold pickups stopped appearing in Recent pickups. Now
+the loot log's hook marks every pickup for the multiplier (`loot::GoldPickupScope`);
+the multiplier puts in its own pickup hook only when the loot log's is missing and only
+removes what it put in.
+
+Live check 2026-10-27 (EpFeedbackTest clone, `builds\spawn-live2`): a 25 gold pile picked
+up at x1, x10 and x1 again added 25, 250 and 25 gold; Recent pickups listed each pile,
+also after the multiplier was off again.
+
 ### Weaver's Will Unique share, upgrade speed and affixes
 
 The game has 18 Weaver's Will Uniques; 14 of them can drop at random, so about
@@ -395,6 +411,34 @@ The game has 18 Weaver's Will Uniques; 14 of them can drop at random, so about
   eligible affixes is narrowed for that pick). When none of them can be raised
   or added, the game chooses as usual. **Refresh** loads the affix names and the
   current selection; **Apply selection** sends it; none switches it off.
+
+## Crafting → Spawn Items
+
+**Spawn Items** (player request 2026-10-27) is the Crafting page's fourth tab, in the
+in-game window and the desktop app. `spawnlist` reads the game's own lists: every base
+item of `ItemList.EquippableItems` (gear, idols and idol altars; obsolete, legacy and
+unique-only bases left out) and every Unique and Set of `UniqueList` the game does not
+hide from players. `spawnitem <save_id> <item> <rarity> <lp> <level> <count>` then makes
+the chosen item with the character's own `GenerateItems.initialiseRandomItemData` and
+drops it with `GroundItemManager.dropItemForPlayer`, in a ring around the character, as a
+monster drop would; nothing is saved until the player picks it up.
+
+- Base items (`b<type>.<subtype>`): Normal, Magic, Rare or Exalted are the game's rarity
+  0, 2 and 4 (the number of affixes) and 4 with `forceExalted`; the game rolls the affixes
+  for the item level.
+- Uniques and Sets (`u<id>`): the game's rarity 7 (Unique) or 8 (Set). Legendary Potential
+  is the game's roll, or the chosen 0–4 written on the new item; Weaver's Will Uniques
+  roll their Weaver's Will and Sets have neither.
+- Item level 1–100, 1–20 items at a time; offline only, and the list must belong to the
+  loaded character.
+
+Live check 2026-10-27 (EpFeedbackTest clone, `builds\spawn-live2`): 457 base items and
+486 Uniques (61 Sets, 18 Weaver's Will). A level-80 helmet as Normal / Magic / Rare /
+Exalted came out as rarity 0 / 2 / 4 / 4 with 0 / 2 / 4 / 4 affixes, the last one
+exalted; Calamity with Legendary Potential 3 (twice) had LP 3, with the game's roll LP 0;
+a Weaver's Will Unique rolled Weaver's Will 13; Isadora's Revenge came out as a Set item
+(rarity 8); 20 Rare rings all dropped (29 items on the ground in all). A list from
+another character and an unknown item were refused.
 
 ## Inventory
 

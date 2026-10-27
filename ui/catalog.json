@@ -3308,6 +3308,83 @@
       "documentation": "docs/build-controls.md"
     },
     {
+      "id": "spawn_list",
+      "group": "crafting",
+      "label": "Load spawnable items",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "spawnlist",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read the base items, Uniques and Sets the game can make. Does not create items.",
+      "currentSource": null,
+      "requirements": [
+        "offline",
+        "loaded_actor"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "spawn_item",
+      "group": "crafting",
+      "label": "Spawn item",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "spawnitem {save_id} {item} {rarity} {lp} {item_level} {count}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        },
+        {
+          "name": "item",
+          "type": "single_token",
+          "maximumLength": 16
+        },
+        {
+          "name": "rarity",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        {
+          "name": "lp",
+          "type": "integer",
+          "minimum": -1,
+          "maximum": 4
+        },
+        {
+          "name": "item_level",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        {
+          "name": "count",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "actor",
+      "description": "The game makes the chosen base item, Unique or Set with its own rules and drops it next to your character, like a monster drop. Base items: Normal, Magic, Rare or Exalted. Uniques: the game's Legendary Potential roll or a chosen 0-4 (Weaver's Will Uniques and Sets roll their own). Item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up.",
+      "currentSource": null,
+      "requirements": [
+        "offline",
+        "loaded_actor"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "map_minimapsize",
       "group": "display",
       "label": "Minimap size",
@@ -34374,7 +34451,7 @@
     ]
   },
   "counts": {
-    "controls": 201,
+    "controls": 203,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

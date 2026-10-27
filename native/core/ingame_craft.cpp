@@ -1,7 +1,7 @@
-// The Crafting page (app.js renderCrafting): its three tabs, the Forge Settings tab's native parts
+// The Crafting page (app.js renderCrafting): its four tabs, the Forge Settings tab's native parts
 // (the note, Glyph chances, Craft from EpochPact inside Advanced forge options, Restore game
 // defaults) and the Materials tab. The Forge Settings panels are setting panels (ingame_panel.cpp);
-// the Custom Items workshop is ingame_workshop.cpp.
+// the Custom Items workshop and Spawn Items are ingame_workshop.cpp.
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -66,16 +66,17 @@ const JValue* Forge() {
 bool True(const JValue* v) { return v && v->IsBool() && v->boolean; }
 
 // ---------------------------------------------------------------------------------------- tabs
-// .craft-categories: three buttons (strong 15px, span 11px muted), the pressed one with the accent
+// .craft-categories: four buttons (strong 15px, span 11px muted), the pressed one with the accent
 // border, an inset accent bar and the soft colour; then, away from Forge Settings, the note about
 // Forge settings in draft with its link back.
 void MakeTabs(Section& s) {
     s.build = [](Section& sec, const Ctx& c) {
         const std::string current = PageTab(sec.page);
-        const std::array<std::array<std::string, 3>, 3> tabs{{{"forge", Tr("Forge Settings"), Tr("Costs, materials and glyph chances")},
+        const std::array<std::array<std::string, 3>, 4> tabs{{{"forge", Tr("Forge Settings"), Tr("Costs, materials and glyph chances")},
                                                               {"materials", Tr("Materials"), Tr("Stock your crafting stash")},
-                                                              {"custom", Tr("Custom Items"), Tr("Build an item step by step")}}};
-        const float gap = 12, w = (kPanelW - 2 * gap) / 3;
+                                                              {"custom", Tr("Custom Items"), Tr("Build an item step by step")},
+                                                              {"spawn", Tr("Spawn Items"), Tr("Drop any item at your feet")}}};
+        const float gap = 12, w = (kPanelW - 3 * gap) / 4;
         Style strong{Face::BodyBold, 15, C("ink")}, hint{Face::Body, 11, C("muted")};
         strong.wrap = hint.wrap = true;
         hint.line = 1.5f;

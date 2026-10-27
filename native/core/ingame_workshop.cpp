@@ -1216,7 +1216,193 @@ void MakeReview(Section& s) {
         if (sec.state["shown"] != ReviewShown()) Rebuild(sec.id);
     };
 }
+
+// ------------------------------------------------------------------------------ Spawn Items
+// The Crafting page's fourth tab (app.js spawnPanel): the game's base items, Uniques and Sets
+// (spawnlist), one chosen with its rarity or Legendary Potential, item level and count, dropped
+// next to the character by spawnitem.
+struct SpawnEntry { std::string id, label, lower, kind; bool weaver = false; };
+struct SpawnState { std::string filter, kind = "all", item, level = "100", count = "1"; int rarity = 2, lp = -1; };
+SpawnState& SP() {
+    static SpawnState s;
+    return s;
+}
+std::vector<SpawnEntry> SpawnEntries() {
+    std::vector<SpawnEntry> out;
+    const JValue* d = Cached("spawnlist");
+    if (!d) return out;
+    for (const auto& u : (*d)["uniques"].items) {
+        const bool set = True(u.Find("set"));
+        SpawnEntry e{"u" + IdOf(u.Find("id")), Tr(set ? "Set" : "Unique") + " \xC2\xB7 " + u["name"].Str() + " \xC2\xB7 " + u["baseType"].Str(), "",
+                     set ? "set" : "unique", True(u.Find("weaver"))};
+        e.lower = Lower(e.label);
+        out.push_back(std::move(e));
+    }
+    for (const auto& b : (*d)["bases"].items) {
+        SpawnEntry e{"b" + IdOf(b.Find("type")) + "." + IdOf(b.Find("sub")),
+                     b["name"].Str() + " \xC2\xB7 " + b["baseType"].Str() + " \xC2\xB7 " + Fmt("Level {0}", {IdOf(b.Find("level"))}), "", "base"};
+        e.lower = Lower(e.label);
+        out.push_back(std::move(e));
+    }
+    return out;
+}
+bool SpawnLoaded() {
+    const JValue* d = Cached("spawnlist");
+    return d && !(*d)["bases"].items.empty();
+}
+std::string SpawnNote(const SpawnEntry* x) {
+    if (!x) return SpawnLoaded() ? "No matches. Try another search." : "Load the item list to choose an item.";
+    if (x->kind == "base") return "Rarity applies. The game rolls the affixes for the item level.";
+    if (x->kind == "set") return "Set items have no Legendary Potential.";
+    if (x->weaver) return "Weaver\xE2\x80\x99s Will Unique: the game rolls its Weaver\xE2\x80\x99s Will; Legendary Potential does not apply.";
+    return "Legendary Potential applies. Rarity does not.";
+}
+std::string SpawnShown() {
+    const JValue* d = Cached("spawnlist");
+    return d ? IdOf(d->Path("player.id")) + "|" + std::to_string((*d)["bases"].items.size()) + "|" + std::to_string((*d)["uniques"].items.size()) : "-";
+}
+std::string SpawnReason() {
+    std::string reason;
+    if (!Eligible(&reason)) return reason;
+    if (!SpawnLoaded()) return Tr("Load the item list first.");
+    const auto entries = SpawnEntries();
+    if (std::none_of(entries.begin(), entries.end(), [](const SpawnEntry& e) { return e.id == SP().item; })) return Tr("Choose an item.");
+    return "";
+}
+bool WholeNumber(const std::string& text, int low, int high, int* out) {
+    const std::string t = Trim(text);
+    if (t.empty() || t.size() > 4) return false;
+    int v = 0;
+    for (char ch : t) {
+        if (ch < '0' || ch > '9') return false;
+        v = v * 10 + (ch - '0');
+    }
+    if (v < low || v > high) return false;
+    *out = v;
+    return true;
+}
+void SpawnNow() {
+    const std::string reason = SpawnReason();
+    if (!reason.empty()) { Toast(reason, true); return; }
+    int level = 0, count = 0;
+    if (!WholeNumber(SP().level, 1, 100, &level)) { Toast(Tr("Enter an item level from 1 to 100."), true); return; }
+    if (!WholeNumber(SP().count, 1, 20, &count)) { Toast(Tr("Enter how many from 1 to 20."), true); return; }
+    ActionRun run;
+    run.command = "spawnitem {save_id} " + SP().item + " " + std::to_string(SP().rarity) + " " + std::to_string(SP().lp) + " " + std::to_string(level) + " " +
+                  std::to_string(count);
+    run.expectId = IdOf(Cached("spawnlist")->Path("player.id"));
+    run.success = [](const JValue& v) {
+        const double n = v["spawned"].Num(0);
+        return n == 1 ? Fmt("{0} dropped next to your character.", {v["name"].Str()})
+                      : Fmt("{0} \xC3\x97 {1} dropped next to your character.", {Num(n), v["name"].Str()});
+    };
+    RunAction(run);
+}
+void MakeSpawn(Section& s) {
+    s.reads.insert("spawnlist");
+    s.build = [](Section& sec, const Ctx& c) {
+        sec.state["shown"] = SpawnShown();
+        Panel panel = OpenPanel(c.parent, kPadX, 0, kPanelW);
+        const Ctx in = c.At(panel.rt.Get(), kPadX, 0);
+        const int sid = sec.id;
+        const bool loaded = SpawnLoaded();
+        // .section-head: Spawn items and Load / Refresh item list
+        Style h2{Face::Serif, 27, C("ink")};
+        const float lh = LineHeight(h2);
+        Button load = AddButton(in, kPanelPad + kPanelInner, kPanelPad, Tr(loaded ? "Refresh item list" : "Load item list"), Look::Normal,
+                                [] { Read("spawnlist"); }, true, "spawn_list");
+        const float row = std::max(lh, load.h);
+        PlaceButton(in, load, kPanelPad + kPanelInner - load.w, kPanelPad + (row - load.h) / 2);
+        TextBox(in.parent, "Title", kPanelPad, kPanelPad + (row - lh) / 2, kPanelInner - load.w - 15, lh, h2, Tr("Spawn items"));
+        float y = kPanelPad + row + 16;
+        y += Muted(in.parent, kPanelPad, y, kPanelInner,
+                   Tr("Choose a base item, Unique or Set. The game makes it with its own rules and drops it next to your character, like a monster drop. "
+                      "Nothing is saved until you pick it up.")) + 10;
+        std::string info = Tr("Load an offline character, then load the item list.");
+        if (loaded) {
+            const JValue* d = Cached("spawnlist");
+            size_t sets = 0;
+            for (const auto& u : (*d)["uniques"].items) sets += True(u.Find("set"));
+            info = Fmt("{0} base items \xC2\xB7 {1} Uniques \xC2\xB7 {2} Set items",
+                       {std::to_string((*d)["bases"].items.size()), std::to_string((*d)["uniques"].items.size() - sets), std::to_string(sets)});
+        }
+        y += NoteBox(in.parent, kPanelPad, y, kPanelInner, info) + 18;
+        // Find an item (2fr) and Type (1fr), as the Custom Items template search
+        const float col1 = (kPanelInner - 14) * 2 / 3, col2 = kPanelInner - 14 - col1, x2 = kPanelPad + col1 + 14;
+        const float fl = FieldLabelText(in, kPanelPad, y, col1, Tr("Find an item"));
+        SearchInput(in, y + fl, col1, SP().filter, Tr("Search item names..."), [](const std::string& t) { SP().filter = t; }, "spawn-search");
+        FieldLabelText(in, x2, y, col2, Tr("Type"));
+        const std::vector<std::string> kinds{"all", "base", "unique", "set"};
+        const std::vector<std::string> kindLabels{Tr("All items"), Tr("Base items"), Tr("Unique"), Tr("Set")};
+        const int kindAt = static_cast<int>(std::find(kinds.begin(), kinds.end(), SP().kind) - kinds.begin()) % 4;
+        const Style ss = Text(12, "ink", 0, false);
+        const float selH = SelectHeight(ss);
+        SelectBox(in, x2, y + fl, col2, selH, 12, kindLabels[kindAt], "spawn-kind", [in, x2, y, fl, col2, selH, kinds, kindLabels, kindAt, sid] {
+            OpenBelow(in, x2, y + fl, col2, selH, kindLabels, kindAt, [kinds, sid](int i) {
+                SP().kind = kinds[i];
+                Rebuild(sid);
+            });
+        });
+        y += fl + selH + 14;
+        // Item: the chosen one, or the first match; the list opens with the matches of the search
+        const auto entries = SpawnEntries();
+        const auto chosen = std::find_if(entries.begin(), entries.end(), [](const SpawnEntry& e) { return e.id == SP().item; });
+        const SpawnEntry* item = chosen == entries.end() ? nullptr : &*chosen;
+        const float il = FieldLabelText(in, kPanelPad, y, kPanelInner, Tr("Item"));
+        const float iy = y + il;
+        SelectBox(in, kPanelPad, iy, kPanelInner, selH, 12, item ? item->label : Tr(loaded ? "Choose an item" : "Load the item list first."), "spawn-item",
+                  [in, iy, selH, sid] {
+                      const auto all = SpawnEntries();
+                      const auto words = Words(SP().filter);
+                      std::vector<std::string> ids, labels;
+                      int at = 0;
+                      for (const auto& e : all) {
+                          if ((SP().kind != "all" && e.kind != SP().kind) || !Matches(e.lower, words)) continue;
+                          if (e.id == SP().item) at = static_cast<int>(ids.size());
+                          ids.push_back(e.id);
+                          labels.push_back(e.label);
+                      }
+                      if (ids.empty()) { Toast(Tr(SpawnNote(nullptr))); return; }
+                      OpenBelow(in, kPanelPad, iy, kPanelInner, selH, labels, at, [ids, sid](int i) {
+                          SP().item = ids[i];
+                          Rebuild(sid);
+                      });
+                  });
+        y = iy + selH + 10;
+        y += StepText(in, y, Tr(SpawnNote(item))) + 14;
+        // Rarity and Legendary Potential; Item level and How many
+        const float half = (kPanelInner - 14) / 2, hx = kPanelPad + half + 14;
+        const float r1 = SelectField(in, kPanelPad, y, half, Tr("Rarity"), {Tr("Normal"), Tr("Magic"), Tr("Rare"), Tr("Exalted")}, SP().rarity,
+                                     [sid](int i) { SP().rarity = i; Rebuild(sid); }, "spawn-rarity");
+        const float r2 = SelectField(in, hx, y, half, Tr("Legendary Potential"), {Tr("The game\xE2\x80\x99s roll"), "0", "1", "2", "3", "4"}, SP().lp + 1,
+                                     [sid](int i) { SP().lp = i - 1; Rebuild(sid); }, "spawn-lp");
+        y += std::max(r1, r2) + 14;
+        const float n1 = InputField(in, kPanelPad, y, half, Tr("Item level"), SP().level, "", true, [](const std::string& t) { SP().level = t; }, "spawn-level");
+        const float n2 = InputField(in, hx, y, half, Tr("How many"), SP().count, "", true, [](const std::string& t) { SP().count = t; }, "spawn-count");
+        y += std::max(n1, n2) + 18;
+        const std::string reason = SpawnReason();
+        if (!reason.empty()) y += StepText(in, y, reason) + 12;
+        Button b = AddButton(in, kPanelPad + kPanelInner, y, Tr("Spawn"), Look::Primary, [] { SpawnNow(); }, true, "spawn_item");
+        if (!reason.empty()) SetEnabled(in, b, false);
+        y += b.h + kPanelPad;
+        ClosePanel(panel, kPanelW, y);
+        return y;
+    };
+    s.onData = [](Section& sec, const std::string&) {
+        if (sec.state["shown"] != SpawnShown() && !Typing(sec.id)) Rebuild(sec.id);
+    };
+}
 }  // namespace
+
+#if defined(EPOCHPACT_TESTING)
+// Private UI tests: choose an item of the loaded list as the Item select would.
+bool SpawnPick(const std::string& id) {
+    const auto entries = SpawnEntries();
+    if (std::none_of(entries.begin(), entries.end(), [&](const SpawnEntry& e) { return e.id == id; })) return false;
+    SP().item = id;
+    return true;
+}
+#endif
 
 void RegisterWorkshopSections() {
     RegisterSection("ws_head", MakeHead);
@@ -1229,6 +1415,7 @@ void RegisterWorkshopSections() {
     RegisterSection("ws_mod_list", [](Section& s) { MakePicker(s, 1); });
     RegisterSection("ws_mod_rows", MakeModifierRows);
     RegisterSection("ws_review", MakeReview);
+    RegisterSection("spawn_items", MakeSpawn);
 }
 std::string WorkshopState() {
     const State& w = W();
