@@ -237,6 +237,13 @@ void* TextBox(void* parent, const char* name, float x, float y, float w, float h
     bool rich = s.rich, wrap = s.wrap;
     void* ra[]{&rich};
     Invoke(T("set_richText", 1), text, ra);
+    // A text shows what it says: TMP would read the "\r" of a path such as EpochPact\reports as a
+    // carriage return and draw the rest over the line's start. Line breaks are characters, never escapes.
+    if (const auto* escapes = Find("Unity.TextMeshPro.dll", "TMPro", "TMP_Text", "set_parseCtrlCharacters", 1, false)) {
+        bool no = false;
+        void* pa[]{&no};
+        Invoke(escapes, text, pa);
+    }
     float size = s.size, spacing = s.spacing / s.size * 100.f, lineSpacing = (lineH / s.size - m.line) * 100.f;
     void* za[]{&size};
     void* ca[]{&spacing};
