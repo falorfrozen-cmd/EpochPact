@@ -347,6 +347,27 @@ cocoons (`RevealCocoonedUnique`), Eternity Cache, Soul Gambling and Unique
 empowering — so the multiplier applies to all of them. Items you already have do
 not change. At ×1 the hook is removed.
 
+### Legendary Potential rolls
+
+**Legendary Potential rolls** (General settings, 1–1000, player request 2026-10-27)
+makes the game's own roll, `ItemData.RollLegendaryPotential(entry, minimum, ilvl,
+corruption, cofMultiplier, ref improvedByCoF, nonCoFMultiplier)`, up to this many
+times and keeps the highest; it stops early at `ItemData.MaxLegendaryPotential`, so a
+Unique never gets more than the game itself can roll, and `improvedByCoF` is the kept
+roll's. In 1.5.3 `RollLegendaryProperties` picks a Unique's legendary type first
+(`GetRelevantLegendaryProperty`: 0 Legendary Potential, 1 Weaver's Will) and only then
+rolls one of the two, so Weaver's Will Uniques are not changed; three other game
+paths call the roll directly (empowering and rewards). Items you already have do not
+change. At 1 the hook is removed.
+
+Live check 2026-10-27 (EpFeedbackTest clone, `builds\lp-live1`): 40 random level-50
+Uniques per setting from the game's own generator at corruption 0. 1 roll: LP 0 ×30,
+LP 1 ×7 (Weaver's Will ×3); 10 rolls: LP 0 ×8, 1 ×24, 2 ×3 (Weaver's Will ×5);
+1000 rolls: LP 0 ×8, 1 ×7, 2 ×17, 3 ×8 (Weaver's Will ×0); 1 roll again: LP 0 ×36,
+1 ×3. How high a Unique can roll still depends on its level and corruption (no LP 4 at
+corruption 0 in 1000 rolls); the Uniques left at 0 are most likely ones the game gives no
+Legendary Potential there.
+
 ### Weaver's Will Unique share, upgrade speed and affixes
 
 The game has 18 Weaver's Will Uniques; 14 of them can drop at random, so about

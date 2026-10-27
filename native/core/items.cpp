@@ -90,6 +90,40 @@ int32_t d_rollWeaversWill(void* item, void* entry, int32_t minimum, int32_t ilvl
 feature::Hook h_rollWeaversWill{"ItemData.RollWeaversWill", {}, reinterpret_cast<void*>(&d_rollWeaversWill),
                                 reinterpret_cast<void**>(&o_rollWeaversWill)};
 
+// ---- Legendary Potential: ItemData.RollLegendaryPotential(UniqueList.Entry, int minimum, int ilvl, float corruption,
+// float cofMultiplier, ref bool improvedByCoF, float nonCoFMultiplier) -> int. With "lprolls n" the game's own roll
+// is made up to n times and the highest kept, so it never passes the game's odds or its maximum (ItemData.
+// MaxLegendaryPotential); improvedByCoF is the kept roll's.
+
+feature::Feature g_lpRolls;
+int g_maximumLP = 4;  // ItemData.MaxLegendaryPotential, read at Init
+
+using RollLegendaryPotentialFn = int32_t (*)(void* item, void* entry, int32_t minimum, int32_t ilvl, float corruption,
+                                             float cof, bool* improvedByCoF, float nonCof, const Method* m);
+RollLegendaryPotentialFn o_rollLegendaryPotential = nullptr;
+
+int32_t d_rollLegendaryPotential(void* item, void* entry, int32_t minimum, int32_t ilvl, float corruption, float cof,
+                                 bool* improvedByCoF, float nonCof, const Method* m) {
+    int32_t best = o_rollLegendaryPotential(item, entry, minimum, ilvl, corruption, cof, improvedByCoF, nonCof, m);
+    double rolls = 1.0;
+    if (!feature::Active(g_lpRolls, &rolls)) return best;
+    const int32_t first = best;
+    bool bestImproved = improvedByCoF && *improvedByCoF;
+    const int extra = lootcraft::rules::ExtraLegendaryRolls(rolls);
+    for (int i = 0; i < extra && best < g_maximumLP; ++i) {
+        bool improved = false;
+        const int32_t again = o_rollLegendaryPotential(item, entry, minimum, ilvl, corruption, cof, &improved, nonCof, m);
+        if (again > best) { best = again; bestImproved = improved; }
+    }
+    if (improvedByCoF) *improvedByCoF = bestImproved;
+    if (g_lpRolls.firstPending.exchange(false))
+        Log("lprolls: first boosted roll ilvl %d corruption %g: %d -> %d (up to %g rolls)", ilvl, corruption, first, best, rolls);
+    return best;
+}
+
+feature::Hook h_rollLegendaryPotential{"ItemData.RollLegendaryPotential", {}, reinterpret_cast<void*>(&d_rollLegendaryPotential),
+                                       reinterpret_cast<void**>(&o_rollLegendaryPotential)};
+
 // ---- autopickup: the game's own pickup entry points, called from its per-frame distant
 // pickup handler (the same code that vacuums labels for a held controller button).
 
@@ -666,6 +700,22 @@ bool Init() {
     g_weaversWill.max = 10;
     g_weaversWill.hooks = {&h_rollWeaversWill};
     h_rollWeaversWill.ref = game::FindMethod("LE.dll", "", "ItemData", "RollWeaversWill", 4);
+    g_lpRolls.cmd = "lprolls";
+    g_lpRolls.max = lootcraft::rules::MaximumLegendaryRolls;
+    g_lpRolls.hooks = {&h_rollLegendaryPotential};
+    h_rollLegendaryPotential.ref = game::FindMethod("LE.dll", "", "ItemData", "RollLegendaryPotential", 7);
+    // ItemData.MaxLegendaryPotential is a const (literal) field: rolling stops once a roll reaches it.
+    game::Guarded([] {
+        const auto* itemData = game::FindClass("LE.dll", "", "ItemData");
+        void* iter = nullptr;
+        while (const auto* f = itemData ? il2cpp::api().class_get_fields(itemData, &iter) : nullptr) {
+            if (!(il2cpp::api().field_get_flags(f) & il2cpp::kFieldLiteral) || std::strcmp(il2cpp::api().field_get_name(f), "MaxLegendaryPotential") != 0) continue;
+            int value = 0; il2cpp::api().field_static_get_value(f, &value);
+            if (value > 0 && value <= 255) g_maximumLP = value;
+            Log("items: ItemData.MaxLegendaryPotential %d", value);
+            break;
+        }
+    }, nullptr);
 
     h_distantTick.ref = game::FindMethod("LE.dll", "", "DistantItemPickupHandler", "OnUpdateTick", 1);
     g_labelListField = game::FindStaticField("LE.dll", "", "ItemTooltipOrganizer", "pickableGroundLabelList");
@@ -768,6 +818,8 @@ std::string SetRarity(double m) { return feature::Set(g_rarity, m); }
 std::string RarityStatus() { return feature::Line(g_rarity); }
 std::string SetWeaversWill(double m) { return feature::Set(g_weaversWill, m); }
 std::string WeaversWillStatus() { return feature::Line(g_weaversWill); }
+std::string SetLegendaryRolls(double n) { return feature::Set(g_lpRolls, n); }
+std::string LegendaryRollsStatus() { return feature::Line(g_lpRolls); }
 
 std::string AutoPickupStatus() { return AutoStatus(); }
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
@@ -817,7 +869,7 @@ std::string SetAuto(double on) {
     return "autopickup -> on (items, gold, potions, tomes and bones; pauses while inspecting an item)";
 }
 
-std::string Status() { return feature::Line(g_rarity) + "\n" + feature::Line(g_weaversWill) + "\n" + AutoStatus(); }
+std::string Status() { return feature::Line(g_rarity) + "\n" + feature::Line(g_weaversWill) + "\n" + feature::Line(g_lpRolls) + "\n" + AutoStatus(); }
 
 bool IsInspectingItem(){return InspectingItem();}
 std::string RadiusStatus(){

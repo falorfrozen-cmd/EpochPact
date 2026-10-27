@@ -101,6 +101,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `drops` — Genel eşya drop adedi çarpanı | `drops {value}` | value: 1…25 | 1 | Oturum |
 | `density` — Monster density | `density {value}` | value: 1…5 | 1 | Oturum |
 | `rarity` — Temel rarity yükseltme çarpanı | `rarity {value}` | value: 1…10 | 1 | Oturum |
+| `lprolls` — Legendary Potential zar sayısı | `lprolls {value}` | value: 1…1000 | 1 | Oturum |
 | `weaverswill` — Weaver's Will çarpanı | `weaverswill {value}` | value: 1…10 | 1 | Oturum |
 | `weaversdrop` — Weaver's Will Unique payı | `weaversdrop {value}` | value: 0…100 | 0 | Oturum |
 | `weaversupgrades` — Weaver's Will yükseltme hızı | `weaversupgrades {value}` | value: 1…10 | 1 | Oturum |
@@ -116,6 +117,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Genel eşya drop adedi çarpanı:** ItemDrop.itemMultiplier; CoF düşman hook'u ile ortak dispatcher. Reset: `drops 1`.
 - **Monster density:** Gelecekteki uygun normal paketlerin ortalama boyutu; mevcut paketler değişmez, boss/özel spawn hariç. Reset: `density 1`.
 - **Temel rarity yükseltme çarpanı:** Her normal rarity roll'unu (x−1)/x ihtimalle bir kademe yükseltir; Exalted/T7 kontrolü ayrı. Reset: `rarity 1`.
+- **Legendary Potential zar sayısı:** ItemData.RollLegendaryPotential en fazla bu kadar atılır ve en yüksek sonuç tutulur; oyunun kendi atışını aşmaz (MaxLegendaryPotential'a ulaşınca durur). Çağıranlar: RollLegendaryProperties (düşüşler, ödüller, cocoon'lar) ve oyunun diğer LP atışları. Weaver's Will Unique'leri (tür önce seçilir) ve mevcut eşyalar değişmez. Reset: `lprolls 1`.
 - **Weaver's Will çarpanı:** ItemData.RollWeaversWill sonucunu çarpar (yuvarlar), oyunun üst sınırı 28'i aşmaz. Tek çağıran RollLegendaryProperties: düşüşler/ödüller (RollBaseItem), açılan cocoon'lar (RevealCocoonedUnique) ve diğer yeniden roll yolları. Mevcut eşyalar değişmez. Reset: `weaverswill 1`.
 - **Weaver's Will Unique payı:** Rastgele seçilen Unique'lerin yüzde kaçının Weaver's Will Unique olacağı; aynı eşya türü, seviye ve düşme kurallarına uyan bir Weaver's Will Unique varsa UniqueList.rollUnique önce onu ister. Oyunun kendi payı yaklaşık %4; 0 kapalı. Reset: `weaversdrop 0`.
 - **Weaver's Will yükseltme hızı:** CharacterMutator.UpgradeRandomWeaversWillItem her çağrıda bu kadar çalışır (küsurat şans olarak). Oyun bu çağrıyı yakındaki bir öldürmenin zarı tutunca, en fazla 15 saniyede bir yapar; her yükseltme 1 Weaver's Will harcar. Reset: `weaversupgrades 1`.

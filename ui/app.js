@@ -500,7 +500,7 @@ setInterval(()=>void pollConnection(),1000);
 function syncSpeed(){
  const modes=actorValues["9:0:0:0"]?.modes;if(modes){appliedValues.speed=1+(modes.increased||0);if(!dirty.has("speed"))values.speed=appliedValues.speed;}
 }
-function unitFor(c){return c.id==="weaversdrop"?"%":c.id==="pickup_radius"||c.id==="qol_arearadius"?" game units":c.id==="pickup_interval"?" s":c.id.startsWith("map_")&&c.id.endsWith("opacity")?"":c.id.startsWith("map_")?"×":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["craft_fp","loot_ww","build_weaverflat","build_projectileflat","build_blessingoptions","build_minionextra","build_totemextra","build_ballistaextra","build_forgedextra","build_companionextra"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
+function unitFor(c){return c.id==="weaversdrop"?"%":c.id==="pickup_radius"||c.id==="qol_arearadius"?" game units":c.id==="pickup_interval"?" s":c.id.startsWith("map_")&&c.id.endsWith("opacity")?"":c.id.startsWith("map_")?"×":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["lprolls","craft_fp","loot_ww","build_weaverflat","build_projectileflat","build_blessingoptions","build_minionextra","build_totemextra","build_ballistaextra","build_forgedextra","build_companionextra"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
 function settingDisplayValue(id,value){return id==="speed"&&Number.isFinite(value)?Number(value.toFixed(6)):value;}
 function settingCard(c) {
  const p=c.parameters.find(x=>x.name==="value"),v=settingDisplayValue(c.id,values[c.id]??c.default),unit=unitFor(c);

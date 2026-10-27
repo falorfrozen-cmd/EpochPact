@@ -1401,6 +1401,8 @@
 "Increases the average size of future eligible normal packs. Existing packs, bosses and special spawns are unchanged.",
 "Rarity upgrade multiplier",
 "Each normal rarity roll has a (x-1)/x chance of moving up one tier. Exalted and T7 rolls have separate controls.",
+"Legendary Potential rolls",
+"The game rolls a new Unique's Legendary Potential this many times and keeps the highest roll, never above what the game itself can roll (drops, rewards and its other Legendary Potential rolls). More rolls give higher Legendary Potential; how high it can go still depends on the area level and corruption. Weaver's Will Uniques and items you already have do not change. Offline only; off at 1.",
 "Weaver's Will multiplier",
 "Multiplies the Weaver's Will the game rolls for a Unique (drops, rewards and opened cocoons), up to the game's maximum of 28: at x2 a Unique that would roll 10 gets 20. Items you already have do not change. Offline only; off at 1.",
 "Weaver's Will Unique share",

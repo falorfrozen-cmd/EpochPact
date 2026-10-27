@@ -2402,6 +2402,33 @@
       "documentation": "GEMINI.md"
     },
     {
+      "id": "lprolls",
+      "group": "general",
+      "label": "Legendary Potential zar sayısı",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "lprolls {value}",
+      "pythonApi": null,
+      "responseFormat": "text",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        }
+      ],
+      "default": 1,
+      "resetCommand": "lprolls 1",
+      "lifetime": "session",
+      "description": "ItemData.RollLegendaryPotential en fazla bu kadar atılır ve en yüksek sonuç tutulur; oyunun kendi atışını aşmaz (MaxLegendaryPotential'a ulaşınca durur). Çağıranlar: RollLegendaryProperties (düşüşler, ödüller, cocoon'lar) ve oyunun diğer LP atışları. Weaver's Will Unique'leri (tür önce seçilir) ve mevcut eşyalar değişmez.",
+      "currentSource": "currentValues.lprolls",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "GEMINI.md"
+    },
+    {
       "id": "weaverswill",
       "group": "general",
       "label": "Weaver's Will çarpanı",
@@ -34347,7 +34374,7 @@
     ]
   },
   "counts": {
-    "controls": 200,
+    "controls": 201,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

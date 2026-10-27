@@ -43,7 +43,7 @@ THEME = {"bg": "#07120f", "panel": "#0b1815", "ink": "#eee6d5", "muted": "#b3beb
 
 # Words app.js shows next to a value (unitFor) and for a lifetime (lifetime).
 LIFETIME = {"session": "Session", "actor": "Character", "game_save": "Game save", "read_only": "Read only", "view": "View", "recovery": "Recovery"}
-NO_UNIT = {"craft_fp", "loot_ww", "build_weaverflat", "build_projectileflat", "build_blessingoptions", "build_minionextra", "build_totemextra",
+NO_UNIT = {"lprolls", "craft_fp", "loot_ww", "build_weaverflat", "build_projectileflat", "build_blessingoptions", "build_minionextra", "build_totemextra",
            "build_ballistaextra", "build_forgedextra", "build_companionextra"}
 AUTOMATIC_TEMPLATES = ("buildset ", "qolset ", "qolarea ", "pickupradius ", "pickupinterval ", "autopickup ", "mapreveal ", "mapset ", "tierset ",
                        "fontset ", "effectsset ", "deathrecap ", "rageset ", "invset ")

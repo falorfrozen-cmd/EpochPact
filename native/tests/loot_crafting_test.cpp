@@ -22,6 +22,8 @@ int main() {
         check(ScaleWeaversWill(7,1.5,28)==11&&ScaleWeaversWill(5,1.1,28)==6,"Weaver's Will rounds");
         check(ScaleWeaversWill(0,2,28)==0,"no Weaver's Will stays none");
         check(ScaleWeaversWill(30,2,28)==30,"a roll above the maximum is left alone");
+        check(ExtraLegendaryRolls(1)==0&&ExtraLegendaryRolls(2)==1&&ExtraLegendaryRolls(1000)==999,"Legendary Potential rolls: extra rolls after the first");
+        check(ExtraLegendaryRolls(1.9)==0&&ExtraLegendaryRolls(5000)==999&&ExtraLegendaryRolls(std::numeric_limits<double>::quiet_NaN())==0,"Legendary Potential rolls: whole rolls, at most 1000, invalid is one roll");
         check(ScaleWeaversWill(10,std::numeric_limits<double>::quiet_NaN(),28)==10&&ScaleWeaversWill(10,0.5,28)==10,"invalid multipliers change nothing");
     }
     {   // Weaver's Will: a Unique with Weaver's Will has LP 0, so only the Weaver's Will threshold lets it through.

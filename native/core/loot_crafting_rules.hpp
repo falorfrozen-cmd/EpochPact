@@ -31,6 +31,13 @@ inline int ScaleWeaversWill(int rolled, double m, int maximum) {
     const int cap = rolled > maximum ? rolled : maximum;
     return scaled >= cap ? cap : static_cast<int>(scaled);  // m > 1, so scaled >= rolled
 }
+// Legendary Potential rolls: the game's own roll is made this many more times and the highest kept;
+// 1 (or anything invalid) is the game's single roll, at most 1000 rolls in all.
+constexpr int MaximumLegendaryRolls = 1000;
+inline int ExtraLegendaryRolls(double rolls) {
+    if (!std::isfinite(rolls) || rolls < 2) return 0;
+    return (rolls >= MaximumLegendaryRolls ? MaximumLegendaryRolls : static_cast<int>(rolls)) - 1;
+}
 inline bool Chance(double p) { return std::isfinite(p) && (p == -1 || (p >= 0 && p <= 100)); }
 inline bool Factor(double x) { return std::isfinite(x) && x >= 0 && x <= 1; }
 // Scale the actual, already sampled and FP-capped loss, once. Round upward so

@@ -364,12 +364,13 @@ std::string Execute(const std::string& line) {
 #endif
     }
     if (cmd == "xp" || cmd == "gold" || cmd == "drops" || cmd == "rarity" || cmd == "speed" ||
-        cmd == "cooldown" || cmd == "amber" || cmd == "weaverswill") {
+        cmd == "cooldown" || cmd == "amber" || cmd == "weaverswill" || cmd == "lprolls") {
         if (args.empty()) {
             if (cmd == "xp") return xp::Status();
             if (cmd == "amber") return cof::AmberStatus();
             if (cmd == "rarity") return items::RarityStatus();
             if (cmd == "weaverswill") return items::WeaversWillStatus();
+            if (cmd == "lprolls") return items::LegendaryRollsStatus();
             if (cmd == "speed" || cmd == "cooldown") return player::Status();
             return loot::Status();
         }
@@ -382,6 +383,7 @@ std::string Execute(const std::string& line) {
         if (cmd == "drops") return loot::SetDrops(m);
         if (cmd == "rarity") return items::SetRarity(m);
         if (cmd == "weaverswill") return items::SetWeaversWill(m);
+        if (cmd == "lprolls") return items::SetLegendaryRolls(m);
         if (cmd == "speed") return player::SetSpeed(m);
         return player::SetCooldown(m);
     }

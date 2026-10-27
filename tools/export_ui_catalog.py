@@ -242,12 +242,15 @@ def controls():
         ("drops", "Genel eşya drop adedi çarpanı", 25, "ItemDrop.itemMultiplier; CoF düşman hook'u ile ortak dispatcher."),
         ("density", "Monster density", 5, "Gelecekteki uygun normal paketlerin ortalama boyutu; mevcut paketler değişmez, boss/özel spawn hariç."),
         ("rarity", "Temel rarity yükseltme çarpanı", 10, "Her normal rarity roll'unu (x−1)/x ihtimalle bir kademe yükseltir; Exalted/T7 kontrolü ayrı."),
+        ("lprolls", "Legendary Potential zar sayısı", 1000, "ItemData.RollLegendaryPotential en fazla bu kadar atılır ve en yüksek sonuç tutulur; oyunun kendi atışını aşmaz (MaxLegendaryPotential'a ulaşınca durur). Çağıranlar: RollLegendaryProperties (düşüşler, ödüller, cocoon'lar) ve oyunun diğer LP atışları. Weaver's Will Unique'leri (tür önce seçilir) ve mevcut eşyalar değişmez."),
         ("weaverswill", "Weaver's Will çarpanı", 10, "ItemData.RollWeaversWill sonucunu çarpar (yuvarlar), oyunun üst sınırı 28'i aşmaz. Tek çağıran RollLegendaryProperties: düşüşler/ödüller (RollBaseItem), açılan cocoon'lar (RevealCocoonedUnique) ve diğer yeniden roll yolları. Mevcut eşyalar değişmez."),
         ("speed", "Hareket hızı çarpanı", 5, "Movespeed increased katkısı = x−1; movespeed alias/raw stat ile aynı full key'i paylaşır."),
         ("cooldown", "Cooldown / charge hız çarpanı", 10, "Normal charge tick hızını ve cooldown sorgusunu ölçekler."),
     ):
         mult(id, "general", label, id, high, description, current=f"currentValues.{id}",
              lifetime="actor" if id == "speed" else "session", doc="docs/monster-density.md" if id == "density" else "GEMINI.md")
+        if id == "lprolls":
+            items[-1]["parameters"][0]["type"] = "integer"
         if id == "weaverswill":
             add("weaversdrop", "general", "Weaver's Will Unique payı", "number", "weaversdrop {value}", "session", "Rastgele seçilen Unique'lerin yüzde kaçının Weaver's Will Unique olacağı; aynı eşya türü, seviye ve düşme kurallarına uyan bir Weaver's Will Unique varsa UniqueList.rollUnique önce onu ister. Oyunun kendi payı yaklaşık %4; 0 kapalı.",
                 params=[parameter("value", "number", 0, 100)], default=0, reset="weaversdrop 0", response="text", current="currentValues.weaversdrop", doc="docs/player-conveniences.md")
