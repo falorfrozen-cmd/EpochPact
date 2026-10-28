@@ -2429,6 +2429,33 @@
       "documentation": "GEMINI.md"
     },
     {
+      "id": "fpdrops",
+      "group": "general",
+      "label": "Düşen eşyaların Forging Potential çarpanı",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "fpdrops {value}",
+      "pythonApi": null,
+      "responseFormat": "text",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10
+        }
+      ],
+      "default": 1,
+      "resetCommand": "fpdrops 1",
+      "lifetime": "session",
+      "description": "GenerateItems.rollForgingPotential sonucunu çarpar (yuvarlar), en fazla 63: oyunun gerçek sınırı (ItemData.SetForgingPotential 63'e keser, kayıt biçimi de daha fazlasını tutmaz; MaxForgingPotential sabiti 255 dese de). Yeni Normal/Magic/Rare/Exalted eşyalar: düşüşler, ödüller, Nemesis, Rage of Morditas, Spawn Items (GenerationContext Normal/Nemesis/RageOfMorditas); dükkân ve kumarbaz eşyaları (Shop/Gambler/SoulGambler) ve mevcut eşyalar değişmez.",
+      "currentSource": "currentValues.fpdrops",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "GEMINI.md"
+    },
+    {
       "id": "weaverswill",
       "group": "general",
       "label": "Weaver's Will çarpanı",
@@ -34505,7 +34532,7 @@
     ]
   },
   "counts": {
-    "controls": 205,
+    "controls": 206,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

@@ -20,5 +20,6 @@ std::string Check(int rarity, int lp, int from, int count);
 // Test builds: count idols of every idol base from the generator at the item level; each one's affixes (kind, ID,
 // tier, roll) and whether its saved form reads back the same; nothing dropped.
 std::string IdolCheck(int count, int level);
+std::string ForgingCheck(int count, int level);  // Forging Potential of new items (fpcheck)
 #endif
 }  // namespace ep::spawn

@@ -127,6 +127,7 @@ with EpochPact completely removed. This release remains an alpha.
 | `density <1-5>` | Monsters per pack times the number, for packs rolled from then on. Single spawns (bosses, unique enemies) stay single. |
 | `rarity <1-10>` | Each numeric rarity roll below grade 4 has a (mult-1)/mult chance to increase by one. Exalted/T7 tuning has separate controls; rarity enum IDs are cataloged by type. |
 | `weaverswill <1-10>` | The Weaver's Will the game rolls for a Unique (drops, rewards, opened cocoons), times the number, rounded and at most 28 (the game's maximum). |
+| `fpdrops <1-10>` | The Forging Potential of new Normal, Magic, Rare and Exalted items (drops, rewards, Nemesis, Spawn Items; not shops or gamblers), times the number, rounded and at most 63 (the most the game lets an item have). |
 | `weaversdrop <0-100>` | Percent of the Uniques the game picks at random that come as a Weaver's Will Unique where one fits (about 4 % normally). |
 | `weaversupgrades <1-10>` | Every Weaver's Will upgrade a kill grants an equipped item happens that many times (each uses 1 Weaver's Will). |
 | `weaveraffixes <ids\|none>` | The affixes Weaver's Will upgrades raise and add when they can; otherwise the game chooses. |

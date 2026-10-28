@@ -368,6 +368,38 @@ LP 1 ×7 (Weaver's Will ×3); 10 rolls: LP 0 ×8, 1 ×24, 2 ×3 (Weaver's Will �
 corruption 0 in 1000 rolls); the Uniques left at 0 are most likely ones the game gives no
 Legendary Potential there.
 
+### Forging Potential on drops
+
+**Forging Potential on drops** (General settings, x1–x10, player request 2026-10-28: more
+Forging Potential on dropped items for a controlled crafting experience) multiplies the
+Forging Potential the game rolls for a new Normal, Magic, Rare or Exalted item, rounded:
+static `GenerateItems.rollForgingPotential(item, ilvl, hasUncraftableAffix,
+generationContext)`. Its callers in 1.5.3 (`call_hits` on GameAssembly RVA 0x11D1360) are
+`GenerateItems.GenerateAffixes` (every generated item), `SimilarItemExtensions.GetSimilarItem`
+(similar-item rewards) and one function in the shop code; each hands the result to
+`ItemData.SetForgingPotential`. Contexts Normal, Nemesis and Rage of Morditas are boosted
+(drops, rewards, Nemesis, Spawn Items); Shop, Gambler and SoulGambler keep the game's own. Uniques and Sets have none, and
+items you already have do not change. At 1 the hook is removed.
+
+63 is the most an item can have, whatever the multiplier: `SetForgingPotential` clamps to
+63 (compiled in; the `ItemData.MaxForgingPotential` const says 255), and a byte of 64, 120,
+200 or 255 written straight into an item comes back as 63 from its saved form
+(`RebuildID` + `setValuesFromSerialisation`). The player's example (32 at x4 = 128) is
+therefore 63; for more crafting than 63 allows, the Crafting page's Forging Potential cost
+setting lowers what each craft uses.
+
+Live checks 2026-10-28 (EpFeedbackTest clone, `builds\fp-live1` and `fp-live2`): the game's
+own generator, gear bases in turn, 40 items per rarity at level 100 (`fp-live2`). x1: Normal 16–32 (mean
+21), Magic 14–24 (19), Rare 22–45 (29), Exalted 32–56 (40). x2: Normal 32–63 (41), Magic
+28–56 (36), Rare 44–63 (55), Exalted all 63. x4 and x10: nearly all 63. Every item read the
+same after its saved form was rebuilt. The roll itself on a Rare, per context at x4: Normal
+113, Nemesis 111, Rage of Morditas 113 on average; Shop 20, Gambler 21, SoulGambler 29 (as at
+x1). Refused: 11, 0.5 and text. Final build (`builds\fp-live3`): x3 at level 90 gives Normal
+48–63, Magic 42–63, Rare and Exalted 63; eight items spawned at x2 (level 75) and picked up
+had Normal 34/36, Magic 28/34, Rare 40/58, Exalted 63/63, and all eight kept their Forging
+Potential and affixes after the game restarted. The General settings card shows the
+setting (`2-general-800.png`); like the other multipliers it is a session setting.
+
 ### Idol prefixes and suffixes
 
 **Idol prefixes** and **Idol suffixes** (General settings, 1–3, player request 2026-10-27:

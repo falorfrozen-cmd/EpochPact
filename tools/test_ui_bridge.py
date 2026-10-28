@@ -696,6 +696,25 @@ class BridgeTests(unittest.TestCase):
                 self.bridge.execute('weaverswill', {'value': bad})
         self.assertEqual(len(self.commands), sent)
 
+    def test_forging_potential_multiplier_is_read_from_status_and_stays_from_1_to_10(self):
+        def fp_status(command, **kwargs):
+            if command == 'status':  # the line after lprolls in items::Status
+                return ('EpochPact; gate: offline play [client only]\n'
+                        'lprolls: x1, hooks out, boosted 0, refused online 0\n'
+                        'fpdrops: x4, hooks in, boosted 12, refused online 0')
+            return self.send(command, **kwargs)
+        with patch.object(ui.le, 'send', side_effect=fp_status):
+            live = self.bridge.connection()
+        self.assertEqual(live['values']['fpdrops'], 4)
+        for value in (1, 2.5, 10):
+            self.bridge.execute('fpdrops', {'value': value})
+            self.assertEqual(self.commands[-1], f'fpdrops {value}')
+        sent = len(self.commands)
+        for bad in (0.5, 11, float('nan'), '2', None):
+            with self.subTest(value=bad), self.assertRaises(ValueError):
+                self.bridge.execute('fpdrops', {'value': bad})
+        self.assertEqual(len(self.commands), sent)
+
     def test_connection_recovers_after_first_unity_frame_timeout_without_mutation(self):
         self.live['sessionread'] = {'ok':False, 'error':'the main thread did not pick the job up'}
         pending = self.bridge.connection()

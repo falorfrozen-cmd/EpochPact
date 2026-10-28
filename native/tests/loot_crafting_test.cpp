@@ -26,6 +26,14 @@ int main() {
         check(ExtraLegendaryRolls(1.9)==0&&ExtraLegendaryRolls(5000)==999&&ExtraLegendaryRolls(std::numeric_limits<double>::quiet_NaN())==0,"Legendary Potential rolls: whole rolls, at most 1000, invalid is one roll");
         check(ScaleWeaversWill(10,std::numeric_limits<double>::quiet_NaN(),28)==10&&ScaleWeaversWill(10,0.5,28)==10,"invalid multipliers change nothing");
     }
+    {   // Forging Potential on drops: times m, rounded, at most the game's 63, and the contexts left alone.
+        check(ScaleForgingPotential(20,2,63)==40&&ScaleForgingPotential(32,1,63)==32,"Forging Potential x2 and x1");
+        check(ScaleForgingPotential(32,4,63)==63&&ScaleForgingPotential(40,10,63)==63,"Forging Potential stops at 63");
+        check(ScaleForgingPotential(25,1.5,63)==38&&ScaleForgingPotential(0,10,63)==0,"Forging Potential rounds; none stays none");
+        check(ScaleForgingPotential(10,std::numeric_limits<double>::quiet_NaN(),63)==10,"invalid multiplier changes nothing");
+        check(BoostsForgingPotential(0)&&BoostsForgingPotential(4)&&BoostsForgingPotential(5),"drops, Nemesis and Rage of Morditas boosted");
+        check(!BoostsForgingPotential(1)&&!BoostsForgingPotential(2)&&!BoostsForgingPotential(3),"shops and gamblers keep the game's own");
+    }
     {   // Weaver's Will: a Unique with Weaver's Will has LP 0, so only the Weaver's Will threshold lets it through.
         Policy w; w.mode=Mode::Quality; w.t7=false;
         const Item weaver{false,true,false,true,0,18}, lowWeaver{false,true,false,true,0,17}, plainLP0{false,true,false,true,0,0};

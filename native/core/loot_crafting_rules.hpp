@@ -31,6 +31,11 @@ inline int ScaleWeaversWill(int rolled, double m, int maximum) {
     const int cap = rolled > maximum ? rolled : maximum;
     return scaled >= cap ? cap : static_cast<int>(scaled);  // m > 1, so scaled >= rolled
 }
+// Forging Potential on drops: the same rule, up to the game's limit of 63.
+inline int ScaleForgingPotential(int rolled, double m, int maximum) { return ScaleWeaversWill(rolled, m, maximum); }
+// The contexts that keep the game's own Forging Potential: GenerateItems.GenerationContext Shop 1,
+// Gambler 2 and SoulGambler 3 (Normal 0, Nemesis 4 and RageOfMorditas 5 are boosted).
+inline bool BoostsForgingPotential(int context) { return context < 1 || context > 3; }
 // Legendary Potential rolls: the game's own roll is made this many more times and the highest kept;
 // 1 (or anything invalid) is the game's single roll, at most 1000 rolls in all.
 constexpr int MaximumLegendaryRolls = 1000;

@@ -125,6 +125,33 @@ int32_t d_rollLegendaryPotential(void* item, void* entry, int32_t minimum, int32
 feature::Hook h_rollLegendaryPotential{"ItemData.RollLegendaryPotential", {}, reinterpret_cast<void*>(&d_rollLegendaryPotential),
                                        reinterpret_cast<void**>(&o_rollLegendaryPotential)};
 
+// ---- Forging Potential on drops: static GenerateItems.rollForgingPotential(ItemDataUnpacked, int ilvl,
+// bool hasUncraftableAffix, GenerationContext) -> int, the Forging Potential a new Normal, Magic, Rare or
+// Exalted item gets. With "fpdrops n" it is n times the roll, rounded, at most 63; shops and gamblers keep
+// the game's own. 63 is the game's real limit: ItemData.SetForgingPotential clamps to it (compiled in, while
+// the MaxForgingPotential const says 255), and a higher byte comes back 63 from the saved form.
+
+feature::Feature g_fpDrops;
+constexpr int kMaximumFP = 63;
+
+using RollForgingPotentialFn = int32_t (*)(void* item, int32_t ilvl, bool uncraftable, int32_t context, const Method* m);
+RollForgingPotentialFn o_rollForgingPotential = nullptr;
+
+int32_t d_rollForgingPotential(void* item, int32_t ilvl, bool uncraftable, int32_t context, const Method* m) {
+    const int32_t rolled = o_rollForgingPotential(item, ilvl, uncraftable, context, m);
+    double mult = 1.0;
+    if (rolled > 0 && lootcraft::rules::BoostsForgingPotential(context) && feature::Active(g_fpDrops, &mult)) {
+        const int32_t out = lootcraft::rules::ScaleForgingPotential(rolled, mult, kMaximumFP);
+        if (g_fpDrops.firstPending.exchange(false))
+            Log("fpdrops: first boosted roll ilvl %d context %d: %d -> %d (x%g)", ilvl, context, rolled, out, mult);
+        return out;
+    }
+    return rolled;
+}
+
+feature::Hook h_rollForgingPotential{"GenerateItems.rollForgingPotential", {}, reinterpret_cast<void*>(&d_rollForgingPotential),
+                                     reinterpret_cast<void**>(&o_rollForgingPotential)};
+
 // ---- autopickup: the game's own pickup entry points, called from its per-frame distant
 // pickup handler (the same code that vacuums labels for a held controller button).
 
@@ -709,6 +736,10 @@ bool Init() {
     g_lpRolls.max = lootcraft::rules::MaximumLegendaryRolls;
     g_lpRolls.hooks = {&h_rollLegendaryPotential};
     h_rollLegendaryPotential.ref = game::FindMethod("LE.dll", "", "ItemData", "RollLegendaryPotential", 7);
+    g_fpDrops.cmd = "fpdrops";
+    g_fpDrops.max = 10;
+    g_fpDrops.hooks = {&h_rollForgingPotential};
+    h_rollForgingPotential.ref = game::FindMethod("LE.dll", "", "GenerateItems", "rollForgingPotential", 4);
     // ItemData.MaxLegendaryPotential is a const (literal) field: rolling stops once a roll reaches it.
     game::Guarded([] {
         const auto* itemData = game::FindClass("LE.dll", "", "ItemData");
@@ -825,6 +856,8 @@ std::string SetWeaversWill(double m) { return feature::Set(g_weaversWill, m); }
 std::string WeaversWillStatus() { return feature::Line(g_weaversWill); }
 std::string SetLegendaryRolls(double n) { return feature::Set(g_lpRolls, n); }
 std::string LegendaryRollsStatus() { return feature::Line(g_lpRolls); }
+std::string SetForgingPotential(double m) { return feature::Set(g_fpDrops, m); }
+std::string ForgingPotentialStatus() { return feature::Line(g_fpDrops); }
 
 std::string AutoPickupStatus() { return AutoStatus(); }
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
@@ -874,7 +907,7 @@ std::string SetAuto(double on) {
     return "autopickup -> on (items, gold, potions, tomes and bones; pauses while inspecting an item)";
 }
 
-std::string Status() { return feature::Line(g_rarity) + "\n" + feature::Line(g_weaversWill) + "\n" + feature::Line(g_lpRolls) + "\n" + AutoStatus(); }
+std::string Status() { return feature::Line(g_rarity) + "\n" + feature::Line(g_weaversWill) + "\n" + feature::Line(g_lpRolls) + "\n" + ForgingPotentialStatus() + "\n" + AutoStatus(); }
 
 bool IsInspectingItem(){return InspectingItem();}
 std::string RadiusStatus(){

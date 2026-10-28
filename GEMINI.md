@@ -137,6 +137,7 @@ py -3 tools/le_session.py restore-saves <backup folder>
 | `densityread` | on-demand scene spawners, exclusions, queues and spawned lists | main thread; no per-frame scene scan |
 | `rarity <1-10>` | each rarity roll upgrades one tier with chance (n-1)/n | static `GenerateItems.RollRarity` (0..4) |
 | `weaverswill <1-10>` | a Weaver's Will Unique's rolled Weaver's Will × n, rounded, at most 28 | `ItemData.RollWeaversWill` (only caller `RollLegendaryProperties`); `lootww <0-28>` is the Quality pickup threshold |
+| `fpdrops <1-10>` | a new item's rolled Forging Potential × n, rounded, at most 63; Shop/Gambler/SoulGambler contexts unchanged | static `GenerateItems.rollForgingPotential` (callers `SetForgingPotential` it, which clamps to 63; the saved form keeps no more) |
 | `weaversdrop <0-100>` | that percent of random Unique rolls is asked for a Weaver's Will Unique first (same filters; falls back) | `UniqueList.rollUnique` without requireLegendaryType |
 | `weaversupgrades <1-10>` | each kill-granted Weaver's Will upgrade runs n times (fraction = chance) | `CharacterMutator.UpgradeRandomWeaversWillItem` |
 | `idolprefixes <1-3>` / `idolsuffixes <1-3>` | each new non-unique idol outside Shop/Gambler/SoulGambler contexts rolls 1..n prefixes / suffixes; extras picked with the game's `IsValidAffix` (counts passed as 0), `AffixWeighting`, `RollTier`, appended as `ItemAffix`, then RebuildID/setValuesFromSerialisation; Weaver and Heretical idols skipped | after `GenerateItems.GenerateAffixes`; native/core/idols.cpp |

@@ -350,6 +350,91 @@ std::string IdolCheck(int count, int level) {
         return out.str() + "}}";
     });
 }
+std::string ForgingCheck(int count, int level) {
+    return Run([=] {
+        const auto c = Current();
+        Root types(Invoke(M("ItemList", "get", 0))), uniques(Invoke(M("UniqueList", "get", 0)));
+        void* generator = Get<void*>(c.actor, F("Actor", "generateItems"));
+        const auto generate = M("GenerateItems", "initialiseRandomItemData", 26);
+        const auto roll = M("GenerateItems", "rollForgingPotential", 4);
+        std::vector<Base> gear;
+        for (const auto& b : Bases(types.Get())) if (b.type <= 24) gear.push_back(b);
+        if (gear.empty()) throw std::runtime_error("no gear bases");
+        const auto fp = [&](void* item) { return static_cast<int>(Get<uint8_t>(item, F("ItemData", "forgingPotential"))); };
+        struct Stats { int n = 0, min = 999, max = -1, same = 0; long long sum = 0; std::map<int, int> kinds; };
+        std::ostringstream out;
+        out << "{\"ok\":true,\"rva\":\"0x" << std::hex
+            << (reinterpret_cast<uintptr_t>(roll.code) - reinterpret_cast<uintptr_t>(GetModuleHandleW(L"GameAssembly.dll"))) << std::dec << "\",\"rarities\":[";
+        // the game's generator, gear bases in turn: Forging Potential as made, and after the saved form is
+        // rebuilt and read back (what a pick-up saves)
+        std::vector<std::unique_ptr<Root>> samples;
+        for (int rarity = 0; rarity <= 3; ++rarity) {
+            Stats s;
+            for (int i = 0; i < count; ++i) {
+                const auto& b = gear[(i * 7 + rarity) % gear.size()];
+                const Request r = Resolve(types.Get(), "b" + std::to_string(b.type) + "." + std::to_string(b.sub), rarity);
+                auto root = Generate(generator, generate, r, level);
+                if (!root) continue;
+                void* item = root->Get();
+                const int made = fp(item);
+                Invoke(Method(item, "RebuildID", 0), item);
+                Invoke(Method(item, "setValuesFromSerialisation", 0), item);
+                const int saved = fp(item);
+                ++s.n; s.sum += made; s.min = (std::min)(s.min, made); s.max = (std::max)(s.max, made); s.same += made == saved;
+                ++s.kinds[Get<int>(item, F("ItemData", "forgingPotentialType"))];
+                if (i == 0) samples.push_back(std::move(root));
+            }
+            out << (rarity ? "," : "") << "{\"rarity\":" << rarity << ",\"n\":" << s.n << ",\"min\":" << s.min << ",\"max\":" << s.max
+                << ",\"mean\":" << (s.n ? static_cast<double>(s.sum) / s.n : 0) << ",\"same\":" << s.same << ",\"kinds\":{";
+            bool first = true;
+            for (const auto& [k, n] : s.kinds) { out << (first ? "" : ",") << '"' << k << "\":" << n; first = false; }
+            out << "}}";
+        }
+        // above 63: the game's own setter, and the byte written directly and taken through the saved form
+        out << "],\"wide\":[";
+        for (size_t i = 0; i < samples.size(); ++i) {
+            void* item = samples[i]->Get();
+            int asked = 120;
+            void* a[]{&asked};
+            Invoke(Method(item, "SetForgingPotential", 1), item, a);
+            const int setter = fp(item);
+            out << (i ? "," : "") << "{\"setter120\":" << setter;
+            for (int raw : {64, 120, 200, 255}) {
+                *reinterpret_cast<uint8_t*>(static_cast<char*>(item) + F("ItemData", "forgingPotential")) = static_cast<uint8_t>(raw);
+                Invoke(Method(item, "RebuildID", 0), item);
+                Invoke(Method(item, "setValuesFromSerialisation", 0), item);
+                out << ",\"saved" << raw << "\":" << fp(item);
+            }
+            out << '}';
+        }
+        // the roll itself on a Rare, once per GenerationContext (Normal 0 ... RageOfMorditas 5)
+        out << "],\"contexts\":[";
+        void* rare = samples.size() > 2 ? samples[2]->Get() : nullptr;
+        for (int context = 0; context <= 5 && rare; ++context) {
+            long long sum = 0;
+            int high = 0;
+            for (int i = 0; i < count; ++i) {
+                int ilvl = level, ctx = context;
+                bool uncraftable = false;
+                void* a[]{rare, &ilvl, &uncraftable, &ctx};
+                const int v = Value<int>(roll, nullptr, a);
+                sum += v;
+                high = (std::max)(high, v);
+            }
+            out << (context ? "," : "") << "{\"context\":" << context << ",\"mean\":" << static_cast<double>(sum) / count << ",\"max\":" << high << '}';
+        }
+        // Uniques and Sets have none
+        out << "],\"uniques\":[";
+        int shown = 0;
+        for (void* e : Entries(Get<void*>(uniques.Get(), F("UniqueList", "uniques")))) {
+            if (!Shown(e) || shown >= 6) continue;
+            const Request r = Resolve(types.Get(), "u" + std::to_string(Get<uint16_t>(e, F("UniqueList.Entry", "uniqueID"))), 0);
+            if (const auto root = Generate(generator, generate, r, level))
+                out << (shown++ ? "," : "") << "{\"id\":" << r.uniqueId << ",\"set\":" << Boolean(r.set) << ",\"fp\":" << fp(root->Get()) << '}';
+        }
+        return out.str() + "]}";
+    });
+}
 #endif
 
 }  // namespace ep::spawn

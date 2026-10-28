@@ -155,6 +155,9 @@ std::string Execute(const std::string& line) {
     if(cmd=="idolcheck"){long long count=0,level=0;
         if(args.size()==2&&statedit::Integer(args[0],1,100,&count)&&statedit::Integer(args[1],1,100,&level))return spawn::IdolCheck(static_cast<int>(count),static_cast<int>(level));
         return "{\"ok\":false,\"error\":\"use idolcheck count level\"}";}
+    if(cmd=="fpcheck"){long long count=0,level=0;
+        if(args.size()==2&&statedit::Integer(args[0],1,200,&count)&&statedit::Integer(args[1],1,100,&level))return spawn::ForgingCheck(static_cast<int>(count),static_cast<int>(level));
+        return "{\"ok\":false,\"error\":\"use fpcheck count level\"}";}
 #endif
     if(cmd=="spawnitem") {
         long long rarity=0,lp=0,level=0,count=0;
@@ -390,13 +393,14 @@ std::string Execute(const std::string& line) {
 #endif
     }
     if (cmd == "xp" || cmd == "gold" || cmd == "drops" || cmd == "rarity" || cmd == "speed" ||
-        cmd == "cooldown" || cmd == "amber" || cmd == "weaverswill" || cmd == "lprolls") {
+        cmd == "cooldown" || cmd == "amber" || cmd == "weaverswill" || cmd == "lprolls" || cmd == "fpdrops") {
         if (args.empty()) {
             if (cmd == "xp") return xp::Status();
             if (cmd == "amber") return cof::AmberStatus();
             if (cmd == "rarity") return items::RarityStatus();
             if (cmd == "weaverswill") return items::WeaversWillStatus();
             if (cmd == "lprolls") return items::LegendaryRollsStatus();
+            if (cmd == "fpdrops") return items::ForgingPotentialStatus();
             if (cmd == "speed" || cmd == "cooldown") return player::Status();
             return loot::Status();
         }
@@ -410,6 +414,7 @@ std::string Execute(const std::string& line) {
         if (cmd == "rarity") return items::SetRarity(m);
         if (cmd == "weaverswill") return items::SetWeaversWill(m);
         if (cmd == "lprolls") return items::SetLegendaryRolls(m);
+        if (cmd == "fpdrops") return items::SetForgingPotential(m);
         if (cmd == "speed") return player::SetSpeed(m);
         return player::SetCooldown(m);
     }

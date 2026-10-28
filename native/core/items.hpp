@@ -7,6 +7,8 @@
 //                      (RollBaseItem, RevealCocoonedUnique, ... via RollLegendaryProperties)
 //   lprolls <1-1000>   the Legendary Potential a Unique rolls (ItemData.RollLegendaryPotential) is rolled
 //                      up to this many times and the highest kept (never above the game's maximum)
+//   fpdrops <1-10>     the Forging Potential a new item rolls (GenerateItems.rollForgingPotential) times mult,
+//                      rounded, up to ItemData.MaxForgingPotential; shops and gamblers keep the game's own
 //   autopickup <0|1>   once per ~0.75 s, ask the game to pick up every ground item label
 //                      and every active gold pile, potion, xp tome, favor tome and ancient
 //                      bone in the zone (the same entry points a click uses)
@@ -23,6 +25,8 @@ std::string SetWeaversWill(double m);
 std::string WeaversWillStatus();
 std::string SetLegendaryRolls(double n);
 std::string LegendaryRollsStatus();
+std::string SetForgingPotential(double m);
+std::string ForgingPotentialStatus();
 std::string SetAuto(double on);
 std::string AutoPickupStatus();
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
