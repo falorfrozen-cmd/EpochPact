@@ -1218,62 +1218,86 @@ void MakeReview(Section& s) {
 }
 
 // ------------------------------------------------------------------------------ Spawn Items
-// The Crafting page's fourth tab (app.js spawnPanel): the game's base items, Uniques and Sets
-// (spawnlist), one chosen with its rarity or Legendary Potential, item level and count, dropped
-// next to the character by spawnitem.
-struct SpawnEntry { std::string id, label, lower, kind; bool weaver = false; int maxAffixes = 4; bool lp = true; };
-struct SpawnState { std::string filter, kind = "all", item, level = "100", count = "1"; int rarity = 2, lp = -1; };
+// The Crafting page's fourth tab: one panel in three sections (the group "spawn"), so typing in the
+// search builds only the results again and the field keeps the keyboard.
+//   spawn_head     title, Load / Refresh item list, the search and the type buttons
+//   spawn_list     the matching items, live while typing; a click chooses one
+//   spawn_options  the chosen item, only the options that apply to it, Spawn
+struct SpawnEntry { std::string id, name, meta, lower, kind; bool weaver = false, lp = true; int maxAffixes = 4; };
+struct SpawnState {
+    std::string filter, kind = "all", item, level = "100", count = "1";
+    int rarity = 2, lp = -1;
+    size_t limit = 100;
+    std::map<std::string, int> blocks;  // section kind -> id
+    std::vector<SpawnEntry> entries;
+    std::string entriesOf;              // the spawnlist reply the entries were made from
+};
 SpawnState& SP() {
     static SpawnState s;
     return s;
-}
-std::vector<SpawnEntry> SpawnEntries() {
-    std::vector<SpawnEntry> out;
-    const JValue* d = Cached("spawnlist");
-    if (!d) return out;
-    for (const auto& u : (*d)["uniques"].items) {
-        const bool set = True(u.Find("set"));
-        SpawnEntry e{"u" + IdOf(u.Find("id")), Tr(set ? "Set" : "Unique") + " \xC2\xB7 " + u["name"].Str() + " \xC2\xB7 " + u["baseType"].Str(), "",
-                     set ? "set" : "unique", True(u.Find("weaver"))};
-        e.lp = !u.Find("lp") || True(u.Find("lp"));
-        e.lower = Lower(e.label);
-        out.push_back(std::move(e));
-    }
-    for (const auto& b : (*d)["bases"].items) {
-        SpawnEntry e{"b" + IdOf(b.Find("type")) + "." + IdOf(b.Find("sub")),
-                     b["name"].Str() + " \xC2\xB7 " + b["baseType"].Str() + " \xC2\xB7 " + Fmt("Level {0}", {IdOf(b.Find("level"))}), "", "base", false,
-                     static_cast<int>(b["maxAffixes"].Num(4))};
-        e.lower = Lower(e.label);
-        out.push_back(std::move(e));
-    }
-    return out;
-}
-bool SpawnLoaded() {
-    const JValue* d = Cached("spawnlist");
-    return d && !(*d)["bases"].items.empty();
-}
-// translated: the note under the Item select
-std::string SpawnNote(const SpawnEntry* x) {
-    if (!x) return SpawnLoaded() ? Tr("No matches. Try another search.") : Tr("Load the item list to choose an item.");
-    if (x->kind == "base") {
-        if (x->maxAffixes <= 0) return Tr("This base has no affixes, so rarity does not apply.");
-        if (x->maxAffixes < 4) return Fmt("This base always rolls {0} affixes, so rarity does not apply.", {std::to_string(x->maxAffixes)});
-        return Tr("Rarity applies. The game rolls the affixes for the item level.");
-    }
-    if (x->kind == "set") return Tr("Set items have no Legendary Potential.");
-    if (x->weaver) return Tr("Weaver\xE2\x80\x99s Will Unique: the game rolls its Weaver\xE2\x80\x99s Will; Legendary Potential does not apply.");
-    return x->lp ? Tr("Legendary Potential applies. Rarity does not.") : Tr("This Unique has no Legendary Potential. Rarity does not apply.");
 }
 std::string SpawnShown() {
     const JValue* d = Cached("spawnlist");
     return d ? IdOf(d->Path("player.id")) + "|" + std::to_string((*d)["bases"].items.size()) + "|" + std::to_string((*d)["uniques"].items.size()) : "-";
 }
+bool SpawnLoaded() {
+    const JValue* d = Cached("spawnlist");
+    return d && !(*d)["bases"].items.empty();
+}
+const std::vector<SpawnEntry>& SpawnEntries() {
+    SpawnState& st = SP();
+    const std::string shown = SpawnShown();
+    if (st.entriesOf == shown) return st.entries;
+    st.entries.clear();
+    st.entriesOf = shown;
+    const JValue* d = Cached("spawnlist");
+    if (!d) return st.entries;
+    for (const auto& u : (*d)["uniques"].items) {
+        const bool set = True(u.Find("set"));
+        SpawnEntry e{"u" + IdOf(u.Find("id")), u["name"].Str(),
+                     Tr(set ? "Set" : "Unique") + " \xC2\xB7 " + u["baseType"].Str() + " \xC2\xB7 " + Fmt("Level {0}", {IdOf(u.Find("level"))}), "",
+                     set ? "set" : "unique", True(u.Find("weaver")), !u.Find("lp") || True(u.Find("lp"))};
+        e.lower = Lower(e.name + " " + e.meta);
+        st.entries.push_back(std::move(e));
+    }
+    for (const auto& b : (*d)["bases"].items) {
+        SpawnEntry e{"b" + IdOf(b.Find("type")) + "." + IdOf(b.Find("sub")), b["name"].Str(),
+                     b["baseType"].Str() + " \xC2\xB7 " + Fmt("Level {0}", {IdOf(b.Find("level"))}), "", "base", false, false,
+                     static_cast<int>(b["maxAffixes"].Num(4))};
+        e.lower = Lower(e.name + " " + e.meta);
+        st.entries.push_back(std::move(e));
+    }
+    return st.entries;
+}
+const SpawnEntry* SpawnChosen() {
+    for (const auto& e : SpawnEntries()) if (e.id == SP().item) return &e;
+    return nullptr;
+}
+Color SpawnColor(const SpawnEntry& e) { return e.kind == "unique" ? Hex("#d99248") : e.kind == "set" ? Hex("#68c47c") : C("ink"); }
+void SpawnRebuild(std::initializer_list<const char*> kinds) {
+    for (const char* k : kinds) {
+        const auto it = SP().blocks.find(k);
+        if (it != SP().blocks.end()) Rebuild(it->second);
+    }
+}
+// translated: what applies to the chosen item
+std::string SpawnNote(const SpawnEntry& x) {
+    if (x.kind == "base") {
+        if (x.maxAffixes <= 0) return Tr("This base has no affixes, so rarity does not apply.");
+        const int type = std::atoi(x.id.c_str() + 1);  // b<type>.<subtype>; idols are 25-33
+        if (type >= 25 && type <= 33) return Tr("Idols roll one prefix and one suffix, or more with Idol prefixes and Idol suffixes in General settings. Rarity does not apply.");
+        if (x.maxAffixes < 4) return Fmt("This base always rolls {0} affixes, so rarity does not apply.", {std::to_string(x.maxAffixes)});
+        return Tr("Rarity applies. The game rolls the affixes for the item level.");
+    }
+    if (x.kind == "set") return Tr("Set items have no Legendary Potential.");
+    if (x.weaver) return Tr("Weaver\xE2\x80\x99s Will Unique: the game rolls its Weaver\xE2\x80\x99s Will; Legendary Potential does not apply.");
+    return x.lp ? Tr("Legendary Potential applies. Rarity does not.") : Tr("This Unique has no Legendary Potential. Rarity does not apply.");
+}
 std::string SpawnReason() {
     std::string reason;
     if (!Eligible(&reason)) return reason;
     if (!SpawnLoaded()) return Tr("Load the item list first.");
-    const auto entries = SpawnEntries();
-    if (std::none_of(entries.begin(), entries.end(), [](const SpawnEntry& e) { return e.id == SP().item; })) return Tr("Choose an item.");
+    if (!SpawnChosen()) return Tr("Choose an item from the list above.");
     return "";
 }
 bool WholeNumber(const std::string& text, int low, int high, int* out) {
@@ -1305,15 +1329,29 @@ void SpawnNow() {
     };
     RunAction(run);
 }
-void MakeSpawn(Section& s) {
+// A row of buttons, the current one selected; returns its height.
+float SpawnButtons(const Ctx& in, float x, float y, const std::vector<std::string>& labels, int current, const std::string& name, std::function<void(int)> chosen) {
+    float h = 0;
+    for (size_t i = 0; i < labels.size(); ++i) {
+        Button b = AddButton(in, x, y, labels[i], Look::Normal, [chosen, i] { chosen(static_cast<int>(i)); }, false, name + "-" + std::to_string(i));
+        SetSelected(in, b, static_cast<int>(i) == current);
+        x += b.w + 8;
+        h = std::max(h, b.h);
+    }
+    return h;
+}
+
+// 1. the head: the panel's frame, the title and the list button, the search and the type buttons
+void MakeSpawnHead(Section& s) {
     s.reads.insert("spawnlist");
     s.build = [](Section& sec, const Ctx& c) {
+        SP().blocks["spawn_head"] = sec.id;
         sec.state["shown"] = SpawnShown();
-        Panel panel = OpenPanel(c.parent, kPadX, 0, kPanelW);
-        const Ctx in = c.At(panel.rt.Get(), kPadX, 0);
-        const int sid = sec.id;
+        auto frame = std::make_shared<Panel>(OpenPanel(c.parent, kPadX, 0, kPanelW));
+        sec.frame = frame;
+        sec.after = 0;
+        const Ctx in = c.At(frame->rt.Get(), kPadX, 0);
         const bool loaded = SpawnLoaded();
-        // .section-head: Spawn items and Load / Refresh item list
         Style h2{Face::Serif, 27, C("ink")};
         const float lh = LineHeight(h2);
         Button load = AddButton(in, kPanelPad + kPanelInner, kPanelPad, Tr(loaded ? "Refresh item list" : "Load item list"), Look::Normal,
@@ -1334,77 +1372,255 @@ void MakeSpawn(Section& s) {
                        {std::to_string((*d)["bases"].items.size()), std::to_string((*d)["uniques"].items.size() - sets), std::to_string(sets)});
         }
         y += NoteBox(in.parent, kPanelPad, y, kPanelInner, info) + 18;
-        // Find an item (2fr) and Type (1fr), as the Custom Items template search
-        const float col1 = (kPanelInner - 14) * 2 / 3, col2 = kPanelInner - 14 - col1, x2 = kPanelPad + col1 + 14;
-        const float fl = FieldLabelText(in, kPanelPad, y, col1, Tr("Find an item"));
-        SearchInput(in, y + fl, col1, SP().filter, Tr("Search item names..."), [](const std::string& t) { SP().filter = t; }, "spawn-search");
-        FieldLabelText(in, x2, y, col2, Tr("Type"));
+        // the search: every typed word must be in the name, the type or the base ("calamity", "helmet", "set boots")
+        y += FieldLabelText(in, kPanelPad, y, kPanelInner, Tr("Find an item"));
+        y += SearchInput(in, y, kPanelInner, SP().filter, Tr("Type a name or a type, for example Calamity, helmet or set boots"),
+                         [](const std::string& t) {
+                             SP().filter = t;
+                             SP().limit = 100;
+                             SpawnRebuild({"spawn_list"});
+                         }, "spawn-search") + 12;
         const std::vector<std::string> kinds{"all", "base", "unique", "set"};
-        const std::vector<std::string> kindLabels{Tr("All items"), Tr("Base items"), Tr("Unique"), Tr("Set")};
         const int kindAt = static_cast<int>(std::find(kinds.begin(), kinds.end(), SP().kind) - kinds.begin()) % 4;
-        const Style ss = Text(12, "ink", 0, false);
-        const float selH = SelectHeight(ss);
-        SelectBox(in, x2, y + fl, col2, selH, 12, kindLabels[kindAt], "spawn-kind", [in, x2, y, fl, col2, selH, kinds, kindLabels, kindAt, sid] {
-            OpenBelow(in, x2, y + fl, col2, selH, kindLabels, kindAt, [kinds, sid](int i) {
-                SP().kind = kinds[i];
-                Rebuild(sid);
-            });
+        const int sid = sec.id;
+        y += SpawnButtons(in, kPanelPad, y, {Tr("All items"), Tr("Base items"), Tr("Uniques"), Tr("Set items")}, kindAt, "spawn-kind", [kinds, sid](int i) {
+            SP().kind = kinds[i];
+            SP().limit = 100;
+            Rebuild(sid);
+            SpawnRebuild({"spawn_list"});
         });
-        y += fl + selH + 14;
-        // Item: the chosen one, or the first match; the list opens with the matches of the search
-        const auto entries = SpawnEntries();
-        const auto chosen = std::find_if(entries.begin(), entries.end(), [](const SpawnEntry& e) { return e.id == SP().item; });
-        const SpawnEntry* item = chosen == entries.end() ? nullptr : &*chosen;
-        const float il = FieldLabelText(in, kPanelPad, y, kPanelInner, Tr("Item"));
-        const float iy = y + il;
-        SelectBox(in, kPanelPad, iy, kPanelInner, selH, 12, item ? item->label : Tr(loaded ? "Choose an item" : "Load the item list first."), "spawn-item",
-                  [in, iy, selH, sid] {
-                      const auto all = SpawnEntries();
-                      const auto words = Words(SP().filter);
-                      std::vector<std::string> ids, labels;
-                      int at = 0;
-                      for (const auto& e : all) {
-                          if ((SP().kind != "all" && e.kind != SP().kind) || !Matches(e.lower, words)) continue;
-                          if (e.id == SP().item) at = static_cast<int>(ids.size());
-                          ids.push_back(e.id);
-                          labels.push_back(e.label);
-                      }
-                      if (ids.empty()) { Toast(SpawnNote(nullptr)); return; }
-                      OpenBelow(in, kPanelPad, iy, kPanelInner, selH, labels, at, [ids, sid](int i) {
-                          SP().item = ids[i];
-                          Rebuild(sid);
-                      });
-                  });
-        y = iy + selH + 10;
-        y += StepText(in, y, SpawnNote(item)) + 14;
-        // Rarity and Legendary Potential; Item level and How many
+        return y;
+    };
+    s.onData = [](Section& sec, const std::string&) {
+        if (sec.state["shown"] == SpawnShown() || Typing(sec.id)) return;
+        Rebuild(sec.id);
+        SpawnRebuild({"spawn_list", "spawn_options"});
+    };
+}
+
+// 2. the results: one line each (the name in its rarity's colour, the type and level at the right),
+// the chosen one highlighted; a fixed row height, the rows below the view made a few a frame
+constexpr float kSpawnRowH = 34, kSpawnViewH = 340;
+struct SpawnRow { size_t entry = 0; bool made = false; Pin node, fill; int hit = -1; };
+struct SpawnView {
+    std::vector<SpawnRow> rows;
+    size_t matches = 0, made = 0;
+    int chosen = -1;
+    Pin content, thumb;
+    float listY = 0, viewH = 0, offset = 0, rowW = 0;
+    bool scrolls = false;
+    Ctx in;
+    int section = -1;
+};
+void MakeSpawnRow(SpawnView& v, size_t i) {
+    SpawnRow& r = v.rows[i];
+    const SpawnEntry& e = SpawnEntries()[r.entry];
+    Node node = New("Row", v.content.Get(), 0, i * kSpawnRowH, v.rowW, kSpawnRowH);
+    r.fill.Set(Fill(node.rt, "Chosen", 0, 0, v.rowW, kSpawnRowH, static_cast<int>(i) == v.chosen ? C("soft") : Alpha(C("soft"), 0)));
+    Style ns{Face::Body, 13, SpawnColor(e)};
+    ns.align = kLeft;
+    TextBox(node.rt, "Name", 14, 0, v.rowW * 0.55f, kSpawnRowH, ns, e.name);
+    Style ms{Face::Body, 12, C("muted")};
+    ms.align = kRight;
+    TextBox(node.rt, "Type", v.rowW * 0.55f + 14, 0, v.rowW * 0.45f - 28, kSpawnRowH, ms, e.meta);
+    Solid(node.rt, "Row border", 0, kSpawnRowH - 1, v.rowW, 1, Hex("#92734025"));
+    r.node.Set(node.rt);
+    r.made = true;
+    ++v.made;
+}
+void PlaceSpawnRows(SpawnView& v) {
+    Section* s = FindSection(v.section);
+    if (!s) return;
+    const float viewTop = v.listY + 1;
+    for (size_t i = 0; i < v.rows.size(); ++i) {
+        const SpawnRow& r = v.rows[i];
+        if (r.hit < 0 || r.hit >= static_cast<int>(s->hits.size())) continue;
+        Hit& h = s->hits[r.hit];
+        const float top = i * kSpawnRowH;
+        const float y0 = std::max(viewTop, viewTop + top - v.offset), y1 = std::min(viewTop + v.viewH, viewTop + top + kSpawnRowH - v.offset);
+        h.visible = r.made && y1 > y0;
+        h.y = v.in.oy + y0;
+        h.h = std::max(0.f, y1 - y0);
+    }
+    if (v.thumb) {
+        const float contentH = v.rows.size() * kSpawnRowH, track = v.viewH - 30, length = std::max(18.f, track * v.viewH / std::max(contentH, v.viewH));
+        const float at = contentH > v.viewH ? (track - length) * v.offset / (contentH - v.viewH) : 0;
+        Move(v.thumb.Get(), kPanelPad + 1 + v.rowW + 3, v.listY + 1 + 15 + at);
+        Resize(v.thumb.Get(), 9, length);
+    }
+}
+void ScrollSpawn(SpawnView& v, float offset) {
+    v.offset = std::clamp(offset, 0.f, std::max(0.f, v.rows.size() * kSpawnRowH - v.viewH));
+    Move(v.content.Get(), 0, -v.offset);
+    for (size_t i = 0; i < v.rows.size(); ++i)
+        if (!v.rows[i].made && i * kSpawnRowH < v.offset + v.viewH + kSpawnRowH) MakeSpawnRow(v, i);
+    PlaceSpawnRows(v);
+}
+void ChooseSpawn(int sid, size_t index) {
+    Section* s = FindSection(sid);
+    auto v = s ? std::static_pointer_cast<SpawnView>(s->live) : nullptr;
+    if (!v || index >= v->rows.size()) return;
+    if (v->chosen >= 0 && v->rows[v->chosen].made) Fade(v->rows[v->chosen].fill.Get(), Alpha(C("soft"), 0), 0);
+    v->chosen = static_cast<int>(index);
+    Fade(v->rows[index].fill.Get(), C("soft"), 0);
+    SP().item = SpawnEntries()[v->rows[index].entry].id;
+    SpawnRebuild({"spawn_options"});
+}
+void MakeSpawnList(Section& s) {
+    s.build = [](Section& sec, const Ctx& c) {
+        SP().blocks["spawn_list"] = sec.id;
+        sec.after = 0;
+        const Ctx in = Block(c);
+        auto v = std::make_shared<SpawnView>();
+        sec.live = v;
+        v->section = sec.id;
+        v->in = in;
+        const auto& entries = SpawnEntries();
+        const auto words = Words(SP().filter);
+        for (size_t i = 0; i < entries.size(); ++i) {
+            if ((SP().kind != "all" && entries[i].kind != SP().kind) || !Matches(entries[i].lower, words)) continue;
+            ++v->matches;
+            if (v->rows.size() >= SP().limit) continue;
+            if (entries[i].id == SP().item) v->chosen = static_cast<int>(v->rows.size());
+            SpawnRow r;
+            r.entry = i;
+            v->rows.push_back(std::move(r));
+        }
+        float y = 14;
+        const Style cs = Text(11, "muted", 0, false);
+        const std::string count = v->matches > v->rows.size()
+                                      ? Fmt("Showing {0} of {1} matches. Type more to narrow the list.", {std::to_string(v->rows.size()), std::to_string(v->matches)})
+                                      : v->matches == 1 ? Tr("1 match") : Fmt("{0} matches", {std::to_string(v->matches)});
+        TextBox(in.parent, "Count", kPanelPad, y, kPanelInner, LineHeight(cs), cs, count);
+        y += LineHeight(cs) + 8;
+        v->listY = y;
+        Node box = New("List", in.parent, kPanelPad, y, kPanelInner, 10);
+        void* bg = Fill(box.rt, "Background", 0, 0, kPanelInner, 10, Hex("#00000022"), 4);
+        void* frame = Outline(box.rt, "Border", 0, 0, kPanelInner, 10, C("line"), 4);
+        if (v->rows.empty()) {
+            const float th = Paragraph(box.rt, "Empty", 1 + 14, 1 + 10 + 8, kPanelInner - 2 - 28, Text(13, "muted", 1.7f),
+                                       Tr(SpawnLoaded() ? "No matches. Try another search." : "Load the item list to choose an item."));
+            const float h = 1 + 10 + 8 + th + 8 + 10 + 1;
+            Resize(TransformOf(bg), kPanelInner, h);
+            Resize(TransformOf(frame), kPanelInner, h);
+            return y + h;
+        }
+        v->scrolls = v->rows.size() * kSpawnRowH > kSpawnViewH;
+        v->rowW = kPanelInner - 2 - (v->scrolls ? 15 : 0);
+        v->viewH = std::min(kSpawnViewH, v->rows.size() * kSpawnRowH);
+        const float h = v->viewH + 2;
+        Node clip = New("View", box.rt, 1, 1, kPanelInner - 2, v->viewH);
+        Clip(clip);
+        Node content = New("Rows", clip.rt, 0, 0, v->rowW, v->rows.size() * kSpawnRowH);
+        v->content.Set(content.rt);
+        Resize(TransformOf(bg), kPanelInner, h);
+        Resize(TransformOf(frame), kPanelInner, h);
+        const int sid = sec.id;
+        if (v->scrolls) {
+            Style ar{Face::Body, 7, C("gold")};
+            ar.align = kCenter;
+            TextBox(in.parent, "Scroll up", kPanelPad + 1 + v->rowW, y + 1, 15, 15, ar, "\xE2\x96\xB2");
+            TextBox(in.parent, "Scroll down", kPanelPad + 1 + v->rowW, y + h - 1 - 15, 15, 15, ar, "\xE2\x96\xBC");
+            v->thumb.Set(TransformOf(Fill(in.parent, "Thumb", kPanelPad + 1 + v->rowW + 3, y + 16, 9, 40, C("gold"), 4)));
+            Section::Wheel wheel;
+            wheel.x = in.ox + kPanelPad + 1;
+            wheel.y = in.oy + y + 1;
+            wheel.w = kPanelInner - 2;
+            wheel.h = v->viewH;
+            std::weak_ptr<SpawnView> weak = v;
+            wheel.scroll = [weak](float notches) {
+                if (auto p = weak.lock()) ScrollSpawn(*p, p->offset - notches * 3 * kSpawnRowH);
+            };
+            sec.wheels.push_back(std::move(wheel));
+        }
+        for (size_t i = 0; i < v->rows.size(); ++i) {
+            Hit hit;
+            hit.kind = HitKind::Action;
+            hit.name = "spawn-row#" + SpawnEntries()[v->rows[i].entry].id;
+            hit.x = kPanelPad + 1;
+            hit.w = v->rowW;
+            hit.visible = false;
+            hit.action = [sid, i] { ChooseSpawn(sid, i); };
+            v->rows[i].hit = in.Add(std::move(hit));
+        }
+        // the chosen row in view, then the rows in view made now
+        if (v->chosen >= 0 && (v->chosen + 1) * kSpawnRowH > v->viewH) v->offset = v->chosen * kSpawnRowH + kSpawnRowH / 2 - v->viewH / 2;
+        ScrollSpawn(*v, v->offset);
+        y += h;
+        if (v->matches > v->rows.size()) {
+            Button more = AddButton(in, kPanelPad, y, Fmt("Show more ({0} of {1})", {std::to_string(v->rows.size()), std::to_string(v->matches)}), Look::Quiet,
+                                    [sid] {
+                                        SP().limit += 100;
+                                        Rebuild(sid);
+                                    }, false, "spawn-more");
+            y += more.h;
+        }
+        return y;
+    };
+    s.tick = [](Section& sec) {
+        auto v = std::static_pointer_cast<SpawnView>(sec.live);
+        if (!v || v->made >= v->rows.size()) return;
+        int budget = 8;
+        for (size_t i = 0; i < v->rows.size() && budget; ++i)
+            if (!v->rows[i].made) { MakeSpawnRow(*v, i); --budget; }
+        PlaceSpawnRows(*v);
+    };
+}
+
+// 3. the chosen item and only the options that apply to it, then Spawn
+void MakeSpawnOptions(Section& s) {
+    s.build = [](Section& sec, const Ctx& c) {
+        SP().blocks["spawn_options"] = sec.id;
+        sec.after = 20;
+        const Ctx in = Block(c);
+        const int sid = sec.id;
+        float y = 22;
+        Solid(in.parent, "Divider", kPanelPad, y, kPanelInner, 1, C("line"));
+        y += 1 + 20;
+        const SpawnEntry* item = SpawnChosen();
+        if (!item) {
+            y += StepText(in, y, Tr(SpawnLoaded() ? "Choose an item from the list above." : "Load the item list to choose an item.")) + 10;
+        } else {
+            y += FieldLabelText(in, kPanelPad, y, kPanelInner, Tr("Chosen item")) + 4;
+            Style name{Face::Serif, 22, SpawnColor(*item)};
+            name.wrap = true;
+            y += Paragraph(in.parent, "Item", kPanelPad, y, kPanelInner, name, item->name) + 2;
+            y += Paragraph(in.parent, "Kind", kPanelPad, y, kPanelInner, Text(12, "muted", 1.6f), item->meta) + 8;
+            y += StepText(in, y, SpawnNote(*item)) + 14;
+            if (item->kind == "base" && item->maxAffixes >= 4) {
+                y += FieldLabelText(in, kPanelPad, y, kPanelInner, Tr("Rarity")) + 6;
+                y += SpawnButtons(in, kPanelPad, y, {Tr("Normal"), Tr("Magic"), Tr("Rare"), Tr("Exalted")}, SP().rarity, "spawn-rarity",
+                                  [sid](int i) { SP().rarity = i; Rebuild(sid); }) + 16;
+            } else if (item->kind == "unique" && item->lp && !item->weaver) {
+                y += FieldLabelText(in, kPanelPad, y, kPanelInner, Tr("Legendary Potential")) + 6;
+                y += SpawnButtons(in, kPanelPad, y, {Tr("The game\xE2\x80\x99s roll"), "0", "1", "2", "3", "4"}, SP().lp + 1, "spawn-lp",
+                                  [sid](int i) { SP().lp = i - 1; Rebuild(sid); }) + 16;
+            }
+        }
+        // Item level (a number) and How many (buttons)
         const float half = (kPanelInner - 14) / 2, hx = kPanelPad + half + 14;
-        const float r1 = SelectField(in, kPanelPad, y, half, Tr("Rarity"), {Tr("Normal"), Tr("Magic"), Tr("Rare"), Tr("Exalted")}, SP().rarity,
-                                     [sid](int i) { SP().rarity = i; Rebuild(sid); }, "spawn-rarity");
-        const float r2 = SelectField(in, hx, y, half, Tr("Legendary Potential"), {Tr("The game\xE2\x80\x99s roll"), "0", "1", "2", "3", "4"}, SP().lp + 1,
-                                     [sid](int i) { SP().lp = i - 1; Rebuild(sid); }, "spawn-lp");
-        y += std::max(r1, r2) + 14;
         const float n1 = InputField(in, kPanelPad, y, half, Tr("Item level"), SP().level, "", true, [](const std::string& t) { SP().level = t; }, "spawn-level");
-        const float n2 = InputField(in, hx, y, half, Tr("How many"), SP().count, "", true, [](const std::string& t) { SP().count = t; }, "spawn-count");
+        const float cl = FieldLabelText(in, hx, y, half, Tr("How many"));
+        const std::vector<std::string> counts{"1", "5", "10", "20"};
+        const int countAt = static_cast<int>(std::find(counts.begin(), counts.end(), SP().count) - counts.begin());
+        const float n2 = cl + 6 + SpawnButtons(in, hx, y + cl + 6, counts, countAt < 4 ? countAt : -1, "spawn-count", [sid, counts](int i) {
+                             SP().count = counts[i];
+                             Rebuild(sid);
+                         });
         y += std::max(n1, n2) + 18;
         const std::string reason = SpawnReason();
         if (!reason.empty()) y += StepText(in, y, reason) + 12;
         Button b = AddButton(in, kPanelPad + kPanelInner, y, Tr("Spawn"), Look::Primary, [] { SpawnNow(); }, true, "spawn_item");
         if (!reason.empty()) SetEnabled(in, b, false);
-        y += b.h + kPanelPad;
-        ClosePanel(panel, kPanelW, y);
-        return y;
-    };
-    s.onData = [](Section& sec, const std::string&) {
-        if (sec.state["shown"] != SpawnShown() && !Typing(sec.id)) Rebuild(sec.id);
+        return y + b.h + kPanelPad;
     };
 }
 }  // namespace
 
 #if defined(EPOCHPACT_TESTING)
-// Private UI tests: choose an item of the loaded list as the Item select would.
+// Private UI tests: choose an item of the loaded list as a click on its row would.
 bool SpawnPick(const std::string& id) {
-    const auto entries = SpawnEntries();
+    const auto& entries = SpawnEntries();
     if (std::none_of(entries.begin(), entries.end(), [&](const SpawnEntry& e) { return e.id == id; })) return false;
     SP().item = id;
     return true;
@@ -1422,7 +1638,9 @@ void RegisterWorkshopSections() {
     RegisterSection("ws_mod_list", [](Section& s) { MakePicker(s, 1); });
     RegisterSection("ws_mod_rows", MakeModifierRows);
     RegisterSection("ws_review", MakeReview);
-    RegisterSection("spawn_items", MakeSpawn);
+    RegisterSection("spawn_head", MakeSpawnHead);
+    RegisterSection("spawn_list", MakeSpawnList);
+    RegisterSection("spawn_options", MakeSpawnOptions);
 }
 std::string WorkshopState() {
     const State& w = W();

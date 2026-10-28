@@ -27,6 +27,7 @@
 #include "convenience.hpp"
 #include "inventory_tools.hpp"
 #include "weaver.hpp"
+#include "idols.hpp"
 #include "rage.hpp"
 #include "item_tiers.hpp"
 #include "fonts.hpp"
@@ -130,6 +131,7 @@ void WorkerBody() {
     invtools::Init();
     rage::Init();
     weaver::Init();
+    idols::Init();
     tiers::Init();
     fonts::Init();
     report::Init();

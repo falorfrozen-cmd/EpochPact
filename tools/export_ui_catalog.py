@@ -264,6 +264,12 @@ def controls():
                 response="json", doc="docs/player-conveniences.md")
         if id == "speed":
             items[-1]["statBinding"] = dict(sp=9, tags=0, special=0, extra=0, mode="increased", valueTransform="x - 1", readCommand="statraw 9 0 0 0")
+    for id, label, description in (
+        ("idolprefixes", "İdol prefix sayısı", "GenerateItems.GenerateAffixes sonrası, dükkân ve kumarbaz dışındaki her benzersiz olmayan idol (düşüşler, ödüller, Nemesis, Spawn Items) 1 ile bu sayı arasında prefix alır; ekler oyunun IsValidAffix, AffixWeighting ve RollTier kurallarıyla seçilir, eşya verisi yeniden oluşturulur. Weaver ve Heretical idoller değişmez; 1 oyunun kendisi."),
+        ("idolsuffixes", "İdol suffix sayısı", "Aynısı suffix'ler için: her idol 1 ile bu sayı arasında suffix alır; 1 oyunun kendisi."),
+    ):
+        mult(id, "general", label, id, 3, description, current=f"currentValues.{id}", doc="docs/player-conveniences.md")
+        items[-1]["parameters"][0]["type"] = "integer"
     add("autopickup", "loot", "Otomatik pickup", "toggle", "autopickup {value}", "session",
         "Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0,25 saniye.",
         params=[value(0, 1)], default=0, reset="autopickup 0", response="text", current="currentValues.autopickup", doc="GEMINI.md")

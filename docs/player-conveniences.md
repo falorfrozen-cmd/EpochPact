@@ -368,6 +368,52 @@ LP 1 ×7 (Weaver's Will ×3); 10 rolls: LP 0 ×8, 1 ×24, 2 ×3 (Weaver's Will �
 corruption 0 in 1000 rolls); the Uniques left at 0 are most likely ones the game gives no
 Legendary Potential there.
 
+### Idol prefixes and suffixes
+
+**Idol prefixes** and **Idol suffixes** (General settings, 1–3, player request 2026-10-27:
+idols with 1–3 prefixes and 1–3 suffixes like other items, no crafting). The game gives a
+non-unique idol one prefix and one suffix: `GenerateItems.RollAffixes` makes every such
+idol Magic (2 affixes) and `IsValidAffix` allows one of each on an idol, with the limits
+compiled into the game. In the saved form an item of rarity 4 or lower keeps up to 63
+affixes and the loader has no idol limit, so EpochPact adds the extra ones after the game
+has rolled its own:
+
+- After `GenerateItems.GenerateAffixes`, for an idol (types 25–33) of rarity 2 that is not
+  a Weaver or Heretical idol (`ItemList.IsWeaverIdol` / `IsHereticalIdol`), made outside
+  the Shop, Gambler and Soul Gambler contexts: drops, rewards, Nemesis and Spawn Items.
+  Idols you already have do not change.
+- Each idol rolls 1 to n prefixes and 1 to n suffixes (evenly). Each extra affix is picked
+  among the standard affixes of that kind that can roll on the idol type and that the
+  game's own `IsValidAffix` allows on this idol with its affixes so far (level, idol type,
+  class, no repeats; the prefix and suffix counts are passed as 0), weighted by the game's
+  `AffixWeighting`; `RollTier` gives the tier, the roll is random. Then the item's saved
+  form is rebuilt (`RebuildID`) and read back (`setValuesFromSerialisation`). When no
+  affix of a kind is left, the idol keeps fewer.
+- The idol stays Magic; the tooltip lists every affix. Offline only; at 1 and 1 the hook
+  is removed.
+
+Live checks 2026-10-28 (EpFeedbackTest clone, test build command `idolcheck`, every idol
+base from the game's generator, nothing dropped):
+
+- `builds\idol-live`: at 1 / 1 86 idols of all 43 idol bases, every one 1 prefix and 1
+  suffix. At 3 / 3 430 idols at item level 100: 1p1s 86, 1p2s 37, 1p3s 49, 2p1s 50, 2p2s 49,
+  2p3s 39, 3p1s 40, 3p2s 38, 3p3s 42; 215 idols at level 20 spread the same way; no affix
+  twice on an idol, every saved form read back the same, every one still Magic. At 3 / 1
+  only prefixes were added. Six idols spawned (6, 4, 5, 5, 5 and 3 affixes) and picked up
+  showed 6, 4, 5, 5, 5 and 3 lines in the game's tooltip, for example a Rogue Adorned Idol
+  with five Rogue affixes. Back at 1 / 1: the hook out and 1 prefix and 1 suffix again.
+- `builds\idol-live2`: 645 idols at level 100 and 344 at level 40 the same way (no repeats,
+  saved forms the same). Six idols spawned and picked up (two Minor Weaver Idols kept their
+  2 affixes; Grand Arcane Omen Idols and Adorned Heorot Idols got 3–5), then the game closed
+  and started again: the same six tooltips, line for line.
+- `builds\idol-live3`: 30 idols of every base at 3 / 3. The four Weaver idol bases (25.2,
+  26.1, 27.1, 28.1) stay at 1 and 1; on every other base an idol has 1.7–2.2 prefixes and
+  1.8–2.5 suffixes on average. Against 150 of the game's own idols of every base, 2285 of the
+  2292 added affixes were ones the game itself rolled on that base as that kind; the other 7
+  (Health Regeneration, Poison and Lightning Resistance, Shared Fire Damage on class idols
+  with 20–33 prefixes in their pool) are common idol affixes the samples had not met yet
+  (with 50 samples per base it was 121).
+
 ### Gold multiplier and Recent pickups
 
 The gold multiplier counts the gold `GoldTracker.modifyGold` adds while
@@ -427,7 +473,8 @@ monster drop would; nothing is saved until the player picks it up.
   0, 2 and 4 (the number of affixes) and 4 with `forceExalted`, never above the base's
   `maximumAffixes`; the game rolls the affixes for the item level. Idols (types 25–33,
   `maximumAffixes` 2) always come out Magic with one prefix and one suffix: the game's
-  `RollAffixes` forces that whatever rarity is asked for.
+  `RollAffixes` forces that whatever rarity is asked for (more with **Idol prefixes** and
+  **Idol suffixes**, below).
 - Uniques and Sets (`u<id>`): the game's rarity 7 (Unique) or 8 (Set); Exulis and Oculus of
   Ruin come out of the generator as Legendary (rarity 9), as the game makes them.
   Legendary Potential is the game's roll, or the chosen 0–4 written on the new item when
@@ -442,6 +489,18 @@ monster drop would; nothing is saved until the player picks it up.
   first build's Legendary Potential was shown but not saved: after a restart it was 0.
 - Item level 1–100, 1–20 items at a time; offline only, and the list must belong to the
   loaded character.
+- Finding an item (owner feedback 2026-10-28: the first version filtered a closed list only
+  when it was opened): **Find an item** filters the results below it as you type, by name,
+  item type or base (`calamity`, `helmet`, `set boots`); **All items / Base items / Uniques /
+  Set items** narrow them; a click on a row chooses the item. Only the options that apply to
+  it are shown: Rarity buttons for bases that take four affixes, Legendary Potential buttons
+  (the game's roll, 0–4) for Uniques that can have it, a note for idols, Sets and Weaver's
+  Will Uniques; How many is 1 / 5 / 10 / 20. The window's list shows 100 rows at first and
+  **Show more** adds 100. The desktop app shows the same results in a list that stays open.
+- Text boxes in the window show a blinking caret once clicked (owner feedback 2026-10-28).
+  `TMP_InputField` makes its caret when it wakes up with its text component already set;
+  added to an active object it woke up without one and never drew a caret, so the box is now
+  built switched off and switched on once it is set up.
 
 Live checks 2026-10-27 (EpFeedbackTest clone):
 
@@ -465,6 +524,11 @@ Live checks 2026-10-27 (EpFeedbackTest clone):
   Potential 4 asked for every Unique, the 366 that stay Uniques and can have it got 4, every
   other one 0, and the list agreed with the game on each (Exulis and Oculus of Ruin came out
   Legendary). The window's notes for an idol and for Gambler's Fallacy read as above.
+- `builds\spawn-ui2` (2026-10-28, the new finder): typing `calam` left 1 row, Calamity in the
+  Unique colour; the row, Legendary Potential 4 and 5 chosen, then Spawn: 5 on the ground.
+  `helmet` with Base items: 65 rows, scrolled with the wheel; an Exalted Burial Mask spawned.
+  `builds\caret-live`: the search box and the Item level box hold their caret; after a click
+  the search box has the keyboard and the caret blinks (captures 0.3 s apart show it on and off).
 
 ## Inventory
 

@@ -2620,6 +2620,60 @@
       "documentation": "GEMINI.md"
     },
     {
+      "id": "idolprefixes",
+      "group": "general",
+      "label": "İdol prefix sayısı",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "idolprefixes {value}",
+      "pythonApi": null,
+      "responseFormat": "text",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        }
+      ],
+      "default": 1,
+      "resetCommand": "idolprefixes 1",
+      "lifetime": "session",
+      "description": "GenerateItems.GenerateAffixes sonrası, dükkân ve kumarbaz dışındaki her benzersiz olmayan idol (düşüşler, ödüller, Nemesis, Spawn Items) 1 ile bu sayı arasında prefix alır; ekler oyunun IsValidAffix, AffixWeighting ve RollTier kurallarıyla seçilir, eşya verisi yeniden oluşturulur. Weaver ve Heretical idoller değişmez; 1 oyunun kendisi.",
+      "currentSource": "currentValues.idolprefixes",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "idolsuffixes",
+      "group": "general",
+      "label": "İdol suffix sayısı",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "idolsuffixes {value}",
+      "pythonApi": null,
+      "responseFormat": "text",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        }
+      ],
+      "default": 1,
+      "resetCommand": "idolsuffixes 1",
+      "lifetime": "session",
+      "description": "Aynısı suffix'ler için: her idol 1 ile bu sayı arasında suffix alır; 1 oyunun kendisi.",
+      "currentSource": "currentValues.idolsuffixes",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "autopickup",
       "group": "loot",
       "label": "Otomatik pickup",
@@ -34451,7 +34505,7 @@
     ]
   },
   "counts": {
-    "controls": 203,
+    "controls": 205,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

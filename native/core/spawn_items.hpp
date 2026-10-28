@@ -17,5 +17,8 @@ std::string Spawn(const std::string& saveId, const std::string& item, int rarity
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
 // Test builds: every listed item from the generator at item level 100, compared with the request; nothing dropped.
 std::string Check(int rarity, int lp, int from, int count);
+// Test builds: count idols of every idol base from the generator at the item level; each one's affixes (kind, ID,
+// tier, roll) and whether its saved form reads back the same; nothing dropped.
+std::string IdolCheck(int count, int level);
 #endif
 }  // namespace ep::spawn

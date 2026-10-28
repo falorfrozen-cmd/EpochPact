@@ -109,6 +109,8 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `weaver_read` — Weaver's Will ayarları | `weaverread` | — | — | Okuma |
 | `speed` — Hareket hızı çarpanı | `speed {value}` | value: 1…5 | 1 | Yüklü aktör |
 | `cooldown` — Cooldown / charge hız çarpanı | `cooldown {value}` | value: 1…10 | 1 | Oturum |
+| `idolprefixes` — İdol prefix sayısı | `idolprefixes {value}` | value: 1…3 | 1 | Oturum |
+| `idolsuffixes` — İdol suffix sayısı | `idolsuffixes {value}` | value: 1…3 | 1 | Oturum |
 | `density_read` — Density ölçümü | `densityread` | — | — | Okuma |
 
 - **Öldürme / mote XP çarpanı:** GainExpFromEnemyOrMote kazancı; görev XP ödüllerini çarpmaz. Reset: `xp 1`.
@@ -125,6 +127,8 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Weaver's Will ayarları:** weaverread: pay, hız, istenen affix'ler ve sayaçlar (salt okunur).
 - **Hareket hızı çarpanı:** Movespeed increased katkısı = x−1; movespeed alias/raw stat ile aynı full key'i paylaşır. Reset: `speed 1`.
 - **Cooldown / charge hız çarpanı:** Normal charge tick hızını ve cooldown sorgusunu ölçekler. Reset: `cooldown 1`.
+- **İdol prefix sayısı:** GenerateItems.GenerateAffixes sonrası, dükkân ve kumarbaz dışındaki her benzersiz olmayan idol (düşüşler, ödüller, Nemesis, Spawn Items) 1 ile bu sayı arasında prefix alır; ekler oyunun IsValidAffix, AffixWeighting ve RollTier kurallarıyla seçilir, eşya verisi yeniden oluşturulur. Weaver ve Heretical idoller değişmez; 1 oyunun kendisi. Reset: `idolprefixes 1`.
+- **İdol suffix sayısı:** Aynısı suffix'ler için: her idol 1 ile bu sayı arasında suffix alır; 1 oyunun kendisi. Reset: `idolsuffixes 1`.
 - **Density ölçümü:** Paket/generator/planlanan-gözlenen spawn ve dışlama sayaçları.
 
 ## C ekranı / karakter statları

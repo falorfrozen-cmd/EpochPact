@@ -145,6 +145,14 @@
       "Weaver's Will upgrade speed",
       "When a kill near you gives an equipped Weaver's Will item an upgrade (at most once every 15 seconds), it happens this many times: each upgrade adds an affix or raises one by a tier and uses 1 Weaver's Will. Offline only; off at 1."
     ],
+    "idolprefixes": [
+      "Idol prefixes",
+      "The game gives an idol one prefix. With 2 or 3, each idol that drops (and idols from rewards, Nemesis and Spawn Items) rolls 1 to this many prefixes, picked by the game's own rules for that idol: its level, type and class, no repeats, the usual weights and tiers. Shops, gamblers, Weaver and Heretical idols and idols you already have do not change. Offline only; the game's own at 1."
+    ],
+    "idolsuffixes": [
+      "Idol suffixes",
+      "The same for suffixes: each new idol rolls 1 to this many suffixes. Offline only; the game's own at 1."
+    ],
     "weaver_affixes": [
       "Weaver's Will affixes",
       "Affixes that Weaver's Will upgrades prefer: an upgrade raises one of these when the item has one below T7, and a new affix is one of these when one fits the item. Otherwise the game chooses as usual. None: the game chooses every upgrade."

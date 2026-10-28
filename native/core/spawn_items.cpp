@@ -4,6 +4,7 @@
 #include <cmath>
 #include <map>
 #include <memory>
+#include <set>
 #include <sstream>
 
 // Spawn items: the game's own item generator (GenerateItems.initialiseRandomItemData) makes the chosen
@@ -273,6 +274,80 @@ std::string Check(int rarity, int lp, int from, int count) {
                 << "},\"generated\":" << generated << ",\"made\":" << made << facts << '}';
         }
         return out.str() + "]}";
+    });
+}
+std::string IdolCheck(int count, int level) {
+    return Run([=] {
+        const auto c = Current();
+        Root types(Invoke(M("ItemList", "get", 0))), catalog(Invoke(M("AffixList", "get", 0)));
+        void* generator = Get<void*>(c.actor, F("Actor", "generateItems"));
+        const auto generate = M("GenerateItems", "initialiseRandomItemData", 26);
+        // each affix: kind, ID, tier, roll, special type, and the classes it belongs to (AffixList.ClassSpecificity flags)
+        std::map<int, int> classes;
+        const auto affixes = [&](void* item) {
+            std::ostringstream o;
+            o << '[';
+            bool first = true;
+            for (void* a : Entries(Get<void*>(item, F("ItemData", "affixes")))) {
+                if (!a) continue;
+                const int id = Get<uint16_t>(a, F("ItemAffix", "affixId"));
+                if (!classes.count(id)) {
+                    int arg = id;
+                    void* g[]{&arg};
+                    void* known = Invoke(Method(catalog.Get(), "GetAffix", 1), catalog.Get(), g);
+                    classes[id] = known ? Get<int>(known, F("AffixList.Affix", "classSpecificity")) : -1;
+                }
+                o << (first ? "" : ",") << '[' << Get<int>(a, F("ItemAffix", "affixType")) << ',' << id << ','
+                  << static_cast<int>(Get<uint8_t>(a, F("ItemAffix", "affixTier"))) << ',' << static_cast<int>(Get<uint8_t>(a, F("ItemAffix", "affixRoll")))
+                  << ',' << Get<int>(a, F("ItemAffix", "specialAffixType")) << ',' << classes[id] << ']';
+                first = false;
+            }
+            return o.str() + "]";
+        };
+        std::map<int, std::string> names;
+        std::map<std::string, int> shapes;
+        int made = 0, same = 0, repeats = 0;
+        std::ostringstream out;
+        out << "{\"ok\":true,\"items\":[";
+        for (const auto& b : Bases(types.Get())) {
+            if (b.type < 25 || b.type > 33) continue;
+            const Request r = Resolve(types.Get(), "b" + std::to_string(b.type) + "." + std::to_string(b.sub), 1);
+            for (int i = 0; i < count; ++i) {
+                const auto root = Generate(generator, generate, r, level);
+                if (!root) continue;
+                void* item = root->Get();
+                const std::string before = affixes(item);
+                Invoke(Method(item, "RebuildID", 0), item);
+                Invoke(Method(item, "setValuesFromSerialisation", 0), item);
+                const std::string after = affixes(item);
+                int prefixes = 0, suffixes = 0;
+                std::set<int> ids;
+                for (void* a : Entries(Get<void*>(item, F("ItemData", "affixes")))) {
+                    if (!a) continue;
+                    const int id = Get<uint16_t>(a, F("ItemAffix", "affixId")), kind = Get<int>(a, F("ItemAffix", "affixType"));
+                    prefixes += kind == 0;
+                    suffixes += kind == 1;
+                    if (!ids.insert(id).second) ++repeats;
+                    if (!names.count(id)) {
+                        int arg = id;
+                        void* a2[]{&arg};
+                        names[id] = Text(Invoke(Method(catalog.Get(), "GetAffixName", 1), catalog.Get(), a2));
+                    }
+                }
+                ++shapes[std::to_string(prefixes) + "p" + std::to_string(suffixes) + "s"];
+                ++made;
+                same += before == after;
+                out << (made == 1 ? "" : ",") << "{\"t\":" << b.type << ",\"s\":" << b.sub << ",\"rarity\":" << static_cast<int>(Get<uint8_t>(item, F("ItemData", "rarity")))
+                    << ",\"a\":" << after << ",\"same\":" << Boolean(before == after) << '}';
+            }
+        }
+        out << "],\"made\":" << made << ",\"same\":" << same << ",\"repeats\":" << repeats << ",\"shapes\":{";
+        bool first = true;
+        for (const auto& [shape, n] : shapes) { out << (first ? "" : ",") << Json(shape) << ':' << n; first = false; }
+        out << "},\"names\":{";
+        first = true;
+        for (const auto& [id, name] : names) { out << (first ? "" : ",") << '"' << id << "\":" << Json(name); first = false; }
+        return out.str() + "}}";
     });
 }
 #endif

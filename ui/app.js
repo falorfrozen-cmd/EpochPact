@@ -52,7 +52,7 @@ const affixKinds={
 function affixKind(el){return el?.closest?.('[data-affix-kind]')?.dataset?.affixKind||"loot_affixes";}
 function affixSelector(kind,s){return kind==="loot_affixes"?s:`[data-affix-kind="${kind}"] ${s}`;}
 let craftingSection='forge',workshopAdvanced=false;
-let spawnFilter='',spawnKind='all',spawnDraft={item:'',rarity:'2',lp:'-1',item_level:'100',count:'1'};
+let spawnOptionsOf=null,spawnFilter='',spawnKind='all',spawnDraft={item:'',rarity:'2',lp:'-1',item_level:'100',count:'1'};
 const craftDisclosure={advanced:false,defaults:false};
 let workshopDraft=craftingModel.defaults(),workshopOwner=null;
 let workshopModifierFilter="";
@@ -508,7 +508,7 @@ setInterval(()=>void pollConnection(),1000);
 function syncSpeed(){
  const modes=actorValues["9:0:0:0"]?.modes;if(modes){appliedValues.speed=1+(modes.increased||0);if(!dirty.has("speed"))values.speed=appliedValues.speed;}
 }
-function unitFor(c){return c.id==="weaversdrop"?"%":c.id==="pickup_radius"||c.id==="qol_arearadius"?" game units":c.id==="pickup_interval"?" s":c.id.startsWith("map_")&&c.id.endsWith("opacity")?"":c.id.startsWith("map_")?"×":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["lprolls","craft_fp","loot_ww","build_weaverflat","build_projectileflat","build_blessingoptions","build_minionextra","build_totemextra","build_ballistaextra","build_forgedextra","build_companionextra"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
+function unitFor(c){return c.id==="weaversdrop"?"%":c.id==="pickup_radius"||c.id==="qol_arearadius"?" game units":c.id==="pickup_interval"?" s":c.id.startsWith("map_")&&c.id.endsWith("opacity")?"":c.id.startsWith("map_")?"×":c.id==="build_cameraangle"?"°":c.id.startsWith("cof_double_")?"%":c.id==="loot_lp"?" LP":["lprolls","idolprefixes","idolsuffixes","craft_fp","loot_ww","build_weaverflat","build_projectileflat","build_blessingoptions","build_minionextra","build_totemextra","build_ballistaextra","build_forgedextra","build_companionextra"].includes(c.id)?"":c.widget==="toggle"?"":"×";}
 function settingDisplayValue(id,value){return id==="speed"&&Number.isFinite(value)?Number(value.toFixed(6)):value;}
 function settingCard(c) {
  const p=c.parameters.find(x=>x.name==="value"),v=settingDisplayValue(c.id,values[c.id]??c.default),unit=unitFor(c);
@@ -619,8 +619,8 @@ function customWorkshop(){
 }
 function spawnEntries(){
  const d=cache.spawn_list;
- return [...(d?.uniques||[]).map(x=>({id:'u'+x.id,kind:x.set?'set':'unique',weaver:x.weaver,set:x.set,lp:x.lp!==false,uiLabel:`${x.set?'Set':'Unique'} · ${x.name} · ${x.baseType}`})),
-  ...(d?.bases||[]).map(x=>({id:`b${x.type}.${x.sub}`,kind:'base',maxAffixes:x.maxAffixes??4,uiLabel:`${x.name} · ${x.baseType} · Level ${x.level}`}))];
+ return [...(d?.uniques||[]).map(x=>({id:'u'+x.id,kind:x.set?'set':'unique',weaver:x.weaver,set:x.set,lp:x.lp!==false,uiLabel:`${x.set?'Set':'Unique'} · ${x.name} · ${x.baseType} · Level ${x.level}`})),
+  ...(d?.bases||[]).map(x=>({id:`b${x.type}.${x.sub}`,kind:'base',type:x.type,maxAffixes:x.maxAffixes??4,uiLabel:`${x.name} · ${x.baseType} · Level ${x.level}`}))];
 }
 function spawnOptions(){
  const words=spawnFilter.toLowerCase().split(/\s+/).filter(Boolean),all=spawnEntries();
@@ -633,24 +633,30 @@ function spawnChosen(){return spawnEntries().find(x=>x.id===spawnDraft.item);}
 function spawnNote(){
  const x=spawnChosen();
  if(!x)return cache.spawn_list?.bases?.length?'No matches. Try another search.':'Load the item list to choose an item.';
- if(x.kind==='base')return x.maxAffixes<=0?'This base has no affixes, so rarity does not apply.':x.maxAffixes<4?`This base always rolls ${x.maxAffixes} affixes, so rarity does not apply.`:'Rarity applies. The game rolls the affixes for the item level.';
+ if(x.kind==='base')return x.maxAffixes<=0?'This base has no affixes, so rarity does not apply.':x.type>=25&&x.type<=33?'Idols roll one prefix and one suffix, or more with Idol prefixes and Idol suffixes in General settings. Rarity does not apply.':x.maxAffixes<4?`This base always rolls ${x.maxAffixes} affixes, so rarity does not apply.`:'Rarity applies. The game rolls the affixes for the item level.';
  if(x.set)return 'Set items have no Legendary Potential.';
  if(x.weaver)return 'Weaver’s Will Unique: the game rolls its Weaver’s Will; Legendary Potential does not apply.';
  return x.lp?'Legendary Potential applies. Rarity does not.':'This Unique has no Legendary Potential. Rarity does not apply.';
 }
+function spawnOptionFields(){
+ const x=spawnChosen(),rarity=x?.kind==='base'&&x.maxAffixes>=4,lp=x?.kind==='unique'&&x.lp&&!x.weaver;
+ return (rarity?`<label>Rarity<select name="rarity">${['Normal','Magic','Rare','Exalted'].map((l,i)=>`<option value="${i}" ${spawnDraft.rarity===String(i)?'selected':''}>${esc(l)}</option>`).join('')}</select></label>`:`<input type="hidden" name="rarity" value="${esc(spawnDraft.rarity)}">`)+
+  (lp?`<label>Legendary Potential<select name="lp"><option value="-1" ${spawnDraft.lp==='-1'?'selected':''}>The game’s roll</option>${[0,1,2,3,4].map(i=>`<option value="${i}" ${spawnDraft.lp===String(i)?'selected':''}>${i}</option>`).join('')}</select></label>`:`<input type="hidden" name="lp" value="-1">`)+
+  `<label>Item level<input name="item_level" type="number" min="1" max="100" step="1" value="${esc(spawnDraft.item_level)}" required></label>`+
+  `<label>How many<input name="count" type="number" min="1" max="20" step="1" value="${esc(spawnDraft.count)}" required></label>`;
+}
 function spawnFields(){
  const list=spawnOptions(),loaded=!!cache.spawn_list?.bases?.length;
- const kinds=[['all','All items'],['base','Base items'],['unique','Unique'],['set','Set']];
- return `<div class="craft-template-search"><label>Find an item<input type="search" data-spawn-search value="${esc(spawnFilter)}" placeholder="Search item names..." ${loaded?'':'disabled'}></label><label>Type<select data-spawn-kind ${loaded?'':'disabled'}>${kinds.map(([v,l])=>`<option value="${v}" ${spawnKind===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label></div>`+
-  `<label>Item <small class="muted" data-spawn-count>${loaded?`${list.count} matches`:''}</small><select name="item" data-spawn-item ${loaded?'':'disabled'}>${list.html}</select></label><p class="note" data-spawn-note>${esc(spawnNote())}</p>`+
-  `<div class="form-grid"><label>Rarity<select name="rarity">${['Normal','Magic','Rare','Exalted'].map((l,i)=>`<option value="${i}" ${spawnDraft.rarity===String(i)?'selected':''}>${esc(l)}</option>`).join('')}</select></label>`+
-  `<label>Legendary Potential<select name="lp"><option value="-1" ${spawnDraft.lp==='-1'?'selected':''}>The game’s roll</option>${[0,1,2,3,4].map(i=>`<option value="${i}" ${spawnDraft.lp===String(i)?'selected':''}>${i}</option>`).join('')}</select></label>`+
-  `<label>Item level<input name="item_level" type="number" min="1" max="100" step="1" value="${esc(spawnDraft.item_level)}" required></label>`+
-  `<label>How many<input name="count" type="number" min="1" max="20" step="1" value="${esc(spawnDraft.count)}" required></label></div>`;
+ const kinds=[['all','All items'],['base','Base items'],['unique','Uniques'],['set','Set items']];
+ spawnOptionsOf=spawnDraft.item;
+ return `<div class="craft-template-search"><label>Find an item<input type="search" data-spawn-search value="${esc(spawnFilter)}" placeholder="Type a name or a type, for example Calamity, helmet or set boots" ${loaded?'':'disabled'}></label><label>Type<select data-spawn-kind ${loaded?'':'disabled'}>${kinds.map(([v,l])=>`<option value="${v}" ${spawnKind===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label></div>`+
+  `<label>Item <small class="muted" data-spawn-count>${loaded?(list.count===1?'1 match':`${list.count} matches`):''}</small><select name="item" data-spawn-item size="10" ${loaded?'':'disabled'}>${list.html}</select></label><p class="note" data-spawn-note>${esc(spawnNote())}</p>`+
+  `<div class="form-grid" data-spawn-options>${spawnOptionFields()}</div>`;
 }
 function updateSpawnUi(){
  const list=spawnOptions(),select=$('[data-spawn-item]');if(select)select.innerHTML=list.html;
- const count=$('[data-spawn-count]');if(count)count.textContent=`${list.count} matches`;
+ const opts=$('[data-spawn-options]');if(opts&&spawnOptionsOf!==spawnDraft.item){spawnOptionsOf=spawnDraft.item;opts.innerHTML=spawnOptionFields();}
+ const count=$('[data-spawn-count]');if(count)count.textContent=list.count===1?'1 match':`${list.count} matches`;
  const note=$('[data-spawn-note]');if(note)note.textContent=spawnNote();updateDisabled();
 }
 function spawnPanel(){
@@ -1637,6 +1643,7 @@ content.addEventListener("input",e=>{
   else{workshopListLimits[kind]=40;updateWorkshopUi();}return;
  }
  if(t.hasAttribute?.('data-spawn-search')){spawnFilter=t.value;updateSpawnUi();return;}
+ if(t.name&&t.closest('form')?.dataset.id==="spawn_item"&&t.name!=='item'){spawnDraft[t.name]=t.value;return;}
  if(t.hasAttribute?.("data-workshop-filter")){workshopModifierFilter=t.value;const select=t.closest('form')?.querySelector('[name=modifiers]');if(select)select.innerHTML=workshopModifierOptions();return;}
  if(t.name==="value"&&t.closest('form')?.dataset.id==="craft_materials")materialTarget=t.value;
  rememberMonolithInput(t);

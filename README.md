@@ -130,6 +130,7 @@ with EpochPact completely removed. This release remains an alpha.
 | `weaversdrop <0-100>` | Percent of the Uniques the game picks at random that come as a Weaver's Will Unique where one fits (about 4 % normally). |
 | `weaversupgrades <1-10>` | Every Weaver's Will upgrade a kill grants an equipped item happens that many times (each uses 1 Weaver's Will). |
 | `weaveraffixes <ids\|none>` | The affixes Weaver's Will upgrades raise and add when they can; otherwise the game chooses. |
+| `idolprefixes <1-3>` / `idolsuffixes <1-3>` | Each new idol (drops, rewards, Nemesis, Spawn Items; not shops or gamblers) rolls 1 to that many prefixes / suffixes, picked by the game's own affix rules. Weaver and Heretical idols keep the game's 1 and 1. |
 | `speed <1-5>` | Movement speed: writes the game's own Movespeed stat (like an item or a buff), so the character sheet, the animation and the movement all scale together. |
 | `cooldown <1-10>` | Charges and cooldowns count down that many times faster. |
 | `autopickup <0/1>` | Every 0.25 s (paused while an item card is pending or open), asks the game to pick up selected items and enabled gold, potion, tome and bone categories. |

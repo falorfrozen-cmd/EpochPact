@@ -283,6 +283,9 @@ float InputField(const Ctx& c, float x, float y, float w, const std::string& lab
 void* MakeInput(const Ctx& c, float x, float y, float w, float h, const Style& s, const InputLook& look, const std::string& value, const std::string& placeholder,
                bool number, std::function<void(const std::string&)> onChange, const std::string& name) {
     Node box = New(name.empty() ? "Input" : name.c_str(), c.parent, x, y, w, h);
+    // TMP_InputField makes its caret when it wakes up with a text component, so it wakes up
+    // only once it has one (below); added to an active object, it would never draw a caret.
+    SetActive(box.go, false);
     // its own background takes the pointer: TMP_InputField places the caret and selects text
     void* bg = Add(box.go, "UnityEngine.UI.dll", "UnityEngine.UI", "Image");
     void* sa[]{assets::Sprite("fill-r3.png", true)};
@@ -322,8 +325,11 @@ void* MakeInput(const Ctx& c, float x, float y, float w, float h, const Style& s
     Color caret = C("ink"), selection = Alpha(C("accent"), 0.35f);
     call("set_caretColor", &caret);
     call("set_selectionColor", &selection);
+    int caretWidth = 2;
+    call("set_caretWidth", &caretWidth);
     Root valueText(il2cpp::api().string_new(value.c_str()));
     call("set_text", valueText.Get());
+    SetActive(box.go, true);
     WatchInput(c, field, value, std::move(onChange), name);
     // A click gives it the keyboard (TMP_InputField also takes the game's own pointer events,
     // which place the caret): it becomes the EventSystem's selected object and is activated.
