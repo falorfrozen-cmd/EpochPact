@@ -45,6 +45,11 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 - Description (`description-dev46.bbcode`): version line `0.1.2-dev.46`; General line names Forging Potential on
   drops; Safety line "VirusTotal (28 October 2026): version.dll 0/63, ZIP 0/67".
 
+Published 2026-10-28 with the owner's approval ("tamam dev46 yayınla"): GitHub release `v0.1.2-dev.46`
+(latest, both ZIPs, digests checked; main = b389d2b; the app updater offers it as installable from 0.1.2-dev.45),
+Nexus main file updated to 0.1.2-dev.46 (dev.45 archived, changelog with the file, mod version updated with it,
+download available at once) and page description (version, General and Safety lines).
+
 ## Discord announcement (draft; the owner sends it)
 
 > @everyone
