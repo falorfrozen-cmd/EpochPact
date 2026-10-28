@@ -1,0 +1,51 @@
+{
+  "version": "0.1.2-dev.45",
+  "observed": "2026-10-28 (UTC+03:00), fresh uploads through the VirusTotal web interface",
+  "build": "ingame-ui commit a5f2bb0 (player flavor; build-info loaderSha256 = version.dll below)",
+  "files": {
+    "version.dll": {
+      "sha256": "1e6d439aeb7bddd3d9672ff277fd02debc3445f5a599e569b465eaa406f1c17c",
+      "bytes": 8206848,
+      "in": [
+        "EpochPact-0.1.2-dev.45-InGame.zip",
+        "EpochPact-0.1.2-dev.45.zip (Manual Installation and the app's player files)"
+      ],
+      "virusTotal": "0/71",
+      "report": "https://www.virustotal.com/gui/file/1e6d439aeb7bddd3d9672ff277fd02debc3445f5a599e569b465eaa406f1c17c"
+    },
+    "EpochPact.Core.dll": {
+      "sha256": "e173d5adaadf1011f3acc1725ed142ea2f731607976701e1023810a383cdcd6b",
+      "bytes": 8199168,
+      "in": [
+        "EpochPact-0.1.2-dev.45.zip (MelonLoader path)"
+      ],
+      "virusTotal": "not uploaded (desktop edition only; not on Nexus)"
+    },
+    "EpochPact.exe": {
+      "sha256": "e92ba9060fad99982334697c4170a9408f0db599faa51e3e10eb17b46883b14a",
+      "bytes": 372347,
+      "in": [
+        "EpochPact-0.1.2-dev.45.zip"
+      ],
+      "virusTotal": "not uploaded (desktop edition only; not on Nexus)"
+    }
+  },
+  "packages": {
+    "EpochPact-0.1.2-dev.45-InGame.zip": {
+      "sha256": "d40abf37fa7ee6cbfabf5e3689b7aae2d0c026fb99a5c76b8db5d7fbcb6cc488",
+      "bytes": 3552245,
+      "virusTotal": "0/67",
+      "report": "https://www.virustotal.com/gui/file/d40abf37fa7ee6cbfabf5e3689b7aae2d0c026fb99a5c76b8db5d7fbcb6cc488",
+      "localDefender": "No threats found"
+    },
+    "EpochPact-0.1.2-dev.45.zip": {
+      "sha256": "8fca61f5566354dd019dff104c5876b3e7b3d3233fcf6e235e5526fa72b866f6",
+      "bytes": 36282330,
+      "virusTotal": "not uploaded (over the 10 MB browser upload limit)",
+      "localDefender": "No threats found (folder and ZIP)"
+    }
+  },
+  "localDefender": "signatures 1.463.1.0: the InGame package folder, the desktop folder and the desktop ZIP found no threats",
+  "checks": "package_ingame_player and package_player_folder verified; verify_player_package and verify_connection_package passed; Python 388, JavaScript 242, native 26 tests; translations 1797/1797",
+  "note": "Scan counts describe these exact bytes on this date only; they are not a safety certification."
+}
