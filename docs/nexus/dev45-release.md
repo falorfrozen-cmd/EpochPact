@@ -52,6 +52,12 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 - Description (`description-dev45.bbcode`): version line `0.1.2-dev.45`; General line names idol prefixes and
   suffixes; Crafting line names Spawn Items; Safety line "VirusTotal (28 October 2026): version.dll 0/71, ZIP 0/67".
 
+Published 2026-10-28 with the owner's approval ("devam et", then "nexusmodsta yayınla"): GitHub release
+`v0.1.2-dev.45` (latest, both ZIPs, digests checked; main = 9532ee4; the app updater offers it as installable
+from 0.1.2-dev.44), Nexus main file updated to 0.1.2-dev.45 (dev.44 archived, changelog with the file, mod version
+updated with it) and page description (version, General, Crafting and Safety lines). Nexus's own virus scan of the
+new file was still running when this was written.
+
 ## Discord announcement (draft; the owner sends it)
 
 > @everyone
