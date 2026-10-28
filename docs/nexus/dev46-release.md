@@ -13,7 +13,9 @@ Files (C:\Users\falor\EpochPactLab\builds):
 Both ZIPs carry the same `version.dll` (`067aa522…`); `EpochPact.Core.dll` `77dc2f1c…`,
 `EpochPact.exe` `dca964ca…`. Built from a1bcb02 (Forging Potential on drops 6442e6e). Package checks passed
 (desktop verify, connection test); the player DLLs have no test commands (`fpcheck`, `idolcheck`, `spawncheck`);
-Microsoft Defender (signatures 1.463.1.0) found nothing. VirusTotal: `docs/security/virustotal-20261028-dev46.json`.
+Microsoft Defender (signatures 1.463.1.0) found nothing. Shipping check with this exact `version.dll` (`builds\fp-player-live`, EpFeedbackTest clone): version
+0.1.2-dev.46, test commands unknown, 8 items at x1 then 8 at x2 picked up (Normal 16/21 -> 32/40, Magic 14/16 -> 32/40,
+Rare 27/29 -> 52/58, Exalted 30/31 -> 63/63), all kept after a restart. VirusTotal: `docs/security/virustotal-20261028-dev46.json`.
 
 ## GitHub release
 
