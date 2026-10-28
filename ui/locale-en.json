@@ -137,6 +137,10 @@
       "Forging Potential on drops",
       "Multiplies the Forging Potential of new Normal, Magic, Rare and Exalted items (drops, rewards, Nemesis and Spawn Items), rounded, up to 63, the most an item can have in the game: at x2 an item that would drop with 20 gets 40. Crafting uses it up as usual. Shops, gamblers and items you already have do not change; Uniques and Sets have none. Offline only; off at 1."
     ],
+    "uniqueroll": [
+      "Unique minimum roll",
+      "New Uniques, Set items and Legendaries roll their values in the best part of each range: at 80 every value comes from the best fifth of its range, at 100 every value is the best it can be (a perfect roll). The game decides which end is best for each value, so a downside rolls as small as it can. Drops, rewards, Nemesis, Spawn Items and Weaver cocoons when they open; gamblers and items you already have do not change. Offline only; off at 0."
+    ],
     "weaverswill": [
       "Weaver's Will multiplier",
       "Multiplies the Weaver's Will the game rolls for a Unique (drops, rewards and opened cocoons), up to the game's maximum of 28: at x2 a Unique that would roll 10 gets 20. Items you already have do not change. Offline only; off at 1."

@@ -36,6 +36,17 @@ inline int ScaleForgingPotential(int rolled, double m, int maximum) { return Sca
 // The contexts that keep the game's own Forging Potential: GenerateItems.GenerationContext Shop 1,
 // Gambler 2 and SoulGambler 3 (Normal 0, Nemesis 4 and RageOfMorditas 5 are boosted).
 inline bool BoostsForgingPotential(int context) { return context < 1 || context > 3; }
+// Unique minimum roll: a roll (0-255) keeps its place, but within the best (100-percent)% of the range;
+// maxIsBest says which end is best. 0 (or anything invalid) leaves it; 100 is the best end itself.
+inline bool ValidMinimumRoll(double percent) { return std::isfinite(percent) && percent >= 0 && percent <= 100; }
+inline int MinimumRoll(int roll, double percent, bool maxIsBest) {
+    if (roll < 0 || roll > 255 || !ValidMinimumRoll(percent) || percent == 0) return roll;
+    const int quality = maxIsBest ? roll : 255 - roll;
+    const double floor = 255.0 * percent / 100.0;
+    const long raised = std::lround(floor + quality * (255.0 - floor) / 255.0);  // never below quality
+    const int best = raised > 255 ? 255 : static_cast<int>(raised);
+    return maxIsBest ? best : 255 - best;
+}
 // Legendary Potential rolls: the game's own roll is made this many more times and the highest kept;
 // 1 (or anything invalid) is the game's single roll, at most 1000 rolls in all.
 constexpr int MaximumLegendaryRolls = 1000;

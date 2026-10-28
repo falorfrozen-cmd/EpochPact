@@ -2456,6 +2456,33 @@
       "documentation": "GEMINI.md"
     },
     {
+      "id": "uniqueroll",
+      "group": "general",
+      "label": "Unique minimum roll",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "uniqueroll {value}",
+      "pythonApi": null,
+      "responseFormat": "text",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      ],
+      "default": 0,
+      "resetCommand": "uniqueroll 0",
+      "lifetime": "session",
+      "description": "GenerateItems.RollBaseItem bir Unique, Set ya da Legendary yaptıktan sonra her roll (0-255) aralığın en iyi (100−n)%'sine taşınır, yeri korunur; hangi ucun iyi olduğunu oyunun MaxRollIsBestForUniqueRollID'si söyler (implicit'lerde yüksek). 100 her değer en iyi, 0 kapalı. Kumarbazlar (rollItemFor*Gambling), craft ile yeniden atılan değerler, benzer-eşya ödülleri ve mevcut eşyalar değişmez.",
+      "currentSource": "currentValues.uniqueroll",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "weaverswill",
       "group": "general",
       "label": "Weaver's Will çarpanı",
@@ -34532,7 +34559,7 @@
     ]
   },
   "counts": {
-    "controls": 206,
+    "controls": 207,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

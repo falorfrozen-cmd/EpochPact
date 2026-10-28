@@ -715,6 +715,25 @@ class BridgeTests(unittest.TestCase):
                 self.bridge.execute('fpdrops', {'value': bad})
         self.assertEqual(len(self.commands), sent)
 
+    def test_unique_minimum_roll_is_read_from_status_and_stays_from_0_to_100(self):
+        def ur_status(command, **kwargs):
+            if command == 'status':  # the line after the idol lines
+                return ('EpochPact; gate: offline play [client only]\n'
+                        'idolsuffixes: x1\n'
+                        'uniqueroll: 80%, hooks in, items 4, rolls 9, faults 0')
+            return self.send(command, **kwargs)
+        with patch.object(ui.le, 'send', side_effect=ur_status):
+            live = self.bridge.connection()
+        self.assertEqual(live['values']['uniqueroll'], 80)
+        for value in (0, 37.5, 100):
+            self.bridge.execute('uniqueroll', {'value': value})
+            self.assertEqual(self.commands[-1], f'uniqueroll {value}')
+        sent = len(self.commands)
+        for bad in (-1, 101, float('nan'), '50', None):
+            with self.subTest(value=bad), self.assertRaises(ValueError):
+                self.bridge.execute('uniqueroll', {'value': bad})
+        self.assertEqual(len(self.commands), sent)
+
     def test_connection_recovers_after_first_unity_frame_timeout_without_mutation(self):
         self.live['sessionread'] = {'ok':False, 'error':'the main thread did not pick the job up'}
         pending = self.bridge.connection()

@@ -28,6 +28,7 @@
 #include "inventory_tools.hpp"
 #include "weaver.hpp"
 #include "idols.hpp"
+#include "unique_rolls.hpp"
 #include "rage.hpp"
 #include "item_tiers.hpp"
 #include "fonts.hpp"
@@ -132,6 +133,7 @@ void WorkerBody() {
     rage::Init();
     weaver::Init();
     idols::Init();
+    uniquerolls::Init();
     tiers::Init();
     fonts::Init();
     report::Init();

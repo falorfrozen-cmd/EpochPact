@@ -34,6 +34,22 @@ int main() {
         check(BoostsForgingPotential(0)&&BoostsForgingPotential(4)&&BoostsForgingPotential(5),"drops, Nemesis and Rage of Morditas boosted");
         check(!BoostsForgingPotential(1)&&!BoostsForgingPotential(2)&&!BoostsForgingPotential(3),"shops and gamblers keep the game's own");
     }
+    {   // Unique minimum roll: 0 leaves every roll, 100 gives the best end, in between the roll keeps its place.
+        bool same=true, bounded=true, ordered=true;
+        for(int r=0;r<=255;++r){
+            same=same&&MinimumRoll(r,0,true)==r&&MinimumRoll(r,0,false)==r;
+            const int up=MinimumRoll(r,80,true), down=MinimumRoll(r,80,false);
+            bounded=bounded&&up>=204&&up>=r&&down<=51&&down<=r;
+            if(r)ordered=ordered&&up>=MinimumRoll(r-1,80,true)&&down>=MinimumRoll(r-1,80,false);
+        }
+        check(same,"minimum roll 0 changes nothing");
+        check(MinimumRoll(0,100,true)==255&&MinimumRoll(17,100,true)==255&&MinimumRoll(255,100,false)==0&&MinimumRoll(200,100,false)==0,"minimum roll 100 is the best end");
+        check(bounded,"minimum roll 80: the best fifth, never worse than the game's roll");
+        check(ordered,"a better game roll stays better");
+        check(MinimumRoll(0,50,true)==128&&MinimumRoll(255,50,true)==255&&MinimumRoll(255,50,false)==127,"minimum roll 50 ends");
+        check(MinimumRoll(10,std::numeric_limits<double>::quiet_NaN(),true)==10&&MinimumRoll(10,101,true)==10&&MinimumRoll(10,-1,true)==10,"invalid percents change nothing");
+        check(ValidMinimumRoll(0)&&ValidMinimumRoll(100)&&ValidMinimumRoll(37.5)&&!ValidMinimumRoll(100.5)&&!ValidMinimumRoll(-1),"minimum roll range");
+    }
     {   // Weaver's Will: a Unique with Weaver's Will has LP 0, so only the Weaver's Will threshold lets it through.
         Policy w; w.mode=Mode::Quality; w.t7=false;
         const Item weaver{false,true,false,true,0,18}, lowWeaver{false,true,false,true,0,17}, plainLP0{false,true,false,true,0,0};

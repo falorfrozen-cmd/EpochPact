@@ -168,9 +168,10 @@ class UiBridge:
                     match = re.search(rf"(?m)^{name}: x([\d.eE+-]+)", status)
                     if match:
                         values[name] = float(match[1])
-                match = re.search(r"(?m)^weaversdrop: ([\d.]+)%", status)
-                if match:
-                    values["weaversdrop"] = float(match[1])
+                for name in ("weaversdrop", "uniqueroll"):
+                    match = re.search(rf"(?m)^{name}: ([\d.]+)%", status)
+                    if match:
+                        values[name] = float(match[1])
                 match = re.search(r"(?m)^autopickup: (on|off)", status)
                 if match:
                     values["autopickup"] = int(match[1] == "on")

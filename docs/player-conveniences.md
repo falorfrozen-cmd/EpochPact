@@ -400,6 +400,46 @@ had Normal 34/36, Magic 28/34, Rare 40/58, Exalted 63/63, and all eight kept the
 Potential and affixes after the game restarted. The General settings card shows the
 setting (`2-general-800.png`); like the other multipliers it is a session setting.
 
+### Unique minimum roll
+
+**Unique minimum roll** (General settings, 0–100 %, player request 2026-10-28: "all uniques
+that drop naturally max rolled") makes new Uniques, Set items and Legendaries roll every value
+in the best part of its range. An item keeps one roll byte (0–255) per roll ID in
+`ItemData.uniqueRolls` (each rollable `UniqueItemMod` of `UniqueList.Entry.mods` reads one;
+several can share one) and one per implicit in `implicitRolls`. Each roll keeps its place
+but within the best (100−n) % of 0–255 (`lootcraft::rules::MinimumRoll`): at 80 the best
+fifth, at 100 the best end itself, at 0 the game's own (hooks removed).
+
+Which end is best is the game's own answer: `ItemData.MaxRollIsBestForUniqueRollID(mods,
+rollID)` compares each modifier's value at roll 0 and 255 and flips the answer for properties
+whose info says lower is better (Damage Taken, Mana Cost, Current Health Drain, and some
+Player/Ability properties such as a distance or a delay), so a downside rolls as small as it
+can. Implicits are raised toward 255, as the game keeps the higher implicit roll when it
+rerolls them (`RerollImplicitRollsButKeepOldIfHigher`).
+
+Where: after `GenerateItems.RollBaseItem` returns (drops, rewards, Nemesis, Spawn Items). It
+randomises the rolls before it writes `uniqueID` (1.5.3: `randomiseUniqueRolls` at
+0x11C91E3, `uniqueID` at 0x11C923D), so a hook on the randomisers alone saw Unique 0's
+modifiers; the first try did exactly that (only roll IDs 0–2 raised, two with the wrong end).
+Also after `ItemData.RevealCocoonedUnique` (a Weaver cocoon keeps its rolls when it opens),
+followed by `RebuildID` + `setValuesFromSerialisation`. Gamblers keep the game's own: while
+`GenerateItems.rollItemForGambling`, `rollItemForSoulGambling` or `rollItemForFactionGambling`
+runs, the rolls are left alone. Crafting rerolls (`ItemContainersManager` craft actions) and
+similar-item rewards (`SimilarItemExtensions.GetSimilarItem`) call the randomisers
+themselves and are not changed, nor are items you already have.
+
+Live checks 2026-10-28 (EpFeedbackTest clone, `builds\ur-live3`, `ur-live4`, `ur-misses2`):
+test command `uniquecheck` makes Uniques with the game's own generator (120 at level 100, 108
+Uniques, 11 Sets, 1 Legendary), 58 Soul Gambler Uniques and 23 Weaver cocoons opened with
+`RevealCocoonedUnique`, and measures each roll toward its best end. At 0: drops mean 121 of
+255, lowest 0. At 100: all 380 unique rolls and 360 implicits at the best end, cocoons 63 of
+63. At 80 (level 60): lowest 204, mean 230; at 50: lowest 128. The Soul Gambler stayed
+random at every setting (mean 124–133). Every item read the same after its saved form was
+rebuilt. Five items spawned at 100 and picked up (four Uniques, one Set) had every used roll
+at its best end (a lower-is-better roll at 0) and implicits at 255, and kept them after the
+game restarted. Refused: 101, -1 and text. The General settings card shows the setting with
+its % unit (`card-general-1100.png`).
+
 ### Idol prefixes and suffixes
 
 **Idol prefixes** and **Idol suffixes** (General settings, 1–3, player request 2026-10-27:

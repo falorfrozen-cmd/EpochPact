@@ -1464,7 +1464,7 @@ double SpeedValue(const std::string& reply) {
 std::map<std::string, double> ReadValues(const std::string& read, const std::string& reply) {
     std::map<std::string, double> out;
     if (read == "status") {
-        // ui_bridge: "^name: x<number>", "^weaversdrop: <n>%", "^autopickup: on|off"
+        // ui_bridge: "^name: x<number>", "^weaversdrop|uniqueroll: <n>%", "^autopickup: on|off"
         std::map<std::string, double> found;
         std::istringstream lines(reply);
         std::string line;
@@ -1476,7 +1476,7 @@ std::map<std::string, double> ReadValues(const std::string& read, const std::str
             if (rest.size() > 1 && rest[0] == 'x') {
                 const double v = std::strtod(rest.c_str() + 1, &end);
                 if (end != rest.c_str() + 1 && std::isfinite(v)) found.emplace(name, v);
-            } else if (name == "weaversdrop") {
+            } else if (name == "weaversdrop" || name == "uniqueroll") {
                 const double v = std::strtod(rest.c_str(), &end);
                 if (end != rest.c_str() && *end == '%') found.emplace(name, v);
             } else if (name == "autopickup" && (rest.rfind("on", 0) == 0 || rest.rfind("off", 0) == 0)) {

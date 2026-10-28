@@ -171,4 +171,19 @@ std::string Items(int offset) {return Run([=]{
     for(int i=offset;i<end;++i){if(i!=offset)out<<',';out<<ItemJson(located[i],types.Get());}
     out<<"],\"readMs\":"<<GetTickCount64()-start<<'}';return out.str();
 });}
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+// Test only: the roll bytes of every Unique, Set and Legendary in the inventory (uniqueroll checks).
+std::string RollsRead() {return Run([]{
+    const auto c=Current();void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
+    if(!inventory)throw std::runtime_error("required inventory container unavailable");
+    Root content(Invoke(Method(inventory,"GetContent",0),inventory));
+    const auto bytes=[](void* a){std::ostringstream o;o<<'[';if(a)for(uintptr_t i=0,n=Get<uintptr_t>(a,0x18);i<n&&i<255;++i)o<<(i?",":"")<<static_cast<int>(Get<uint8_t>(a,0x20+i));return o.str()+"]";};
+    std::ostringstream out;out<<"{\"ok\":true,\"items\":[";bool first=true;
+    for(void* entry:Entries(content.Get())){void* item=entry?Get<void*>(entry,F("ItemContainerEntry","data")):nullptr;
+        if(!item||Get<uint8_t>(item,F("ItemData","rarity"))<7)continue;
+        out<<(first?"":",")<<"{\"uniqueId\":"<<Get<uint16_t>(item,F("ItemData","uniqueID"))<<",\"rarity\":"<<static_cast<int>(Get<uint8_t>(item,F("ItemData","rarity")))
+           <<",\"unique\":"<<bytes(Get<void*>(item,F("ItemData","uniqueRolls")))<<",\"implicit\":"<<bytes(Get<void*>(item,F("ItemData","implicitRolls")))<<'}';first=false;}
+    return out.str()+"]}";
+});}
+#endif
 }

@@ -363,7 +363,7 @@ def js_number(value):
 
 def unit_for(c):
     i = c["id"]
-    if i == "weaversdrop":
+    if i in ("weaversdrop", "uniqueroll"):
         return "%"
     if i in ("pickup_radius", "qol_arearadius"):
         return " game units"

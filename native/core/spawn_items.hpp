@@ -21,5 +21,6 @@ std::string Check(int rarity, int lp, int from, int count);
 // tier, roll) and whether its saved form reads back the same; nothing dropped.
 std::string IdolCheck(int count, int level);
 std::string ForgingCheck(int count, int level);  // Forging Potential of new items (fpcheck)
+std::string UniqueCheck(int count, int level);   // Unique and Set rolls of new items (uniquecheck)
 #endif
 }  // namespace ep::spawn

@@ -34,6 +34,7 @@
 #include "rage.hpp"
 #include "weaver.hpp"
 #include "idols.hpp"
+#include "unique_rolls.hpp"
 #include "effects.hpp"
 #include "ingame_panel.hpp"
 #include "ipc_protocol.hpp"
@@ -158,6 +159,10 @@ std::string Execute(const std::string& line) {
     if(cmd=="fpcheck"){long long count=0,level=0;
         if(args.size()==2&&statedit::Integer(args[0],1,200,&count)&&statedit::Integer(args[1],1,100,&level))return spawn::ForgingCheck(static_cast<int>(count),static_cast<int>(level));
         return "{\"ok\":false,\"error\":\"use fpcheck count level\"}";}
+    if(cmd=="uniquecheck"){long long count=0,level=0;
+        if(args.size()==2&&statedit::Integer(args[0],1,400,&count)&&statedit::Integer(args[1],1,100,&level))return spawn::UniqueCheck(static_cast<int>(count),static_cast<int>(level));
+        return "{\"ok\":false,\"error\":\"use uniquecheck count level\"}";}
+    if(cmd=="rollsread")return args.empty()?collection::RollsRead():"{\"ok\":false,\"error\":\"rollsread expects no arguments\"}";
 #endif
     if(cmd=="spawnitem") {
         long long rarity=0,lp=0,level=0,count=0;
@@ -266,9 +271,16 @@ std::string Execute(const std::string& line) {
         if (args.size() != 1 || end == args[0].c_str() || *end) return cmd + ": refused: not a number: " + (args.empty() ? std::string() : args[0]);
         return cmd == "idolprefixes" ? idols::SetPrefixes(v) : idols::SetSuffixes(v);
     }
+    if (cmd == "uniqueroll") {
+        if (args.empty()) return uniquerolls::Status();
+        char* end = nullptr;
+        const double v = std::strtod(args[0].c_str(), &end);
+        if (args.size() != 1 || end == args[0].c_str() || *end) return "uniqueroll: refused: not a number: " + (args.empty() ? std::string() : args[0]);
+        return uniquerolls::Set(v);
+    }
     if (cmd == "status") {
         std::string s = std::string("EpochPact ") + kVersion + "; gate: " + game::GateText() + "\n" + xp::Status() + "\n" +
-                        loot::Status() + "\n" + density::Status() + "\n" + monolith::Status() + "\n" + cof::Status() + "\n" + items::Status() + "\n" + weaver::Status() + "\n" + idols::Status() + "\n" + player::Status() + "\nframe hook: " +
+                        loot::Status() + "\n" + density::Status() + "\n" + monolith::Status() + "\n" + cof::Status() + "\n" + items::Status() + "\n" + weaver::Status() + "\n" + idols::Status() + "\n" + uniquerolls::Status() + "\n" + player::Status() + "\nframe hook: " +
                         (mainthread::HookInstalled() ? "in" : "out (idle)");
 #ifdef EPOCHPACT_RESEARCH
         s += "\n" + research::Status();

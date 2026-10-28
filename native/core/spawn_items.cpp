@@ -435,6 +435,170 @@ std::string ForgingCheck(int count, int level) {
         return out.str() + "]}";
     });
 }
+// Unique and Set rolls from the game's generator (and from the Soul Gambler): how good each roll is toward the end
+// the game calls best (0-255), the implicit rolls, the saved form read back, and the modifiers whose best is the low end.
+std::string UniqueCheck(int count, int level) {
+    return Run([=] {
+        const auto c = Current();
+        Root types(Invoke(M("ItemList", "get", 0))), uniques(Invoke(M("UniqueList", "get", 0)));
+        void* generator = Get<void*>(c.actor, F("Actor", "generateItems"));
+        const auto generate = M("GenerateItems", "initialiseRandomItemData", 26);
+        const auto maxIsBest = M("ItemData", "MaxRollIsBestForUniqueRollID", 2);
+        const auto getValue = M("UniqueItemMod", "getValue", 1);
+        std::ostringstream out;
+        out << "{\"ok\":true,\"rva\":{";
+        const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleW(L"GameAssembly.dll"));
+        struct Named { const char* cls; const char* name; int arity; };
+        bool comma = false;
+        for (const Named& n : {Named{"ItemData", "randomiseUniqueRolls", 0}, Named{"ItemData", "randomiseImplicitRolls", 0},
+                               Named{"ItemData", "MaxRollIsBestForUniqueRollID", 2}, Named{"ItemData", "SetAllUniqueRolls", 1},
+                               Named{"ItemData", "RerollImplicitRollsButKeepOldIfHigher", 0}, Named{"GenerateItems", "rollItemForGambling", 4},
+                               Named{"GenerateItems", "rollItemForSoulGambling", 4}, Named{"GenerateItems", "rollItemForFactionGambling", 8}}) {
+            const auto m = game::FindMethod("LE.dll", "", n.cls, n.name, n.arity);
+            out << (comma ? "," : "") << '"' << n.cls << '.' << n.name << "\":\"0x" << std::hex << (m ? reinterpret_cast<uintptr_t>(m.code) - base : 0) << std::dec << '"';
+            comma = true;
+        }
+        out << '}';
+        std::vector<void*> shown;
+        for (void* e : Entries(Get<void*>(uniques.Get(), F("UniqueList", "uniques"))))
+            if (Shown(e)) shown.push_back(e);
+        if (shown.empty()) throw std::runtime_error("The game's Unique list is not loaded yet.");
+        struct Stats { int items = 0, rolls = 0, perfect = 0, low = 255, implicits = 0, implicitPerfect = 0, implicitLow = 255, same = 0, values = 0;
+                       long long sum = 0, implicitSum = 0; std::map<int, int> rarities; };
+        std::set<std::string> lowBest;
+        std::vector<std::string> misses;  // [uniqueID, rarity, rollID, roll, maxIsBest, rolls] below the best end (drops only)
+        std::ostringstream examples, lowExamples;
+        const auto bytes = [](void* array) {
+            std::vector<int> v;
+            if (array) for (uintptr_t i = 0, n = Get<uintptr_t>(array, 0x18); i < n && i < 255; ++i) v.push_back(Get<uint8_t>(array, 0x20 + i));
+            return v;
+        };
+        // one item: its rolls toward the best end, its implicits, the saved form, and (first few) each modifier's value
+        const auto measure = [&](void* item, void* entry, Stats& s, bool show) {
+            ++s.items;
+            ++s.rarities[Get<uint8_t>(item, F("ItemData", "rarity"))];
+            const auto rolls = bytes(Get<void*>(item, F("ItemData", "uniqueRolls"))), implicit = bytes(Get<void*>(item, F("ItemData", "implicitRolls")));
+            void* mods = Get<void*>(entry, F("UniqueList.Entry", "mods"));
+            std::set<int> done;
+            for (void* mod : Entries(mods)) {
+                if (!mod || !Get<bool>(mod, F("UniqueItemMod", "canRoll"))) continue;
+                int id = Get<uint8_t>(mod, F("UniqueItemMod", "rollID"));
+                if (id >= static_cast<int>(rolls.size()) || !done.insert(id).second) continue;
+                void* a[]{mods, &id};
+                const bool best = Value<bool>(maxIsBest, item, a);
+                const int q = best ? rolls[id] : 255 - rolls[id];
+                if (q < 255 && show && misses.size() < 40)
+                    misses.push_back("[" + std::to_string(Get<uint16_t>(item, F("ItemData", "uniqueID"))) + "," +
+                                     std::to_string(Get<uint8_t>(item, F("ItemData", "rarity"))) + "," + std::to_string(id) + "," +
+                                     std::to_string(rolls[id]) + "," + (best ? "1" : "0") + "," + std::to_string(rolls.size()) + "]");
+                ++s.rolls; s.sum += q; s.perfect += q == 255; s.low = (std::min)(s.low, q);
+                const std::string name = Text(Invoke(Method(entry, "getDisplayName", 0), entry));
+                if (!best && lowBest.insert(name + "#" + std::to_string(id)).second && lowBest.size() <= 12)
+                    lowExamples << (lowBest.size() > 1 ? "," : "") << "{\"unique\":" << Json(name) << ",\"rollId\":" << id << ",\"property\":"
+                                << static_cast<int>(Get<uint8_t>(mod, F("UniqueItemMod", "property"))) << ",\"value\":" << Get<float>(mod, F("UniqueItemMod", "value"))
+                                << ",\"maxValue\":" << Get<float>(mod, F("UniqueItemMod", "maxValue")) << ",\"type\":" << Get<int>(mod, F("UniqueItemMod", "type")) << '}';
+            }
+            for (int r : implicit) { ++s.implicits; s.implicitSum += r; s.implicitPerfect += r == 255; s.implicitLow = (std::min)(s.implicitLow, r); }
+            if (show && s.values < 3) {
+                examples << (s.values++ ? "," : "") << "{\"unique\":" << Json(Text(Invoke(Method(entry, "getDisplayName", 0), entry))) << ",\"mods\":[";
+                bool first = true;
+                for (void* mod : Entries(mods)) {
+                    if (!mod || !Get<bool>(mod, F("UniqueItemMod", "canRoll"))) continue;
+                    const int id = Get<uint8_t>(mod, F("UniqueItemMod", "rollID"));
+                    if (id >= static_cast<int>(rolls.size())) continue;
+                    auto roll = static_cast<uint8_t>(rolls[id]);
+                    void* g[]{&roll};
+                    examples << (first ? "" : ",") << "[" << id << ',' << rolls[id] << ',' << Get<float>(mod, F("UniqueItemMod", "value")) << ','
+                             << Get<float>(mod, F("UniqueItemMod", "maxValue")) << ',' << Value<float>(getValue, mod, g) << ']';
+                    first = false;
+                }
+                examples << "]}";
+            }
+            Invoke(Method(item, "RebuildID", 0), item);
+            Invoke(Method(item, "setValuesFromSerialisation", 0), item);
+            s.same += rolls == bytes(Get<void*>(item, F("ItemData", "uniqueRolls"))) && implicit == bytes(Get<void*>(item, F("ItemData", "implicitRolls")));
+        };
+        const auto line = [](const Stats& s) {
+            std::ostringstream o;
+            o << "{\"items\":" << s.items << ",\"same\":" << s.same << ",\"rolls\":" << s.rolls << ",\"rollMean\":" << (s.rolls ? static_cast<double>(s.sum) / s.rolls : 0)
+              << ",\"rollLow\":" << s.low << ",\"rollPerfect\":" << s.perfect << ",\"implicits\":" << s.implicits
+              << ",\"implicitMean\":" << (s.implicits ? static_cast<double>(s.implicitSum) / s.implicits : 0) << ",\"implicitLow\":" << s.implicitLow
+              << ",\"implicitPerfect\":" << s.implicitPerfect << ",\"rarities\":{";
+            bool first = true;
+            for (const auto& [k, n] : s.rarities) { o << (first ? "" : ",") << '"' << k << "\":" << n; first = false; }
+            return o.str() + "}}";
+        };
+        Stats drops;
+        std::string dropsError;
+        for (int i = 0; i < count; ++i) {
+            void* e = shown[(static_cast<size_t>(i) * 37) % shown.size()];  // spread over the list
+            try {
+                const Request r = Resolve(types.Get(), "u" + std::to_string(Get<uint16_t>(e, F("UniqueList.Entry", "uniqueID"))), 0);
+                if (const auto root = Generate(generator, generate, r, level)) measure(root->Get(), e, drops, true);
+            } catch (const std::exception& x) {
+                if (dropsError.empty()) dropsError = std::to_string(Get<uint16_t>(e, F("UniqueList.Entry", "uniqueID"))) + ": " + x.what();
+            }
+        }
+        out << ",\"dropsError\":" << Json(dropsError);
+        // the Soul Gambler's Uniques (PresetRarityType Unique 4), the base types the shown Uniques have, in turn
+        Stats gambler;
+        std::string gamblerError;
+        std::vector<int> baseTypes;
+        for (void* e : shown) {
+            const int t = Get<uint8_t>(e, F("UniqueList.Entry", "baseType"));
+            if (t <= 24 && std::find(baseTypes.begin(), baseTypes.end(), t) == baseTypes.end()) baseTypes.push_back(t);
+        }
+        const auto soul = M("GenerateItems", "rollItemForSoulGambling", 4);
+        for (int i = 0; i < count / 2 && !baseTypes.empty(); ++i) {
+            try {
+                bool giftable = false;
+                int baseType = baseTypes[static_cast<size_t>(i) % baseTypes.size()], ilvl = level, preset = 4;
+                void* a[]{&giftable, &baseType, &ilvl, &preset};
+                void* made = Invoke(soul, generator, a);
+                if (!made) continue;
+                Root pin(made);
+                const int rarity = Get<uint8_t>(made, F("ItemData", "rarity"));
+                if (rarity < 7) { ++gambler.rarities[rarity]; continue; }
+                auto id = Get<uint16_t>(made, F("ItemData", "uniqueID"));
+                void* u[]{&id};
+                if (void* entry = Invoke(M("UniqueList", "getUnique", 1), nullptr, u)) measure(made, entry, gambler, false);
+            } catch (const std::exception& e) {
+                if (gamblerError.empty()) gamblerError = std::to_string(i) + ": " + e.what();
+            }
+        }
+        // Weaver cocoons (UniqueList.Entry.isCocoonedItem), made by the generator and opened with the game's own RevealCocoonedUnique
+        Stats cocoons;
+        std::string cocoonError;
+        int cocoonsMade = 0, revealed = 0;
+        for (void* e : Entries(Get<void*>(uniques.Get(), F("UniqueList", "uniques")))) {
+            if (!e || !Get<bool>(e, F("UniqueList.Entry", "isCocoonedItem")) || cocoonsMade >= (std::max)(1, count / 4)) continue;
+            try {
+                Request r;
+                r.uniqueId = Get<uint16_t>(e, F("UniqueList.Entry", "uniqueID"));
+                r.gameRarity = 7;
+                r.entry = e;
+                const auto root = Generate(generator, generate, r, level);
+                if (!root) continue;
+                ++cocoonsMade;
+                void* item = root->Get();
+                void* a[]{c.actor};
+                if (!Value<bool>(Method(item, "RevealCocoonedUnique", 1), item, a)) continue;
+                ++revealed;
+                auto id = Get<uint16_t>(item, F("ItemData", "uniqueID"));
+                void* u[]{&id};
+                if (void* entry = Invoke(M("UniqueList", "getUnique", 1), nullptr, u)) measure(item, entry, cocoons, false);
+            } catch (const std::exception& x) {
+                if (cocoonError.empty()) cocoonError = x.what();
+            }
+        }
+        out << ",\"cocoons\":{\"made\":" << cocoonsMade << ",\"revealed\":" << revealed << ",\"rolls\":" << line(cocoons) << ",\"error\":" << Json(cocoonError) << '}';
+        out << ",\"drops\":" << line(drops) << ",\"soulGambler\":" << line(gambler) << ",\"soulGamblerError\":" << Json(gamblerError) << ",\"lowBest\":" << lowBest.size()
+            << ",\"lowBestExamples\":[" << lowExamples.str() << "],\"values\":[" << examples.str() << "],\"misses\":[";
+        for (size_t i = 0; i < misses.size(); ++i) out << (i ? "," : "") << misses[i];
+        out << "]}";
+        return out.str();
+    });
+}
 #endif
 
 }  // namespace ep::spawn

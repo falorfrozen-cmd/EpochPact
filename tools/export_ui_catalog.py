@@ -271,6 +271,10 @@ def controls():
     ):
         mult(id, "general", label, id, 3, description, current=f"currentValues.{id}", doc="docs/player-conveniences.md")
         items[-1]["parameters"][0]["type"] = "integer"
+    add("uniqueroll", "general", "Unique minimum roll", "number", "uniqueroll {value}", "session",
+        "GenerateItems.RollBaseItem bir Unique, Set ya da Legendary yaptıktan sonra her roll (0-255) aralığın en iyi (100−n)%'sine taşınır, yeri korunur; hangi ucun iyi olduğunu oyunun MaxRollIsBestForUniqueRollID'si söyler (implicit'lerde yüksek). 100 her değer en iyi, 0 kapalı. Kumarbazlar (rollItemFor*Gambling), craft ile yeniden atılan değerler, benzer-eşya ödülleri ve mevcut eşyalar değişmez.",
+        params=[parameter("value", "number", 0, 100)], default=0, reset="uniqueroll 0", response="text", current="currentValues.uniqueroll",
+        doc="docs/player-conveniences.md")
     add("autopickup", "loot", "Otomatik pickup", "toggle", "autopickup {value}", "session",
         "Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0,25 saniye.",
         params=[value(0, 1)], default=0, reset="autopickup 0", response="text", current="currentValues.autopickup", doc="GEMINI.md")
