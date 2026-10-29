@@ -51,6 +51,10 @@ The texts below are ready for later.
 - Description (`description-dev47.bbcode`): version line `0.1.2-dev.47`; General line names best-rolled
   Uniques; Safety line with the new VirusTotal results.
 
+Published 2026-10-29 on GitHub only, with the owner's approval ("Nexusmodstan uzak duralım, GitHub'a hem exe hem
+non-exe yayınlayalım"): release `v0.1.2-dev.47` (latest, both ZIPs, digests checked; main = 3779187; the app updater
+offers it as installable from 0.1.2-dev.46). Nexus stays on 0.1.2-dev.46.
+
 ## Discord announcement (draft; the owner sends it)
 
 > @everyone
