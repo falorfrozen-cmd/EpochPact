@@ -93,3 +93,14 @@ Unique minimum roll.
 > **Desktop app (EXE):** in EpochPact open *What's new → Install update*, or download it here:
 > https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.49
 > **Manual install, no EXE:** download `EpochPact-0.1.2-dev.49-InGame.zip` from the GitHub link above and copy the new `version.dll` over the old one.
+
+## Published 2026-10-29 (owner: "yayınla, nexus'a da yükle")
+
+- GitHub: release `v0.1.2-dev.49` (Latest, not a prerelease) with both ZIPs; the asset digests are the SHA-256 values
+  above; target and `main` = 917e35d (fast-forward from 3779187). `/releases/latest` lists
+  `EpochPact-0.1.2-dev.49.zip`, so the app's updater offers it.
+- Nexus mod 44: main file "EpochPact - in-game edition (manual install)" updated to 0.1.2-dev.49 with the InGame ZIP
+  (dev.46 archived), mod version 0.1.2-dev.49, the nine changelog lines above; description lines changed (version,
+  General, Loot & Pickup, a new Wardrobe line, Skills, Safety with VirusTotal 0/69 and 0/67). The public page shows the
+  new version and description; virus scan "Safe to use".
+- Discord: the owner sends the announcement (draft above).
