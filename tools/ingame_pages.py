@@ -16,6 +16,7 @@ PAGES = [
     ("stats", "Character", "♜", "Refine your character.", "Find a stat and customize its bonus."),
     ("skills", "Skills & Trees", "✧", "Build beyond the branches.", "Skill experience, point budgets, tree connections and projectiles."),
     ("equipment", "Equipment", "⚔", "Equip your imagination.", "Offhand combinations, full set bonuses and primordial items."),
+    ("wardrobe", "Wardrobe", "♛", "Dress the legend.", "Try every look on your character before you wear it."),
     ("summons", "Summons", "♧", "Command your companions.", "Minion bonuses and temporary summon duration."),
     ("display", "Display & Camera", "◉", "See Eterra your way.", "Camera pitch, zoom and temporary graphics overrides."),
     ("world", "World & Exploration", "⌖", "Explore without friction.", "Map visibility and nearby chest, shrine and portal interactions."),
@@ -150,6 +151,7 @@ def sections(page, controls, counts):
     if page == "loot":
         return [settings("Automatic collection", ["autopickup", "pickup_radius", "pickup_interval"]),
                 settings("Pick up from afar", ["remotepickup"]),
+                settings("Stash tabs on pickup", ["stashpickup"]),
                 native("recent_pickups", controls=["loot_log", "loot_log_clear"]), native("collect_now", controls=["pickup_now"]),
                 settings("Quality rules", ["loot_lp", "loot_ww", "loot_t7", "loot_filter"]),
                 native("filter_files"),
@@ -178,11 +180,13 @@ def sections(page, controls, counts):
                 settings("Experience and skill points", ["build_skillxp", "build_skillpoints", "build_passivepoints"]),
                 settings("Weaver points", ["build_weaverpoints", "build_weaverflat"]),
                 settings("Tree connections", ["build_skillnodes", "build_passivenodes", "build_weavernodes"]),
+                settings("Mastery skills", ["build_masteryskills"]),
                 settings("Projectiles", ["build_projectiles", "build_projectileflat"]),
                 native("free_respec", controls=["respec_skills", "respec_passives", "respec_weaver"])]
     if page == "equipment":
-        return [native("cached_summary", read="buildread"), settings("Equipment rules", ["build_offhand", "build_fullsets", "build_primordials"]),
-                native("item_looks", controls=["transmog_read", "transmog_set"])]
+        return [native("cached_summary", read="buildread"), settings("Equipment rules", ["build_offhand", "build_fullsets", "build_primordials"])]
+    if page == "wardrobe":
+        return [native("wardrobe", controls=["transmog_read", "transmog_set"])]
     if page == "summons":
         return [native("damage_meter", controls=["damage_session", "damage_session_read"]),
                 settings("Death recap", ["death_recap"], text=DEATH_TEXT, head="tail", tail="death_recap",
@@ -203,8 +207,6 @@ def sections(page, controls, counts):
                 native("campaign", controls=["campaign_complete", "waypoints_unlock"]), native("mastery", controls=["mastery_choose"])]
     if page == "inventory":
         return [native("inventory_shortcuts", controls=["inventory_read", "inventory_stash", "inventory_vendor", "inventory_stashall", "inventory_sellall"]),
-                native("item_categories", controls=["categories_read", "category_auto", "category_show", "category_setup", "category_sort", "category_open",
-                                                    "category_materials"]),
                 settings("Automatic sorting and Sell all", ["inventory_autosort", "inventory_autosortall", "inventory_sellkeep"], text=AUTOSORT_TEXT,
                          head="none", tail="sort_tabs", tail_controls=["inventory_tools_read", "inventory_sorttab", "stash_rules_read"]),
                 native("stash_rules", controls=["stash_rules_read", "stash_rules_create", "stash_rule_assign", "stash_rules_sort"])]

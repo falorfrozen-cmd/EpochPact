@@ -1,5 +1,4 @@
 #include "../core/loot_crafting_rules.hpp"
-#include "../core/category_rules.hpp"
 #include <cstdio>
 #include <limits>
 int main() {
@@ -34,19 +33,6 @@ int main() {
         check(ScaleForgingPotential(10,std::numeric_limits<double>::quiet_NaN(),63)==10,"invalid multiplier changes nothing");
         check(BoostsForgingPotential(0)&&BoostsForgingPotential(4)&&BoostsForgingPotential(5),"drops, Nemesis and Rage of Morditas boosted");
         check(!BoostsForgingPotential(1)&&!BoostsForgingPotential(2)&&!BoostsForgingPotential(3),"shops and gamblers keep the game's own");
-    }
-    {   // Item categories: the first category that fits wins.
-        using namespace ep::categories::rules;
-        check(Classify(23,7,false)==Unique&&Classify(21,8,false)==Unique&&Classify(0,9,false)==Unique,"Unique, Set and Legendary items are Unique & Set");
-        check(Classify(21,4,true)==Exalted&&Classify(25,4,true)==Exalted,"exalted items are Exalted before their type");
-        check(Classify(25,2,false)==Idol&&Classify(33,2,false)==Idol&&Classify(41,0,false)==Idol,"idols and idol altars");
-        check(Classify(35,0,false)==Special&&Classify(39,0,false)==Special&&Classify(104,0,false)==Special,"lenses and non-equipment items");
-        check(Classify(0,4,false)==Armour&&Classify(4,0,false)==Armour,"helmet to gloves are Armour");
-        check(Classify(5,2,false)==Weapon&&Classify(19,4,false)==Weapon&&Classify(23,0,false)==Weapon&&Classify(24,0,false)==Weapon,"weapons and off-hands");
-        check(Classify(20,4,false)==Jewellery&&Classify(22,0,false)==Jewellery,"amulet, ring and relic");
-        check(Classify(40,0,false)==Other&&Classify(-1,0,false)==Other,"anything else is Other");
-        check(Index("unique")==Unique&&Index("other")==Other&&Index("x")==-1,"category keys");
-        check(TabName(Idol)=="EP Idols"&&TabName(kCount).empty(),"category tab names");
     }
     {   // Unique minimum roll: 0 leaves every roll, 100 gives the best end, in between the roll keeps its place.
         bool same=true, bounded=true, ordered=true;

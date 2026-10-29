@@ -5,6 +5,8 @@
 #include "hook.hpp"
 #include "managed.hpp"
 
+#include <windows.h>
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -13,6 +15,7 @@
 #include <fstream>
 #include <map>
 #include <mutex>
+#include <set>
 #include <sstream>
 
 namespace ep::transmog {
@@ -25,6 +28,8 @@ using MethodInfo = const il2cpp::Method*;
 constexpr int kSlots = 7, kWeapon = 5, kOffhand = 6;
 constexpr const char* kKeys[kSlots]{"helmet", "body", "gloves", "boots", "belt", "weapon", "offhand"};
 constexpr const char* kFields[kSlots]{"helmet", "armor", "gloves", "boots", "belt", "weapon", "offhand"};  // ItemContainersManager.PaperDollContainer
+// A preview nobody keeps alive (the Wardrobe page left, F6 closed) goes back to the stored look after this long.
+constexpr ULONGLONG kPreviewLife = 1500;
 
 // ReceiveEquipGear's item types (EquipmentType HELMET 0, BODY_ARMOR 1, BELT 2, BOOTS 3, GLOVES 4) to slots.
 int GearSlot(int itemType) {
@@ -50,7 +55,12 @@ std::string Key(const Look& l) { return Unique(l) ? "u" + std::to_string(l.uid) 
 std::mutex g_lock;
 std::map<std::string, std::array<Look, kSlots>> g_looks;  // character id -> look per slot
 bool g_loaded = false;
-std::atomic<uint64_t> g_gearCalls{0}, g_weaponCalls{0}, g_changed{0}, g_faults{0};
+// Wardrobe previews: worn for a moment, never stored; they win over the stored look while kept alive.
+std::string g_previewFor;
+std::array<Look, kSlots> g_previews;
+std::atomic<ULONGLONG> g_previewAlive{0};
+std::atomic<bool> g_anyPreview{false};
+std::atomic<uint64_t> g_gearCalls{0}, g_weaponCalls{0}, g_changed{0}, g_faults{0}, g_previewsShown{0};
 struct Seen { int type = -1, sub = 0, uid = 0, effect = 0; };
 Seen g_weaponSeen[2];  // the last weapon visuals the game sent per hand, as the item itself (main thread)
 
@@ -82,6 +92,14 @@ bool Find(const std::string& id, int slot, Look* out) {
     *out = it->second[static_cast<size_t>(slot)];
     return true;
 }
+bool FindPreview(const std::string& id, int slot, Look* out) {
+    std::lock_guard<std::mutex> hold(g_lock);
+    if (g_previewFor != id || g_previews[static_cast<size_t>(slot)].type < 0) return false;
+    *out = g_previews[static_cast<size_t>(slot)];
+    return true;
+}
+// The look the character wears in a slot: a preview first, then the stored look.
+bool Wanted(const std::string& id, int slot, Look* out) { return FindPreview(id, slot, out) || Find(id, slot, out); }
 
 template <class F> void Guard(F&& work) {
     std::string why;
@@ -125,7 +143,7 @@ void d_gear(void* self, uint8_t type, uint8_t sub, bool unique, uint16_t uid, Me
         Look look;
         if (slot < 0) return;
         const std::string id = LocalId(self);
-        if (id.empty() || !Find(id, slot, &look) || look.type != type) return;
+        if (id.empty() || !Wanted(id, slot, &look) || look.type != type) return;
         sub = static_cast<uint8_t>(look.sub);
         unique = Unique(look);
         uid = static_cast<uint16_t>(look.uid);
@@ -145,7 +163,7 @@ void d_weapon(void* self, uint8_t type, uint8_t sub, uint8_t rarity, uint16_t ui
         if (id.empty()) return;
         g_weaponSeen[slotType] = {type, sub, uid, effect};
         Look look;
-        if (!Find(id, slotType == 0 ? kWeapon : kOffhand, &look) || look.type != type) return;
+        if (!Wanted(id, slotType == 0 ? kWeapon : kOffhand, &look) || look.type != type) return;
         sub = static_cast<uint8_t>(look.sub);
         uid = static_cast<uint16_t>(look.uid);
         rarity = static_cast<uint8_t>(Unique(look) ? look.rarity : rarity >= 7 ? 4 : rarity);
@@ -156,7 +174,7 @@ void d_weapon(void* self, uint8_t type, uint8_t sub, uint8_t rarity, uint16_t ui
 
 bool ready = false;
 
-struct Ctx { void* actor; void* sync; void* paperDoll; std::string id; };
+struct Ctx { void* actor; void* sync; void* manager; void* paperDoll; std::string id; };
 Ctx Current() {
     if (!ready) throw std::runtime_error("Item looks are not available in this game build.");
     if (!game::IsOfflinePlay()) throw std::runtime_error(game::GateText());
@@ -169,7 +187,7 @@ Ctx Current() {
     void* manager = Get<void*>(actor, Offset("Actor", "itemContainersManager"));
     void* doll = manager ? Get<void*>(manager, Offset("ItemContainersManager", "equipment")) : nullptr;
     if (!sync || !doll) throw std::runtime_error("Wait for the character to finish loading.");
-    return {actor, sync, doll, Text(Invoke(Method(data, "get_Id", 0), data))};
+    return {actor, sync, manager, doll, Text(Invoke(Method(data, "get_Id", 0), data))};
 }
 void* Equipped(const Ctx& c, int slot) {
     void* container = Get<void*>(c.paperDoll, Offset("ItemContainersManager.PaperDollContainer", kFields[slot]));
@@ -184,6 +202,7 @@ Item Values(void* item) {
     return {Get<uint8_t>(item, Offset("ItemData", "itemType")), Get<uint16_t>(item, Offset("ItemData", "subType")),
             Get<uint8_t>(item, Offset("ItemData", "rarity")), Get<uint16_t>(item, Offset("ItemData", "uniqueID"))};
 }
+Look LookOf(const Item& v) { return {v.type, v.sub, v.rarity == 7 || v.rarity == 8 ? v.rarity : v.rarity == 9 ? 7 : 0, v.rarity >= 7 ? v.uid : 0}; }
 // The game sends the slot's visuals again with the item's own values; the hook puts the look in.
 void Show(const Ctx& c, int slot) {
     void* item = Equipped(c, slot);
@@ -235,6 +254,11 @@ std::string LookName(void* types, const Look& l) {
     void* entry = UniqueEntry(l.uid);
     return entry ? Text(Invoke(Method(entry, "getDisplayName", 0), entry)) : "Unique " + std::to_string(l.uid);
 }
+// A look as the Wardrobe draws it: its key and name, and what the game's item picture needs.
+std::string LookJson(void* types, const Look& l) {
+    return "{\"key\":" + Json(Key(l)) + ",\"name\":" + Json(LookName(types, l)) + ",\"type\":" + std::to_string(l.type) + ",\"sub\":" + std::to_string(l.sub) +
+           ",\"uid\":" + std::to_string(l.uid) + ",\"unique\":" + Boolean(Unique(l)) + ",\"set\":" + Boolean(l.rarity == 8) + "}";
+}
 // The looks that fit an item type: its base items (no obsolete, legacy or Unique-only bases) and its Uniques and Sets.
 std::vector<Look> Options(void* types, void* uniques, int type) {
     std::vector<Look> out;
@@ -274,40 +298,146 @@ bool Parse(const std::string& key, Look* out) {
     return false;
 }
 
+// The base items with art in the game's item visual database (GlobalAssets.ItemVisuals): an entry per class
+// requirement, item type and subtype. Base helmets and body armours are made per class: one made for another class has
+// no art for this class, and the game keeps the look the character wears (live check 2026-10-29). Uniques and Sets
+// always show (their entries are keyed otherwise). Read once.
+struct Art { int classes, type, sub; bool unique; int uid; };
+std::vector<Art> g_art;
+bool g_artRead = false, g_artKnown = false;
+void ReadArt() {
+    if (g_artRead) return;
+    g_artRead = true;
+    const auto get = game::FindMethod("LE.dll", "LE.AssetManagement", "GlobalAssets", "get_ItemVisuals", 0);
+    void* db = get ? Invoke(get) : nullptr;
+    if (!db) return;
+    auto& a = il2cpp::api();
+    const auto* entries = a.class_get_field_from_name(a.object_get_class(db), "Entries");
+    void* list = entries ? Get<void*>(db, a.field_get_offset(entries)) : nullptr;
+    size_t keyOffset = 0;
+    for (void* e : Entries(list)) {
+        if (!e) continue;
+        if (!keyOffset) {
+            const auto* key = a.class_get_field_from_name(a.object_get_class(e), "Key");
+            if (!key) return;
+            keyOffset = a.field_get_offset(key);
+        }
+        // ItemVisualKey: ClassRequirement, EquipmentType, SubType (int), IsUnique (bool), UniqueID, Variation (ushort)
+        g_art.push_back({Get<int>(e, keyOffset), Get<int>(e, keyOffset + 4), Get<int>(e, keyOffset + 8), Get<bool>(e, keyOffset + 12), Get<uint16_t>(e, keyOffset + 14)});
+    }
+    g_artKnown = !g_art.empty();
+}
+// The look shows on a character of this class (ClassRequirement flag; an entry for class 0 is every class's).
+bool HasArt(const Look& l, int classFlag) {
+    if (!g_artKnown || Unique(l)) return true;
+    for (const Art& x : g_art)
+        if (!x.unique && x.type == l.type && x.sub == l.sub && (x.classes == 0 || (x.classes & classFlag))) return true;
+    return false;
+}
+
+// The looks of the items the character carries, per item type: the inventory and the open stash's tabs.
+std::map<int, std::set<std::string>> Owned(const Ctx& c) {
+    std::map<int, std::set<std::string>> owned;
+    const auto take = [&](void* container) {
+        if (!container) return;
+        Root content(Invoke(Method(container, "GetContent", 0), container));
+        for (void* e : Entries(content.Get()))
+            if (void* data = e ? Get<void*>(e, Offset("ItemContainerEntry", "data")) : nullptr) {
+                const Item v = Values(data);
+                if (v.type >= 0 && v.type < 100) owned[v.type].insert(Key(LookOf(v)));
+            }
+    };
+    take(Get<void*>(c.manager, Offset("ItemContainersManager", "inventory")));
+    game::Guarded([&] {
+        void* holder = Get<void*>(c.manager, Offset("ItemContainersManager", "stash"));
+        void* stash = holder ? Invoke(Method(holder, "get_CurrentContainer", 0), holder) : nullptr;
+        if (stash)
+            for (void* tab : Entries(Invoke(Method(stash, "get_Containers", 0), stash))) take(tab);
+    }, nullptr);
+    return owned;
+}
+
 std::string ReadNow() {
     const Ctx c = Current();
     Root types(Invoke(M("ItemList", "get", 0))), uniques(Invoke(M("UniqueList", "get", 0)));
+    game::Guarded([] { ReadArt(); }, nullptr);
+    void* data = CharacterData(c.actor);
+    const int classFlag = 1 << std::clamp(Value<int>(Method(data, "get_CharacterClass", 0), data), 0, 4);
+    std::map<int, std::set<std::string>> owned;
+    game::Guarded([&] { owned = Owned(c); }, nullptr);
     std::ostringstream out;
-    out << "{\"ok\":true,\"player\":{\"id\":" << Json(c.id) << "},\"slots\":[";
+    out << "{\"ok\":true,\"player\":{\"id\":" << Json(c.id) << "},\"artKnown\":" << Boolean(g_artKnown) << ",\"slots\":[";
     for (int slot = 0; slot < kSlots; ++slot) {
         out << (slot ? "," : "") << "{\"slot\":" << Json(kKeys[slot]);
         void* item = Equipped(c, slot);
-        Look look;
-        const bool has = Find(c.id, slot, &look);
+        Look look, preview;
+        const bool has = Find(c.id, slot, &look), previewing = FindPreview(c.id, slot, &preview);
         if (!item) {
-            out << ",\"item\":null,\"look\":" << (has ? "{\"key\":" + Json(Key(look)) + ",\"name\":" + Json(LookName(types.Get(), look)) + "}" : "null")
-                << ",\"options\":[]}";
+            out << ",\"item\":null,\"look\":" << (has ? LookJson(types.Get(), look) : "null") << ",\"preview\":null,\"options\":[],\"owned\":[]}";
             continue;
         }
         const Item v = Values(item);
-        Look own{v.type, v.sub, v.rarity >= 7 ? v.rarity : 0, v.uid};
-        out << ",\"item\":{\"type\":" << v.type << ",\"sub\":" << v.sub << ",\"rarity\":" << v.rarity << ",\"uniqueId\":" << v.uid
-            << ",\"key\":" << Json(Key(own)) << ",\"name\":" << Json(LookName(types.Get(), own)) << "},\"look\":";
-        if (has) out << "{\"key\":" << Json(Key(look)) << ",\"name\":" << Json(LookName(types.Get(), look)) << ",\"shown\":" << Boolean(look.type == v.type) << '}';
-        else out << "null";
-        out << ",\"options\":[";
+        const Look own = LookOf(v);
+        std::string ownJson = LookJson(types.Get(), own);
+        ownJson.pop_back();
+        out << ",\"item\":" << ownJson << ",\"rarity\":" << v.rarity << ",\"uniqueId\":" << v.uid << "},\"look\":";
+        if (has) {
+            std::string lookJson = LookJson(types.Get(), look);
+            lookJson.pop_back();
+            out << lookJson << ",\"shown\":" << Boolean(look.type == v.type) << '}';
+        } else {
+            out << "null";
+        }
+        out << ",\"preview\":" << (previewing && preview.type == v.type ? LookJson(types.Get(), preview) : "null") << ",\"options\":[";
         bool first = true;
         for (const Look& o : Options(types.Get(), uniques.Get(), v.type)) {
-            out << (first ? "" : ",") << "{\"key\":" << Json(Key(o)) << ",\"name\":" << Json(LookName(types.Get(), o)) << ",\"unique\":" << Boolean(Unique(o))
-                << ",\"set\":" << Boolean(o.rarity == 8) << '}';
+            std::string json = LookJson(types.Get(), o);
+            json.pop_back();
+            out << (first ? "" : ",") << json << ",\"art\":" << Boolean(HasArt(o, classFlag)) << '}';
             first = false;
         }
+        out << "],\"owned\":[";
+        first = true;
+        if (const auto it = owned.find(v.type); it != owned.end())
+            for (const auto& key : it->second) {
+                out << (first ? "" : ",") << Json(key);
+                first = false;
+            }
         out << "]}";
     }
     return out.str() + "]}";
 }
 
+// Every preview off, each slot that had one shown again with its stored look (main thread).
+void EndPreviews() {
+    std::array<Look, kSlots> had;
+    {
+        std::lock_guard<std::mutex> hold(g_lock);
+        had = g_previews;
+        g_previews.fill(Look{});
+        g_previewFor.clear();
+    }
+    g_anyPreview = false;
+    const Ctx c = Current();
+    for (int s = 0; s < kSlots; ++s)
+        if (had[static_cast<size_t>(s)].type >= 0) Show(c, s);
+}
 }  // namespace
+
+// A preview the Wardrobe stopped keeping alive ends by itself (convenience::Frame, every frame).
+void Frame() {
+    if (!g_anyPreview.load() || GetTickCount64() - g_previewAlive.load() < kPreviewLife) return;
+    Guard([] {
+        try {
+            EndPreviews();
+        } catch (const std::exception&) {
+            std::lock_guard<std::mutex> hold(g_lock);
+            g_previews.fill(Look{});
+            g_previewFor.clear();
+            g_anyPreview = false;
+        }
+    });
+}
 
 bool Init() {
     m_getActor = game::FindMethod("LE.dll", "", "PlayerFinder", "getPlayerActor", 0);
@@ -330,14 +460,40 @@ std::string Read() { return Run([] { return ReadNow(); }); }
 std::string Set(const std::string& slotKey, const std::string& lookKey) {
     return Run([=] {
         const Ctx c = Current();
+        if (slotKey == "all" && lookKey == "preview") {
+            // the Wardrobe's Apply: every look being tried on is kept (the item's own look clears the slot)
+            std::array<Look, kSlots> tried;
+            {
+                std::lock_guard<std::mutex> hold(g_lock);
+                LoadLocked();
+                if (g_previewFor == c.id) tried = g_previews;
+                for (int s = 0; s < kSlots; ++s) {
+                    const Look& l = tried[static_cast<size_t>(s)];
+                    if (l.type < 0) continue;
+                    void* item = Equipped(c, s);
+                    const bool own = item && Key(LookOf(Values(item))) == Key(l);
+                    g_looks[c.id][static_cast<size_t>(s)] = own ? Look{} : l;
+                }
+                g_previews.fill(Look{});
+                g_previewFor.clear();
+                SaveLocked();
+            }
+            g_anyPreview = false;
+            for (int s = 0; s < kSlots; ++s)
+                if (tried[static_cast<size_t>(s)].type >= 0) Show(c, s);
+            return ReadNow();
+        }
         if (slotKey == "all") {
-            if (lookKey != "none") throw std::runtime_error("Only none can be set on every slot.");
+            if (lookKey != "none") throw std::runtime_error("Only none or preview can be set on every slot.");
             {
                 std::lock_guard<std::mutex> hold(g_lock);
                 LoadLocked();
                 g_looks.erase(c.id);
+                g_previews.fill(Look{});
+                g_previewFor.clear();
                 SaveLocked();
             }
+            g_anyPreview = false;
             for (int s = 0; s < kSlots; ++s) Show(c, s);
             return ReadNow();
         }
@@ -355,6 +511,7 @@ std::string Set(const std::string& slotKey, const std::string& lookKey) {
             std::lock_guard<std::mutex> hold(g_lock);
             LoadLocked();
             g_looks[c.id][static_cast<size_t>(slot)] = clear ? Look{} : look;
+            if (g_previewFor == c.id) g_previews[static_cast<size_t>(slot)] = Look{};  // the choice is worn now
             SaveLocked();
         }
         Show(c, slot);
@@ -362,19 +519,58 @@ std::string Set(const std::string& slotKey, const std::string& lookKey) {
     });
 }
 
+std::string Preview(const std::string& slotKey, const std::string& lookKey) {
+    return Run([=] {
+        if (slotKey == "clear") {
+            if (lookKey != "all") throw std::runtime_error("use transmogpreview clear all");
+            EndPreviews();
+            return ReadNow();
+        }
+        const Ctx c = Current();
+        const int slot = SlotIndex(slotKey);
+        if (slot < 0) throw std::runtime_error("Unknown slot.");
+        Look look;
+        const bool clear = lookKey == "none";
+        if (!clear) {
+            void* item = Equipped(c, slot);
+            if (!item) throw std::runtime_error("Equip an item in this slot first.");
+            if (!Parse(lookKey, &look)) throw std::runtime_error("Unknown look.");
+            if (look.type != Values(item).type) throw std::runtime_error("The look must be an item of the same type as the equipped one.");
+        }
+        {
+            std::lock_guard<std::mutex> hold(g_lock);
+            if (g_previewFor != c.id) {
+                g_previews.fill(Look{});
+                g_previewFor = c.id;
+            }
+            g_previews[static_cast<size_t>(slot)] = clear ? Look{} : look;
+            bool any = false;
+            for (const Look& l : g_previews) any |= l.type >= 0;
+            g_anyPreview = any;
+        }
+        g_previewAlive = GetTickCount64();
+        if (!clear) g_previewsShown.fetch_add(1, std::memory_order_relaxed);
+        Show(c, slot);
+        return ReadNow();
+    });
+}
+
+void KeepPreview() { g_previewAlive = GetTickCount64(); }
+
 std::string Status() {
-    size_t looks = 0;
+    size_t looks = 0, previews = 0;
     {
         std::lock_guard<std::mutex> hold(g_lock);
         LoadLocked();
         for (const auto& [id, slots] : g_looks)
             for (const Look& l : slots) looks += l.type >= 0;
+        for (const Look& l : g_previews) previews += l.type >= 0;
     }
-    char buf[220];
-    std::snprintf(buf, sizeof buf, "transmog: looks %zu, hooks %s, gear calls %llu, weapon calls %llu, changed %llu, faults %llu", looks,
-                  ready && hook::IsInstalled(m_gear.code) ? "in" : "out", static_cast<unsigned long long>(g_gearCalls.load()),
+    char buf[260];
+    std::snprintf(buf, sizeof buf, "transmog: looks %zu, previews %zu, hooks %s, gear calls %llu, weapon calls %llu, changed %llu, previews shown %llu, faults %llu",
+                  looks, previews, ready && hook::IsInstalled(m_gear.code) ? "in" : "out", static_cast<unsigned long long>(g_gearCalls.load()),
                   static_cast<unsigned long long>(g_weaponCalls.load()), static_cast<unsigned long long>(g_changed.load()),
-                  static_cast<unsigned long long>(g_faults.load()));
+                  static_cast<unsigned long long>(g_previewsShown.load()), static_cast<unsigned long long>(g_faults.load()));
     return buf;
 }
 

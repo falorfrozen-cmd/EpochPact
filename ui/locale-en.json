@@ -165,6 +165,10 @@
       "Idol suffixes",
       "The same for suffixes: each new idol rolls 1 to this many suffixes, each new idol altar 2 to one more than this many. Offline only; the game's own at 1."
     ],
+    "idolmax": [
+      "Always the most idol affixes",
+      "Every new idol gets exactly the number of prefixes and suffixes set in Idol prefixes and Idol suffixes, instead of 1 to that many; every new idol altar one more than that. Works with Idol prefixes or Idol suffixes above 1."
+    ],
     "enchanteruses": [
       "Woven Enchanter uses",
       "Each Woven Enchanter you meet allows this many times its usual uses, so you can reforge more idols there: at 20, \"1/1 uses remain\" becomes 20/20. It also applies to an Enchanter you are standing at. Each craft still costs its Memory Amber. Offline only; the game's own at 1."
@@ -433,6 +437,10 @@
       "Ignore Weaver node connections",
       "Allow allocation without preceding Weaver nodes. Point budgets and node caps still apply."
     ],
+    "build_masteryskills": [
+      "Skills of your other masteries",
+      "The skills of your class's other masteries unlock as they do for your own mastery: with the points you put in their passive tree (for a Forge Guard, Paladin's Judgement at 30 and Symbols of Hope at 35 Paladin points). The skill each mastery gives when it is chosen (such as Holy Aura) stays with it. Switched off, those skills leave your skill bar."
+    ],
     "build_offhand": [
       "Unrestricted offhand equipment",
       "Allow weapons in the offhand and remove linked two-handed equipment conflicts. Normal level and class requirements still apply."
@@ -665,6 +673,10 @@
       "Pick up from afar",
       "Click an item's name on the ground and it goes into your inventory where it lies; your character does not walk there. When your inventory has no room, the game walks you there as usual. Offline only."
     ],
+    "stashpickup": [
+      "Stash tabs on pickup",
+      "Items you pick up go straight to the stash tab whose Tab Priority they match (set in the game's Configure Tab), the tab Ctrl+click and Stash all would choose. Items that match no tab stay in your inventory. Offline only."
+    ],
     "pickup_now": [
       "Pick up everything now",
       "Collect every drop the game has loaded right now, ignoring the radius. Your pickup rules, categories, loot filter and inventory space still apply. Runs across several frames."
@@ -744,34 +756,6 @@
     "stash_rules_sort": [
       "Sort inventory by filter rule",
       "Move inventory items into the tab linked to the loot filter rule they match, using the game's exact filter match (affix conditions included). Creates a recovery backup."
-    ],
-    "categories_read": [
-      "Item categories",
-      "Read the item categories: which are ticked, their stash tabs, and how many of their items are in the inventory and in each tab."
-    ],
-    "category_auto": [
-      "Send picked-up items to the category tab",
-      "Items of a ticked category go straight from the ground to its stash tab when you pick them up, with the game's own container move. An item stays in the inventory when the tab is full or the stash is not loaded yet. Remembered by EpochPact."
-    ],
-    "category_show": [
-      "Show one category in the inventory",
-      "The inventory shows the items of one category as usual and the others faint; none shows every item again. Display only."
-    ],
-    "category_setup": [
-      "Set up category tabs",
-      "Create the missing tabs, one per category (EP Unique & Set, EP Exalted, EP Idols, EP Keys & special, EP Weapons, EP Armour, EP Jewellery, EP Other), free of gold, in a stash folder named EpochPact. Tabs you already have are kept. Creates a recovery backup."
-    ],
-    "category_sort": [
-      "Distribute ticked categories",
-      "Move the inventory's items of the ticked categories into their tabs. Items that do not fit stay in the inventory. Creates a recovery backup."
-    ],
-    "category_open": [
-      "Open a category tab",
-      "Open the stash on a category's tab, from anywhere."
-    ],
-    "category_materials": [
-      "Open crafting materials",
-      "Open the game's crafting materials panel, or close it when it is open."
     ],
     "font_family": [
       "Interface font",

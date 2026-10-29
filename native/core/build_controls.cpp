@@ -24,9 +24,10 @@ Setting skillXp{"skillxp",1,100,1}, passive{"passivepoints",1,10,1}, skills{"ski
     summonDuration{"summonduration",1,10,1}, offhand{"offhand",0,1,0,true}, fullSets{"fullsets",0,1,0,true}, primordials{"primordials",0,1,0,true},
     freeSkills{"skillnodes",0,1,0,true}, freePassives{"passivenodes",0,1,0,true}, freeWeaver{"weavernodes",0,1,0,true},
     minionExtra{"minionextra",0,20,0,true}, companionExtra{"companionextra",0,10,0,true}, totemExtra{"totemextra",0,10,0,true},
-    ballistaExtra{"ballistaextra",0,10,0,true}, forgedExtra{"forgedextra",0,20,0,true}, immortal{"immortalminions",0,1,0,true};
-std::array<Setting*,24> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&primordials,&freeSkills,&freePassives,&freeWeaver,
-    &minionExtra,&companionExtra,&totemExtra,&ballistaExtra,&forgedExtra,&immortal};
+    ballistaExtra{"ballistaextra",0,10,0,true}, forgedExtra{"forgedextra",0,20,0,true}, immortal{"immortalminions",0,1,0,true},
+    masterySkills{"masteryskills",0,1,0,true};
+std::array<Setting*,25> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&primordials,&freeSkills,&freePassives,&freeWeaver,
+    &minionExtra,&companionExtra,&totemExtra,&ballistaExtra,&forgedExtra,&immortal,&masterySkills};
 game::MethodRef getActor, offline, xpRef, skillRef, passiveRef, weaverRef, zoomRef, projectileRef, blessingRef, populateRef, optionsRef;
 game::MethodRef summonRef, slotRef, alternateSlotRef, linkedRef, invalidRef, enforceRef, mainRestrictionRef, offRestrictionRef, equipRef;
 game::MethodRef constructionRef, drainRef, summonedTickRef;
@@ -34,6 +35,7 @@ game::MethodRef sedSummonRef, maxCompanionsRef, summonedInitRef, maxPrimordialsR
 game::MethodRef skillUnspentRef, passiveUnspentRef, weaverUnspentRef;
 game::MethodRef requirementRef, requirementPreviewRef, passiveRequirementRef, uiRequirementRef, reachableRef,
     globalNodeRef, passiveSpendRef, passiveBulkRef, masteryRef, masteryUpdateRef, respecCostRef;
+game::MethodRef unlockedRef, unlockedMasteryRef, lockedMasteryRef, recalculateKnownRef;
 size_t actorTree=0, actorTracker=0, trackerData=0, treeActor=0, treeSkills=0, treePassive=0, treeWeaver=0,
     treeLevel=0, passiveEarned=0, weaverEarned=0, skillLevel=0, skillAdditional=0,
     zoomMin=0, zoomDefault=0, cameraAngle=0, managerActor=0, implicitRolls=0;
@@ -86,6 +88,9 @@ using PassiveBulkFn=void(*)(void*,uint8_t,void*,M);PassiveBulkFn originalPassive
 using MasteryFn=void*(*)(void*,void*,void*,M);MasteryFn originalMastery=nullptr;
 VoidFn originalMasteryUpdate=nullptr;
 using RespecCostFn=int(*)(void*,void*,void*,M);RespecCostFn originalRespecCost=nullptr;
+using UnlockedFn=void*(*)(void*,int,void*,uint8_t,M);UnlockedFn originalUnlocked=nullptr;
+using MasteryListFn=void*(*)(void*,uint8_t,uint8_t,uint8_t,M);MasteryListFn originalUnlockedMastery=nullptr,originalLockedMastery=nullptr;
+std::atomic<uint64_t> masterySkillsAdded{0};
 struct PassiveValidation {void* global=nullptr;bool validating=true;std::vector<std::unique_ptr<Root>> nodes;};
 thread_local PassiveValidation* passiveValidation=nullptr;
 struct Hook {game::MethodRef* ref; void* detour; void** original;};
@@ -137,6 +142,45 @@ void* ReachableDetour(void* tree,M method) {
     }});
     return result;
 }
+// ---- Skills of the other masteries: unlocked with the points in their passive tree, as for the chosen one.
+// CharacterClass.masteries' abilities (AbilityAndLevel: the skill and the mastery points it needs). The mastery
+// skill each mastery gives when it is chosen (Holy Aura ...) stays with it.
+bool ListHas(void* list,void* item){void* a[]{item};return Value<bool>(Method(list,"Contains",1),list,a);}
+void* UnlockedDetour(void* self,int level,void* masteryLevels,uint8_t chosen,M method) {
+    void* result=originalUnlocked(self,level,masteryLevels,chosen,method);
+    if(masterySkills.value==1&&result&&masteryLevels&&game::IsOfflinePlay())Checked([&]{
+        const auto n=Get<uintptr_t>(masteryLevels,0x18);
+        for(uintptr_t m=1;m<n&&m<8;++m){
+            if(m==chosen)continue;
+            const int points=Get<uint8_t>(masteryLevels,0x20+m);int mastery=static_cast<int>(m);void* a[]{&mastery};
+            Root list(Invoke(Method(self,"getMasteryAbilities",1),self,a));
+            for(void* entry:Entries(list.Get())){
+                void* ability=entry?Get<void*>(entry,F("AbilityAndLevel","ability")):nullptr;
+                if(!ability||Get<int>(entry,F("AbilityAndLevel","level"))>points||ListHas(result,ability))continue;
+                void* add[]{ability};Invoke(Method(result,"Add",1),result,add);++masterySkillsAdded;
+            }
+        }
+    });
+    return result;
+}
+// The skills panel and the passive tree's skill icons: another mastery's lists as if it were chosen, its mastery
+// skill still locked.
+void* MasteryAbility(void* self,uint8_t mastery){void* a[]{&mastery};return Invoke(Method(self,"getMasteryAbility",1),self,a);}
+void* UnlockedMasteryDetour(void* self,uint8_t mastery,uint8_t level,uint8_t chosen,M method) {
+    if(masterySkills.value!=1||mastery==0||mastery==chosen||!game::IsOfflinePlay())return originalUnlockedMastery(self,mastery,level,chosen,method);
+    void* result=originalUnlockedMastery(self,mastery,level,mastery,method);
+    if(result)Checked([&]{if(void* own=MasteryAbility(self,mastery)){void* a[]{own};Invoke(Method(result,"Remove",1),result,a);}});
+    return result;
+}
+void* LockedMasteryDetour(void* self,uint8_t mastery,uint8_t level,uint8_t chosen,M method) {
+    if(masterySkills.value!=1||mastery==0||mastery==chosen||!game::IsOfflinePlay())return originalLockedMastery(self,mastery,level,chosen,method);
+    void* result=originalLockedMastery(self,mastery,level,mastery,method);
+    if(result)Checked([&]{void* own=MasteryAbility(self,mastery);if(own&&!ListHas(result,own)){void* a[]{own};Invoke(Method(result,"Add",1),result,a);}});
+    return result;
+}
+// The known skills again from the unlock rules (the game's own; skills no longer known leave the bar).
+void RecalculateKnown(){void* tree=Tree(Actor());if(tree&&recalculateKnownRef)Invoke(recalculateKnownRef,tree);}
+
 // The authoritative passive validator contains direct mastery threshold reads.
 // Return a short-lived view with those two thresholds removed, rather than
 // altering the global game assets. Caps, node IDs and budget checks stay native.
@@ -664,6 +708,9 @@ Hook requirementHook{&requirementRef,reinterpret_cast<void*>(&RequirementDetour)
     masteryHook{&masteryRef,reinterpret_cast<void*>(&MasteryDetour),reinterpret_cast<void**>(&originalMastery)},
     masteryUpdateHook{&masteryUpdateRef,reinterpret_cast<void*>(&MasteryUpdateDetour),reinterpret_cast<void**>(&originalMasteryUpdate)},
     respecCostHook{&respecCostRef,reinterpret_cast<void*>(&RespecCostDetour),reinterpret_cast<void**>(&originalRespecCost)};
+Hook unlockedHook{&unlockedRef,reinterpret_cast<void*>(&UnlockedDetour),reinterpret_cast<void**>(&originalUnlocked)},
+    unlockedMasteryHook{&unlockedMasteryRef,reinterpret_cast<void*>(&UnlockedMasteryDetour),reinterpret_cast<void**>(&originalUnlockedMastery)},
+    lockedMasteryHook{&lockedMasteryRef,reinterpret_cast<void*>(&LockedMasteryDetour),reinterpret_cast<void**>(&originalLockedMastery)};
 Hook* For(const Setting& s) {
     if(&s==&skillXp)return &xpHook;
     if(&s==&skills)return &skillHook;
@@ -678,6 +725,7 @@ Hook* For(const Setting& s) {
     if(&s==&offhand)return &slotHook;
     if(&s==&fullSets)return &equipHook;
     if(&s==&primordials)return &primordialsHook;
+    if(&s==&masterySkills)return &unlockedHook;
     if(&s==&freeSkills||&s==&freePassives||&s==&freeWeaver)return &requirementHook;
     return &blessingHook;
 }
@@ -686,6 +734,7 @@ std::vector<Hook*> Hooks(const Setting& s) {
     if(&s==&summonDuration)return {&summonHook,&drainHook,&summonedTickHook};
     if(&s==&offhand)return {&slotHook,&alternateSlotHook,&linkedHook,&invalidHook,&enforceHook,&mainRestrictionHook,&offRestrictionHook};
     if(&s==&skills)return {&skillHook,&skillUnspentHook};
+    if(&s==&masterySkills)return {&unlockedHook,&unlockedMasteryHook,&lockedMasteryHook};
     if(&s==&blessings)return {&blessingHook,&populateHook,&optionsHook};
     if(&s==&freeSkills||&s==&freePassives||&s==&freeWeaver)return {&requirementHook,&requirementPreviewHook,&passiveRequirementHook,&uiRequirementHook,&reachableHook,&globalNodeHook,&passiveSpendHook,&passiveBulkHook,&masteryHook,&masteryUpdateHook,&respecCostHook};
     return {For(s)};
@@ -716,7 +765,7 @@ void RefreshBudgets() {
 std::string State() {
     std::ostringstream out; out<<"{\"ok\":true,\"settings\":{"; bool comma=false;
     for(auto* s:settings){bool available=true;for(auto* h:Hooks(*s))available=available && static_cast<bool>(*h->ref);if(comma)out<<',';comma=true;out<<Json(s->key)<<":{\"value\":"<<s->value<<",\"available\":"<<Boolean(available)<<'}';}
-    out<<"},\"counters\":{\"skillXp\":"<<xpCalls<<",\"projectiles\":"<<projectileCalls<<",\"projectileRetrofits\":"<<retrofits<<",\"summonDecayTicks\":"<<drainCalls<<",\"lastProjectileNative\":"<<lastProjectileNative<<",\"lastProjectileTotal\":"<<lastProjectileTotal<<",\"blessings\":"<<blessingCalls<<",\"faults\":"<<faults<<'}';
+    out<<"},\"counters\":{\"masterySkillsAdded\":"<<masterySkillsAdded<<",\"skillXp\":"<<xpCalls<<",\"projectiles\":"<<projectileCalls<<",\"projectileRetrofits\":"<<retrofits<<",\"summonDecayTicks\":"<<drainCalls<<",\"lastProjectileNative\":"<<lastProjectileNative<<",\"lastProjectileTotal\":"<<lastProjectileTotal<<",\"blessings\":"<<blessingCalls<<",\"faults\":"<<faults<<'}';
     out<<",\"summons\":{\"limitsRaised\":"<<raisedSummons<<",\"companionLimitReads\":"<<raisedCompanionReads<<",\"immortal\":"<<immortalHealth.size()<<",\"immortalAdded\":"<<immortalAdded
        <<",\"lastAbility\":"<<Json(lastSummonAbility)<<",\"lastKind\":"<<Json(lastSummonKind)<<",\"lastNative\":"<<lastSummonNative<<",\"lastLimit\":"<<lastSummonLimit<<'}';
     std::string worn;  // built whole: a failed read must not leave half an object in the reply
@@ -782,6 +831,10 @@ bool Init() {
         masteryRef=game::FindMethod("LE.dll","","LocalTreeData","CalculateMasteryLevelsFromAllocation",2);
         masteryUpdateRef=game::FindMethod("LE.dll","","LocalTreeData","updateMasteryTotals",0);
         respecCostRef=game::FindMethod("LE.dll","","LocalTreeData","CalculateRespecCostForBulkUpdate",2);
+        unlockedRef=game::FindMethod("LE.dll","","CharacterClass","getUnlockedAbilities",3);
+        unlockedMasteryRef=game::FindMethod("LE.dll","","CharacterClass","getUnlockedMasteryAbilities",3);
+        lockedMasteryRef=game::FindMethod("LE.dll","","CharacterClass","getLockedMasteryAbilities",3);
+        recalculateKnownRef=game::FindMethod("LE.dll","","LocalTreeData","RecalculateKnownAbilitiesAndUnequipUnlearnedOnes",0);
         std::vector<Hook*> installed;std::string why;
         for(auto* entry:{&skillHook,&skillUnspentHook,&passiveUnspentHook,&weaverUnspentHook}) {
             if(!*entry->ref || !hook::Install(entry->ref->code,entry->detour,entry->original,&why)) {
@@ -819,8 +872,9 @@ std::string Set(const std::string& key,double value) {
             if(s==&immortal)SetImmortal(value!=0);
             if(s==&fullSets){void* manager=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));if(manager)ReconcileSets(Get<void*>(manager,Offset("ItemContainersManager","itemEquipManager")));}
             if(s==&primordials)RefreshPrimordials();
+            if(s==&masterySkills)RecalculateKnown();
             for(auto* entry:hooks)if(!Needed(entry)&&hook::IsInstalled(entry->ref->code)&&!hook::Remove(entry->ref->code,&why))throw std::runtime_error("cannot restore feature hook: "+why);
-        }catch(...){s->value=previous;Checked([&]{if(s==&passive||s==&skills||s==&weaver||s==&weaverFlat)RefreshBudgets();if(s==&immortal)SetImmortal(previous!=0);if(s==&primordials)RefreshPrimordials();});for(auto* back:fresh)if(!Needed(back))hook::Remove(back->ref->code,nullptr);throw;}
+        }catch(...){s->value=previous;Checked([&]{if(s==&passive||s==&skills||s==&weaver||s==&weaverFlat)RefreshBudgets();if(s==&immortal)SetImmortal(previous!=0);if(s==&primordials)RefreshPrimordials();if(s==&masterySkills)RecalculateKnown();});for(auto* back:fresh)if(!Needed(back))hook::Remove(back->ref->code,nullptr);throw;}
         return State();
     });
 }
@@ -1063,6 +1117,44 @@ std::string Test(const std::string& id,const std::string& action) {
             void* args[]{&timeline,&difficulty,&count,&extra,&lucky};Root result(Invoke(blessingRef,generator,args));
             std::ostringstream out;out<<"{\"ok\":true,\"options\":[";bool comma=false;
             for(void* item:Entries(result.Get())){if(comma)out<<',';comma=true;out<<'[';void* array=Get<void*>(item,implicitRolls);const auto n=Get<uintptr_t>(array,0x18);if(n>32)throw std::runtime_error("invalid test rolls");for(uintptr_t i=0;i<n;++i){if(i)out<<',';out<<static_cast<int>(Get<uint8_t>(array,0x20+i));}out<<']';}return out.str()+"]}";
+        }
+        if(action.rfind("mastery-choose-",0)==0) {
+            // Isolated clone only: choose a mastery with the game's own command handler.
+            const int m=std::stoi(action.substr(15));if(m<1||m>3)throw std::runtime_error("mastery 1..3");
+            uint8_t mastery=static_cast<uint8_t>(m);void* a[]{&mastery};Invoke(Method(tree,"receiveChooseMasteriesCommand",1),tree,a);
+            return std::string("{\"ok\":true,\"chosen\":")+std::to_string(int(Value<uint8_t>(Method(tree,"getChosenMastery",0),tree)))+"}";
+        }
+        if(action=="mastery-skills"||action.rfind("mastery-equip-",0)==0) {
+            // Isolated clone only: the chosen mastery and the mastery levels, each mastery's tree skills with the
+            // points they need, the known skills and the skill bar; mastery-equip-<slot>-<skill name, _ for spaces>
+            // puts a known skill on the bar with the game's own setAbility.
+            void* list=Component(actor,"PlayerAbilityList");if(!list)throw std::runtime_error("ability list unavailable");
+            const auto nameOf=[](void* a){return a?Text(Get<void*>(a,F("Ability","abilityName"))):std::string();};
+            std::ostringstream out;out<<"{\"ok\":true,\"setting\":"<<masterySkills.value<<",\"added\":"<<masterySkillsAdded;
+            if(action.rfind("mastery-equip-",0)==0){
+                const auto rest=action.substr(14);const auto dash=rest.find('-');if(dash==std::string::npos)throw std::runtime_error("use mastery-equip-<slot>-<skill>");
+                int slot=std::stoi(rest.substr(0,dash));std::string wanted=rest.substr(dash+1);for(char& ch:wanted)if(ch=='_')ch=' ';
+                void* found=nullptr;Root known(Invoke(Method(list,"getKnownAbilities",0),list));
+                for(void* a:Entries(known.Get()))if(nameOf(a)==wanted)found=a;
+                out<<",\"equip\":"<<Json(wanted)<<",\"wasKnown\":"<<Boolean(found!=nullptr);
+                if(found){bool save=true,silent=false;void* args[]{found,&slot,&save,&silent};Invoke(Method(list,"setAbility",4),list,args);}
+            }
+            Root levels(Invoke(Method(tree,"getMasteryLevels",0),tree));
+            out<<",\"chosen\":"<<int(Value<uint8_t>(Method(tree,"getChosenMastery",0),tree))<<",\"levels\":[";
+            for(uintptr_t i=0,n=Get<uintptr_t>(levels.Get(),0x18);i<n&&i<8;++i)out<<(i?",":"")<<int(Get<uint8_t>(levels.Get(),0x20+i));
+            out<<"],\"known\":[";bool comma=false;
+            {Root known(Invoke(Method(list,"getKnownAbilities",0),list));for(void* a:Entries(known.Get())){out<<(comma?",":"")<<Json(nameOf(a));comma=true;}}
+            out<<"],\"equipped\":[";comma=false;
+            {Root equipped(Invoke(Method(list,"getEquippedAbilities",0),list));for(void* a:Entries(equipped.Get())){out<<(comma?",":"")<<Json(nameOf(a));comma=true;}}
+            out<<"],\"masteries\":[";
+            const int classId=Value<int>(Method(character,"get_CharacterClass",0),character);
+            Root classes(Invoke(game::FindMethod("LE.dll","","CharacterClassList","get",0)));void* cls=nullptr;
+            for(void* c:Entries(Get<void*>(classes.Get(),F("CharacterClassList","classes"))))if(c&&Get<int>(c,F("CharacterClass","classID"))==classId)cls=c;
+            if(cls)for(int m=1;m<=3;++m){int mastery=m;void* a[]{&mastery};Root abilities(Invoke(Method(cls,"getMasteryAbilities",1),cls,a));
+                out<<(m>1?",":"")<<'[';comma=false;
+                for(void* e:Entries(abilities.Get())){if(!e)continue;out<<(comma?",":"")<<"{\"name\":"<<Json(nameOf(Get<void*>(e,F("AbilityAndLevel","ability"))))<<",\"points\":"<<Get<int>(e,F("AbilityAndLevel","level"))<<'}';comma=true;}
+                uint8_t mm=static_cast<uint8_t>(m);void* b[]{&mm};out<<"],{\"masterySkill\":"<<Json(nameOf(Invoke(Method(cls,"getMasteryAbility",1),cls,b)))<<'}';}
+            return out.str()+"]}";
         }
         if(action=="trees") {
             std::ostringstream out;out<<"{\"ok\":true,\"trees\":[";bool comma=false;

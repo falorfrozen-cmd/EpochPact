@@ -166,3 +166,16 @@ player DLL. See [the remaining-three validation record](remaining-three-validati
 [the earlier validation record](feature-validation-2026-10-11.md)
 and [the earlier gameplay record](feature-validation-2026-10-10.md) for measured
 results and untested gameplay paths. A successful build alone is not gameplay proof.
+
+## Skills of your other masteries (`buildset masteryskills 0|1`)
+
+Player request 2026-10-29: a Forge Guard wants Paladin's Judgement and Symbols of Hope. The game lets
+a character put points in its class's other mastery trees, but their skills unlock only for the chosen
+mastery. With the setting on, `CharacterClass.getUnlockedAbilities` also returns the other masteries'
+tree skills (`CharacterClass.getMasteryAbilities`: the skill and the mastery points it needs) whose
+points that mastery's tree reaches; `getUnlockedMasteryAbilities` / `getLockedMasteryAbilities` answer
+for another mastery as if it were chosen, so the skills panel and the passive tree show them unlocked.
+The skill a mastery gives when it is chosen (`getMasteryAbility`, such as Holy Aura) stays locked.
+Switching it on or off runs the game's `LocalTreeData.RecalculateKnownAbilitiesAndUnequipUnlearnedOnes`:
+the known skills follow at once and a skill no longer known leaves the bar. Other classes' skills are
+not included (owner's choice). Offline only.

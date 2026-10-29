@@ -995,33 +995,15 @@ test('stash tabs from loot filter: panel lists rules and tabs, and every change 
  assert.ok(h.calls.every(c=>c.args.expected_id==='6'&&c.args.expected_name==='Test'));
  assert.deepEqual([h.calls[1].args.hidden,h.calls[1].args.disabled,h.calls[3].args.tab,h.calls[3].args.rule,h.calls[4].args.rule],[1,0,4,9,0]);
 });
-test('item categories: the panel lists each category, and ticks, views and tab actions send the category or the loaded character',async()=>{
- const h=automaticHarness();h.run(`page='inventory';connected.player.id='6';connected.player.name='Test';confirmAction=async()=>true;`);
- assert.ok(h.run('categoriesPanel()').includes('Read categories'));
- const categories=['unique','exalted','idol','special','weapon','armour','jewellery','other'].map((key,i)=>({key,name:key,auto:i===0,inventory:i,tab:i===7?null:{index:i+1,id:i+1,name:'EP '+key},stored:i===7?null:2}));
- const state={ok:true,player:{id:'6'},stashLoaded:true,canAddTab:true,filter:'idol',categories};
- h.replies.push(state);await h.run(`categoriesAction('read')`);
- const html=h.run('categoriesPanel()');
- assert.ok(html.includes('Unique &amp; Set'));assert.ok(html.includes('Keys &amp; special'));
- assert.ok(html.includes('data-category-auto="unique" data-control-id="category_auto" checked'));assert.ok(!html.includes('data-category-auto="idol" data-control-id="category_auto" checked'));
- assert.ok(html.includes('Set up category tabs'));assert.ok(html.includes('data-category="none"'));assert.ok(html.includes('Show all'));
- h.run('connected.player.id="7"');assert.ok(!h.run('categoriesPanel()').includes('EP unique'));h.run('connected.player.id="6"');
- h.replies.push({ok:true,key:'idol',auto:true},state,{...state,created:1,atLimit:0},{...state,moved:3,full:1},{ok:true,filter:null},state,{ok:true,open:true},{ok:true,key:'armour'});
- await h.run(`categoriesAction('auto',{key:'idol',value:1})`);await h.run(`categoriesAction('setup')`);await h.run(`categoriesAction('sort')`);
- await h.run(`categoriesAction('show',{key:'none'})`);await h.run(`categoriesAction('materials')`);await h.run(`categoriesAction('open',{key:'armour'})`);
- assert.deepEqual(h.calls.map(c=>[c.id,c.operation]),[['categories_read','read'],['category_auto','set'],['categories_read','read'],['category_setup','set'],['category_sort','set'],['category_show','set'],['categories_read','read'],['category_materials','set'],['category_open','set']]);
- assert.deepEqual([h.calls[1].args,h.calls[5].args,h.calls[7].args,h.calls[8].args],[{category:'idol',value:1},{category:'none'},{},{category:'armour'}]);
- assert.ok([h.calls[3],h.calls[4]].every(c=>c.args.expected_id==='6'&&c.args.expected_name==='Test'));
-});
-test('item looks: each equipped slot gets its looks, the own look first, and a choice sends the slot and the look',async()=>{
- const h=automaticHarness();h.run(`page='equipment';connected.player.id='6';`);
+test('wardrobe: each equipped slot gets its looks, the own look first, and a choice sends the slot and the look',async()=>{
+ const h=automaticHarness();h.run(`page='wardrobe';connected.player.id='6';`);
  assert.ok(h.run('looksPanel()').includes('Read looks'));
  const state={ok:true,player:{id:'6'},slots:[
-  {slot:'helmet',item:{type:0,sub:3,rarity:4,uniqueId:0,key:'b0.3',name:'Copper Circlet'},look:{key:'u239',name:'Somnia',shown:true},options:[{key:'b0.3',name:'Copper Circlet',unique:false},{key:'b0.4',name:'Iron Helm',unique:false},{key:'u239',name:'Somnia',unique:true}]},
+  {slot:'helmet',item:{type:0,sub:3,rarity:4,uniqueId:0,key:'b0.3',name:'Copper Circlet'},look:{key:'u239',name:'Somnia',shown:true},options:[{key:'b0.3',name:'Copper Circlet',unique:false},{key:'b0.4',name:'Iron Helm',unique:false},{key:'u239',name:'Somnia',unique:true},{key:'b0.9',name:'Bone Mask',unique:false,art:false}]},
   {slot:'belt',item:null,look:null,options:[]}]};
  h.replies.push(state,{ok:true,width:480,height:600,jpg:'AAAA'});await h.run('readLooks()');
  const html=h.run('looksPanel()');
- assert.ok(html.includes('data-look-slot="helmet"'));assert.ok(!html.includes('data-look-slot="belt"'));
+ assert.ok(html.includes('data-look-slot="helmet"'));assert.ok(!html.includes('data-look-slot="belt"'));assert.ok(!html.includes('Bone Mask'));
  assert.ok(html.includes('<option value="none">Own look: Copper Circlet</option>'));assert.ok(!html.includes('value="b0.3"'));
  assert.ok(html.includes('<option value="u239" selected>Unique · Somnia</option>'));assert.ok(html.includes('src="data:image/jpeg;base64,AAAA"'));
  assert.ok(html.includes('data-look-reset data-control-id="transmog_set" >'));

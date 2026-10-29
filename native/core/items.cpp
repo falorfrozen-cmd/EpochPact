@@ -431,11 +431,11 @@ PickupItemFn o_pickupItem = nullptr;
 void d_pickupItem(void* self, void* list, void* actor, uint32_t id, int flags, const Method* m) {
     LootEntry entry; bool described = false;
     const bool automatic = t_autoPickup;
-    std::unique_ptr<managed::Root> ground;  // the item, for its category after the pickup
+    std::unique_ptr<managed::Root> ground;  // the item, for the observer after the pickup
     if (!game::Guarded([&] {
         void* record = FindRecord(list, 0, id);
         void* item = record ? managed::Get<void*>(record, g_groundItemData) : nullptr;
-        if (item) ground = std::make_unique<managed::Root>(item);
+        if (item && g_pickupObserver.load()) ground = std::make_unique<managed::Root>(item);
         if (item) described = DescribeItem(item, &entry);
     }, nullptr)) g_logFaults.fetch_add(1, std::memory_order_relaxed);
     const uint32_t previousId = t_pickupId;

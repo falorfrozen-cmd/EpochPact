@@ -114,6 +114,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `cooldown` — Cooldown / charge hız çarpanı | `cooldown {value}` | value: 1…10 | 1 | Oturum |
 | `idolprefixes` — İdol prefix sayısı | `idolprefixes {value}` | value: 1…3 | 1 | Oturum |
 | `idolsuffixes` — İdol suffix sayısı | `idolsuffixes {value}` | value: 1…3 | 1 | Oturum |
+| `idolmax` — İdollerde her zaman en fazla affix | `idolmax {value}` | value: 0…1 | 0 | Oturum |
 | `enchanteruses` — Woven Enchanter kullanım hakkı | `enchanteruses {value}` | value: 1…40 | 1 | Oturum |
 | `density_read` — Density ölçümü | `densityread` | — | — | Okuma |
 
@@ -136,6 +137,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Cooldown / charge hız çarpanı:** Normal charge tick hızını ve cooldown sorgusunu ölçekler. Reset: `cooldown 1`.
 - **İdol prefix sayısı:** GenerateItems.GenerateAffixes sonrası, dükkân ve kumarbaz dışındaki her benzersiz olmayan idol ve idol altarı (düşüşler, ödüller, Nemesis, Spawn Items) oyunun verdiğinden en fazla n−1 fazla prefix alır: idol 1–n, Rare altar 2–(n+1); ekler oyunun IsValidAffix, AffixWeighting ve RollTier kurallarıyla seçilir (Weaver idolde Weaver affix'leri de), eşya verisi yeniden oluşturulur. Heretical idoller değişmez; 1 oyunun kendisi. Reset: `idolprefixes 1`.
 - **İdol suffix sayısı:** Aynısı suffix'ler için: her idol 1 ile bu sayı arasında, her Rare idol altarı 2 ile bu sayının bir fazlası arasında suffix alır; 1 oyunun kendisi. Reset: `idolsuffixes 1`.
+- **İdollerde her zaman en fazla affix:** Açıkken her yeni idol tam İdol prefix / suffix sayısı kadar affix alır (altar bir fazlası), 1 ile o sayı arasında değil.
 - **Woven Enchanter kullanım hakkı:** ZoneRestrictedCraftingManager (CraftingType IdolEnchantment) maxUses değeri oyunun CalculateMaxUses sonucunun bu katı olur; karşılaşılan her Woven Enchanter'da ve o an sahnede olanda geçerli (OnUsesChanged ile pencere güncellenir). Memory Amber bedeli ve craft'ın kendisi oyununki; 1 oyunun kendisi. Reset: `enchanteruses 1`.
 - **Density ölçümü:** Paket/generator/planlanan-gözlenen spawn ve dışlama sayaçları.
 
@@ -168,6 +170,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `pickup_radius_read` — Pickup radius status | `pickupradius` | — | — | Okuma |
 | `pickup_interval` — Auto pickup interval | `pickupinterval {value}` | value: 0.25…10 | 0.25 | Oturum |
 | `remotepickup` — Uzaktan toplama | `remotepickup {value}` | value: 0…1 | 0 | Oturum |
+| `stashpickup` — Toplarken sandık sekmesine | `stashpickup {value}` | value: 0…1 | 0 | Oturum |
 | `loot_log` — Recent pickups | `lootlog` | — | — | Okuma |
 | `loot_log_clear` — Clear recent pickups | `lootlogclear` | — | — | Görünüm |
 | `affix_info` — Affix shard details | `affixinfo {id}` | id: 0…65535 | — | Okuma |
@@ -189,6 +192,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Pickup radius status:** Read the current pickup radius.
 - **Auto pickup interval:** How often auto pickup scans for drops: from 0.25 s (default) to 10 s. Longer intervals reduce system load. When the game reports a full inventory, equipment pickup pauses until you open and close your inventory; gold, potions, tomes, bones, materials and everything else continue to be collected. Reset: `pickupinterval 0.25`.
 - **Uzaktan toplama:** GroundItemLabel.ClickedItem: tıklanan eşya, yer kaydı karakterin ayağına ödünç taşınarak oyunun requestPickup'ıyla yerinde alınır; oyun almazsa (envanter dolu) kendi yürüyüşü devam eder. Reset: `remotepickup 0`.
+- **Toplarken sandık sekmesine:** Toplanan eşya bir sonraki karede, oyunun StashItemContainer.GetTabIndexForTryAddItem ile seçtiği sekmenin (ya da klasörünün) Tab Priority koşulları StashPriority.Match ile tutuyorsa o sekmeye taşınır; tutmuyorsa, sekme doluysa ya da sandık yüklenmediyse envanterde kalır.
 - **Recent pickups:** Recent item and gold pickups, by you or Auto Pickup: name, rarity and the loot filter rule that matched (the same number the game shows with Item rule numbering). Reading it does not change the game.
 - **Clear recent pickups:** Clear the recent pickups list. Items and gold are unchanged.
 - **Affix shard details:** What an affix shard's affix does: prefix or suffix, level, the item types it rolls on and the game's value text for each tier. Reading it does not change the game.
@@ -406,6 +410,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `build_skillnodes` — Ignore skill node connections | `buildset skillnodes {value}` | value: 0…1 | 0 | Oturum |
 | `build_passivenodes` — Ignore passive connections and mastery gates | `buildset passivenodes {value}` | value: 0…1 | 0 | Oturum |
 | `build_weavernodes` — Ignore Weaver node connections | `buildset weavernodes {value}` | value: 0…1 | 0 | Oturum |
+| `build_masteryskills` — Skills of your other masteries | `buildset masteryskills {value}` | value: 0…1 | 0 | Oturum |
 | `build_projectiles` — Projectile count multiplier | `buildset projectiles {value}` | value: 1…8 | 1 | Oturum |
 | `build_projectileflat` — Extra projectiles | `buildset projectileflat {value}` | value: 0…32 | 0 | Oturum |
 
@@ -421,6 +426,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Ignore skill node connections:** Allow allocation without the preceding skill nodes. Point budgets and individual node caps still apply. Reset: `buildset skillnodes 0`.
 - **Ignore passive connections and mastery gates:** Allocate passive nodes without their preceding connections or mastery thresholds. Actual mastery totals, point budgets and node caps are kept. Reset: `buildset passivenodes 0`.
 - **Ignore Weaver node connections:** Allow allocation without preceding Weaver nodes. Point budgets and node caps still apply. Reset: `buildset weavernodes 0`.
+- **Skills of your other masteries:** The skills of your class's other masteries unlock as they do for your own mastery: with the points you put in their passive tree (for a Forge Guard, Paladin's Judgement at 30 and Symbols of Hope at 35 Paladin points). The skill each mastery gives when it is chosen (such as Holy Aura) stays with it. Switched off, those skills leave your skill bar.
 - **Projectile count multiplier:** Multiply player-owned projectile volleys and moving projectile emissions that lack a native extra-projectile component. Each emission group is capped at 64. Beams, stationary areas, summons and enemy attacks are excluded. Reset: `buildset projectiles 1`.
 - **Extra projectiles:** Add extra projectiles after the multiplier in each projectile emission group. Supports native volleys and retrofitted moving projectiles; does not duplicate beams or stationary areas. Reset: `buildset projectileflat 0`.
 
@@ -608,13 +614,6 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `stash_rules_create` — Create tabs from loot filter | `stashrulescreate {save_id} {hidden} {disabled}` | hidden: 0…1; disabled: 0…1 | — | Oyun kaydı |
 | `stash_rule_assign` — Link a tab to a rule | `stashruleassign {save_id} {tab} {rule}` | tab: 0…1000000; rule: 0…10000 | — | Oyun kaydı |
 | `stash_rules_sort` — Sort inventory by filter rule | `stashrulesort {save_id}` | — | — | Oyun kaydı |
-| `categories_read` — Item categories | `catread` | — | — | Okuma |
-| `category_auto` — Send picked-up items to the category tab | `catauto {category} {value}` | category: unique/exalted/idol/special/weapon/armour/jewellery/other; value: 0…1 | — | Oturum |
-| `category_show` — Show one category in the inventory | `catshow {category}` | category: unique/exalted/idol/special/weapon/armour/jewellery/other/none | — | Görünüm |
-| `category_setup` — Set up category tabs | `catsetup {save_id}` | — | — | Oyun kaydı |
-| `category_sort` — Distribute ticked categories | `catsort {save_id}` | — | — | Oyun kaydı |
-| `category_open` — Open a category tab | `catopen {category}` | category: unique/exalted/idol/special/weapon/armour/jewellery/other | — | Görünüm |
-| `category_materials` — Open crafting materials | `catmaterials` | — | — | Görünüm |
 
 - **Live inventory:** Read the loaded character and inventory item count without changing items.
 - **Toggle stash:** Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.
@@ -630,13 +629,6 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Create tabs from loot filter:** Create one stash tab per loot filter rule, free of gold, in a folder named after the filter. Each tab takes the rule's rarity, type, class, level, potential, faction, unique and corruption conditions as its stash priority. Creates a recovery backup.
 - **Link a tab to a rule:** Give an existing stash tab the conditions of one loot filter rule as its stash priority, or 0 to clear it. Creates a recovery backup.
 - **Sort inventory by filter rule:** Move inventory items into the tab linked to the loot filter rule they match, using the game's exact filter match (affix conditions included). Creates a recovery backup.
-- **Item categories:** Read the item categories: which are ticked, their stash tabs, and how many of their items are in the inventory and in each tab.
-- **Send picked-up items to the category tab:** Items of a ticked category go straight from the ground to its stash tab when you pick them up, with the game's own container move. An item stays in the inventory when the tab is full or the stash is not loaded yet. Remembered by EpochPact.
-- **Show one category in the inventory:** The inventory shows the items of one category as usual and the others faint; none shows every item again. Display only.
-- **Set up category tabs:** Create the missing tabs, one per category (EP Unique & Set, EP Exalted, EP Idols, EP Keys & special, EP Weapons, EP Armour, EP Jewellery, EP Other), free of gold, in a stash folder named EpochPact. Tabs you already have are kept. Creates a recovery backup.
-- **Distribute ticked categories:** Move the inventory's items of the ticked categories into their tabs. Items that do not fit stay in the inventory. Creates a recovery backup.
-- **Open a category tab:** Open the stash on a category's tab, from anywhere.
-- **Open crafting materials:** Open the game's crafting materials panel, or close it when it is open.
 
 ## Seçenek listeleri ve kalıcılık
 

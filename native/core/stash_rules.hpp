@@ -13,24 +13,12 @@ std::string Create(const std::string& id, bool hidden, bool disabled);
 std::string Assign(const std::string& id, int tabId, int ruleNumber);
 std::string Sort(const std::string& id);
 
-// Item categories (category_rules.hpp; offline only):
-//   catread              the categories: ticked or not, their tab, their items in the inventory and in the tab
-//   catauto <key> <0|1>  a category's picked-up items go straight to its tab
-//   catshow <key|none>   the inventory shows one category, the others dimmed
-//   catsetup <id>        creates the missing "EP <name>" tabs in a stash folder "EpochPact" (recovery backup first)
-//   catsort <id>         moves the inventory's items of the ticked categories into their tabs (recovery backup first)
-//   catopen <key>        opens the stash on a category's tab
-//   catmaterials         opens the game's crafting materials panel (closes it when open)
-std::string CategoryRead();
-std::string CategoryAuto(const std::string& key, bool on);
-std::string CategoryShow(const std::string& key);
-std::string CategorySetup(const std::string& id);
-std::string CategorySort(const std::string& id);
-std::string CategoryOpen(const std::string& key);
-std::string CategoryMaterials();
-void CategoryPicked(void* item);  // the pickup hook (main thread), after the item went into the inventory
-int CategoryFilter();             // the category the inventory shows, -1 all
-int CategoryOf(void* item);       // an ItemData's category
+// Stash tabs on pickup (offline only): stashpickup <0|1>; a picked-up item a stash tab's priority (or its folder's)
+// matches goes straight to that tab, the one Ctrl+click and Stash all choose; other items stay in the inventory.
+std::string SetStashPickup(double on);
+std::string PickupStatus();  // "stashpickup: x0|x1, routed n, ..."
+void PickedUp(void* item);    // the pickup hook (main thread), after the item went into the inventory
+void Frame();                 // convenience::Frame: the save after routed items settled
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
 std::string Test(const std::string& id, const std::string& action);
 #endif

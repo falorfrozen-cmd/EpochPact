@@ -51,7 +51,7 @@ don't have to walk to the loot myself") picks up an item you click on the ground
 lies, without walking there. A click on an item's name (`GroundItemLabel.ClickedItem`, also
 the gamepad's) asks the game's own pickup (`requestPickup`) with the item's ground record
 moved to your character's feet for that call, as auto pickup does, so the game's range check
-passes; inventory space and the item categories' routing still apply. When the
+passes; inventory space and Stash tabs on pickup still apply. When the
 game keeps the item (no room in the inventory), the click goes on as usual and your character
 walks there. Offline only; switched off, the hook is removed.
 
@@ -735,47 +735,52 @@ stash closed and selects it again when the stash opens after a game restart (the
 game itself keeps it within one session). The tab is stored as a single number in
 `<game>/EpochPact/stash-tab.txt`. A deleted tab falls back to the game's default.
 
-### Item categories
+### Stash tabs on pickup
 
-Eight categories, each with its own stash tab: **Unique & Set** (Uniques, Sets and
-Legendaries), **Exalted**, **Idols**, **Keys & special** (blessings, lenses, keys and
-other special items), **Weapons** (with off-hands), **Armour**, **Jewellery** and
-**Other**. Materials go to the game's own material storage as before; the
-**Materials** button opens the game's crafting materials panel.
+**Stash tabs on pickup** (Loot & Pickup page; owner's choice 2026-10-29, in place of the
+item categories tried in the lab) sends an item you pick up straight to the stash tab whose
+**Tab Priority** it matches. Tab Priority is the game's own: set the conditions (Uniques,
+type, rarity, potentials, class, level, faction, corruption) in the game's Configure Tab,
+on a tab or on its folder. EpochPact asks the game which tab Ctrl+click and Stash all would
+choose (`StashItemContainer.GetTabIndexForTryAddItem`) and moves the item there on the next
+frame only when that tab's priority, or its folder's, matches it (`StashPriority.Match`);
+otherwise the item stays in the inventory, as it does when the tab is full or the stash has
+not loaded yet. Works for pickups by hand, auto pickup and pick up from afar; the game saves
+once the items have settled. Offline only. Command: `stashpickup 0|1`; the status line
+`stashpickup: x1, routed n, no matching tab n, tab full n, not loaded n, saves n, faults n` counts what
+happened since the game started.
 
-- **Set up category tabs** (Inventory page, or **Set up tabs** in the in-game
-  column) creates the missing tabs `EP Unique & Set` … `EP Other`, **free of gold**,
-  in a stash folder named **EpochPact**. Tabs you already have are kept; running it
-  again only adds missing ones. A recovery backup is written first.
-- **Tick a category** to send its items straight from the ground to its tab when
-  you pick them up (by hand or by auto pickup), with the game's own container
-  move. Unticked categories stay in the inventory, so they are at hand without
-  opening the stash. An item stays in the inventory when its tab is full, has
-  been deleted, or the stash is not loaded yet. The ticks are kept in
-  `<game>/EpochPact/item-categories.txt`.
-- **Distribute ticked categories** (**Distribute** in the column) moves the
-  inventory's items of the ticked categories into their tabs, for example after
-  ticking one. Items that do not fit stay. A recovery backup is written first.
-- **Open tab** (the category's name in the column) opens the stash on that
-  category's tab from anywhere; the stash tab memory takes that tab too.
-- **Show only** (the dot in the column) shows one category in the inventory as
-  usual and the other items faint; pressing it again shows every item. Display
-  only.
+### Wardrobe (item looks)
 
-The in-game column sits beside the game's inventory while it is open (also next
-to the stash), for an offline character. Each row has the tick, the category's
-name with how many of its items the inventory holds, and the dot. **Show the
-category column beside the inventory in the game** (Inventory page) turns it off
-and on. The same controls are on the Inventory page of the app and of the F6
-window, with the count of items in each tab once the stash has been opened.
-Commands: `catread`, `catauto <category> 0|1`, `catshow <category|none>`,
-`catopen <category>`, `catsetup <save id>`, `catsort <save id>`, `catmaterials`
-(category keys: unique, exalted, idol, special, weapon, armour, jewellery, other).
+**Wardrobe** (its own page in the F6 window and the app; owner's request 2026-10-29: "like
+Diablo 4's wardrobe, see every look before you wear it") brings every look together:
 
-### Item looks
+- **The slots** on top show the picture and name of the look each slot wears; a gold mark when a
+  look is stored, *Trying on* while one is tried. Click a slot to choose its looks.
+- **The mirror** on the left shows your character live; drag it to turn, or use the turn
+  buttons; **Close-up** frames the head and chest, **Full body** the whole character.
+- **The grid** on the right has every look that fits the selected item, with the game's own item
+  pictures (`ItemData.GetItemSprite`, loaded through the game's asset bundles as the inventory
+  does): the item's own look first, then base items, Uniques and Sets in their colours. The
+  filters **All / Base items / Uniques / Sets / In your bags** (the items of that type in your
+  inventory and the open stash) show their counts; **Search looks…** filters by name. The
+  wheel or the arrows scroll it.
+- **Click a look to try it on**: the character wears it at once (`transmogpreview <slot>
+  <look>`), nothing is stored. Try several slots, then **Apply looks** keeps them all
+  (`transmog all preview`) or **Cancel** takes them off (`transmogpreview clear all`). A try-on
+  ends by itself 1.5 s after the page is left or F6 is closed. **Own look** puts the item's own
+  look back; **Reset all looks** clears every slot.
 
-**Item looks** (Equipment page, player request 2026-10-29: "Vanity - transmog, no skin unlock")
-lets an equipped item look like another item of the same type: any base item or Unique of
+**Class art.** Base helmets and body armours are made per class (Copper Circlet and Adept Robes for a Mage, Pariah
+Shroud and Outcast Rags for an Acolyte ...). The game has art of them only for their own class: on another class
+such a look leaves the character as it is (live check 2026-10-29, a Mage: eight other-class helmets and body
+armours left the character unchanged; Mage bases, boots, sceptres, shields and every Unique and Set changed it).
+So the Wardrobe and the app's lists leave out base items without an art entry for the character's class in the
+game's item visual database (`GlobalAssets.ItemVisuals`, keyed by class, type and subtype; `transmogread` marks
+each look `art`), with a note saying how many; Uniques and Sets are always listed.
+
+The desktop app's Wardrobe page has the mirror picture and a list per slot (a choice applies at
+once). Underneath, an equipped item can look like another item of the same type: any base item or Unique of
 that type, with the game's own art. Slots: helmet, body armour, gloves, boots, belt, weapon and
 off-hand. Shop cosmetics are not touched and nothing is unlocked.
 
@@ -1034,3 +1039,14 @@ into a separate directory and run `dotnet build native/melon/EpochPact.MelonBrid
 -c Release -p:MelonLoaderSdk="<SDK directory>"`. The bridge references MelonLoader's
 existing AsmResolver libraries (MIT); neither the SDK nor these dependencies is
 bundled in the player package.
+
+### Idols: always the most, and Circle of Fortune (2026-10-29)
+
+Player report 2026-10-29: "idol force drop on extra mods is broken". Cause: CoF tuning's Exalted and T7 roll
+multipliers and the idol affixes both hooked `GenerateItems.GenerateAffixes`; the hook framework holds one detour per
+method, so whichever came second only found "already installed" and never ran (its status still said `hook in`),
+and setting the idols back to 1 removed CoF's hook. Now the method has one hook, in `idols.cpp`: CoF's Exalted / T7
+scope runs around the game's call (`idols::UseAffixScope`), the idol affixes after it.
+
+**Always the most idol affixes** (`idolmax 0|1`, General settings): every new idol gets exactly the Idol prefixes /
+Idol suffixes number of each kind (an altar one more) instead of 1 to that many.

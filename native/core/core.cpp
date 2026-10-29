@@ -123,7 +123,7 @@ void WorkerBody() {
     loot::Init();
     density::Init();
     items::Init();
-    items::SetPickupObserver(&stashrules::CategoryPicked);
+    items::SetPickupObserver(&stashrules::PickedUp);
     smartloot::Init();
     crafting::Init();
     mapview::Init();

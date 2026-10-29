@@ -4,6 +4,7 @@
 #include "managed.hpp"
 #include "loot.hpp"
 #include "hook.hpp"
+#include "idols.hpp"
 #include <array>
 #include <atomic>
 #include <bit>
@@ -31,12 +32,10 @@ size_t celerityExtra, charityExtra, duplicationChance, rewardCount, rewardBaseFa
 game::MethodRef chargeMethod, rewardMethod, affixMethod, lpMethod, echoMethod, prophecyData;
 using ChargeFn = void (*)(void*, int, void*, const il2cpp::Method*);
 using RewardFn = void (*)(void*, void*, uint64_t, const il2cpp::Method*); // Nullable<LensType> is 8 bytes by value.
-using AffixFn = void (*)(void*, void**, int, bool, int, void*, bool, void*, void*, bool, const il2cpp::Method*);
 using LPFn = float (*)(void*, void*, void*, const il2cpp::Method*);
 using EchoFn = void (*)(void*, const void*, void*, bool, int, int, int, const il2cpp::Method*);
 ChargeFn originalCharge = nullptr;
 RewardFn originalReward = nullptr;
-AffixFn originalAffixes = nullptr;
 LPFn originalLP = nullptr;
 EchoFn originalEcho = nullptr;
 thread_local unsigned chargeDepth = 0, rewardDepth = 0, affixDepth = 0, enemyDepth = 0, echoDepth = 0;
@@ -147,8 +146,8 @@ void RewardDetour(void* self, void* actor, uint64_t lens, const il2cpp::Method* 
     })) fields.Restore();
     originalReward(self, actor, lens, method);
 }
-void AffixDetour(void* self, void** item, int level, bool compatible, int context, void* faction,
-    bool maxTier4, void* modifiers, void* ids, bool extra, const il2cpp::Method* method) {
+// Exalted / T7 around the game's GenerateAffixes: its one hook belongs to idols.cpp, which runs this scope.
+void AffixScope(void* self, int context, void (*call)(void*), void* data) {
     ++settings[Exalted].calls; ++settings[T7].calls;
     Borrowed fields;
     if (!affixDepth && rules::AffixContext(context) && (Active(Exalted) || Active(T7))) {
@@ -174,7 +173,7 @@ void AffixDetour(void* self, void** item, int level, bool compatible, int contex
         })) fields.Restore();
     }
     Depth depth(affixDepth);
-    originalAffixes(self, item, level, compatible, context, faction, maxTier4, modifiers, ids, extra, method);
+    call(data);
 }
 float LPDetour(void* self, void* unique, void* actor, const il2cpp::Method* method) {
     ++settings[LP].calls;
@@ -206,7 +205,6 @@ std::vector<HookSpec> Required() {
     std::vector<HookSpec> result;
     if (Active(Charge) || Active(Celerity) || Active(Charity) || boosts) result.push_back({chargeMethod, reinterpret_cast<void*>(&ChargeDetour), reinterpret_cast<void**>(&originalCharge)});
     if (Active(Reward) || Active(Duplication)) result.push_back({rewardMethod, reinterpret_cast<void*>(&RewardDetour), reinterpret_cast<void**>(&originalReward)});
-    if (Active(Exalted) || Active(T7)) result.push_back({affixMethod, reinterpret_cast<void*>(&AffixDetour), reinterpret_cast<void**>(&originalAffixes)});
     if (Active(LP)) result.push_back({lpMethod, reinterpret_cast<void*>(&LPDetour), reinterpret_cast<void**>(&originalLP)});
     if (Active(Echo)) result.push_back({echoMethod, reinterpret_cast<void*>(&EchoDetour), reinterpret_cast<void**>(&originalEcho)});
     return result;
@@ -219,7 +217,8 @@ void Reconcile() {
             fresh.push_back(h.method.code);
         }
         if (!loot::SetCoFDropDependency(Active(Enemy), &why)) throw std::runtime_error(why);
-        for (const auto& m : {chargeMethod, rewardMethod, affixMethod, lpMethod, echoMethod})
+        if (!idols::UseAffixScope(Active(Exalted) || Active(T7), &why)) throw std::runtime_error(why);
+        for (const auto& m : {chargeMethod, rewardMethod, lpMethod, echoMethod})
             if (std::none_of(required.begin(), required.end(), [&](const auto& h) { return h.method.code == m.code; }) &&
                 hook::IsInstalled(m.code) && !hook::Remove(m.code, &why)) throw std::runtime_error(why);
     } catch (...) {
@@ -256,6 +255,7 @@ bool Init() {
         slotProgress = Offset("ProphecySlot", "<ChargeInProgress>k__BackingField", "LE.Factions");
     }, &why);
     boostsObserver = &BoostsChanged;
+    idols::SetAffixScope(&AffixScope);
     Log("cof tuning: %s%s", ready ? "metadata ready" : "unavailable: ", ready ? "" : why.c_str()); return ready;
 }
 std::string Set(const std::string& name, double value) {

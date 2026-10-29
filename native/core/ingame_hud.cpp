@@ -1,7 +1,5 @@
-// Native equivalents of feed.html and damage.html, and the item category column beside the inventory.
-// Separate canvases, no external windows.
+// Native equivalents of feed.html and damage.html. Separate canvases, no external windows.
 #include "ingame_window.hpp"
-#include "convenience.hpp"
 #include "ingame_hud_rules.hpp"
 #include <windows.h>
 #include <wincrypt.h>
@@ -318,143 +316,27 @@ void Load(Hud& h,bool isDamage,void* parent){
     h.listener.Set(Add(root.go,"LE.dll","","UIMouseListener"));
     Draw(h);h.resumePending=isDamage&&On(h.optionsData["running"]);
 }
-// The item category column beside the game's inventory: per category a tick (its picked-up items go straight
-// to its stash tab), its name and how many of its items the inventory holds (opens the stash on its tab) and a dot
-// (the inventory shows only that category, the rest faint); below, Set up tabs (or Distribute) and Materials.
-// Shown while the inventory is open for an offline character, unless turned off (epochpact.categories.v1 column).
-struct Dock {
-    bool shown=false,wanted=true,dirty=true,down=false,underMouse=false,reading=false,busy=false,noteError=false;
-    int pressed=-1; float x=0,y=0,w=214,h=0; uint64_t nextRead=0,nextPlace=0,nextWanted=0;
-    Pin root,body,listener; std::vector<Hit> hits; J data; std::string drawn,note;
-};
-Dock dock;
-constexpr int kDockOwner=-12;
-void DockLabel(void* parent,float x,float y,float w,float height,const std::string& text,float size,Color color,bool right=false){
-    Style s{Face::Body,size,color};s.align=right?kRight:kLeft;auto label=TextBox(parent,"Category text",x,y,w,height,s,text);
-    int ellipsis=1;void* overflow[]{&ellipsis};Invoke(T("set_overflowMode",1),label,overflow);
-}
-void DockNote(const std::string& text,bool error){dock.note=text;dock.noteError=error;dock.dirty=true;}
-void DockSend(const std::string& line,bool reread=true){
-    if(dock.busy)return;
-    std::string why;if(!Eligible(&why)){DockNote(Tr("Load an offline character and wait for the area to finish loading."),true);return;}
-    dock.busy=true;
-    Send(line,[line,reread](const std::string& text){
-        dock.busy=false;std::string why;
-        if(Refused(text,&why)){DockNote(PlayerError(why),true);return;}
-        J reply;json::Parse(text,reply);
-        if(line.rfind("catsort ",0)==0){
-            std::string note=Tr("Moved to their tabs")+": "+Num(reply["moved"].Num());
-            if(reply["full"].Num()>0)note+=" · "+Tr("Tab full")+": "+Num(reply["full"].Num());
-            DockNote(note,false);
-        }else if(line.rfind("catsetup ",0)==0)DockNote(Tr("Tabs created")+": "+Num(reply["created"].Num()),false);
-        else if(!dock.note.empty())DockNote("",false);
-        if(reread){dock.nextRead=0;dock.dirty=true;}
-    });
-}
-void DockDraw(){
-    ForgetInputs(kDockOwner);DestroyNode(dock.body);dock.hits.clear();dock.dirty=false;
-    if(!dock.shown||!dock.data["categories"].IsArray()){if(dock.root)SetActive(GameObjectOf(dock.root.Get()),false);return;}
-    SetActive(GameObjectOf(dock.root.Get()),true);
-    const auto& cats=dock.data["categories"].items;const std::string filter=dock.data["filter"].Str();
-    bool missing=false;int waiting=0;
-    for(const auto& cat:cats){if(cat["tab"].IsNull())missing=true;if(On(cat["auto"]))waiting+=static_cast<int>(cat["inventory"].Num());}
-    const auto body=New("Categories body",dock.root.Get(),0,0,dock.w,400);dock.body.Set(body.rt);
-    auto background=Fill(body.rt,"Background",0,0,dock.w,400,Hex("#091310ea"),3);Raycast(background,true);
-    auto border=Outline(body.rt,"Border",0,0,dock.w,400,Hex("#92734088"),3);
-    Ctx c{&dock.hits,Area::Fixed,body.rt,0,0,kDockOwner};
-    DockLabel(body.rt,10,3,dock.w-20,22,Upper(Tr("Item categories")),10,Hex("#cbb581"));
-    const float rowH=24;float y=26;
-    for(const auto& cat:cats){
-        const auto key=cat["key"].Str();const bool ticked=On(cat["auto"]),only=filter==key,hasTab=!cat["tab"].IsNull();
-        const int held=static_cast<int>(cat["inventory"].Num());
-        if(only)Fill(body.rt,"Shown",4,y,dock.w-8,rowH,Hex("#80e2b120"),2);
-        CheckBox(body.rt,10,y+(rowH-14)/2,14,ticked);
-        Hit tick;tick.name="cat-auto:"+key;tick.x=4;tick.y=y;tick.w=26;tick.h=rowH;tick.action=[key,ticked]{DockSend("catauto "+key+(ticked?" 0":" 1"));};c.Add(std::move(tick));
-        DockLabel(body.rt,32,y,dock.w-96,rowH,Tr(cat["name"].Str()),12,hasTab?Hex("#eee6d5"):Hex("#8f9a95"));
-        DockLabel(body.rt,dock.w-64,y,28,rowH,held?std::to_string(held):"·",12,held?Hex("#eee6d5"):Hex("#6f7a75"),true);
-        Hit open;open.name="cat-open:"+key;open.x=30;open.y=y;open.w=dock.w-62;open.h=rowH;
-        open.action=[key,hasTab]{if(!hasTab){DockNote(Tr("Set up the category tabs first."),true);return;}DockSend("catopen "+key,false);};c.Add(std::move(open));
-        DockLabel(body.rt,dock.w-28,y,18,rowH,only?"●":"○",13,only?Hex("#80e2b1"):Hex("#aebdb7"),true);
-        Hit eye;eye.name="cat-show:"+key;eye.x=dock.w-32;eye.y=y;eye.w=32;eye.h=rowH;eye.action=[key,only]{DockSend("catshow "+(only?std::string("none"):key));};c.Add(std::move(eye));
-        y+=rowH;
-    }
-    y+=6;
-    const std::string id=model::Id(dock.data["player"]["id"]);
-    auto first=AddButton(c,8,y,Tr(missing?"Set up tabs":"Distribute"),Look::Small,[missing,id]{DockSend(std::string(missing?"catsetup ":"catsort ")+id);},false,missing?"cat-setup":"cat-sort");
-    if(!missing&&!waiting)SetEnabled(c,first,false);
-    AddButton(c,8+first.w+6,y,Tr("Materials"),Look::Small,[]{DockSend("catmaterials",false);},false,"cat-materials");
-    y+=first.h+6;
-    if(!dock.note.empty())y+=Muted(body.rt,10,y,dock.w-20,dock.note,11,1.35f)+4;
-    if(dock.noteError&&!dock.note.empty())Solid(body.rt,"Note mark",4,y-18,2,14,Hex("#e56c6c"));
-    dock.h=y+4;Resize(dock.root.Get(),dock.w,dock.h);Resize(body.rt,dock.w,dock.h);Resize(TransformOf(background),dock.w,dock.h);Resize(TransformOf(border),dock.w,dock.h);
-    Move(dock.root.Get(),dock.x,dock.y);
-}
-void DockInput(bool blocked){
-    float x=-1,y=-1;const bool front=Cursor(&x,&y);
-    const bool over=dock.shown&&front&&x>=dock.x&&y>=dock.y&&x<dock.x+dock.w&&y<dock.y+dock.h,interact=over&&!blocked;
-    if(interact!=dock.underMouse){bool under=interact;void* args[]{&under};Invoke(Find("LE.dll","","UIMouseListener","set_underMouse",1),dock.listener.Get(),args);dock.underMouse=interact;}
-    const bool down=front&&!blocked&&(GetAsyncKeyState(GetSystemMetrics(SM_SWAPBUTTON)?VK_RBUTTON:VK_LBUTTON)&0x8000);
-    const auto inside=[&](const Hit& hit){const float px=x-dock.x,py=y-dock.y;return hit.enabled&&px>=hit.x&&py>=hit.y&&px<hit.x+hit.w&&py<hit.y+hit.h;};
-    if(down&&!dock.down){dock.pressed=-1;if(interact)for(size_t i=0;i<dock.hits.size();++i)if(inside(dock.hits[i])){dock.pressed=static_cast<int>(i);break;}}
-    else if(!down&&dock.down){if(interact&&dock.pressed>=0&&dock.pressed<static_cast<int>(dock.hits.size())){const Hit hit=dock.hits[dock.pressed];if(inside(hit)&&hit.action)hit.action();}dock.pressed=-1;}
-    dock.down=down;
-}
-void DockPlace(){
-    const uint64_t now=GetTickCount64();if(now<dock.nextPlace)return;dock.nextPlace=now+200;
-    if(now>=dock.nextWanted){dock.nextWanted=now+1000;const auto p=Preference("epochpact.categories.v1");dock.wanted=!p.IsObject()||!p["column"].IsBool()||On(p["column"]);}
-    float l=0,t=0,r=0,b=0;
-    const bool show=dock.wanted&&Eligible()&&ep::convenience::InventoryBounds(&l,&t,&r,&b);
-    if(show!=dock.shown){dock.shown=show;dock.dirty=true;if(show)dock.nextRead=0;else dock.note.clear();}
-    if(!show)return;
-    float x=l*screenWidth-dock.w-6,y=t*screenHeight+56;
-    if(x<4)x=std::min(screenWidth-dock.w-4,r*screenWidth+6);
-    y=std::clamp(y,4.f,std::max(4.f,screenHeight-dock.h-4));
-    if(std::abs(x-dock.x)>.5f||std::abs(y-dock.y)>.5f){dock.x=x;dock.y=y;Move(dock.root.Get(),x,y);}
-}
-void DockPoll(){
-    if(!dock.shown||dock.reading||GetTickCount64()<dock.nextRead)return;dock.nextRead=GetTickCount64()+1500;dock.reading=true;
-    Send("catread",[](const std::string& text){dock.reading=false;J reply;if(!json::Parse(text,reply)||!On(reply["ok"]))return;
-        J shape=List();for(const auto& c:reply["categories"].items)shape.items.push_back(List({c["auto"],c["inventory"],c["tab"].IsNull()?Flag(false):Flag(true)}));
-        const auto key=Pack(shape)+Pack(reply["filter"])+model::Id(reply["player"]["id"]);dock.data=reply;if(key!=dock.drawn){dock.drawn=key;dock.dirty=true;}});
-}
-void DockStep(bool blocked){
-    if(!dock.root)return;
-    DockPlace();DockInput(blocked);DockPoll();
-    if(dock.dirty)DockDraw();
-}
-void DockLoad(void* parent){
-    dock=Dock{};const auto root=New("Item categories",parent,0,0,dock.w,10);dock.root.Set(root.rt);
-    dock.listener.Set(Add(root.go,"LE.dll","","UIMouseListener"));SetActive(root.go,false);
-}
 } // namespace
 void HudInit(void* parent,int width,int height){
     scale=std::clamp(height/900.f,.5f,2.f);screenWidth=width/scale;screenHeight=height/scale;
     const auto root=New("EpochPact HUD",parent,0,0,0,0);hudParent.Set(root.rt);const auto canvas=AddCanvas(root.go);int overlay=0,order=29990;void* a[]{&overlay};void* b[]{&order};void* z[]{&scale};
     Invoke(Find("UnityEngine.UIModule.dll","UnityEngine","Canvas","set_renderMode",1),canvas,a);Invoke(Find("UnityEngine.UIModule.dll","UnityEngine","Canvas","set_sortingOrder",1),canvas,b);Invoke(Find("UnityEngine.UIModule.dll","UnityEngine","Canvas","set_scaleFactor",1),canvas,z);
-    Add(root.go,"UnityEngine.UI.dll","UnityEngine.UI","GraphicRaycaster");Load(damage,true,root.rt);Load(feed,false,root.rt);DockLoad(root.rt);loaded=true;
+    Add(root.go,"UnityEngine.UI.dll","UnityEngine.UI","GraphicRaycaster");Load(damage,true,root.rt);Load(feed,false,root.rt);loaded=true;
 }
 bool HudActive(){return loaded&&(damage.open||feed.open);}
 bool HudShown(const std::string& name){return name=="damage"?damage.open:feed.open;}
 void ToggleHud(const std::string& name){auto& h=name=="damage"?damage:feed;if(h.open){HideHud(h);return;}h.open=true;h.dirty=true;h.nextRead=0;h.resumePending=h.damage&&On(h.optionsData["running"]);SavePlace(h);}
-void HudStep(bool blocked){if(!loaded)return;for(auto* h:{&damage,&feed}){if(h->dirty)Draw(*h);if(!h->open)continue;Input(*h,blocked);Poll(*h);if(h->dirty)Draw(*h);}DockStep(blocked);}
-void ReleaseHud(){damage=Hud{};feed=Hud{};dock=Dock{};hudParent.Reset();iconTries.clear();affixTries.clear();affixes.clear();loaded=false;}
+void HudStep(bool blocked){if(!loaded)return;for(auto* h:{&damage,&feed}){if(h->dirty)Draw(*h);if(!h->open)continue;Input(*h,blocked);Poll(*h);if(h->dirty)Draw(*h);}}
+void ReleaseHud(){damage=Hud{};feed=Hud{};hudParent.Reset();iconTries.clear();affixTries.clear();affixes.clear();loaded=false;}
 std::string HudState(){
     J result=Object();for(const auto* h:{&damage,&feed}){J state=Object(),cells=List();Put(state,"open",Flag(h->open));Put(state,"fixture",Flag(h->fixture));Put(state,"style",h->optionsData["style"]);Put(state,"w",Number(h->w));Put(state,"h",Number(h->h));
         for(const auto& cell:h->cells){auto row=Object();Put(row,"source",Text(cell.source));Put(row,"field",Text(cell.field));Put(row,"element",Number(cell.element));Put(row,"text",Text(cell.shown));cells.items.push_back(row);}Put(state,"cells",cells);
 #ifdef EPOCHPACT_TESTING
         auto icons=List();const auto model=Model(*h);for(const auto& row:model["sources"].items){const auto key=row["icon"].Str();if(DamageIconKey(key)&&assets::RuntimeSprite(key))icons.items.push_back(Text(key));}Put(state,"iconsLoaded",icons);
 #endif
-        Put(result,Name(*h),state);}
-    J column=Object(),rows=List();Put(column,"shown",Flag(dock.shown));Put(column,"wanted",Flag(dock.wanted));Put(column,"x",Number(dock.x));Put(column,"y",Number(dock.y));Put(column,"w",Number(dock.w));Put(column,"h",Number(dock.h));Put(column,"note",Text(dock.note));
-    for(const auto& hit:dock.hits){J row=Object();Put(row,"name",Text(hit.name));Put(row,"x",Number(dock.x+hit.x+hit.w/2));Put(row,"y",Number(dock.y+hit.y+hit.h/2));Put(row,"enabled",Flag(hit.enabled));rows.items.push_back(row);}
-    Put(column,"hits",rows);Put(column,"scale",Number(scale));Put(result,"categories",column);return Pack(result);
+        Put(result,Name(*h),state);}return Pack(result);
 }
 #ifdef EPOCHPACT_TESTING
-bool PressCategoryHit(const std::string& name){
-    if(!dock.shown)return false;
-    for(const auto& hit:dock.hits)if(hit.name==name&&hit.enabled&&hit.action){const auto action=hit.action;action();return true;}
-    return false;
-}
 bool HudFixture(const std::string& style){
     if(style!="quiet"&&style!="bars"&&style!="split"&&style!="table"&&style!="options")return false;
     auto& h=damage;h.fixture=true;h.open=true;h.options=style=="options";h.recap=false;h.scroll=0;h.selected="Fire Skeleton";h.optionsData=Object();Put(h.optionsData,"style",Text(style=="options"?"bars":style));Put(h.optionsData,"metric",Text("dps10"));Put(h.optionsData,"roster",Flag(true));Put(h.optionsData,"bar",Text("always"));

@@ -121,6 +121,7 @@ std::string Execute(const std::string& line) {
     if(cmd=="lootlog"){unsigned long long since=0;if(args.size()>1||(args.size()==1&&std::from_chars(args[0].data(),args[0].data()+args[0].size(),since).ec!=std::errc{}))return "{\"ok\":false,\"error\":\"use lootlog [since]\"}";return items::LootLog(since);}
     if(cmd=="lootlogclear")return args.empty()?items::ClearLootLog():"{\"ok\":false,\"error\":\"lootlogclear expects no arguments\"}";
     if(cmd=="remotepickup"){double value=0;if(args.empty())return items::Status().substr(items::Status().rfind("remotepickup:"));return args.size()==1&&statedit::Number(args[0],&value)?items::SetRemote(value):"remotepickup: refused: use remotepickup 0|1";}
+    if(cmd=="stashpickup"){double value=0;if(args.empty())return stashrules::PickupStatus();return args.size()==1&&statedit::Number(args[0],&value)?stashrules::SetStashPickup(value):"stashpickup: refused: use stashpickup 0|1";}
     if(cmd=="pickupnow")return args.empty()?items::PickupNow():"{\"ok\":false,\"error\":\"pickupnow expects no arguments\"}";
     if(cmd=="pickupradius"){double value=0;if(args.empty())return items::RadiusStatus();return args.size()==1&&statedit::Number(args[0],&value)?items::SetRadius(value):"{\"ok\":false,\"error\":\"use pickupradius 0..60\"}";}
     if(cmd=="reportread")return args.empty()?report::Read():"{\"ok\":false,\"error\":\"reportread expects no arguments\"}";
@@ -139,13 +140,6 @@ std::string Execute(const std::string& line) {
     if(cmd=="stashrulestest")return args.size()==2?stashrules::Test(args[0],args[1]):"{\"ok\":false,\"error\":\"use stashrulestest save-id action\"}";
 #endif
     if(cmd=="stashrulesort")return args.size()==1?stashrules::Sort(args[0]):"{\"ok\":false,\"error\":\"use stashrulesort save-id\"}";
-    if(cmd=="catread")return args.empty()?stashrules::CategoryRead():"{\"ok\":false,\"error\":\"catread expects no arguments\"}";
-    if(cmd=="catauto")return args.size()==2&&(args[1]=="0"||args[1]=="1")?stashrules::CategoryAuto(args[0],args[1]=="1"):"{\"ok\":false,\"error\":\"use catauto <category> 0|1\"}";
-    if(cmd=="catshow")return args.size()==1?stashrules::CategoryShow(args[0]):"{\"ok\":false,\"error\":\"use catshow <category>|none\"}";
-    if(cmd=="catsetup")return args.size()==1?stashrules::CategorySetup(args[0]):"{\"ok\":false,\"error\":\"use catsetup save-id\"}";
-    if(cmd=="catsort")return args.size()==1?stashrules::CategorySort(args[0]):"{\"ok\":false,\"error\":\"use catsort save-id\"}";
-    if(cmd=="catopen")return args.size()==1?stashrules::CategoryOpen(args[0]):"{\"ok\":false,\"error\":\"use catopen <category>\"}";
-    if(cmd=="catmaterials")return args.empty()?stashrules::CategoryMaterials():"{\"ok\":false,\"error\":\"catmaterials expects no arguments\"}";
     if(cmd=="inventoryaction")return args.size()==2?convenience::Inventory(args[0],args[1]):"{\"ok\":false,\"error\":\"use inventoryaction save-id stash|vendor|stashall|sellall\"}";
     if(cmd=="invread")return args.empty()?invtools::Read():"{\"ok\":false,\"error\":\"invread expects no arguments\"}";
     if(cmd=="invset"){long long value=-1;return args.size()==2&&statedit::Integer(args[1],0,2,&value)?invtools::Set(args[0],static_cast<int>(value)):"{\"ok\":false,\"error\":\"use invset autosort|autosortall 0|1 or invset sellkeep 0|1|2\"}";}
@@ -290,6 +284,11 @@ std::string Execute(const std::string& line) {
         if (args.size() != 1 || end == args[0].c_str() || *end) return cmd + ": refused: not a number: " + (args.empty() ? std::string() : args[0]);
         return cmd == "weaversdrop" ? weaver::SetShare(v) : weaver::SetSpeed(v);
     }
+    if (cmd == "idolmax") {
+        double v = 0;
+        if (args.empty()) return idols::Status();
+        return args.size() == 1 && statedit::Number(args[0], &v) ? idols::SetMost(v) : "idolmax: refused: use idolmax 0|1";
+    }
     if (cmd == "idolprefixes" || cmd == "idolsuffixes") {
         if (args.empty()) return idols::Status();
         char* end = nullptr;
@@ -303,6 +302,7 @@ std::string Execute(const std::string& line) {
         if (args.size() > 1 || (args.size() == 1 && !statedit::Integer(args[0], -360, 360, &yaw))) return "{\"ok\":false,\"error\":\"use transmogshot [yaw -360..360]\"}";
         return ingame::view::MirrorShot(static_cast<float>(yaw));
     }
+    if (cmd == "transmogpreview") return args.size() == 2 ? transmog::Preview(args[0], args[1]) : "{\"ok\":false,\"error\":\"use transmogpreview <slot> <look|none> or transmogpreview clear all\"}";
     if (cmd == "transmog") return args.size() == 2 ? transmog::Set(args[0], args[1]) : "{\"ok\":false,\"error\":\"use transmog <slot> <look|none>\"}";
     if (cmd == "enchanteruses") {
         if (args.empty()) return enchanter::Status();
@@ -320,7 +320,7 @@ std::string Execute(const std::string& line) {
     }
     if (cmd == "status") {
         std::string s = std::string("EpochPact ") + kVersion + "; gate: " + game::GateText() + "\n" + xp::Status() + "\n" +
-                        loot::Status() + "\n" + density::Status() + "\n" + monolith::Status() + "\n" + cof::Status() + "\n" + items::Status() + "\n" + weaver::Status() + "\n" + idols::Status() + "\n" + enchanter::Status() + "\n" + transmog::Status() + "\n" + uniquerolls::Status() + "\n" + player::Status() + "\nframe hook: " +
+                        loot::Status() + "\n" + density::Status() + "\n" + monolith::Status() + "\n" + cof::Status() + "\n" + items::Status() + "\n" + stashrules::PickupStatus() + "\n" + weaver::Status() + "\n" + idols::Status() + "\n" + enchanter::Status() + "\n" + transmog::Status() + "\n" + uniquerolls::Status() + "\n" + player::Status() + "\nframe hook: " +
                         (mainthread::HookInstalled() ? "in" : "out (idle)");
 #ifdef EPOCHPACT_RESEARCH
         s += "\n" + research::Status();

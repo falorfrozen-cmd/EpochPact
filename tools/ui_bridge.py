@@ -164,7 +164,7 @@ class UiBridge:
                 player = None
                 values = {}
                 for name in ("xp", "gold", "bones", "amber", "drops", "density", "rarity", "lprolls", "fpdrops", "weaverswill", "weaversupgrades",
-                             "speed", "cooldown", "idolprefixes", "idolsuffixes", "enchanteruses", "remotepickup"):
+                             "speed", "cooldown", "idolprefixes", "idolsuffixes", "enchanteruses", "remotepickup", "stashpickup", "idolmax"):
                     match = re.search(rf"(?m)^{name}: x([\d.eE+-]+)", status)
                     if match:
                         values[name] = float(match[1])

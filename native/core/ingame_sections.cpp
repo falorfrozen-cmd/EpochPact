@@ -997,6 +997,7 @@ void RegisterNativeSections() {
     RegisterSummonSections();
     RegisterDisplaySections();
     RegisterInventorySections();
+    RegisterWardrobeSections();
     RegisterCofSections();
     RegisterMonolithSections();
     RegisterCraftSections();

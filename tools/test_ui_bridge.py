@@ -260,7 +260,7 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','damageicon ','deathrecap','rageread','rageset ','invread','invset ','invsorttab ','summonread','inventoryread','inventoryaction ','affixinfo ','catread','catauto ','catshow ','catsetup ','catsort ','catopen ','catmaterials','transmog')):
+        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','damageicon ','deathrecap','rageread','rageset ','invread','invset ','invsorttab ','summonread','inventoryread','inventoryaction ','affixinfo ','transmog')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})
@@ -409,28 +409,6 @@ class BridgeTests(unittest.TestCase):
                     self.bridge.execute(control['id'], {'value': v})
         self.assertEqual(self.commands, [])
 
-    def test_item_category_controls_send_only_known_categories(self):
-        self.bridge.execute('category_auto', {'category': 'idol', 'value': 1})
-        self.assertEqual(self.commands[-1], 'catauto idol 1')
-        self.bridge.execute('category_show', {'category': 'none'})
-        self.assertEqual(self.commands[-1], 'catshow none')
-        self.bridge.execute('category_open', {'category': 'armour'})
-        self.assertEqual(self.commands[-1], 'catopen armour')
-        before = len(self.commands)
-        for bad in ('Idol', 'idol 1', 'none', '', None, 3, 'unique;catsetup 42'):
-            with self.subTest(bad=bad), self.assertRaises(ValueError):
-                self.bridge.execute('category_auto', {'category': bad, 'value': 1})
-        for bad in (2, -1, 0.5):
-            with self.subTest(value=bad), self.assertRaises(ValueError):
-                self.bridge.execute('category_auto', {'category': 'idol', 'value': bad})
-        with self.assertRaises(ValueError):
-            self.bridge.execute('category_open', {'category': 'none'})
-        self.assertEqual(len(self.commands), before)
-        self.bridge.execute('category_sort', {'expected_id': '42'})
-        self.assertEqual(self.commands[-1], 'catsort 42')
-        self.bridge.execute('category_setup', {'expected_id': '42'})
-        self.assertEqual(self.commands[-1], 'catsetup 42')
-
     def test_item_look_controls_send_only_known_slots_and_looks(self):
         self.bridge.execute('transmog_set', {'slot': 'body', 'look': 'u248'})
         self.assertEqual(self.commands[-1], 'transmog body u248')
@@ -444,6 +422,43 @@ class BridgeTests(unittest.TestCase):
             with self.subTest(slot=slot, look=look), self.assertRaises(ValueError):
                 self.bridge.execute('transmog_set', {'slot': slot, 'look': look})
         self.assertEqual(len(self.commands), before)
+
+    def test_idol_max_is_read_from_status_and_is_a_switch(self):
+        def status(command, **kwargs):
+            if command == 'status':
+                return ('EpochPact; gate: offline play [client only]\n'
+                        'idolprefixes: x3, hook in, idols 4, affixes added 9, faults 0\nidolsuffixes: x3\nidolmax: x1')
+            return self.send(command, **kwargs)
+        with patch.object(ui.le, 'send', side_effect=status):
+            live = self.bridge.connection()
+        self.assertEqual(live['values']['idolmax'], 1)
+        self.assertEqual(live['values']['idolprefixes'], 3)
+        for value in (0, 1):
+            self.bridge.execute('idolmax', {'value': value})
+            self.assertEqual(self.commands[-1], f'idolmax {value}')
+        sent = len(self.commands)
+        for bad in (2, -1, 0.5, '1', None):
+            with self.subTest(value=bad), self.assertRaises(ValueError):
+                self.bridge.execute('idolmax', {'value': bad})
+        self.assertEqual(len(self.commands), sent)
+
+    def test_stash_pickup_is_read_from_status_and_is_a_switch(self):
+        def status(command, **kwargs):
+            if command == 'status':
+                return ('EpochPact; gate: offline play [client only]\n'
+                        'stashpickup: x1, routed 2, no matching tab 5, tab full 0, not loaded 0, faults 0')
+            return self.send(command, **kwargs)
+        with patch.object(ui.le, 'send', side_effect=status):
+            live = self.bridge.connection()
+        self.assertEqual(live['values']['stashpickup'], 1)
+        for value in (0, 1):
+            self.bridge.execute('stashpickup', {'value': value})
+            self.assertEqual(self.commands[-1], f'stashpickup {value}')
+        sent = len(self.commands)
+        for bad in (2, -1, 0.5, '1', None):
+            with self.subTest(value=bad), self.assertRaises(ValueError):
+                self.bridge.execute('stashpickup', {'value': bad})
+        self.assertEqual(len(self.commands), sent)
 
     def test_remote_pickup_is_read_from_status_and_is_a_switch(self):
         def status(command, **kwargs):

@@ -80,6 +80,7 @@ def controls():
         ("skillnodes", "skills", "Ignore skill node connections", 0, 1, 0, True, "Allow allocation without the preceding skill nodes. Point budgets and individual node caps still apply."),
         ("passivenodes", "skills", "Ignore passive connections and mastery gates", 0, 1, 0, True, "Allocate passive nodes without their preceding connections or mastery thresholds. Actual mastery totals, point budgets and node caps are kept."),
         ("weavernodes", "skills", "Ignore Weaver node connections", 0, 1, 0, True, "Allow allocation without preceding Weaver nodes. Point budgets and node caps still apply."),
+        ("masteryskills", "skills", "Skills of your other masteries", 0, 1, 0, True, "The skills of your class's other masteries unlock as they do for your own mastery: with the points you put in their passive tree (for a Forge Guard, Paladin's Judgement at 30 and Symbols of Hope at 35 Paladin points). The skill each mastery gives when it is chosen (such as Holy Aura) stays with it. Switched off, those skills leave your skill bar."),
         ("offhand", "equipment", "Unrestricted offhand equipment", 0, 1, 0, True, "Allow weapons in the offhand and remove linked two-handed equipment conflicts. Normal level and class requirements still apply."),
         ("fullsets", "equipment", "Full set bonuses from one piece", 0, 1, 0, True, "Activate the missing bonuses of each equipped set. Removing its last piece removes the bonuses."),
         ("primordials", "equipment", "Wear any number of primordial items", 0, 1, 0, True, "Wear more than one primordial item (Primordial Unique or Exalted) and get the bonuses of all of them. Switched off, the game's limit of one returns: while you wear more, their bonuses stop until you take the extra items off."),
@@ -212,21 +213,6 @@ def controls():
     add("stash_rules_sort","inventory","Sort inventory by filter rule","button","stashrulesort {save_id}","game_save",
         "Move inventory items into the tab linked to the loot filter rule they match, using the game's exact filter match (affix conditions included). Creates a recovery backup.",
         params=[save_id],doc="docs/player-conveniences.md")
-    categories = parameter("category","enum",choices=["unique","exalted","idol","special","weapon","armour","jewellery","other"])
-    add("categories_read","inventory","Item categories","read","catread","read_only",
-        "Read the item categories: which are ticked, their stash tabs, and how many of their items are in the inventory and in each tab.",doc="docs/player-conveniences.md")
-    add("category_auto","inventory","Send picked-up items to the category tab","selector","catauto {category} {value}","session",
-        "Items of a ticked category go straight from the ground to its stash tab when you pick them up, with the game's own container move. An item stays in the inventory when the tab is full or the stash is not loaded yet. Remembered by EpochPact.",params=[categories,parameter("value","integer",0,1)],doc="docs/player-conveniences.md")
-    add("category_show","inventory","Show one category in the inventory","selector","catshow {category}","view",
-        "The inventory shows the items of one category as usual and the others faint; none shows every item again. Display only.",params=[{**categories,"choices":categories["choices"]+["none"]}],doc="docs/player-conveniences.md")
-    add("category_setup","inventory","Set up category tabs","button","catsetup {save_id}","game_save",
-        "Create the missing tabs, one per category (EP Unique & Set, EP Exalted, EP Idols, EP Keys & special, EP Weapons, EP Armour, EP Jewellery, EP Other), free of gold, in a stash folder named EpochPact. Tabs you already have are kept. Creates a recovery backup.",params=[save_id],doc="docs/player-conveniences.md")
-    add("category_sort","inventory","Distribute ticked categories","button","catsort {save_id}","game_save",
-        "Move the inventory's items of the ticked categories into their tabs. Items that do not fit stay in the inventory. Creates a recovery backup.",params=[save_id],doc="docs/player-conveniences.md")
-    add("category_open","inventory","Open a category tab","button","catopen {category}","view",
-        "Open the stash on a category's tab, from anywhere.",params=[categories],doc="docs/player-conveniences.md")
-    add("category_materials","inventory","Open crafting materials","button","catmaterials","view",
-        "Open the game's crafting materials panel, or close it when it is open.",doc="docs/player-conveniences.md")
     slot = parameter("slot", "integer", 0, 3, source="liveState.cofread.slots")
     reward = parameter("reward", "integer_or_none", 0, 65535, source="liveState.cofread.rewards[available=true].id")
     lens = parameter("lens", "integer_or_none", 0, 11, source="liveState.cofread.lenses[purchased=true].id")
@@ -287,6 +273,9 @@ def controls():
     ):
         mult(id, "general", label, id, 3, description, current=f"currentValues.{id}", doc="docs/player-conveniences.md")
         items[-1]["parameters"][0]["type"] = "integer"
+    add("idolmax", "general", "İdollerde her zaman en fazla affix", "toggle", "idolmax {value}", "session",
+        "Açıkken her yeni idol tam İdol prefix / suffix sayısı kadar affix alır (altar bir fazlası), 1 ile o sayı arasında değil.",
+        params=[value(0, 1)], default=0, reset="idolmax 0", response="text", current="currentValues.idolmax", doc="docs/player-conveniences.md")
     mult("enchanteruses", "general", "Woven Enchanter kullanım hakkı", "enchanteruses", 40,
          "ZoneRestrictedCraftingManager (CraftingType IdolEnchantment) maxUses değeri oyunun CalculateMaxUses sonucunun bu katı olur; karşılaşılan her Woven Enchanter'da ve o an sahnede olanda geçerli (OnUsesChanged ile pencere güncellenir). Memory Amber bedeli ve craft'ın kendisi oyununki; 1 oyunun kendisi.",
          current="currentValues.enchanteruses", doc="docs/player-conveniences.md")
@@ -298,6 +287,10 @@ def controls():
     add("remotepickup", "loot", "Uzaktan toplama", "toggle", "remotepickup {value}", "session",
         "GroundItemLabel.ClickedItem: tıklanan eşya, yer kaydı karakterin ayağına ödünç taşınarak oyunun requestPickup'ıyla yerinde alınır; oyun almazsa (envanter dolu) kendi yürüyüşü devam eder.",
         params=[value(0, 1)], default=0, reset="remotepickup 0", response="text", current="currentValues.remotepickup", doc="docs/player-conveniences.md")
+    add("stashpickup", "loot", "Toplarken sandık sekmesine", "toggle", "stashpickup {value}", "session",
+        "Toplanan eşya bir sonraki karede, oyunun StashItemContainer.GetTabIndexForTryAddItem ile seçtiği sekmenin (ya da klasörünün) Tab Priority koşulları "
+        "StashPriority.Match ile tutuyorsa o sekmeye taşınır; tutmuyorsa, sekme doluysa ya da sandık yüklenmediyse envanterde kalır.",
+        params=[value(0, 1)], default=0, reset="stashpickup 0", response="text", current="currentValues.stashpickup", doc="docs/player-conveniences.md")
     add("autopickup", "loot", "Otomatik pickup", "toggle", "autopickup {value}", "session",
         "Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0,25 saniye.",
         params=[value(0, 1)], default=0, reset="autopickup 0", response="text", current="currentValues.autopickup", doc="GEMINI.md")

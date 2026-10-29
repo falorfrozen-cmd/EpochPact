@@ -1,4 +1,4 @@
-// The character mirror of the Item looks section (F6 Equipment page): a camera of EpochPact's own renders the
+// The character mirror of the Wardrobe (F6 Wardrobe page): a camera of EpochPact's own renders the
 // loaded character into a texture the section shows. The camera stays disabled; the section's tick asks for one
 // Render per frame while its page is on screen, so nothing is drawn otherwise. Only the layers of the character's
 // own meshes are drawn, on a dark background, from the front of the character (turned by the section's yaw).
@@ -17,7 +17,7 @@ using managed::Invoke;
 using managed::Root;
 using managed::Value;
 
-constexpr int kTextureW = 480, kTextureH = 600;
+constexpr int kTextureW = 560, kTextureH = 700;
 constexpr float kFov = 24;
 
 struct Vec { float x, y, z; };
@@ -121,7 +121,7 @@ bool Measure(void* actor) {
 
 void* MirrorTexture() { return Texture(); }
 
-bool MirrorRender(float yaw) {
+bool MirrorRender(float yaw, bool closeUp) {
     void* actor = Invoke(game::FindMethod("LE.dll", "", "PlayerFinder", "getPlayerActor", 0).info);
     if (!actor || !game::IsAlive(actor)) return false;
     if (actor != framedActor || ++framedAge > 30) {
@@ -138,9 +138,10 @@ bool MirrorRender(float yaw) {
     // a character is about 2 units tall at scale 1: framed from the feet up, with a little room above the head
     const Vec scale = Value<Vec>(U("Transform", "get_lossyScale", 0), actorTransform);
     const float height = std::clamp(2.25f * scale.y, .8f, 6.f);
-    const Vec target{feet.x, feet.y + height * .47f, feet.z};
-    const float distance = height * .64f / std::tan(kFov * 3.14159265f / 360);
-    Vec at{target.x + fx / len * distance, target.y + height * .05f, target.z + fz / len * distance};
+    // close-up: the head and chest, where most looks show
+    const Vec target{feet.x, feet.y + height * (closeUp ? .74f : .47f), feet.z};
+    const float distance = height * (closeUp ? .3f : .64f) / std::tan(kFov * 3.14159265f / 360);
+    Vec at{target.x + fx / len * distance, target.y + height * (closeUp ? .02f : .05f), target.z + fz / len * distance};
     // only what stands within reach of the character: nothing behind it (other people in town) or in front
     float nearPlane = std::max(.05f, distance - 2.5f * scale.y), farPlane = distance + 2.5f * scale.y;
     void* na[]{&nearPlane};

@@ -51,6 +51,9 @@ constexpr int kStandard = 0, kIdolWeaver = 5;   // AffixList.SpecialAffixType
 constexpr int kMaximum = 3;
 
 std::atomic<int> g_prefixes{1}, g_suffixes{1};
+std::atomic<bool> g_most{false};  // idolmax: exactly n of each kind, not 1 to n
+std::atomic<AffixScope> g_scope{nullptr};
+std::atomic<bool> g_scopeWanted{false};
 std::atomic<uint64_t> g_idols{0}, g_added{0}, g_faults{0};
 
 game::MethodRef m_isValid, m_weighting, m_rollTier, m_already, m_rebuild, m_setValues, m_itemList, m_equipment, m_isWeaver,
@@ -158,7 +161,8 @@ void AddAffixes(void* generator, void* item, int ilvl, int context, void* modifi
         havePrefixes += kind == kPrefix;
         haveSuffixes += kind == kSuffix;
     }
-    const int wantPrefixes = havePrefixes + Below(prefixes), wantSuffixes = haveSuffixes + Below(suffixes);
+    const bool most = g_most.load(std::memory_order_relaxed);
+    const int wantPrefixes = havePrefixes + (most ? prefixes - 1 : Below(prefixes)), wantSuffixes = haveSuffixes + (most ? suffixes - 1 : Below(suffixes));
     if (havePrefixes >= wantPrefixes && haveSuffixes >= wantSuffixes) return;
     Idol d{generator, item, ilvl, context, type, rarity, modifiers};
     d.weaver = weaver;
@@ -195,9 +199,18 @@ enum Context { kShop = 1, kGambler = 2, kSoulGambler = 3 };
 using GenerateAffixesFn = void (*)(void*, void**, uintptr_t, uintptr_t, uintptr_t, void*, uintptr_t, void*, void*, uintptr_t, MethodInfo);
 GenerateAffixesFn o_generateAffixes = nullptr;
 
+struct GameCall { void* self; void** item; uintptr_t ilvl, uncraftable, context; void* faction; uintptr_t forceExalted; void* modifiers, *forbidden; uintptr_t conversion; MethodInfo m; };
+void CallGame(void* data) {
+    const auto* a = static_cast<const GameCall*>(data);
+    o_generateAffixes(a->self, a->item, a->ilvl, a->uncraftable, a->context, a->faction, a->forceExalted, a->modifiers, a->forbidden, a->conversion, a->m);
+}
+
 void d_generateAffixes(void* self, void** item, uintptr_t ilvl, uintptr_t uncraftable, uintptr_t context, void* faction, uintptr_t forceExalted,
                        void* modifiers, void* forbidden, uintptr_t conversion, MethodInfo m) {
-    o_generateAffixes(self, item, ilvl, uncraftable, context, faction, forceExalted, modifiers, forbidden, conversion, m);
+    GameCall call{self, item, ilvl, uncraftable, context, faction, forceExalted, modifiers, forbidden, conversion, m};
+    const AffixScope scope = g_scopeWanted.load(std::memory_order_relaxed) ? g_scope.load(std::memory_order_relaxed) : nullptr;
+    if (scope) scope(self, static_cast<int>(static_cast<uint32_t>(context)), &CallGame, &call);
+    else CallGame(&call);
     const int prefixes = g_prefixes.load(std::memory_order_relaxed), suffixes = g_suffixes.load(std::memory_order_relaxed);
     const int where = static_cast<int>(static_cast<uint32_t>(context));
     if ((prefixes <= 1 && suffixes <= 1) || !self || !item || !*item || where == kShop || where == kGambler || where == kSoulGambler ||
@@ -228,7 +241,8 @@ std::string Set(const char* cmd, std::atomic<int>& slot, double n) {
     std::string why;
     if (value == 1) {
         slot = 1;
-        if (g_prefixes.load() == 1 && g_suffixes.load() == 1 && !Take(h_generate, &why)) return std::string(cmd) + ": x1, but the hook stays: " + why;
+        if (g_prefixes.load() == 1 && g_suffixes.load() == 1 && !g_scopeWanted.load() && !Take(h_generate, &why))
+            return std::string(cmd) + ": x1, but the hook stays: " + why;
         return std::string(cmd) + " -> x1 (the game's own)";
     }
     if (!ready) return std::string(cmd) + ": refused: the game's affix methods were not found in this game build";
@@ -274,13 +288,28 @@ bool Init() {
 }
 
 std::string SetPrefixes(double n) { return Set("idolprefixes", g_prefixes, n); }
+std::string SetMost(double on) {
+    if (on != 0.0 && on != 1.0) return "idolmax: refused: use 0 (1 to n of each kind) or 1 (always n)";
+    g_most = on != 0.0;
+    return on != 0.0 ? "idolmax -> on (every idol gets the full number of prefixes and suffixes)" : "idolmax -> off (1 to that many)";
+}
+void SetAffixScope(AffixScope scope) { g_scope = scope; }
+bool UseAffixScope(bool on, std::string* why) {
+    if (on) {
+        if (!Put(h_generate, why)) return false;
+        g_scopeWanted = true;
+        return true;
+    }
+    g_scopeWanted = false;
+    return (g_prefixes.load() > 1 || g_suffixes.load() > 1) || Take(h_generate, why);
+}
 std::string SetSuffixes(double n) { return Set("idolsuffixes", g_suffixes, n); }
 
 std::string Status() {
     char buf[320];
-    std::snprintf(buf, sizeof buf, "idolprefixes: x%d, hook %s, idols %llu, affixes added %llu, faults %llu\nidolsuffixes: x%d", g_prefixes.load(),
+    std::snprintf(buf, sizeof buf, "idolprefixes: x%d, hook %s, idols %llu, affixes added %llu, faults %llu\nidolsuffixes: x%d\nidolmax: x%d", g_prefixes.load(),
                   In(h_generate) ? "in" : "out", static_cast<unsigned long long>(g_idols.load()), static_cast<unsigned long long>(g_added.load()),
-                  static_cast<unsigned long long>(g_faults.load()), g_suffixes.load());
+                  static_cast<unsigned long long>(g_faults.load()), g_suffixes.load(), g_most.load() ? 1 : 0);
     return buf;
 }
 
