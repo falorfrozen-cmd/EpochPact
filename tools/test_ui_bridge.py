@@ -260,7 +260,7 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','damageicon ','deathrecap','rageread','rageset ','invread','invset ','invsorttab ','summonread','inventoryread','inventoryaction ','affixinfo ')):
+        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','damageicon ','deathrecap','rageread','rageset ','invread','invset ','invsorttab ','summonread','inventoryread','inventoryaction ','affixinfo ','catread','catauto ','catshow ','catsetup ','catsort ','catopen ','catmaterials')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})
@@ -406,6 +406,28 @@ class BridgeTests(unittest.TestCase):
                 with self.subTest(id=control['id'], value=v), self.assertRaises(ValueError):
                     self.bridge.execute(control['id'], {'value': v})
         self.assertEqual(self.commands, [])
+
+    def test_item_category_controls_send_only_known_categories(self):
+        self.bridge.execute('category_auto', {'category': 'idol', 'value': 1})
+        self.assertEqual(self.commands[-1], 'catauto idol 1')
+        self.bridge.execute('category_show', {'category': 'none'})
+        self.assertEqual(self.commands[-1], 'catshow none')
+        self.bridge.execute('category_open', {'category': 'armour'})
+        self.assertEqual(self.commands[-1], 'catopen armour')
+        before = len(self.commands)
+        for bad in ('Idol', 'idol 1', 'none', '', None, 3, 'unique;catsetup 42'):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self.bridge.execute('category_auto', {'category': bad, 'value': 1})
+        for bad in (2, -1, 0.5):
+            with self.subTest(value=bad), self.assertRaises(ValueError):
+                self.bridge.execute('category_auto', {'category': 'idol', 'value': bad})
+        with self.assertRaises(ValueError):
+            self.bridge.execute('category_open', {'category': 'none'})
+        self.assertEqual(len(self.commands), before)
+        self.bridge.execute('category_sort', {'expected_id': '42'})
+        self.assertEqual(self.commands[-1], 'catsort 42')
+        self.bridge.execute('category_setup', {'expected_id': '42'})
+        self.assertEqual(self.commands[-1], 'catsetup 42')
 
     def test_pickup_category_reset_formats_each_actual_category(self):
         for category in ('materials', 'gold', 'potions', 'xp', 'favor', 'bones', 'amber'):

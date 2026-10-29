@@ -121,6 +121,7 @@ void ReleaseHud();
 std::string HudState();
 #ifdef EPOCHPACT_TESTING
 bool HudFixture(const std::string& style);
+bool PressCategoryHit(const std::string& name);  // the category column's control of that name, without mouse input
 #endif
 void ForgetInputs(int owner);
 float DrawHudRecap(const Ctx& c, float x, float y, float w, int* index, Action changed);

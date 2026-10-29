@@ -411,14 +411,17 @@ game::MethodRef ListOverload(const char* cls, const char* name, uint32_t count) 
     }
     return ref;
 }
+std::atomic<PickupObserver> g_pickupObserver{nullptr};
 using PickupItemFn = void (*)(void* self, void* list, void* actor, uint32_t id, int flags, const Method* m);
 PickupItemFn o_pickupItem = nullptr;
 void d_pickupItem(void* self, void* list, void* actor, uint32_t id, int flags, const Method* m) {
     LootEntry entry; bool described = false;
     const bool automatic = t_autoPickup;
+    std::unique_ptr<managed::Root> ground;  // the item, for its category after the pickup
     if (!game::Guarded([&] {
         void* record = FindRecord(list, 0, id);
         void* item = record ? managed::Get<void*>(record, g_groundItemData) : nullptr;
+        if (item) ground = std::make_unique<managed::Root>(item);
         if (item) described = DescribeItem(item, &entry);
     }, nullptr)) g_logFaults.fetch_add(1, std::memory_order_relaxed);
     const uint32_t previousId = t_pickupId;
@@ -431,6 +434,7 @@ void d_pickupItem(void* self, void* list, void* actor, uint32_t id, int flags, c
     if (game::Guarded([&] { picked = FindRecord(list, 0, id) == nullptr; }, nullptr) && picked) {
         entry.automatic = automatic;
         PushLoot(std::move(entry));
+        if (const auto observer = g_pickupObserver.load(); observer && ground) observer(ground->Get());
     }
 }
 // Picking up an affix shard, rune or glyph makes the game take the nearby ones too
@@ -910,6 +914,7 @@ std::string SetAuto(double on) {
 std::string Status() { return feature::Line(g_rarity) + "\n" + feature::Line(g_weaversWill) + "\n" + feature::Line(g_lpRolls) + "\n" + ForgingPotentialStatus() + "\n" + AutoStatus(); }
 
 bool IsInspectingItem(){return InspectingItem();}
+void SetPickupObserver(PickupObserver observer){g_pickupObserver=observer;}
 std::string RadiusStatus(){
     char interval[32];std::snprintf(interval,sizeof interval,"%.2f",g_intervalMs.load()/1000.0);
     return "{\"ok\":true,\"radius\":"+std::to_string(g_radius.load())+",\"allLoaded\":"+(g_radius.load()==0?"true":"false")+

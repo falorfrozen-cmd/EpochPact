@@ -2100,6 +2100,210 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "categories_read",
+      "group": "inventory",
+      "label": "Item categories",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "catread",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read the item categories: which are ticked, their stash tabs, and how many of their items are in the inventory and in each tab.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "category_auto",
+      "group": "inventory",
+      "label": "Send picked-up items to the category tab",
+      "widget": "selector",
+      "availability": "implemented",
+      "commandTemplate": "catauto {category} {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "category",
+          "type": "enum",
+          "choices": [
+            "unique",
+            "exalted",
+            "idol",
+            "special",
+            "weapon",
+            "armour",
+            "jewellery",
+            "other"
+          ]
+        },
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "session",
+      "description": "Items of a ticked category go straight from the ground to its stash tab when you pick them up, with the game's own container move. An item stays in the inventory when the tab is full or the stash is not loaded yet. Remembered by EpochPact.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "category_show",
+      "group": "inventory",
+      "label": "Show one category in the inventory",
+      "widget": "selector",
+      "availability": "implemented",
+      "commandTemplate": "catshow {category}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "category",
+          "type": "enum",
+          "choices": [
+            "unique",
+            "exalted",
+            "idol",
+            "special",
+            "weapon",
+            "armour",
+            "jewellery",
+            "other",
+            "none"
+          ]
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "view",
+      "description": "The inventory shows the items of one category as usual and the others faint; none shows every item again. Display only.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "category_setup",
+      "group": "inventory",
+      "label": "Set up category tabs",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "catsetup {save_id}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "game_save",
+      "description": "Create the missing tabs, one per category (EP Unique & Set, EP Exalted, EP Idols, EP Keys & special, EP Weapons, EP Armour, EP Jewellery, EP Other), free of gold, in a stash folder named EpochPact. Tabs you already have are kept. Creates a recovery backup.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "category_sort",
+      "group": "inventory",
+      "label": "Distribute ticked categories",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "catsort {save_id}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "game_save",
+      "description": "Move the inventory's items of the ticked categories into their tabs. Items that do not fit stay in the inventory. Creates a recovery backup.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "category_open",
+      "group": "inventory",
+      "label": "Open a category tab",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "catopen {category}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "category",
+          "type": "enum",
+          "choices": [
+            "unique",
+            "exalted",
+            "idol",
+            "special",
+            "weapon",
+            "armour",
+            "jewellery",
+            "other"
+          ]
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "view",
+      "description": "Open the stash on a category's tab, from anywhere.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "category_materials",
+      "group": "inventory",
+      "label": "Open crafting materials",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "catmaterials",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "view",
+      "description": "Open the game's crafting materials panel, or close it when it is open.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "atlas_read",
       "group": "atlas",
       "label": "Unique Atlas",
@@ -34559,7 +34763,7 @@
     ]
   },
   "counts": {
-    "controls": 207,
+    "controls": 214,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

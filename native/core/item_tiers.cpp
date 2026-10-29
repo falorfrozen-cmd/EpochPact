@@ -9,6 +9,7 @@
 #include "mainthread.hpp"
 #include "managed.hpp"
 #include "smart_loot.hpp"
+#include "stash_rules.hpp"
 #include <algorithm>
 #include <array>
 #include <functional>
@@ -16,6 +17,7 @@
 #include <cmath>
 #include <cstdio>
 #include <map>
+#include <set>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -64,6 +66,10 @@ uint32_t lastRuleColor = 0;
 std::atomic<bool> ruleCustom{false};
 std::atomic<uint32_t> ruleCustomColor{0xFFFFFF};
 std::map<void*, std::unique_ptr<Root>> labels;  // InventoryItemUI -> our TMP label
+// The item category view (catshow): inventory items of other categories are drawn faint through the item's own
+// CanvasGroup; these are the ones made faint, set back when the view changes.
+std::set<void*> dimmed;
+uint64_t dimUpdates = 0;
 // A tooltip text we changed: its own colour, and for affix lines the game's
 // original text and the affix tier, so it can be re-drawn or restored exactly.
 struct SavedColor { std::unique_ptr<Root> text; Color color; std::string original; int tier = 0; int kind = 0; };  // kind: 1 personal, 2 champion, 3 experimental
@@ -203,18 +209,38 @@ void UpdateIcon(void* ui) {
     if (show) { Root text(il2cpp::api().string_new(LabelText(tiers).c_str())); void* a[]{text.Get()}; Invoke(Method(label, "set_text", 1), label, a); }
     SetActive(label, show);
 }
+constexpr int kInventoryContainer = 1;  // ContainerID.INVENTORY
+bool CategoryView() { return stashrules::CategoryFilter() >= 0 || !dimmed.empty(); }
+void Dim(void* ui) {
+    const int filter = stashrules::CategoryFilter();
+    bool faint = false;
+    if (filter >= 0) {
+        void* parent = Get<void*>(ui, F("InventoryItemUI", "parentContainer"));
+        void* entry = Get<void*>(ui, F("InventoryItemUI", "<EntryRef>k__BackingField"));
+        void* item = entry ? Get<void*>(entry, F("ItemContainerEntry", "data")) : nullptr;
+        faint = parent && item && Get<int>(parent, F("ItemContainerUI", "identifier")) == kInventoryContainer && stashrules::CategoryOf(item) != filter;
+    }
+    if (!faint && !dimmed.count(ui)) return;
+    void* group = Get<void*>(ui, F("InventoryItemUI", "group"));
+    if (!group || !game::IsAlive(group)) { dimmed.erase(ui); return; }
+    float alpha = faint ? .22f : 1.f;
+    void* a[]{&alpha};
+    Invoke(M("CanvasGroup", "set_alpha", 1, "UnityEngine", "UnityEngine.UIModule.dll"), group, a);
+    if (faint) dimmed.insert(ui); else dimmed.erase(ui);
+    ++dimUpdates;
+}
 void d_update(void* self, MethodInfo m) {
     o_update(self, m);
-    if (lifecycle::Stopping() || (!iconsOn.load() && labels.empty())) return;
+    if (lifecycle::Stopping() || (!iconsOn.load() && labels.empty() && !CategoryView())) return;
     ++iconUpdates;
-    if (!game::Guarded([&] { UpdateIcon(self); }, nullptr)) ++faults;
+    if (!game::Guarded([&] { UpdateIcon(self); Dim(self); }, nullptr)) ++faults;
 }
 // Opening a panel re-enables pooled item icons without UpdateContent.
 void d_enable(void* self, MethodInfo m) {
     o_enable(self, m);
-    if (lifecycle::Stopping() || (!iconsOn.load() && labels.empty())) return;
+    if (lifecycle::Stopping() || (!iconsOn.load() && labels.empty() && !CategoryView())) return;
     ++iconUpdates;
-    if (!game::Guarded([&] { UpdateIcon(self); }, nullptr)) ++faults;
+    if (!game::Guarded([&] { UpdateIcon(self); Dim(self); }, nullptr)) ++faults;
 }
 void ColorText(void* text, uint32_t rgb) {
     if (!text || !game::IsAlive(text)) return;
@@ -539,7 +565,7 @@ std::string State() {
         << ",\"ruleColor\":" << Json(ruleCustom.load() ? Hex(ruleCustomColor.load()) : std::string("label")) << ",\"palette\":[";
     for (size_t i = 0; i < palette.size(); ++i) { if (i) out << ','; out << Json(Hex(palette[i])); }
     out << "],\"labels\":" << labels.size() << ",\"coloredTexts\":" << tooltipColors.size() << ",\"iconUpdates\":" << iconUpdates
-        << ",\"tooltipUpdates\":" << tooltipUpdates << ",\"tooltipMismatches\":" << tooltipMismatches << ",\"compareUpdates\":" << compareUpdates << ",\"scanned\":" << scanned << ",\"created\":" << created << ",\"noItem\":" << noItem << ",\"noTiers\":" << noTiers << ",\"noQuantityText\":" << noQuantity << ",\"lastTooltipTier\":" << lastTooltipTier << ",\"faults\":" << faults
+        << ",\"tooltipUpdates\":" << tooltipUpdates << ",\"tooltipMismatches\":" << tooltipMismatches << ",\"compareUpdates\":" << compareUpdates << ",\"scanned\":" << scanned << ",\"created\":" << created << ",\"noItem\":" << noItem << ",\"noTiers\":" << noTiers << ",\"noQuantityText\":" << noQuantity << ",\"lastTooltipTier\":" << lastTooltipTier << ",\"dimmed\":" << dimmed.size() << ",\"dimUpdates\":" << dimUpdates << ",\"faults\":" << faults
         << ",\"available\":" << Boolean(m_updateContent && m_enable && TooltipHooks()) << '}';
     return out.str();
 }
@@ -688,6 +714,14 @@ bool Init() {
         m_compareAffixesText ? "ready" : "unavailable");
     return m_updateContent && TooltipHooks();
 }
+void RefreshCategoryView() {
+    if (stashrules::CategoryFilter() >= 0) {
+        if (!m_updateContent || !m_enable) throw std::runtime_error("The category view is unavailable in this game build.");
+        EnsureHook(m_updateContent, reinterpret_cast<void*>(&d_update), reinterpret_cast<void**>(&o_update));
+        EnsureHook(m_enable, reinterpret_cast<void*>(&d_enable), reinterpret_cast<void**>(&o_enable));
+    }
+    for (void* ui : FindObjects("LE.dll", "", "InventoryItemUI")) if (ui && game::IsAlive(ui)) game::Guarded([&] { Dim(ui); }, nullptr);
+}
 std::string Read() { return Run([] { return State(); }); }
 std::string Set(const std::string& key, int value) {
     const bool flag = key == "icons" || key == "tooltips" || key == "lines" || key == "rules" || key == "ruleplain" || key == "special" || key == "namecolors" || key == "filtercolors";
@@ -770,7 +804,7 @@ void ReleaseRoots() {
     // The game is closing: the colour list keeps its own references; only ours are let go.
     for (auto& list : colorLists) { list.extended.reset(); list.original.reset(); list.made.clear(); list.gameCount = 0; }
     filterColorsOn = false;
-    labels.clear(); tooltipColors.clear();
+    labels.clear(); tooltipColors.clear(); dimmed.clear();
     for (auto& slot : ruleLabels) slot.reset();
     iconsOn = false; tooltipsOn = false; linesOn = false; rulesOn = false; rulePlain = false; rulePosition = 0; ruleCustom = false;
 }

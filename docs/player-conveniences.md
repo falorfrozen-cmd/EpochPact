@@ -644,6 +644,43 @@ stash closed and selects it again when the stash opens after a game restart (the
 game itself keeps it within one session). The tab is stored as a single number in
 `<game>/EpochPact/stash-tab.txt`. A deleted tab falls back to the game's default.
 
+### Item categories
+
+Eight categories, each with its own stash tab: **Unique & Set** (Uniques, Sets and
+Legendaries), **Exalted**, **Idols**, **Keys & special** (blessings, lenses, keys and
+other special items), **Weapons** (with off-hands), **Armour**, **Jewellery** and
+**Other**. Materials go to the game's own material storage as before; the
+**Materials** button opens the game's crafting materials panel.
+
+- **Set up category tabs** (Inventory page, or **Set up tabs** in the in-game
+  column) creates the missing tabs `EP Unique & Set` … `EP Other`, **free of gold**,
+  in a stash folder named **EpochPact**. Tabs you already have are kept; running it
+  again only adds missing ones. A recovery backup is written first.
+- **Tick a category** to send its items straight from the ground to its tab when
+  you pick them up (by hand or by auto pickup), with the game's own container
+  move. Unticked categories stay in the inventory, so they are at hand without
+  opening the stash. An item stays in the inventory when its tab is full, has
+  been deleted, or the stash is not loaded yet. The ticks are kept in
+  `<game>/EpochPact/item-categories.txt`.
+- **Distribute ticked categories** (**Distribute** in the column) moves the
+  inventory's items of the ticked categories into their tabs, for example after
+  ticking one. Items that do not fit stay. A recovery backup is written first.
+- **Open tab** (the category's name in the column) opens the stash on that
+  category's tab from anywhere; the stash tab memory takes that tab too.
+- **Show only** (the dot in the column) shows one category in the inventory as
+  usual and the other items faint; pressing it again shows every item. Display
+  only.
+
+The in-game column sits beside the game's inventory while it is open (also next
+to the stash), for an offline character. Each row has the tick, the category's
+name with how many of its items the inventory holds, and the dot. **Show the
+category column beside the inventory in the game** (Inventory page) turns it off
+and on. The same controls are on the Inventory page of the app and of the F6
+window, with the count of items in each tab once the stash has been opened.
+Commands: `catread`, `catauto <category> 0|1`, `catshow <category|none>`,
+`catopen <category>`, `catsetup <save id>`, `catsort <save id>`, `catmaterials`
+(category keys: unique, exalted, idol, special, weapon, armour, jewellery, other).
+
 ### Stash tabs from the loot filter
 
 The Inventory page reads the active loot filter's rules and your stash folders

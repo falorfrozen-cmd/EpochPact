@@ -3734,7 +3734,8 @@ std::string Panel(const std::string& action) {
         if (name.rfind("click:", 0) == 0) {
             const auto control=name.substr(6);
             const bool save=control=="craft_materials" || control=="craft_forge" || control=="craft_custom";
-            const bool view=control=="craft_custom_catalog" || control=="spawn_list" || control=="spawn_item" || control.rfind("spawn-",0)==0 || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0;
+            const bool view=control=="craft_custom_catalog" || control=="spawn_list" || control=="spawn_item" || control.rfind("spawn-",0)==0 || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0
+                || control=="categories_read" || control.rfind("category-",0)==0;
             if (!save && !view) throw std::runtime_error("Control not in QA allowlist");
             if (win.dialogOpen || win.listOpen) throw std::runtime_error("Dismiss the current dialog first");
             for(int id:win.pages[win.page].sections) if(!Sec(id).hidden) for(const auto& h:Sec(id).hits)
@@ -3766,6 +3767,13 @@ std::string Panel(const std::string& action) {
     if (action == "read") return Run([] { return State(); });
     if (action == "measure") return Run([] { return Measure(); });
     if (action == "kern") return Run([] { return Kerning(); });
+#ifdef EPOCHPACT_TESTING
+    // Testing builds: a category column control (catpress:cat-open:unique) as a click would run it.
+    if (action.rfind("catpress:", 0) == 0) return Run([action] {
+        if (!view::PressCategoryHit(action.substr(9))) return std::string("{\"ok\":false,\"error\":\"no such category control shown\"}");
+        return std::string("{\"ok\":true}");
+    });
+#endif
     // View/local-preference navigation for background verification. No arbitrary hit
     // invocation: opening these views can only request data, never apply a bonus/save action.
     if (action.rfind("page:", 0) == 0 || action.rfind("stat:", 0) == 0 || action.rfind("collection:", 0) == 0 || action.rfind("search:",0)==0 || action.rfind("scroll:",0)==0 || action.rfind("dialogscroll:",0)==0 || action.rfind("hud:",0)==0 || action.rfind("layout:",0)==0 || action.rfind("window:",0)==0 || action.rfind("tab:",0)==0 || action == "dismiss" || action == "statadvanced") return Run([action] {

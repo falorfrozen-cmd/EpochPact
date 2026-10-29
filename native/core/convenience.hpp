@@ -16,6 +16,11 @@ std::string DeathRecap(const std::string& action);
 std::string SetArea(const std::string& key, const std::string& value);
 std::string InventoryRead();
 std::string Inventory(const std::string& expectedId,const std::string& action);
+// The stash opens next on this tab (one EpochPact opened): the stash tab memory remembers it. Main thread.
+void PreferStashTab(int tab);
+// The open inventory panel's frame as fractions of the screen, from its top-left corner; false while the
+// inventory is closed. Main thread.
+bool InventoryBounds(float* left,float* top,float* right,float* bottom);
 void ReleaseRoots();
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
 std::string Test(const std::string& id,const std::string& action);

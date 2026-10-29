@@ -111,6 +111,164 @@ void MakeInventoryShortcuts(Section& s) {
     };
 }
 
+std::string Counted(double n, const char* one, const char* many);
+// ---------------------------------------------------------------------------- item categories
+// app.js categoriesPanel: each category with its tick (its picked-up items go straight to its tab), how many
+// of its items are in the inventory and in its tab, Open tab and Show only; the in-game column choice; Set up
+// category tabs, Distribute ticked categories and Open crafting materials. The catread reply is the state.
+const char* const kCategoryKeys[]{"unique", "exalted", "idol", "special", "weapon", "armour", "jewellery", "other"};
+const char* const kCategoryNames[]{"Unique & Set", "Exalted", "Idols", "Keys & special", "Weapons", "Armour", "Jewellery", "Other"};
+std::string CategoryName(const std::string& key) {
+    for (size_t i = 0; i < std::size(kCategoryKeys); ++i) if (key == kCategoryKeys[i]) return Tr(kCategoryNames[i]);
+    return key;
+}
+// For the loaded character only (the inventory read names the character the page shows).
+const JValue* CurrentCategories() {
+    const JValue* s = Cached("catread");
+    if (!s || !(*s)["categories"].IsArray()) return nullptr;
+    const JValue* inv = Cached("inventoryread");
+    if (inv && !IdOf(inv->Path("player.id")).empty() && IdOf(inv->Path("player.id")) != IdOf(s->Path("player.id"))) return nullptr;
+    return s;
+}
+bool ColumnShown() {
+    const auto p = Preference("epochpact.categories.v1");
+    return !p.IsObject() || !p["column"].IsBool() || p["column"].boolean;
+}
+void CategoryCommand(const std::string& line) {
+    Send(line, [](const std::string& reply) {
+        std::string why;
+        if (Refused(reply, &why)) Toast(PlayerError(why), true);
+        Forget("catread");
+        Read("catread");
+    });
+}
+void CategorySave(const std::string& kind) {
+    const JValue* s = Cached("catread");
+    ActionRun run;
+    run.command = kind == "setup" ? "catsetup {save_id}" : "catsort {save_id}";
+    run.expectId = s ? IdOf(s->Path("player.id")) : "";
+    run.confirmTitle = Tr(Ctl(kind == "setup" ? "category_setup" : "category_sort").label);
+    const JValue* inv = Cached("inventoryread");
+    const std::string name = inv && inv->Path("player.name") ? inv->Path("player.name")->Str() : "";
+    run.confirmMessage = kind == "setup" ? Tr("Create the missing category tabs, free of gold, in a stash folder named EpochPact. A recovery backup is created first.")
+                         : name.empty() ? Tr("Move the loaded character's inventory items of the ticked categories into their tabs. Items that do not fit stay in the inventory. A recovery backup is created first.")
+                                        : Fmt("Move {0}'s inventory items of the ticked categories into their tabs. Items that do not fit stay in the inventory. A recovery backup is created first.", {name});
+    run.success = [kind](const JValue& v) {
+        std::vector<std::string> parts;
+        if (kind == "setup") {
+            parts.push_back(Counted(v["created"].Num(0), "1 tab created", "{0} tabs created"));
+            if (v["atLimit"].Num(0)) parts.push_back(Fmt("{0} over the game's tab limit", {Num(v["atLimit"].Num(0))}));
+        } else {
+            parts.push_back(Counted(v["moved"].Num(0), "1 item moved", "{0} items moved"));
+            if (v["full"].Num(0)) parts.push_back(Fmt("{0} did not fit", {Num(v["full"].Num(0))}));
+        }
+        std::string out;
+        for (const auto& p : parts) out += (out.empty() ? "" : ", ") + p;
+        return out + ".";
+    };
+    run.reread = {"catread"};
+    RunAction(run);
+}
+void MakeItemCategories(Section& s) {
+    s.reads.insert("inventoryread");
+    s.reads.insert("catread");
+    s.build = [](Section&, const Ctx& c) {
+        return InPanel(c, [](const Ctx& in, float y) {
+            const JValue* st = CurrentCategories();
+            const bool eligible = ViewReason().empty();
+            y += HeadWithButton(in, y, Tr("Item categories"), Tr(st ? "Refresh" : "Read categories"), [] { Forget("catread"); Read("catread"); }, "categories_read",
+                                eligible) + 16;
+            y += Muted(in.parent, kPanelPad, y, kPanelInner,
+                       Tr("Eight categories, each with its own stash tab in a folder named EpochPact. Tick a category to send its items straight to its tab when you "
+                          "pick them up; the others stay in your inventory. In the game a column beside the inventory has the same ticks, opens a category's tab "
+                          "with one click and can show one category in the inventory with the others faint.")) + 10;
+            y += 14;  // .actions > label.inline-check
+            CheckField(in, kPanelPad, y, Tr("Show the category column beside the inventory in the game"), ColumnShown(), [](bool on) {
+                const std::string text = std::string("{\"column\":") + (on ? "true" : "false") + "}";
+                if (!StorePreference("epochpact.categories.v1", &text)) Toast(Tr("Could not save local preferences."), true);
+            }, "categories-column");
+            y += 18 + 18;
+            if (!st) return y + EmptyText(in.parent, kPanelPad, y, kPanelInner, Tr("Read the categories of the loaded character.")) + 10;
+            const auto& list = (*st)["categories"].items;
+            const std::string filter = (*st)["filter"].Str();
+            bool missing = false;
+            for (const auto& cat : list) if (cat["tab"].IsNull()) missing = true;
+            if (!((*st)["stashLoaded"].IsBool() && (*st)["stashLoaded"].boolean))
+                y += NoteBox(in.parent, kPanelPad, y, kPanelInner, Tr("Open the stash once in the game to count the items in each tab.")) + 18;
+            if (missing)
+                y += NoteBox(in.parent, kPanelPad, y, kPanelInner, Tr("Set up the category tabs first: picked-up items of a category without a tab stay in your inventory.")) + 18;
+            // table.categories-table: Picked-up items go to the tab | Inventory | Stash tab | In the tab | (buttons)
+            const std::vector<std::string> head{Tr("Picked-up items go to the tab"), Tr("Inventory"), Tr("Stash tab"), Tr("In the tab"), ""};
+            const std::vector<float> share{.3f, .11f, .21f, .11f, .27f};
+            std::vector<float> widths;
+            for (float f : share) widths.push_back(kPanelInner * f);
+            const float headH = LineHeight(Style{Face::Body, 12}) + 21, rowH = 46;
+            {
+                Style th{Face::Body, 12, C("gold")};
+                th.align = kLeft;
+                float cx = kPanelPad;
+                for (size_t i = 0; i < head.size(); ++i) {
+                    TextBox(in.parent, "Head", cx + 12, y, widths[i] - 24, headH - 1, th, head[i]);
+                    cx += widths[i];
+                }
+                Solid(in.parent, "Head border", kPanelPad, y + headH - 1, kPanelInner, 1, Hex("#6c755144"));
+                y += headH;
+            }
+            for (const auto& cat : list) {
+                const std::string key = cat["key"].Str();
+                const bool hasTab = !cat["tab"].IsNull(), only = filter == key;
+                Style td{Face::Body, 12, C("ink")};
+                td.align = kLeft;
+                float cx = kPanelPad;
+                CheckField(in, cx + 12, y + (rowH - 18) / 2, CategoryName(key), cat["auto"].IsBool() && cat["auto"].boolean, [key](bool on) {
+                    CategoryCommand("catauto " + key + (on ? " 1" : " 0"));
+                }, "category-auto-" + key);
+                cx += widths[0];
+                TextBox(in.parent, "Cell", cx + 12, y, widths[1] - 24, rowH - 1, td, Num(cat["inventory"].Num(0)));
+                cx += widths[1];
+                TextBox(in.parent, "Cell", cx + 12, y, widths[2] - 24, rowH - 1, td, hasTab ? cat["tab"]["name"].Str() : "\xE2\x80\x94");
+                cx += widths[2];
+                TextBox(in.parent, "Cell", cx + 12, y, widths[3] - 24, rowH - 1, td, cat["stored"].IsNumber() ? Num(cat["stored"].number) : "\xE2\x80\x94");
+                cx += widths[3];
+                Button open = AddButton(in, cx + 12, y, Tr("Open tab"), Look::Quiet, [key] { CategoryCommand("catopen " + key); }, false, "category-open-" + key);
+                Move(open.node.rt, cx + 12, y + (rowH - open.h) / 2);
+                (*in.hits)[open.hit].y = in.oy + y + (rowH - open.h) / 2;
+                if (!hasTab || !eligible) SetEnabled(in, open, false);
+                Button show = AddButton(in, cx + 12 + open.w + 6, y, Tr(only ? "Show all" : "Show only"), Look::Quiet,
+                                        [key, only] { CategoryCommand("catshow " + (only ? std::string("none") : key)); }, false, "category-show-" + key);
+                Move(show.node.rt, cx + 18 + open.w, y + (rowH - show.h) / 2);
+                (*in.hits)[show.hit].y = in.oy + y + (rowH - show.h) / 2;
+                if (!eligible) SetEnabled(in, show, false);
+                Solid(in.parent, "Row border", kPanelPad, y + rowH - 1, kPanelInner, 1, Hex("#6c755144"));
+                y += rowH;
+            }
+            // .actions
+            y += 18;
+            float x = kPanelPad;
+            const std::string saveReason = SaveReason("inventoryread");
+            if (missing) {
+                Button setup = AddButton(in, x, y, Tr("Set up category tabs"), Look::Primary, [] { CategorySave("setup"); }, false, "category_setup");
+                if (!saveReason.empty()) SetEnabled(in, setup, false);
+                x += setup.w + 10;
+            }
+            Button sort = AddButton(in, x, y, Tr("Distribute ticked categories"), Look::Normal, [] { CategorySave("sort"); }, false, "category_sort");
+            if (!saveReason.empty()) SetEnabled(in, sort, false);
+            x += sort.w + 10;
+            Button materials = AddButton(in, x, y, Tr("Open crafting materials"), Look::Normal, [] {
+                Send("catmaterials", [](const std::string& reply) {
+                    std::string why;
+                    if (Refused(reply, &why)) { Toast(PlayerError(why), true); return; }
+                    JValue v;
+                    json::Parse(reply, v);
+                    Toast(Tr(v["open"].IsBool() && v["open"].boolean ? "Crafting materials opened in the game." : "Crafting materials closed in the game."));
+                });
+            }, false, "category_materials");
+            if (!eligible) SetEnabled(in, materials, false);
+            return y + std::max(sort.h, materials.h);
+        });
+    };
+}
+
 // ---------------------------------------------------------------- stash tabs from loot filter
 // The last stashrules reply (any stash rules command answers with the whole state), for its player.
 struct StashRules { JValue state; bool loaded = false; bool hidden = false, disabled = false; int section = -1, sortSection = -1; } stash;
@@ -404,6 +562,7 @@ void RegisterSortTabsTail() {
 void RegisterInventorySections() {
     RegisterSection("inventory_shortcuts", MakeInventoryShortcuts);
     RegisterSection("stash_rules", MakeStashRules);
+    RegisterSection("item_categories", MakeItemCategories);
     RegisterSortTabsTail();
 }
 

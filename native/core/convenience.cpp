@@ -1625,6 +1625,24 @@ std::string Summons(){return Run([]{
     for(auto it=monitoredAllies.begin();it!=monitoredAllies.end();)if(!liveAllies.contains(it->first))it=monitoredAllies.erase(it);else ++it;
     return out.str()+"],\"damageWindowSeconds\":"+std::to_string(std::min(5.0,(now-monitorStarted)/1000.0))+",\"damageSampleClipped\":"+Boolean(lastDroppedDamage&&now-lastDroppedDamage<=5000)+",\"damageMethod\":\"native applied damage events\"}";
 });}
+void PreferStashTab(int tab){RememberStashTab(tab);}
+game::Handle boundsPanel;  // the inventory panel InventoryBounds measured last
+bool InventoryBounds(float* left,float* top,float* right,float* bottom){
+    if(!InventoryVisible())return false;
+    void* panel=inventoryPanel.Get();if(!panel)panel=enabledInventoryPanel.Get();if(!panel)panel=boundsPanel.Get();
+    if(!panel||!game::IsAlive(panel)){auto panels=Find("LE.dll","","InventoryPanelUI");if(panels.empty())return false;panel=panels.front();boundsPanel.Set(panel);}
+    void* menu=Get<void*>(panel,F("InventoryPanelUI","menuRectTransform"));if(!menu)return false;
+    Root ct(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("UnityEngine.UIModule.dll","UnityEngine","Canvas"))));bool includeInactive=true;void* ca[]{ct.Get(),&includeInactive};
+    Root canvas(Invoke(Signature("Component","GetComponentInParent",{"System.Type","System.Boolean"}),menu,ca));
+    Root root(Invoke(M("Canvas","get_rootCanvas",0,"UnityEngine","UnityEngine.UIModule.dll"),canvas.Get()));
+    Root rt(Invoke(componentTransform,root.Get()));
+    const auto r=RectIn(menu,rt.Get());
+    const auto screen=Value<rules::Rect>(M("RectTransform","get_rect",0,"UnityEngine","UnityEngine.CoreModule.dll"),rt.Get());
+    if(!(screen.w>0&&screen.h>0)||!rules::Valid(r))return false;
+    *left=(r.x-screen.x)/screen.w;*right=(r.x+r.w-screen.x)/screen.w;
+    *top=1-(r.y+r.h-screen.y)/screen.h;*bottom=1-(r.y-screen.y)/screen.h;
+    return true;
+}
 std::string InventoryRead(){return Run([]{const auto c=Current();void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
     Root content(Invoke(Method(inventory,"GetContent",0),inventory));
     return "{\"ok\":true,\"player\":"+Player(c)+",\"inventoryItems\":"+std::to_string(Entries(content.Get()).size())+"}";
@@ -3421,7 +3439,7 @@ std::string Test(const std::string& id,const std::string& action){
     throw std::runtime_error("Unknown convenience check.");
 });}
 #endif
-void ReleaseRoots(){takenRoot.reset();takenActor=takenProtection=takenHealth=nullptr;attackerNames.clear();rings.clear();ringMaterial.reset();monitorUntil=0;monitoredAllies.clear();damageOwner.Reset();disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();gridTransform.Reset();ClearInteractions();saved.clear();typeRoots.clear();damageIconSkillKeys.clear();
+void ReleaseRoots(){takenRoot.reset();takenActor=takenProtection=takenHealth=nullptr;attackerNames.clear();rings.clear();ringMaterial.reset();monitorUntil=0;monitoredAllies.clear();damageOwner.Reset();disabledBehaviours.store(std::make_shared<const std::vector<DisabledBehaviour>>());shortcuts.clear();inventoryPanel.Reset();boundsPanel.Reset();menuTransform.Reset();footerTransform.Reset();currencyTransform.Reset();gridTransform.Reset();ClearInteractions();saved.clear();typeRoots.clear();damageIconSkillKeys.clear();
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
     testDummy.reset();testDummyProtection=nullptr;testTargetRoots.clear();testTargets.clear();
 #endif

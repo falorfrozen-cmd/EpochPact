@@ -201,6 +201,8 @@ def sections(page, controls, counts):
                 native("campaign", controls=["campaign_complete", "waypoints_unlock"]), native("mastery", controls=["mastery_choose"])]
     if page == "inventory":
         return [native("inventory_shortcuts", controls=["inventory_read", "inventory_stash", "inventory_vendor", "inventory_stashall", "inventory_sellall"]),
+                native("item_categories", controls=["categories_read", "category_auto", "category_show", "category_setup", "category_sort", "category_open",
+                                                    "category_materials"]),
                 settings("Automatic sorting and Sell all", ["inventory_autosort", "inventory_autosortall", "inventory_sellkeep"], text=AUTOSORT_TEXT,
                          head="none", tail="sort_tabs", tail_controls=["inventory_tools_read", "inventory_sorttab", "stash_rules_read"]),
                 native("stash_rules", controls=["stash_rules_read", "stash_rules_create", "stash_rule_assign", "stash_rules_sort"])]

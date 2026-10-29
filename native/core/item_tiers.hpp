@@ -13,4 +13,7 @@ std::string Read();
 std::string Set(const std::string& key, int value);
 std::string SetColor(const std::string& tier, const std::string& hex);
 void ReleaseRoots();  // before IL2CPP shutdown while GC handles are valid
+// Main thread: the inventory's items are drawn again for the item category view (stashrules catshow): the
+// shown category as usual, the others faint.
+void RefreshCategoryView();
 }

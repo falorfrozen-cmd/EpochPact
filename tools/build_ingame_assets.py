@@ -73,6 +73,13 @@ OWN_TEXTS = {
     "Left half": {"tr": "Sol yarı", "ru": "Левая половина"},
     "Right half": {"tr": "Sağ yarı", "ru": "Правая половина"},
     "Default size": {"tr": "Varsayılan boyut", "ru": "Обычный размер"},
+    # the item category column beside the inventory (ingame_hud.cpp)
+    "Set up tabs": {"tr": "Sekmeleri kur", "ru": "Создать вкладки"},
+    "Distribute": {"tr": "Dağıt", "ru": "Разложить"},
+    "Moved to their tabs": {"tr": "Sekmelerine taşındı", "ru": "Перемещено во вкладки"},
+    "Tab full": {"tr": "Sekme dolu", "ru": "Вкладка заполнена"},
+    "Tabs created": {"tr": "Oluşturulan sekme", "ru": "Создано вкладок"},
+    "Set up the category tabs first.": {"tr": "Önce kategori sekmelerini kurun.", "ru": "Сначала создайте вкладки категорий."},
 }
 
 
@@ -466,6 +473,7 @@ def build_data():
                        "summon_allies": ("", "Live summoned allies"), "damage_meter": ("damage-meter", "Damage meter"),
                        "minion_bonuses": ("", "Minion and companion bonuses"),
                        "inventory_shortcuts": ("", "Inventory shortcuts"), "stash_rules": ("", "Stash tabs from loot filter"),
+                       "item_categories": ("", "Item categories"),
                        "campaign": ("", "Campaign quests"), "mastery": ("", "Mastery"), "monolith_management": ("", "Monolith management"),
                        "collection_head": ("collection", "Unique Atlas" if page_id == "atlas" else "Stash Assistant"),
                        "echo_head": ("navigator", "Monolith Navigator"), "ws_head": ("custom-workshop", "Create custom item"),

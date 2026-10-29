@@ -42,6 +42,9 @@ std::string LootLog(unsigned long long since);
 std::string ClearLootLog();
 // Includes pending V2 tooltips. The normal mouse pickup is never intercepted.
 bool IsInspectingItem();
+// Called on the main thread with each item a pickup (by the player or automatic) put into the inventory.
+using PickupObserver = void (*)(void* item);
+void SetPickupObserver(PickupObserver observer);
 std::string Status();
 
 }  // namespace ep::items

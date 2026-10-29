@@ -721,6 +721,34 @@
       "Sort inventory by filter rule",
       "Move inventory items into the tab linked to the loot filter rule they match, using the game's exact filter match (affix conditions included). Creates a recovery backup."
     ],
+    "categories_read": [
+      "Item categories",
+      "Read the item categories: which are ticked, their stash tabs, and how many of their items are in the inventory and in each tab."
+    ],
+    "category_auto": [
+      "Send picked-up items to the category tab",
+      "Items of a ticked category go straight from the ground to its stash tab when you pick them up, with the game's own container move. An item stays in the inventory when the tab is full or the stash is not loaded yet. Remembered by EpochPact."
+    ],
+    "category_show": [
+      "Show one category in the inventory",
+      "The inventory shows the items of one category as usual and the others faint; none shows every item again. Display only."
+    ],
+    "category_setup": [
+      "Set up category tabs",
+      "Create the missing tabs, one per category (EP Unique & Set, EP Exalted, EP Idols, EP Keys & special, EP Weapons, EP Armour, EP Jewellery, EP Other), free of gold, in a stash folder named EpochPact. Tabs you already have are kept. Creates a recovery backup."
+    ],
+    "category_sort": [
+      "Distribute ticked categories",
+      "Move the inventory's items of the ticked categories into their tabs. Items that do not fit stay in the inventory. Creates a recovery backup."
+    ],
+    "category_open": [
+      "Open a category tab",
+      "Open the stash on a category's tab, from anywhere."
+    ],
+    "category_materials": [
+      "Open crafting materials",
+      "Open the game's crafting materials panel, or close it when it is open."
+    ],
     "font_family": [
       "Interface font",
       "Use a Windows font for the game's interface text; game restores the original fonts. Characters the font lacks use the game's font."

@@ -133,6 +133,7 @@ with EpochPact completely removed. This release remains an alpha.
 | `weaversupgrades <1-10>` | Every Weaver's Will upgrade a kill grants an equipped item happens that many times (each uses 1 Weaver's Will). |
 | `weaveraffixes <ids\|none>` | The affixes Weaver's Will upgrades raise and add when they can; otherwise the game chooses. |
 | `idolprefixes <1-3>` / `idolsuffixes <1-3>` | Each new idol (drops, rewards, Nemesis, Spawn Items; not shops or gamblers) rolls 1 to that many prefixes / suffixes, picked by the game's own affix rules. Weaver and Heretical idols keep the game's 1 and 1. |
+| `catauto <category> 0\|1`, `catshow`, `catopen`, `catsetup`, `catsort` | Item categories: one stash tab per category (Unique & Set, Exalted, Idols, Keys & special, Weapons, Armour, Jewellery, Other) in a folder named EpochPact. Picked-up items of a ticked category go straight to its tab; a column beside the in-game inventory has the ticks, opens a category's tab with one click and can show one category with the others faint. |
 | `speed <1-5>` | Movement speed: writes the game's own Movespeed stat (like an item or a buff), so the character sheet, the animation and the movement all scale together. |
 | `cooldown <1-10>` | Charges and cooldowns count down that many times faster. |
 | `autopickup <0/1>` | Every 0.25 s (paused while an item card is pending or open), asks the game to pick up selected items and enabled gold, potion, tome and bone categories. |

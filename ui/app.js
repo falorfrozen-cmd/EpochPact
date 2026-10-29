@@ -741,6 +741,7 @@ async function openPage(){
  if(page==="summons"&&!preview&&connected.connected&&controlById("damage_session_read")){const r=await job({type:"control",id:"damage_session_read",operation:"read"}).catch(()=>null);if(r?.ok){cache.damage_session_read=r;renderDamage();if(Number.isInteger(r.deaths))deathCount=r.deaths;}await refreshDeaths();}
  if(page==="world")await refreshSection("map_read",{refreshConnectionFirst:false});
  if(page==="world"&&!preview&&controlById("rage_read")&&eligible(controlById("rage_read"))){await refreshSection("rage_read",{refreshConnectionFirst:false});for(const id of ["rage_spawn","rage_hunttime","rage_charges","rage_buffs","rage_blood"])syncSettingUi(id);}
+ if(page==="inventory"&&!preview&&controlById("categories_read")&&eligible(controlById("categories_read")))await readCategories();
  if(page==="inventory"&&!preview&&controlById("inventory_tools_read")&&eligible(controlById("inventory_tools_read"))){await refreshSection("inventory_tools_read",{refreshConnectionFirst:false});syncInventoryTools(cache.inventory_tools_read);}
  if(page==="crafting"&&!preview&&eligible(controlById("craft_materials_read")))await refreshSection("craft_materials_read",{refreshConnectionFirst:false});
  if(["general","monolith"].includes(page)&&!cache.build_read&&controlById("build_read")&&eligible(controlById("build_read")))await refreshSection("build_read",{refreshConnectionFirst:false});
@@ -760,7 +761,7 @@ function renderPage(){
  }else if(page==="world"){
   content.innerHTML=settingPanel("Map visibility",[controlById("map_reveal")])+settingPanel("Nearby interactions",["qol_chests","qol_shrines","qol_portals","qol_arearadius","qol_areashape","qol_areashow"].map(controlById).filter(Boolean))+areaColorPanel()+ragePanel();
  }else if(page==="inventory"){
-  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory shortcuts</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the game's placement: tabs whose stash priority matches an item first, otherwise the selected tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_stash","inventory_vendor","inventory_stashall","inventory_sellall"].map(controlById).filter(Boolean).map(c=>actionCard(c)).join("")}</div></section>`+autoSortPanel()+stashRulesPanel();
+  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory shortcuts</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the game's placement: tabs whose stash priority matches an item first, otherwise the selected tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_stash","inventory_vendor","inventory_stashall","inventory_sellall"].map(controlById).filter(Boolean).map(c=>actionCard(c)).join("")}</div></section>`+categoriesPanel()+autoSortPanel()+stashRulesPanel();
  }else if(page==="loot"){
   content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius"),controlById("pickup_interval")])+lootPanel()+`<section class="panel"><h2>Collect now</h2>${cache.pickup_radius_read?.inventoryFull?`<p class="note">Your inventory is full. Equipment pickup is paused until you open and close your inventory; gold, potions, tomes, bones and materials are still collected.</p>`:""}<div class="control-grid">${actionCard(controlById("pickup_now"))}</div></section>`+settingPanel("Quality rules",["loot_lp","loot_ww","loot_t7","loot_filter"].map(controlById).filter(Boolean))+filterFilesPanel()+settingPanel("Loot filter window",["tier_filter_colors","tier_name_colors"].map(controlById).filter(Boolean))+(controlById("tier_name_colors")?`<p class="note">${esc(tr("Rule name examples"))}: <code>${esc(nameTagExamples.join("   "))}</code></p>`:"")+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
  }else if(page==="crafting"){
@@ -1159,6 +1160,42 @@ async function stashRulesAction(kind,extra={}){
  }
  renderStashRules();
 }
+// ---- item categories: a stash tab per category; ticked categories' picked-up items go straight to their tab
+let itemCategories=null;
+const categoryNames={unique:"Unique & Set",exalted:"Exalted",idol:"Idols",special:"Keys & special",weapon:"Weapons",armour:"Armour",jewellery:"Jewellery",other:"Other"};
+// The in-game column beside the inventory (the game reads this choice from the preferences file).
+function categoryColumnOn(){try{const v=JSON.parse(localStorage.getItem("epochpact.categories.v1")||"{}");return v?.column!==false;}catch{return true;}}
+function categoriesPanel(){
+ if(!controlById("categories_read"))return "";
+ const s=itemCategories&&String(itemCategories.player?.id)===String(connected.player?.id)?itemCategories:null;
+ const head=`<section class="panel" id="item-categories"><div class="section-head"><h2>Item categories</h2><button data-categories="read" data-control-id="categories_read">${s?"Refresh":"Read categories"}</button></div><p class="muted">Eight categories, each with its own stash tab in a folder named EpochPact. Tick a category to send its items straight to its tab when you pick them up; the others stay in your inventory. In the game a column beside the inventory has the same ticks, opens a category's tab with one click and can show one category in the inventory with the others faint.</p><div class="actions"><label class="inline-check"><input type="checkbox" id="categories-column" ${categoryColumnOn()?"checked":""}> Show the category column beside the inventory in the game</label></div>`;
+ if(!s)return head+`<p class="empty">Read the categories of the loaded character.</p></section>`;
+ const missing=s.categories.some(c=>!c.tab);
+ const rows=s.categories.map(c=>{const only=s.filter===c.key;return `<tr><td><label class="inline-check"><input type="checkbox" data-category-auto="${esc(c.key)}" data-control-id="category_auto" ${c.auto?"checked":""}> ${esc(categoryNames[c.key]??c.name)}</label></td><td>${Number(c.inventory)||0}</td><td>${c.tab?esc(c.tab.name):"—"}</td><td>${c.stored??"—"}</td><td><button class="quiet" data-categories="open" data-category="${esc(c.key)}" data-control-id="category_open" ${c.tab?"":"disabled"}>Open tab</button> <button class="quiet" data-categories="show" data-category="${only?"none":esc(c.key)}" data-control-id="category_show">${only?"Show all":"Show only"}</button></td></tr>`;}).join("");
+ return head+`${s.stashLoaded?"":`<p class="note">Open the stash once in the game to count the items in each tab.</p>`}${missing?`<p class="note">Set up the category tabs first: picked-up items of a category without a tab stay in your inventory.</p>`:""}<div class="table-wrap"><table class="categories-table"><thead><tr><th>Picked-up items go to the tab</th><th>Inventory</th><th>Stash tab</th><th>In the tab</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="actions">${missing?`<button class="primary" data-categories="setup" data-control-id="category_setup">Set up category tabs</button>`:""}<button data-categories="sort" data-control-id="category_sort">Distribute ticked categories</button><button data-categories="materials" data-control-id="category_materials">Open crafting materials</button></div></section>`;
+}
+function renderCategories(){const node=$("#item-categories");if(node)node.outerHTML=categoriesPanel();updateDisabled();}
+async function readCategories(){const r=await runTask({type:"control",id:"categories_read",operation:"read"},{silent:true});if(r?.ok&&r.categories)itemCategories=r;renderCategories();}
+async function categoriesAction(kind,category){
+ if(kind==="read")return readCategories();
+ const id={auto:"category_auto",show:"category_show",setup:"category_setup",sort:"category_sort",open:"category_open",materials:"category_materials"}[kind];
+ if(kind==="setup"||kind==="sort"){
+  const name=connected.player?.name;
+  const text=kind==="setup"?"Create the missing category tabs, free of gold, in a stash folder named EpochPact. A recovery backup is created first.":name?`Move ${name}'s inventory items of the ticked categories into their tabs. Items that do not fit stay in the inventory. A recovery backup is created first.`:"Move the loaded character's inventory items of the ticked categories into their tabs. Items that do not fit stay in the inventory. A recovery backup is created first.";
+  if(!await confirmAction(controlById(id).label,text)){renderCategories();return;}
+ }
+ const args=kind==="setup"||kind==="sort"?stashRulesArgs():kind==="materials"?{}:{category:category.key,...(kind==="auto"?{value:category.value}:{})};
+ const r=await runTask({type:"control",id,operation:"set",args},{silent:true});
+ if(r?.ok){
+  if(kind==="setup")notify([r.created===1?tr("1 tab created"):tr(`${r.created} tabs created`),r.atLimit?tr(`${r.atLimit} over the game's tab limit`):""].filter(Boolean).join(", ")+".");
+  if(kind==="sort")notify([r.moved===1?tr("1 item moved"):tr(`${r.moved} items moved`),r.full?tr(`${r.full} did not fit`):""].filter(Boolean).join(", ")+".");
+  if(kind==="open")notify("The stash is open on the category's tab in the game.");
+  if(kind==="materials")notify(r.open?"Crafting materials opened in the game.":"Crafting materials closed in the game.");
+  if(r.categories){itemCategories=r;renderCategories();return;}
+  if(kind==="open"||kind==="materials")return;
+ }
+ await readCategories();
+}
 // ---- interface font
 // Every Windows font face: each family, then its other styles ("Segoe UI — Semibold", sent as Family|Style).
 let fontFilter="";
@@ -1530,6 +1567,7 @@ content.addEventListener("click",async e=>{
   summonBaselineOwner=automaticOwner();summonBaseline=Object.fromEntries(data.summons.map(s=>[s.instance,s.measuredDps]));$("#summon-live").innerHTML=summonTable();notify("Damage baseline saved for these active allies. Compare against the same target.");
  }
  else if(b.dataset.tierReset!==undefined){try{localStorage.removeItem("epochpact.tier-palette.v1");localStorage.removeItem("epochpact.rule-line-color.v1");}catch{}const r=await runTask({type:"control",id:"tier_color",operation:"reset"},{silent:true});if(r?.ok){notify("Tier colours reset.");renderPage();}}
+ else if(b.dataset.categories)await categoriesAction(b.dataset.categories,{key:b.dataset.category});
  else if(b.dataset.stashRules)await stashRulesAction(b.dataset.stashRules,b.dataset.stashRules==="create"?{hidden:$("#stash-rules-hidden")?.checked?1:0,disabled:$("#stash-rules-disabled")?.checked?1:0}:{});
  else if(b.dataset.reportNow!==undefined){const r=await runTask({type:"control",id:"report_now"},{silent:true});if(r?.ok){notify(`Report saved: ${r.folder.split(/[\\/]/).pop()} (in the game's EpochPact\\reports folder).`);void refreshSection("report_read");}}
  else if(b.dataset.damageAction)await damageAction(b.dataset.damageAction);
@@ -1679,6 +1717,8 @@ content.addEventListener("change",e=>{
  if(e.target.id==="text-scale"){try{localStorage.setItem("epochpact.text-scale.v1",JSON.stringify(Number(e.target.value)));}catch{}applyTextScale();return;}
  if(e.target.id==="remember-scroll"){writeStored("remember-scroll",e.target.checked);return;}
  if(e.target.id==="update-check"){writeStored("update-check",e.target.checked);return;}
+ if(e.target.dataset.categoryAuto){void categoriesAction("auto",{key:e.target.dataset.categoryAuto,value:e.target.checked?1:0});return;}
+ if(e.target.id==="categories-column"){try{localStorage.setItem("epochpact.categories.v1",JSON.stringify({column:e.target.checked}));}catch{}return;}
  if(e.target.dataset.sortTab){void runTask({type:"control",id:"inventory_sorttab",args:{tab:Number(e.target.dataset.sortTab),value:e.target.checked?1:0}},{silent:true}).then(syncInventoryTools);return;}
  if(e.target.dataset.stashRuleLink){
   const number=Number(e.target.dataset.stashRuleLink),tab=Number(e.target.value),previous=stashRules?.rules.find(r=>r.number===number)?.tab;

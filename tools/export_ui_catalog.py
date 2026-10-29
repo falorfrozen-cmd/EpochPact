@@ -212,6 +212,21 @@ def controls():
     add("stash_rules_sort","inventory","Sort inventory by filter rule","button","stashrulesort {save_id}","game_save",
         "Move inventory items into the tab linked to the loot filter rule they match, using the game's exact filter match (affix conditions included). Creates a recovery backup.",
         params=[save_id],doc="docs/player-conveniences.md")
+    categories = parameter("category","enum",choices=["unique","exalted","idol","special","weapon","armour","jewellery","other"])
+    add("categories_read","inventory","Item categories","read","catread","read_only",
+        "Read the item categories: which are ticked, their stash tabs, and how many of their items are in the inventory and in each tab.",doc="docs/player-conveniences.md")
+    add("category_auto","inventory","Send picked-up items to the category tab","selector","catauto {category} {value}","session",
+        "Items of a ticked category go straight from the ground to its stash tab when you pick them up, with the game's own container move. An item stays in the inventory when the tab is full or the stash is not loaded yet. Remembered by EpochPact.",params=[categories,parameter("value","integer",0,1)],doc="docs/player-conveniences.md")
+    add("category_show","inventory","Show one category in the inventory","selector","catshow {category}","view",
+        "The inventory shows the items of one category as usual and the others faint; none shows every item again. Display only.",params=[{**categories,"choices":categories["choices"]+["none"]}],doc="docs/player-conveniences.md")
+    add("category_setup","inventory","Set up category tabs","button","catsetup {save_id}","game_save",
+        "Create the missing tabs, one per category (EP Unique & Set, EP Exalted, EP Idols, EP Keys & special, EP Weapons, EP Armour, EP Jewellery, EP Other), free of gold, in a stash folder named EpochPact. Tabs you already have are kept. Creates a recovery backup.",params=[save_id],doc="docs/player-conveniences.md")
+    add("category_sort","inventory","Distribute ticked categories","button","catsort {save_id}","game_save",
+        "Move the inventory's items of the ticked categories into their tabs. Items that do not fit stay in the inventory. Creates a recovery backup.",params=[save_id],doc="docs/player-conveniences.md")
+    add("category_open","inventory","Open a category tab","button","catopen {category}","view",
+        "Open the stash on a category's tab, from anywhere.",params=[categories],doc="docs/player-conveniences.md")
+    add("category_materials","inventory","Open crafting materials","button","catmaterials","view",
+        "Open the game's crafting materials panel, or close it when it is open.",doc="docs/player-conveniences.md")
     slot = parameter("slot", "integer", 0, 3, source="liveState.cofread.slots")
     reward = parameter("reward", "integer_or_none", 0, 65535, source="liveState.cofread.rewards[available=true].id")
     lens = parameter("lens", "integer_or_none", 0, 11, source="liveState.cofread.lenses[purchased=true].id")

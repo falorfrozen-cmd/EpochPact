@@ -15,6 +15,7 @@
 #include "game.hpp"
 #include "il2cpp_api.hpp"
 #include "items.hpp"
+#include "stash_rules.hpp"
 #include "loot.hpp"
 #include "mainthread.hpp"
 #include "lifecycle.hpp"
@@ -120,6 +121,7 @@ void WorkerBody() {
     loot::Init();
     density::Init();
     items::Init();
+    items::SetPickupObserver(&stashrules::CategoryPicked);
     smartloot::Init();
     crafting::Init();
     mapview::Init();

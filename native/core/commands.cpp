@@ -136,6 +136,13 @@ std::string Execute(const std::string& line) {
     if(cmd=="stashrulestest")return args.size()==2?stashrules::Test(args[0],args[1]):"{\"ok\":false,\"error\":\"use stashrulestest save-id action\"}";
 #endif
     if(cmd=="stashrulesort")return args.size()==1?stashrules::Sort(args[0]):"{\"ok\":false,\"error\":\"use stashrulesort save-id\"}";
+    if(cmd=="catread")return args.empty()?stashrules::CategoryRead():"{\"ok\":false,\"error\":\"catread expects no arguments\"}";
+    if(cmd=="catauto")return args.size()==2&&(args[1]=="0"||args[1]=="1")?stashrules::CategoryAuto(args[0],args[1]=="1"):"{\"ok\":false,\"error\":\"use catauto <category> 0|1\"}";
+    if(cmd=="catshow")return args.size()==1?stashrules::CategoryShow(args[0]):"{\"ok\":false,\"error\":\"use catshow <category>|none\"}";
+    if(cmd=="catsetup")return args.size()==1?stashrules::CategorySetup(args[0]):"{\"ok\":false,\"error\":\"use catsetup save-id\"}";
+    if(cmd=="catsort")return args.size()==1?stashrules::CategorySort(args[0]):"{\"ok\":false,\"error\":\"use catsort save-id\"}";
+    if(cmd=="catopen")return args.size()==1?stashrules::CategoryOpen(args[0]):"{\"ok\":false,\"error\":\"use catopen <category>\"}";
+    if(cmd=="catmaterials")return args.empty()?stashrules::CategoryMaterials():"{\"ok\":false,\"error\":\"catmaterials expects no arguments\"}";
     if(cmd=="inventoryaction")return args.size()==2?convenience::Inventory(args[0],args[1]):"{\"ok\":false,\"error\":\"use inventoryaction save-id stash|vendor|stashall|sellall\"}";
     if(cmd=="invread")return args.empty()?invtools::Read():"{\"ok\":false,\"error\":\"invread expects no arguments\"}";
     if(cmd=="invset"){long long value=-1;return args.size()==2&&statedit::Integer(args[1],0,2,&value)?invtools::Set(args[0],static_cast<int>(value)):"{\"ok\":false,\"error\":\"use invset autosort|autosortall 0|1 or invset sellkeep 0|1|2\"}";}

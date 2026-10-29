@@ -596,6 +596,13 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `stash_rules_create` — Create tabs from loot filter | `stashrulescreate {save_id} {hidden} {disabled}` | hidden: 0…1; disabled: 0…1 | — | Oyun kaydı |
 | `stash_rule_assign` — Link a tab to a rule | `stashruleassign {save_id} {tab} {rule}` | tab: 0…1000000; rule: 0…10000 | — | Oyun kaydı |
 | `stash_rules_sort` — Sort inventory by filter rule | `stashrulesort {save_id}` | — | — | Oyun kaydı |
+| `categories_read` — Item categories | `catread` | — | — | Okuma |
+| `category_auto` — Send picked-up items to the category tab | `catauto {category} {value}` | category: unique/exalted/idol/special/weapon/armour/jewellery/other; value: 0…1 | — | Oturum |
+| `category_show` — Show one category in the inventory | `catshow {category}` | category: unique/exalted/idol/special/weapon/armour/jewellery/other/none | — | Görünüm |
+| `category_setup` — Set up category tabs | `catsetup {save_id}` | — | — | Oyun kaydı |
+| `category_sort` — Distribute ticked categories | `catsort {save_id}` | — | — | Oyun kaydı |
+| `category_open` — Open a category tab | `catopen {category}` | category: unique/exalted/idol/special/weapon/armour/jewellery/other | — | Görünüm |
+| `category_materials` — Open crafting materials | `catmaterials` | — | — | Görünüm |
 
 - **Live inventory:** Read the loaded character and inventory item count without changing items.
 - **Toggle stash:** Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.
@@ -611,6 +618,13 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Create tabs from loot filter:** Create one stash tab per loot filter rule, free of gold, in a folder named after the filter. Each tab takes the rule's rarity, type, class, level, potential, faction, unique and corruption conditions as its stash priority. Creates a recovery backup.
 - **Link a tab to a rule:** Give an existing stash tab the conditions of one loot filter rule as its stash priority, or 0 to clear it. Creates a recovery backup.
 - **Sort inventory by filter rule:** Move inventory items into the tab linked to the loot filter rule they match, using the game's exact filter match (affix conditions included). Creates a recovery backup.
+- **Item categories:** Read the item categories: which are ticked, their stash tabs, and how many of their items are in the inventory and in each tab.
+- **Send picked-up items to the category tab:** Items of a ticked category go straight from the ground to its stash tab when you pick them up, with the game's own container move. An item stays in the inventory when the tab is full or the stash is not loaded yet. Remembered by EpochPact.
+- **Show one category in the inventory:** The inventory shows the items of one category as usual and the others faint; none shows every item again. Display only.
+- **Set up category tabs:** Create the missing tabs, one per category (EP Unique & Set, EP Exalted, EP Idols, EP Keys & special, EP Weapons, EP Armour, EP Jewellery, EP Other), free of gold, in a stash folder named EpochPact. Tabs you already have are kept. Creates a recovery backup.
+- **Distribute ticked categories:** Move the inventory's items of the ticked categories into their tabs. Items that do not fit stay in the inventory. Creates a recovery backup.
+- **Open a category tab:** Open the stash on a category's tab, from anywhere.
+- **Open crafting materials:** Open the game's crafting materials panel, or close it when it is open.
 
 ## Seçenek listeleri ve kalıcılık
 

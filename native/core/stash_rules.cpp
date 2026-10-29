@@ -8,21 +8,26 @@
 // no tab-priority equivalent; "Sort by filter rule" uses the real filter match
 // for those.
 #include "stash_rules.hpp"
+#include "category_rules.hpp"
 #include "common.hpp"
+#include "convenience.hpp"
 #include "game.hpp"
 #include "inventory_tools.hpp"
+#include "item_tiers.hpp"
 #include "mainthread.hpp"
 #include "managed.hpp"
 #include "progression.hpp"
 #include "smart_loot.hpp"
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cctype>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <sstream>
 #include <string>
@@ -595,6 +600,431 @@ std::string Sort(const std::string& id) {
     }, 10000, &why)) result = "{\"ok\":false,\"error\":" + Json(why) + "}";
     if (result.empty()) result = "{\"ok\":false,\"error\":\"The stash operation did not complete.\"}";
     return WithBackup(result, backup);
+}
+
+// ---- Item categories (category_rules.hpp): one stash tab per category, named "EP <name>", in the folder
+// "EpochPact". Picked-up items of the ticked categories go straight to their tab; the inventory can show
+// one category at a time, the others faint (CategoryShow; item_tiers draws it).
+namespace {
+namespace catrules = ep::categories::rules;
+constexpr const char* kCategoryFolder = "EpochPact";
+std::mutex g_categoryLock;
+bool g_categoriesLoaded = false;
+std::atomic<uint32_t> g_ticked{0};  // one bit per category whose pickups go to its tab
+std::atomic<int> g_filter{-1};      // the category the inventory shows, -1 all
+std::atomic<uint64_t> g_routed{0}, g_keptFull{0}, g_keptNoTab{0}, g_keptNotLoaded{0}, g_keptMissing{0}, g_routeFaults{0};
+std::string g_saveFor;               // the character whose routed items wait for a save
+ULONGLONG g_saveAt = 0;              // when that save is due (GetTickCount64), 0 none
+
+std::filesystem::path CategoriesPath() { return std::filesystem::path(PluginDir()) / L"item-categories.txt"; }
+void LoadCategories() {
+    std::lock_guard<std::mutex> hold(g_categoryLock);
+    if (g_categoriesLoaded) return;
+    g_categoriesLoaded = true;
+    std::ifstream in(CategoriesPath());
+    std::string word, key;
+    int value = 0;
+    uint32_t ticked = 0;
+    while (in >> word >> key >> value)
+        if (word == "auto" && catrules::Index(key) >= 0 && value) ticked |= 1u << catrules::Index(key);
+    g_ticked = ticked;
+}
+void SaveCategories() {
+    const std::filesystem::path path = CategoriesPath(), temp = path.wstring() + L".tmp";
+    {
+        std::ofstream out(temp, std::ios::trunc);
+        for (int i = 0; i < catrules::kCount; ++i) out << "auto " << catrules::kKeys[i] << ' ' << ((g_ticked.load() >> i) & 1u) << '\n';
+        if (!out) throw std::runtime_error("The item category settings could not be saved.");
+    }
+    std::filesystem::rename(temp, path);
+}
+
+int CategoryOfItem(void* item) {
+    const int type = Get<uint8_t>(item, F("ItemData", "itemType")), rarity = Get<uint8_t>(item, F("ItemData", "rarity"));
+    const bool exalted = !(rarity >= 7 && rarity <= 9) && Value<bool>(Method(item, "isExaltedItem", 0), item);
+    return catrules::Classify(type, rarity, exalted);
+}
+// Each category's tab ("EP <name>"): its index in the stash's tab list, -1 when it has none.
+std::array<int, catrules::kCount> CategoryTabs(const std::vector<void*>& tabs) {
+    std::array<int, catrules::kCount> index;
+    index.fill(-1);
+    for (size_t i = 0; i < tabs.size(); ++i) {
+        const std::string name = tabs[i] ? TabName(tabs[i]) : std::string();
+        for (int c = 0; c < catrules::kCount; ++c)
+            if (index[c] < 0 && name == catrules::TabName(c)) index[c] = static_cast<int>(i);
+    }
+    return index;
+}
+std::vector<void*> TabContainers(const StashView& view) { return Entries(Invoke(Method(view.container, "get_Containers", 0), view.container)); }
+int EntryCount(void* container) {
+    Root content(Invoke(Method(container, "GetContent", 0), container));
+    int n = 0;
+    for (void* e : Entries(content.Get())) n += e != nullptr;
+    return n;
+}
+std::string CategoryState(const Ctx& c) {
+    LoadCategories();
+    const auto view = View(c.manager);
+    const auto tabs = Tabs(view.stash);
+    const auto containers = TabContainers(view);
+    const bool loaded = containers.size() == tabs.size();
+    const auto index = CategoryTabs(tabs);
+    std::array<int, catrules::kCount> held{};
+    void* inventory = Get<void*>(c.manager, F("ItemContainersManager", "inventory"));
+    Root content(Invoke(Method(inventory, "GetContent", 0), inventory));
+    for (void* e : Entries(content.Get()))
+        if (void* data = e ? Get<void*>(e, F("ItemContainerEntry", "data")) : nullptr) ++held[static_cast<size_t>(CategoryOfItem(data))];
+    void* ca[]{view.container};
+    const int filter = g_filter.load();
+    std::ostringstream out;
+    out << "{\"ok\":true,\"player\":{\"id\":" << Json(c.id) << "},\"stashLoaded\":" << Boolean(loaded)
+        << ",\"canAddTab\":" << Boolean(Value<bool>(M("ItemContainersManager", "CanAddNewStashTab", 1), c.manager, ca))
+        << ",\"filter\":" << (filter >= 0 ? Json(catrules::kKeys[filter]) : std::string("null"))
+        << ",\"routed\":" << g_routed.load() << ",\"keptFull\":" << g_keptFull.load() << ",\"keptNoTab\":" << g_keptNoTab.load()
+        << ",\"keptNotLoaded\":" << g_keptNotLoaded.load() << ",\"keptMissing\":" << g_keptMissing.load() << ",\"faults\":" << g_routeFaults.load() << ",\"categories\":[";
+    for (int i = 0; i < catrules::kCount; ++i) {
+        out << (i ? "," : "") << "{\"key\":" << Json(catrules::kKeys[i]) << ",\"name\":" << Json(catrules::kNames[i])
+            << ",\"auto\":" << Boolean((g_ticked.load() >> i) & 1u) << ",\"inventory\":" << held[static_cast<size_t>(i)] << ",\"tab\":";
+        if (index[i] < 0) out << "null,\"stored\":null";
+        else out << "{\"index\":" << index[i] << ",\"id\":" << TabId(tabs[static_cast<size_t>(index[i])]) << ",\"name\":" << Json(TabName(tabs[static_cast<size_t>(index[i])]))
+                 << "},\"stored\":" << (loaded ? std::to_string(EntryCount(containers[static_cast<size_t>(index[i])])) : std::string("null"));
+        out << '}';
+    }
+    return out.str() + "]}";
+}
+
+// Moves one inventory entry into a stash tab with the game's own container calls; puts it back if the tab
+// refuses it. 0 moved, 1 the tab had no room, 2 the inventory refused to give it up.
+int MoveToTab(void* inventory, void* entry, void* target) {
+    void* data = Get<void*>(entry, F("ItemContainerEntry", "data"));
+    int quantity = Get<int>(entry, F("ItemContainerEntry", "quantity"));
+    void* ra[]{data, &quantity};
+    if (!Value<bool>(Method(target, "CanReceiveItem", 2), target, ra)) return 1;
+    struct XY { int x, y; } p = Get<XY>(entry, F("ItemContainerEntry", "<Position>k__BackingField"));
+    Root keep(data);
+    int context = 0;  // Context.DEFAULT
+    void* remove[]{entry, &quantity, &context};
+    if (!Value<bool>(Method(inventory, "TryRemoveItem", 3), inventory, remove)) return 2;
+    void* add[]{keep.Get(), &quantity, &context};
+    if (Value<bool>(Typed(api().object_get_class(target), "TryAddItem", {"ItemData", "System.Int32", "Context"}), target, add)) return 0;
+    void* back[]{keep.Get(), &quantity, &p, &context};
+    if (!Value<bool>(Typed(api().object_get_class(inventory), "TryAddItem", {"ItemData", "System.Int32", "UnityEngine.Vector2Int", "Context"}), inventory, back))
+        throw std::runtime_error("An item could not be returned to the inventory; restore the recovery backup.");
+    return 1;
+}
+
+// The packed form (ItemData.id) of two items is the same item.
+bool SameItem(void* a, void* b) {
+    if (a == b) return true;
+    void* x = Get<void*>(a, F("ItemData", "id"));
+    void* y = Get<void*>(b, F("ItemData", "id"));
+    if (!x || !y) return false;
+    const auto n = Get<uintptr_t>(x, 0x18);
+    if (n != Get<uintptr_t>(y, 0x18) || n > 4096) return false;
+    return std::memcmp(static_cast<char*>(x) + 0x20, static_cast<char*>(y) + 0x20, n) == 0;
+}
+
+// Saves once the routed items have settled: the game's own offline save, as after Stash all.
+void CategoryFrame() {
+    std::string id;
+    {
+        std::lock_guard<std::mutex> hold(g_categoryLock);
+        if (!g_saveAt || GetTickCount64() < g_saveAt) return;
+        id.swap(g_saveFor);
+        g_saveAt = 0;
+    }
+    std::string why;
+    if (!game::Guarded([&] {
+        game::Guarded([] { invtools::RedrawStale(); }, nullptr);
+        progression::SaveCurrent(id);
+    }, &why)) Log("item categories: save after routing failed: %s", why.c_str());
+}
+
+void RoutePicked(void* item, int category) {
+    const auto c = Current("");
+    void* inventory = Get<void*>(c.manager, F("ItemContainersManager", "inventory"));
+    Root content(Invoke(Method(inventory, "GetContent", 0), inventory));
+    void* entry = nullptr;
+    for (void* e : Entries(content.Get()))
+        if (e && SameItem(Get<void*>(e, F("ItemContainerEntry", "data")), item)) { entry = e; break; }
+    if (!entry) { ++g_keptMissing; return; }
+    const auto view = View(c.manager);
+    const auto tabs = Tabs(view.stash);
+    const auto containers = TabContainers(view);
+    if (containers.size() != tabs.size()) { ++g_keptNotLoaded; return; }
+    const int index = CategoryTabs(tabs)[static_cast<size_t>(category)];
+    if (index < 0) { ++g_keptNoTab; return; }
+    if (MoveToTab(inventory, entry, containers[static_cast<size_t>(index)]) != 0) { ++g_keptFull; return; }
+    ++g_routed;
+    std::lock_guard<std::mutex> hold(g_categoryLock);
+    g_saveFor = c.id;
+    g_saveAt = GetTickCount64() + 1500;
+}
+}  // namespace
+
+void CategoryPicked(void* item) {
+    if (!item) return;
+    LoadCategories();
+    const uint32_t ticked = g_ticked.load();
+    if (!ticked || !game::IsOfflinePlay()) return;
+    int category = -1;
+    if (!game::Guarded([&] { category = CategoryOfItem(item); }, nullptr) || category < 0 || !((ticked >> category) & 1u)) return;
+    static bool frame = false;
+    if (!frame) frame = mainthread::RegisterFrameCallback(&CategoryFrame);
+    auto keep = std::make_shared<Root>(item);
+    // Next frame: the pickup has finished putting the item into the inventory.
+    mainthread::Post([keep, category] {
+        std::string why;
+        bool failed = false;
+        if (!game::Guarded([&] {
+            try { RoutePicked(keep->Get(), category); } catch (const std::exception& e) { failed = true; why = e.what(); }
+        }, &why) || failed) {
+            if (g_routeFaults.fetch_add(1) < 5) Log("item categories: a picked-up item stayed in the inventory: %s", why.c_str());
+        }
+    });
+}
+
+int CategoryFilter() { return g_filter.load(); }
+int CategoryOf(void* item) { return CategoryOfItem(item); }
+
+std::string CategoryRead() { return Run([] { return CategoryState(Current("")); }); }
+
+std::string CategoryAuto(const std::string& key, bool on) {
+    const int index = catrules::Index(key);
+    if (index < 0) return "{\"ok\":false,\"error\":\"Unknown item category.\"}";
+    LoadCategories();
+    const uint32_t bit = 1u << index;
+    if (on) g_ticked |= bit; else g_ticked &= ~bit;
+    try { SaveCategories(); } catch (const std::exception& e) { return "{\"ok\":false,\"error\":" + Json(e.what()) + "}"; }
+    return std::string("{\"ok\":true,\"key\":") + Json(key) + ",\"auto\":" + Boolean(on) + "}";
+}
+
+std::string CategoryShow(const std::string& key) {
+    const int index = key == "none" ? -1 : catrules::Index(key);
+    if (index < 0 && key != "none") return "{\"ok\":false,\"error\":\"Unknown item category.\"}";
+    return Run([&] {
+        if (index >= 0 && !game::IsOfflinePlay()) throw std::runtime_error("The category view works in offline play only.");
+        g_filter = index;
+        tiers::RefreshCategoryView();
+        return std::string("{\"ok\":true,\"filter\":") + (index >= 0 ? Json(key) : std::string("null")) + "}";
+    });
+}
+
+// Opens the game's crafting materials panel (its own key's panel), or closes it when it is open.
+std::string CategoryMaterials() {
+    return Run([] {
+        void* ui = game::StaticObject(game::FindStaticField("LE.dll", "", "UIBase", "instance"));
+        if (!ui) throw std::runtime_error("The game interface is not ready.");
+        const bool open = Value<bool>(Method(ui, "IsCraftingMaterialsPanelOpen", 0), ui);
+        if (open) Invoke(Method(ui, "closeCraftingMaterialsPanel", 0), ui);
+        else {
+            int context = 0;  // CraftingMaterialsPanelUI.OpeningContext.DEFAULT
+            bool flag = false;
+            void* a[]{&context, &flag};
+            Invoke(Method(ui, "openCraftingMaterialsPanel", 2), ui, a);
+        }
+        return std::string("{\"ok\":true,\"open\":") + Boolean(Value<bool>(Method(ui, "IsCraftingMaterialsPanelOpen", 0), ui)) + "}";
+    });
+}
+
+std::string CategorySetup(const std::string& id) {
+    std::string backup;
+    try { backup = Backup(id, "item-category-tabs"); }
+    catch (const std::exception& e) { return "{\"ok\":false,\"error\":" + Json(std::string("Recovery backup failed; nothing was changed: ") + e.what()) + "}"; }
+    return WithBackup(Run([=] {
+        const auto c = Current(id);
+        const auto view = View(c.manager);
+        auto tabs = Tabs(view.stash);
+        auto index = CategoryTabs(tabs);
+        int created = 0, atLimit = 0;
+        if (std::find(index.begin(), index.end(), -1) != index.end()) {
+            int folderId = -1;
+            const auto findFolder = [&] {
+                for (void* f : Folders(view.stash))
+                    if (f && Text(Get<void*>(f, F("StashCategory", "_displayName", "LE.Data"))) == kCategoryFolder) folderId = Get<int>(f, F("StashCategory", "_categoryId", "LE.Data"));
+            };
+            findFolder();
+            if (folderId < 0) {
+                Root name(api().string_new(kCategoryFolder));
+                int stash = view.index;
+                void* a[]{c.manager, &stash, name.Get()};
+                Invoke(M("ServerStashCommands", "ServerAddNewCategory", 3), nullptr, a);
+                findFolder();
+                if (folderId < 0) throw std::runtime_error("The stash folder could not be created (the game allows a limited number of folders).");
+            }
+            for (int cat = 0; cat < catrules::kCount; ++cat) {
+                if (index[cat] >= 0) continue;
+                void* ca[]{view.container};
+                if (!Value<bool>(M("ItemContainersManager", "CanAddNewStashTab", 1), c.manager, ca)) { ++atLimit; continue; }
+                Root priority(New(Class("StashPriority")));  // no conditions: the game's own placement never picks it
+                Root name(api().string_new(catrules::TabName(cat).c_str()));
+                int folder = folderId, order = static_cast<int>(tabs.size()), icon = 0, color = cat + 1;
+                void* a[]{view.container, &folder, &order, name.Get(), &icon, &color, priority.Get(), nullptr};
+                if (!Invoke(M("ItemContainersManager", "AddNewStashTab", 8), c.manager, a)) throw std::runtime_error("The game did not create the stash tab.");
+                tabs = Tabs(view.stash);
+                index = CategoryTabs(tabs);
+                ++created;
+            }
+            Refresh(c.manager, view);
+            progression::SaveCurrent(id);
+        }
+        std::string state = CategoryState(c);
+        state.pop_back();
+        return state + ",\"created\":" + std::to_string(created) + ",\"atLimit\":" + std::to_string(atLimit) + "}";
+    }), backup);
+}
+
+// The inventory's items of the ticked categories into their tabs, a few per frame like Stash all.
+std::string CategorySort(const std::string& id) {
+    std::string backup;
+    try { backup = Backup(id, "item-category-sort"); }
+    catch (const std::exception& e) { return "{\"ok\":false,\"error\":" + Json(std::string("Recovery backup failed; nothing was changed: ") + e.what()) + "}"; }
+    LoadCategories();
+    struct Move { int x, y, tab; };
+    std::vector<Move> moves;
+    std::string result, why;
+    size_t next = 0;
+    int moved = 0, full = 0, noTab = 0, drawn = 0, drawWaits = 0;
+    bool planned = false;
+    if (!mainthread::RunSteps([&] {
+        try {
+            const auto c = Current(id);
+            if (!invtools::InventorySettled(drawn, drawWaits)) return false;
+            const auto view = View(c.manager);
+            void* inventory = Get<void*>(c.manager, F("ItemContainersManager", "inventory"));
+            const auto tabs = Tabs(view.stash);
+            const auto containers = TabContainers(view);
+            if (containers.size() != tabs.size()) throw std::runtime_error("The stash layout is not loaded yet. Open the stash once and try again.");
+            if (!planned) {
+                planned = true;
+                const auto index = CategoryTabs(tabs);
+                const uint32_t ticked = g_ticked.load();
+                if (!ticked) throw std::runtime_error("Tick at least one category first.");
+                Root content(Invoke(Method(inventory, "GetContent", 0), inventory));
+                for (void* entry : Entries(content.Get())) {
+                    void* data = entry ? Get<void*>(entry, F("ItemContainerEntry", "data")) : nullptr;
+                    if (!data) continue;
+                    const int cat = CategoryOfItem(data);
+                    if (!((ticked >> cat) & 1u)) continue;
+                    if (index[static_cast<size_t>(cat)] < 0) { ++noTab; continue; }
+                    struct XY { int x, y; } p = Get<XY>(entry, F("ItemContainerEntry", "<Position>k__BackingField"));
+                    moves.push_back({p.x, p.y, index[static_cast<size_t>(cat)]});
+                }
+            }
+            for (int n = 0; n < 4 && next < moves.size(); ++n, ++next) {
+                struct XY { int x, y; } p{moves[next].x, moves[next].y};
+                void* pa[]{&p};
+                void* entry = Invoke(Method(inventory, "GetEntryAt", 1), inventory, pa);
+                if (!entry) continue;
+                if (MoveToTab(inventory, entry, containers[static_cast<size_t>(moves[next].tab)]) == 0) ++moved; else ++full;
+            }
+            if (next < moves.size()) return false;
+            game::Guarded([] { invtools::RedrawStale(); }, nullptr);
+            progression::SaveCurrent(id);
+            std::string state = CategoryState(c);
+            state.pop_back();
+            result = state + ",\"moved\":" + std::to_string(moved) + ",\"full\":" + std::to_string(full) + ",\"noTab\":" + std::to_string(noTab) + "}";
+        } catch (const std::exception& e) {
+            result = "{\"ok\":false,\"error\":" + Json(e.what()) + ",\"moved\":" + std::to_string(moved) + "}";
+        }
+        return true;
+    }, 10000, &why)) result = "{\"ok\":false,\"error\":" + Json(why) + "}";
+    if (result.empty()) result = "{\"ok\":false,\"error\":\"The stash operation did not complete.\"}";
+    return WithBackup(result, backup);
+}
+
+// Opens the stash (from anywhere, offline) on a category's tab: the stash tab bar's own folder and tab
+// selection (StashTabbedUIControls.OpenCategory, SwitchToStashTab) as clicks do, once the bar has rebuilt itself,
+// and again until the bar keeps showing the tab. The stash tab memory takes the tab first, so it does not select
+// the last one again. Without the tab bar the container's active tab is switched instead.
+std::string CategoryOpen(const std::string& key) {
+    const int cat = catrules::Index(key);
+    if (cat < 0) return "{\"ok\":false,\"error\":\"Unknown item category.\"}";
+    std::string result, why;
+    int tabId = -1, index = -1, folder = -1, frames = 0, shown = -1, tries = 0, steady = 0, nextTry = 0;
+    std::unique_ptr<Root> bar;  // the stash tab bar, once found
+    bool opened = false;
+    if (!mainthread::RunSteps([&] {
+        try {
+            const auto c = Current("");
+            const auto view = View(c.manager);
+            if (tabId < 0) {
+                const auto tabs = Tabs(view.stash);
+                index = CategoryTabs(tabs)[static_cast<size_t>(cat)];
+                if (index < 0) throw std::runtime_error("Set up the category tabs first.");
+                tabId = TabId(tabs[static_cast<size_t>(index)]);
+                folder = Get<int>(tabs[static_cast<size_t>(index)], F("StashTab", "_categoryId", "LE.Data"));
+                convenience::PreferStashTab(tabId);  // else the stash tab memory selects the last tab again
+            }
+            void* ui = game::StaticObject(game::FindStaticField("LE.dll", "", "UIBase", "instance"));
+            if (!ui) throw std::runtime_error("The game interface is not ready.");
+            if (!opened) {
+                opened = true;
+                if (!Value<bool>(Method(ui, "IsStashOpen", 0), ui)) {
+                    bool show = true, focus = true, clear = false, preserve = false;
+                    void* a[]{&show, &focus, &clear, nullptr, &preserve};
+                    Invoke(Method(ui, "openStash", 5), ui, a);
+                    return false;  // the panel builds itself on the next frames
+                }
+            }
+            void* controls = bar ? bar->Get() : nullptr;
+            if (!controls) if (auto* cls = game::FindClass("LE.dll", "", "StashTabbedUIControls")) {
+                Root type(api().type_get_object(api().class_get_type(cls)));
+                bool inactive = false;
+                void* fa[]{type.Get(), &inactive};
+                Root found(Invoke(game::FindMethod("UnityEngine.CoreModule.dll", "UnityEngine", "Object", "FindObjectsOfType", 2), nullptr, fa));
+                if (found.Get() && Get<uintptr_t>(found.Get(), 0x18)) {
+                    controls = Get<void*>(found.Get(), 0x20);
+                    bar = std::make_unique<Root>(controls);
+                }
+            }
+            ++frames;
+            if (!controls && frames < 30) return false;
+            std::string how = "panel";
+            if (controls) {
+                if (frames < 3 || Get<bool>(controls, F("StashTabbedUIControls", "_isUpdatingTabs"))) {
+                    if (frames < 120) return false;
+                }
+                shown = Get<int>(controls, F("StashTabbedUIControls", "activeTab"));
+                if (shown == tabId) {
+                    if (++steady < 30) return false;  // the game may still select its remembered tab
+                    try {  // scrolls the tab bar to it
+                        int at = Value<int>(Method(controls, "GetIndexOfActiveTab", 0), controls);
+                        void* va[]{&at};
+                        if (at >= 0) Invoke(Method(controls, "MakeTabVisible", 1), controls, va);
+                    } catch (const std::exception&) {}
+                } else if (tries < 12) {
+                    steady = 0;
+                    if (frames >= nextTry) {
+                        ++tries;
+                        nextTry = frames + 15;
+                        int category = folder;
+                        void* fa[]{&category};
+                        Invoke(Method(controls, "OpenCategory", 1), controls, fa);
+                        int tab = tabId;
+                        bool force = true;
+                        void* ta[]{&tab, &force};
+                        Invoke(Method(controls, "SwitchToStashTab", 2), controls, ta);
+                    }
+                    return false;
+                }
+            } else {
+                int tab = index;
+                bool send = true;
+                void* a[]{&tab, &send};
+                Value<bool>(Method(view.container, "TrySwitchToTab", 2), view.container, a);
+                how = "container";
+            }
+            const int active = Value<int>(Method(view.container, "get_CurrentlyActiveTab", 0), view.container);
+            result = std::string("{\"ok\":true,\"key\":") + Json(key) + ",\"tab\":" + std::to_string(index) + ",\"tabId\":" + std::to_string(tabId)
+                + ",\"folder\":" + std::to_string(folder) + ",\"active\":" + std::to_string(active) + ",\"shown\":" + std::to_string(shown)
+                + ",\"tries\":" + std::to_string(tries) + ",\"via\":" + Json(how) + "}";
+        } catch (const std::exception& e) {
+            result = "{\"ok\":false,\"error\":" + Json(e.what()) + "}";
+        }
+        return true;
+    }, 8000, &why)) result = "{\"ok\":false,\"error\":" + Json(why) + "}";
+    return result.empty() ? "{\"ok\":false,\"error\":\"The stash did not open.\"}" : result;
 }
 
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
