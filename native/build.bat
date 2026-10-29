@@ -49,7 +49,7 @@ if "%~1"=="loader" goto :done
 echo [2/3] core (EpochPact.Core.dll)
 rem EPOCHPACT_RESEARCH: the metadata dump, capture hooks and research commands (not for players).
 ml64 /nologo /c /Fo"%OUT%\stat_thunk.obj" "%HERE%core\stat_thunk.asm" || exit /b 1
-set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread lifecycle xp loot density items smart_loot crafting workshop map_view collection spawn_items player stat_editor progression monolith factions cof cof_tuning build_controls convenience inventory_tools rage weaver idols enchanter unique_rolls item_tiers stash_rules fonts report effects ingame_panel ingame_assets ingame_ui ingame_i18n ingame_kit ingame_sections ingame_summons ingame_display ingame_inventory ingame_forms ingame_cof ingame_monolith ingame_craft ingame_workshop ingame_stats ingame_collection ingame_settings ingame_archive ingame_filter_io ingame_filter_view ingame_hud commands research"
+set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread lifecycle xp loot density items smart_loot crafting workshop map_view collection spawn_items player stat_editor progression monolith factions cof cof_tuning build_controls convenience inventory_tools rage weaver idols enchanter transmog unique_rolls item_tiers stash_rules fonts report effects ingame_panel ingame_assets ingame_ui ingame_i18n ingame_kit ingame_sections ingame_summons ingame_display ingame_inventory ingame_forms ingame_cof ingame_monolith ingame_craft ingame_workshop ingame_stats ingame_collection ingame_settings ingame_archive ingame_filter_io ingame_filter_view ingame_hud commands research"
 set "CORE_CPP="
 set "CORE_OBJ="
 for %%f in (%CORE_SRC%) do call set "CORE_CPP=%%CORE_CPP%% "%CORE%\%%f.cpp""

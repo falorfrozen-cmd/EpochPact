@@ -295,6 +295,9 @@ def controls():
         "GenerateItems.RollBaseItem bir Unique, Set ya da Legendary yaptıktan sonra her roll (0-255) aralığın en iyi (100−n)%'sine taşınır, yeri korunur; hangi ucun iyi olduğunu oyunun MaxRollIsBestForUniqueRollID'si söyler (implicit'lerde yüksek). 100 her değer en iyi, 0 kapalı. Kumarbazlar (rollItemFor*Gambling), craft ile yeniden atılan değerler, benzer-eşya ödülleri ve mevcut eşyalar değişmez.",
         params=[parameter("value", "number", 0, 100)], default=0, reset="uniqueroll 0", response="text", current="currentValues.uniqueroll",
         doc="docs/player-conveniences.md")
+    add("remotepickup", "loot", "Uzaktan toplama", "toggle", "remotepickup {value}", "session",
+        "GroundItemLabel.ClickedItem: tıklanan eşya, yer kaydı karakterin ayağına ödünç taşınarak oyunun requestPickup'ıyla yerinde alınır; oyun almazsa (envanter dolu) kendi yürüyüşü devam eder.",
+        params=[value(0, 1)], default=0, reset="remotepickup 0", response="text", current="currentValues.remotepickup", doc="docs/player-conveniences.md")
     add("autopickup", "loot", "Otomatik pickup", "toggle", "autopickup {value}", "session",
         "Normal pickup API'leri; eşya, altın, potion, tome ve bone. Tarama aralığı 0,25 saniye.",
         params=[value(0, 1)], default=0, reset="autopickup 0", response="text", current="currentValues.autopickup", doc="GEMINI.md")
@@ -374,6 +377,10 @@ def controls():
     add("spawn_list", "crafting", "Load spawnable items", "read", "spawnlist", "read_only",
         "Read the base items, Uniques and Sets the game can make. Does not create items.",
         requires=("loaded_actor",), doc="docs/player-conveniences.md")
+    add("transmog_read", "equipment", "Item looks", "read", "transmogread", "read_only", "Read the looks of the equipped items: each visible slot's item, the look it shows and the looks that fit.", doc="docs/player-conveniences.md")
+    add("transmog_set", "equipment", "Change an item's look", "selector", "transmog {slot} {look}", "actor", "Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you set it back to the item's own look. Shop cosmetics are not touched. Remembered per character by EpochPact.",
+        params=[parameter("slot", "enum", choices=["helmet", "body", "gloves", "boots", "belt", "weapon", "offhand"]), parameter("look", "single_token")], doc="docs/player-conveniences.md")
+    items[-1]["parameters"][1]["maximumLength"] = 16
     add("spawn_item", "crafting", "Spawn item", "button", "spawnitem {save_id} {item} {rarity} {lp} {item_level} {count}", "actor",
         "The game makes the chosen base item, Unique or Set with its own rules and drops it next to your character, like a monster drop. "
         "Base items: Normal, Magic, Rare or Exalted. Uniques: the game's Legendary Potential roll or a chosen 0-4 (Weaver's Will Uniques and Sets roll their own). "

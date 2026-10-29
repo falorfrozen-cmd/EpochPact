@@ -475,6 +475,65 @@
       "documentation": "docs/build-controls.md"
     },
     {
+      "id": "transmog_read",
+      "group": "equipment",
+      "label": "Item looks",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "transmogread",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read the looks of the equipped items: each visible slot's item, the look it shows and the looks that fit.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "transmog_set",
+      "group": "equipment",
+      "label": "Change an item's look",
+      "widget": "selector",
+      "availability": "implemented",
+      "commandTemplate": "transmog {slot} {look}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "slot",
+          "type": "enum",
+          "choices": [
+            "helmet",
+            "body",
+            "gloves",
+            "boots",
+            "belt",
+            "weapon",
+            "offhand"
+          ]
+        },
+        {
+          "name": "look",
+          "type": "single_token",
+          "maximumLength": 16
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "actor",
+      "description": "Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you set it back to the item's own look. Shop cosmetics are not touched. Remembered per character by EpochPact.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "build_zoom",
       "group": "display",
       "label": "Camera distance",
@@ -1277,6 +1336,33 @@
       "lifetime": "session",
       "description": "How often auto pickup scans for drops: from 0.25 s (default) to 10 s. Longer intervals reduce system load. When the game reports a full inventory, equipment pickup pauses until you open and close your inventory; gold, potions, tomes, bones, materials and everything else continue to be collected.",
       "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "remotepickup",
+      "group": "loot",
+      "label": "Uzaktan toplama",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "remotepickup {value}",
+      "pythonApi": null,
+      "responseFormat": "text",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "remotepickup 0",
+      "lifetime": "session",
+      "description": "GroundItemLabel.ClickedItem: tıklanan eşya, yer kaydı karakterin ayağına ödünç taşınarak oyunun requestPickup'ıyla yerinde alınır; oyun almazsa (envanter dolu) kendi yürüyüşü devam eder.",
+      "currentSource": "currentValues.remotepickup",
       "requirements": [
         "offline"
       ],
@@ -34817,7 +34903,7 @@
     ]
   },
   "counts": {
-    "controls": 216,
+    "controls": 219,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

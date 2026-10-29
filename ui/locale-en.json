@@ -445,6 +445,14 @@
       "Wear any number of primordial items",
       "Wear more than one primordial item (Primordial Unique or Exalted) and get the bonuses of all of them. Switched off, the game's limit of one returns: while you wear more, their bonuses stop until you take the extra items off."
     ],
+    "transmog_read": [
+      "Item looks",
+      "Read the looks of the equipped items: each visible slot's item, the look it shows and the looks that fit."
+    ],
+    "transmog_set": [
+      "Change an item's look",
+      "Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you set it back to the item's own look. Shop cosmetics are not touched. Remembered per character by EpochPact."
+    ],
     "build_zoom": [
       "Camera distance",
       "Move the overhead camera farther away. This changes distance, not field of view; 1× restores the normal distance."
@@ -648,6 +656,10 @@
     "pickup_interval": [
       "Auto pickup interval",
       "How often auto pickup scans for drops: from 0.25 s (default) to 10 s. Longer intervals reduce system load. When the game reports a full inventory, equipment pickup pauses until you open and close your inventory; gold, potions, tomes, bones, materials and everything else continue to be collected."
+    ],
+    "remotepickup": [
+      "Pick up from afar",
+      "Click an item's name on the ground and it goes into your inventory where it lies; your character does not walk there. When your inventory has no room, the game walks you there as usual. Offline only."
     ],
     "pickup_now": [
       "Pick up everything now",

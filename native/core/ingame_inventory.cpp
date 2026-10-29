@@ -269,6 +269,75 @@ void MakeItemCategories(Section& s) {
     };
 }
 
+// ---------------------------------------------------------------------------- item looks
+// app.js looksPanel: each visible slot of the loaded character with its item and a select of the looks that fit,
+// the item's own look first; a choice sends "transmog <slot> <look|none>". The transmogread reply is the state.
+const char* const kLookSlots[]{"helmet", "body", "gloves", "boots", "belt", "weapon", "offhand"};
+const char* const kLookSlotNames[]{"Helmet", "Body armour", "Gloves", "Boots", "Belt", "Weapon", "Off-hand"};
+std::string LookSlotName(const std::string& key) {
+    for (size_t i = 0; i < std::size(kLookSlots); ++i) if (key == kLookSlots[i]) return Tr(kLookSlotNames[i]);
+    return key;
+}
+// For the loaded character only (the inventory read names the character the page shows).
+const JValue* CurrentLooks() {
+    const JValue* s = Cached("transmogread");
+    if (!s || !(*s)["slots"].IsArray()) return nullptr;
+    const JValue* inv = Cached("inventoryread");
+    if (inv && !IdOf(inv->Path("player.id")).empty() && IdOf(inv->Path("player.id")) != IdOf(s->Path("player.id"))) return nullptr;
+    return s;
+}
+void LookCommand(const std::string& line) {
+    Send(line, [](const std::string& reply) {
+        std::string why;
+        if (Refused(reply, &why)) Toast(PlayerError(why), true);
+        else Toast(Tr("Look changed."));
+        Forget("transmogread");
+        Read("transmogread");
+    });
+}
+void MakeItemLooks(Section& s) {
+    s.reads.insert("inventoryread");
+    s.reads.insert("transmogread");
+    s.build = [](Section&, const Ctx& c) {
+        return InPanel(c, [](const Ctx& in, float y) {
+            const JValue* st = CurrentLooks();
+            const bool eligible = ViewReason().empty();
+            y += HeadWithButton(in, y, Tr("Item looks"), Tr(st ? "Refresh" : "Read looks"), [] { Forget("transmogread"); Read("transmogread"); }, "transmog_read",
+                                eligible) + 16;
+            y += Muted(in.parent, kPanelPad, y, kPanelInner,
+                       Tr("Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. "
+                          "The look stays when you change zone or equip another item of that type, until you choose the item's own look again. "
+                          "Shop cosmetics are not touched.")) + 14;
+            if (!st) return y + EmptyText(in.parent, kPanelPad, y, kPanelInner, Tr("Read the looks of the loaded character.")) + 10;
+            const float gap = 16, colW = (kPanelInner - gap) / 2;
+            int col = 0, shown = 0;
+            float rowH = 0;
+            for (const auto& slot : (*st)["slots"].items) {
+                if (slot["item"].IsNull()) continue;
+                const std::string key = slot["slot"].Str(), own = slot["item"]["key"].Str();
+                const std::string chosen = slot["look"].IsObject() ? slot["look"]["key"].Str() : "";
+                std::vector<std::string> labels{Fmt("Own look: {0}", {slot["item"]["name"].Str()})}, keys{"none"};
+                int current = 0;
+                for (const auto& o : slot["options"].items) {
+                    if (o["key"].Str() == own) continue;
+                    labels.push_back(o["name"].Str());
+                    keys.push_back(o["key"].Str());
+                    if (o["key"].Str() == chosen) current = static_cast<int>(keys.size()) - 1;
+                }
+                const float h = SelectField(in, kPanelPad + col * (colW + gap), y, colW, LookSlotName(key) + " \xC2\xB7 " + slot["item"]["name"].Str(), labels, current,
+                                            [key, keys](int i) { if (i >= 0 && i < static_cast<int>(keys.size())) LookCommand("transmog " + key + " " + keys[static_cast<size_t>(i)]); },
+                                            "transmog-" + key);
+                rowH = std::max(rowH, h);
+                ++shown;
+                if (++col == 2) { col = 0; y += rowH + 14; rowH = 0; }
+            }
+            if (col) y += rowH + 14;
+            if (!shown) y += EmptyText(in.parent, kPanelPad, y, kPanelInner, Tr("Equip an item to change its look.")) + 10;
+            return y;
+        });
+    };
+}
+
 // ---------------------------------------------------------------- stash tabs from loot filter
 // The last stashrules reply (any stash rules command answers with the whole state), for its player.
 struct StashRules { JValue state; bool loaded = false; bool hidden = false, disabled = false; int section = -1, sortSection = -1; } stash;
@@ -563,6 +632,7 @@ void RegisterInventorySections() {
     RegisterSection("inventory_shortcuts", MakeInventoryShortcuts);
     RegisterSection("stash_rules", MakeStashRules);
     RegisterSection("item_categories", MakeItemCategories);
+    RegisterSection("item_looks", MakeItemLooks);
     RegisterSortTabsTail();
 }
 

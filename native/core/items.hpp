@@ -28,6 +28,8 @@ std::string LegendaryRollsStatus();
 std::string SetForgingPotential(double m);
 std::string ForgingPotentialStatus();
 std::string SetAuto(double on);
+// remotepickup <0|1>: a click on a ground item's label picks it up where it lies, without walking there
+std::string SetRemote(double on);
 std::string AutoPickupStatus();
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
 std::string PickupDiagnostics();  // test only: why collection paused or did nothing

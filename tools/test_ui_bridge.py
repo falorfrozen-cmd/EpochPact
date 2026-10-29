@@ -260,7 +260,7 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','damageicon ','deathrecap','rageread','rageset ','invread','invset ','invsorttab ','summonread','inventoryread','inventoryaction ','affixinfo ','catread','catauto ','catshow ','catsetup ','catsort ','catopen ','catmaterials')):
+        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','damageicon ','deathrecap','rageread','rageset ','invread','invset ','invsorttab ','summonread','inventoryread','inventoryaction ','affixinfo ','catread','catauto ','catshow ','catsetup ','catsort ','catopen ','catmaterials','transmog')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})
@@ -361,6 +361,8 @@ class BridgeTests(unittest.TestCase):
                         args[name] = 'none'
                     elif name == 'item':
                         args[name] = 'u5'
+                    elif name == 'look':
+                        args[name] = 'u5'
                     elif name == 'affixes':
                         args[name] = 'keep'
                     elif name == 'color':
@@ -428,6 +430,39 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(self.commands[-1], 'catsort 42')
         self.bridge.execute('category_setup', {'expected_id': '42'})
         self.assertEqual(self.commands[-1], 'catsetup 42')
+
+    def test_item_look_controls_send_only_known_slots_and_looks(self):
+        self.bridge.execute('transmog_set', {'slot': 'body', 'look': 'u248'})
+        self.assertEqual(self.commands[-1], 'transmog body u248')
+        self.bridge.execute('transmog_set', {'slot': 'weapon', 'look': 'b8.3'})
+        self.assertEqual(self.commands[-1], 'transmog weapon b8.3')
+        self.bridge.execute('transmog_set', {'slot': 'offhand', 'look': 'none'})
+        self.assertEqual(self.commands[-1], 'transmog offhand none')
+        before = len(self.commands)
+        for slot, look in (('ring', 'u1'), ('Body', 'u1'), ('body', 'U1'), ('body', 'b1'), ('body', 'u1;catsetup'), ('body', ''), ('body', None),
+                           ('body', 'b1.2.3'), ('body', 'u1234567')):
+            with self.subTest(slot=slot, look=look), self.assertRaises(ValueError):
+                self.bridge.execute('transmog_set', {'slot': slot, 'look': look})
+        self.assertEqual(len(self.commands), before)
+
+    def test_remote_pickup_is_read_from_status_and_is_a_switch(self):
+        def status(command, **kwargs):
+            if command == 'status':
+                return ('EpochPact; gate: offline play [client only]\n'
+                        'autopickup: off, hook out, scans 0, pickup calls 0\n'
+                        'remotepickup: x1, hook in, picked 3, walked 0')
+            return self.send(command, **kwargs)
+        with patch.object(ui.le, 'send', side_effect=status):
+            live = self.bridge.connection()
+        self.assertEqual(live['values']['remotepickup'], 1)
+        for value in (0, 1):
+            self.bridge.execute('remotepickup', {'value': value})
+            self.assertEqual(self.commands[-1], f'remotepickup {value}')
+        sent = len(self.commands)
+        for bad in (2, -1, 0.5, '1', None):
+            with self.subTest(value=bad), self.assertRaises(ValueError):
+                self.bridge.execute('remotepickup', {'value': bad})
+        self.assertEqual(len(self.commands), sent)
 
     def test_pickup_category_reset_formats_each_actual_category(self):
         for category in ('materials', 'gold', 'potions', 'xp', 'favor', 'bones', 'amber'):

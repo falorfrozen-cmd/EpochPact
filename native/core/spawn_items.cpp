@@ -708,6 +708,63 @@ std::string InventoryAffixes() {
         return out.str() + "]}";
     });
 }
+Vec3 PlayerAt(void* actor) {
+    Root transform(Invoke(M("Component", "get_transform", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), actor));
+    return Value<Vec3>(M("Transform", "get_position", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), transform.Get());
+}
+// A Normal item of the first listed base dropped by the game's own drop call `distance` units from the character.
+std::string FarSpawn(int distance) {
+    return Run([=] {
+        const auto c = Current();
+        Root types(Invoke(M("ItemList", "get", 0)));
+        const auto bases = Bases(types.Get());
+        const auto base = std::find_if(bases.begin(), bases.end(), [](const Base& b) { return b.type <= 24; });
+        if (base == bases.end()) throw std::runtime_error("no base item");
+        Request r = Resolve(types.Get(), "b" + std::to_string(base->type) + "." + std::to_string(base->sub), 0);
+        void* generator = Get<void*>(c.actor, F("Actor", "generateItems"));
+        void* manager = game::StaticObject(game::FindStaticField("LE.dll", "", "GroundItemManager", "instance"));
+        const auto made = Make(generator, M("GenerateItems", "initialiseRandomItemData", 26), r, 50, -1);
+        if (!made || !manager) throw std::runtime_error("no item");
+        Vec3 at = PlayerAt(c.actor);
+        at.x += static_cast<float>(distance);
+        bool sound = true;
+        void* a[]{c.actor, made->Get(), &at, &sound};
+        Invoke(M("GroundItemManager", "dropItemForPlayer", 4), manager, a);
+        return "{\"ok\":true,\"name\":" + Json(r.name) + "}";
+    });
+}
+// The ground item labels the UI keeps, their distance from the character and the character's place; with
+// click 1 the farthest label gets GroundItemLabel.ClickedItem, as a mouse click on it does.
+std::string LabelClick(int click) {
+    return Run([=] {
+        const auto c = Current();
+        const Vec3 me = PlayerAt(c.actor);
+        void* holder = game::StaticObject(game::FindStaticField("LE.dll", "", "ItemTooltipOrganizer", "pickableGroundLabelList"));
+        std::vector<std::pair<double, void*>> labels;
+        if (holder) {
+            const auto* listField = il2cpp::api().class_get_field_from_name(il2cpp::api().object_get_class(holder), "_list");
+            void* list = listField ? Get<void*>(holder, il2cpp::api().field_get_offset(listField)) : nullptr;
+            const auto* labelClass = game::FindClass("LE.dll", "", "GroundItemLabel");
+            if (list) for (void* label : Entries(list)) {
+                if (!label || il2cpp::api().object_get_class(label) != labelClass || !game::IsAlive(label)) continue;
+                void* visuals = Get<void*>(label, F("GroundItemLabel", "visuals"));
+                if (!visuals || !game::IsAlive(visuals)) continue;
+                const Vec3 p = PlayerAt(visuals);
+                labels.push_back({std::sqrt((p.x - me.x) * (p.x - me.x) + (p.z - me.z) * (p.z - me.z)), label});
+            }
+        }
+        std::sort(labels.begin(), labels.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+        std::ostringstream out;
+        out << "{\"ok\":true,\"player\":[" << me.x << ',' << me.y << ',' << me.z << "],\"labels\":" << labels.size()
+            << ",\"farthest\":" << (labels.empty() ? -1.0 : labels.front().first);
+        if (click && !labels.empty()) {
+            Root keep(labels.front().second);
+            Invoke(M("GroundItemLabel", "ClickedItem", 0), keep.Get());
+            out << ",\"clicked\":true";
+        }
+        return out.str() + "}";
+    });
+}
 // Every method of that name on an LE.dll class ("Namespace:Class" or "Class"): arity and RVA in this GameAssembly.
 std::string MethodRva(const std::string& klass, const std::string& name) {
     std::string ns, cls = klass;

@@ -1013,6 +1013,22 @@ test('item categories: the panel lists each category, and ticks, views and tab a
  assert.deepEqual([h.calls[1].args,h.calls[5].args,h.calls[7].args,h.calls[8].args],[{category:'idol',value:1},{category:'none'},{},{category:'armour'}]);
  assert.ok([h.calls[3],h.calls[4]].every(c=>c.args.expected_id==='6'&&c.args.expected_name==='Test'));
 });
+test('item looks: each equipped slot gets its looks, the own look first, and a choice sends the slot and the look',async()=>{
+ const h=automaticHarness();h.run(`page='equipment';connected.player.id='6';`);
+ assert.ok(h.run('looksPanel()').includes('Read looks'));
+ const state={ok:true,player:{id:'6'},slots:[
+  {slot:'helmet',item:{type:0,sub:3,rarity:4,uniqueId:0,key:'b0.3',name:'Copper Circlet'},look:{key:'u239',name:'Somnia',shown:true},options:[{key:'b0.3',name:'Copper Circlet',unique:false},{key:'b0.4',name:'Iron Helm',unique:false},{key:'u239',name:'Somnia',unique:true}]},
+  {slot:'belt',item:null,look:null,options:[]}]};
+ h.replies.push(state);await h.run('readLooks()');
+ const html=h.run('looksPanel()');
+ assert.ok(html.includes('data-look-slot="helmet"'));assert.ok(!html.includes('data-look-slot="belt"'));
+ assert.ok(html.includes('<option value="none">Own look: Copper Circlet</option>'));assert.ok(!html.includes('value="b0.3"'));
+ assert.ok(html.includes('<option value="u239" selected>Somnia</option>'));
+ h.run('connected.player.id="7"');assert.ok(!h.run('looksPanel()').includes('Somnia'));h.run('connected.player.id="6"');
+ h.replies.push({...state,slots:[{...state.slots[0],look:null},state.slots[1]]});await h.run(`setLook('helmet','none')`);
+ assert.deepEqual(h.calls.map(c=>[c.id,c.operation,c.args]),[['transmog_read','read',undefined],['transmog_set','set',{slot:'helmet',look:'none'}]]);
+ assert.ok(h.run('looksPanel()').includes('<option value="none">Own look: Copper Circlet</option>'));
+});
 test('font list offers every style, narrows with the search box and sends Family|Style encoded',async()=>{
  const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
  h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};page='display';cache.font_read={families:['Arial','Segoe UI'],styles:{'Segoe UI':['Regular','Semibold','Bold Italic'],Arial:['Regular','Bold']}};values.font_family='Arial|Bold'`);

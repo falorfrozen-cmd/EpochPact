@@ -164,7 +164,7 @@ class UiBridge:
                 player = None
                 values = {}
                 for name in ("xp", "gold", "bones", "amber", "drops", "density", "rarity", "lprolls", "fpdrops", "weaverswill", "weaversupgrades",
-                             "speed", "cooldown", "idolprefixes", "idolsuffixes", "enchanteruses"):
+                             "speed", "cooldown", "idolprefixes", "idolsuffixes", "enchanteruses", "remotepickup"):
                     match = re.search(rf"(?m)^{name}: x([\d.eE+-]+)", status)
                     if match:
                         values[name] = float(match[1])
@@ -258,6 +258,8 @@ class UiBridge:
                     raise ValueError("Enter the exact character name without spaces.")
                 if control["id"] == "font_family" and not re.fullmatch(r"[A-Za-z0-9%._'&()+-]{1,96}", value):
                     raise ValueError("Choose a font from the list.")
+                if control["id"] == "transmog_set" and not re.fullmatch(r"b\d{1,3}\.\d{1,5}|u\d{1,5}|none", value):
+                    raise ValueError("Choose a look from the list.")
                 if control["id"] == "tier_color" and not re.fullmatch(r"[0-9A-Fa-f]{6}", value):
                     raise ValueError("Enter a colour as six hexadecimal digits, for example E0315A.")
                 if control["id"] == "qol_areacolor" and not re.fullmatch(r"[0-9A-Fa-f]{6}", value):

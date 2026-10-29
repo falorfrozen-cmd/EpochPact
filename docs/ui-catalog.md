@@ -167,6 +167,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `pickup_radius` — Auto pickup radius | `pickupradius {value}` | value: 0…60 | 0 | Oturum |
 | `pickup_radius_read` — Pickup radius status | `pickupradius` | — | — | Okuma |
 | `pickup_interval` — Auto pickup interval | `pickupinterval {value}` | value: 0.25…10 | 0.25 | Oturum |
+| `remotepickup` — Uzaktan toplama | `remotepickup {value}` | value: 0…1 | 0 | Oturum |
 | `loot_log` — Recent pickups | `lootlog` | — | — | Okuma |
 | `loot_log_clear` — Clear recent pickups | `lootlogclear` | — | — | Görünüm |
 | `affix_info` — Affix shard details | `affixinfo {id}` | id: 0…65535 | — | Okuma |
@@ -187,6 +188,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Auto pickup radius:** Limits auto pickup to 1–60 game units around your character. At 0, every drop the game has loaded in the current area is collected. Auto pickup pauses while an item tooltip is shown. Reset: `pickupradius 0`.
 - **Pickup radius status:** Read the current pickup radius.
 - **Auto pickup interval:** How often auto pickup scans for drops: from 0.25 s (default) to 10 s. Longer intervals reduce system load. When the game reports a full inventory, equipment pickup pauses until you open and close your inventory; gold, potions, tomes, bones, materials and everything else continue to be collected. Reset: `pickupinterval 0.25`.
+- **Uzaktan toplama:** GroundItemLabel.ClickedItem: tıklanan eşya, yer kaydı karakterin ayağına ödünç taşınarak oyunun requestPickup'ıyla yerinde alınır; oyun almazsa (envanter dolu) kendi yürüyüşü devam eder. Reset: `remotepickup 0`.
 - **Recent pickups:** Recent item and gold pickups, by you or Auto Pickup: name, rarity and the loot filter rule that matched (the same number the game shows with Item rule numbering). Reading it does not change the game.
 - **Clear recent pickups:** Clear the recent pickups list. Items and gold are unchanged.
 - **Affix shard details:** What an affix shard's affix does: prefix or suffix, level, the item types it rolls on and the game's value text for each tier. Reading it does not change the game.
@@ -429,10 +431,14 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `build_offhand` — Unrestricted offhand equipment | `buildset offhand {value}` | value: 0…1 | 0 | Oturum |
 | `build_fullsets` — Full set bonuses from one piece | `buildset fullsets {value}` | value: 0…1 | 0 | Oturum |
 | `build_primordials` — Wear any number of primordial items | `buildset primordials {value}` | value: 0…1 | 0 | Oturum |
+| `transmog_read` — Item looks | `transmogread` | — | — | Okuma |
+| `transmog_set` — Change an item's look | `transmog {slot} {look}` | slot: helmet/body/gloves/boots/belt/weapon/offhand; look: single_token | — | Yüklü aktör |
 
 - **Unrestricted offhand equipment:** Allow weapons in the offhand and remove linked two-handed equipment conflicts. Normal level and class requirements still apply. Reset: `buildset offhand 0`.
 - **Full set bonuses from one piece:** Activate the missing bonuses of each equipped set. Removing its last piece removes the bonuses. Reset: `buildset fullsets 0`.
 - **Wear any number of primordial items:** Wear more than one primordial item (Primordial Unique or Exalted) and get the bonuses of all of them. Switched off, the game's limit of one returns: while you wear more, their bonuses stop until you take the extra items off. Reset: `buildset primordials 0`.
+- **Item looks:** Read the looks of the equipped items: each visible slot's item, the look it shows and the looks that fit.
+- **Change an item's look:** Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you set it back to the item's own look. Shop cosmetics are not touched. Remembered per character by EpochPact.
 
 ## Summons
 

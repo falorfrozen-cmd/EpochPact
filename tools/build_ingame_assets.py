@@ -45,7 +45,7 @@ THEME = {"bg": "#07120f", "panel": "#0b1815", "ink": "#eee6d5", "muted": "#b3beb
 LIFETIME = {"session": "Session", "actor": "Character", "game_save": "Game save", "read_only": "Read only", "view": "View", "recovery": "Recovery"}
 NO_UNIT = {"lprolls", "idolprefixes", "idolsuffixes", "craft_fp", "loot_ww", "build_weaverflat", "build_projectileflat", "build_blessingoptions", "build_minionextra", "build_totemextra",
            "build_ballistaextra", "build_forgedextra", "build_companionextra"}
-AUTOMATIC_TEMPLATES = ("buildset ", "qolset ", "qolarea ", "pickupradius ", "pickupinterval ", "autopickup ", "mapreveal ", "mapset ", "tierset ",
+AUTOMATIC_TEMPLATES = ("buildset ", "qolset ", "qolarea ", "pickupradius ", "pickupinterval ", "autopickup ", "remotepickup ", "mapreveal ", "mapset ", "tierset ",
                        "fontset ", "effectsset ", "deathrecap ", "rageset ", "invset ")
 # Values the catalog does not name a source for: where app.js reads them.
 EXTRA_SOURCES = {
@@ -474,6 +474,7 @@ def build_data():
                        "minion_bonuses": ("", "Minion and companion bonuses"),
                        "inventory_shortcuts": ("", "Inventory shortcuts"), "stash_rules": ("", "Stash tabs from loot filter"),
                        "item_categories": ("", "Item categories"),
+                       "item_looks": ("", "Item looks"),
                        "campaign": ("", "Campaign quests"), "mastery": ("", "Mastery"), "monolith_management": ("", "Monolith management"),
                        "collection_head": ("collection", "Unique Atlas" if page_id == "atlas" else "Stash Assistant"),
                        "echo_head": ("navigator", "Monolith Navigator"), "ws_head": ("custom-workshop", "Create custom item"),

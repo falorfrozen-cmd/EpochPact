@@ -24,6 +24,8 @@ std::string ForgingCheck(int count, int level);  // Forging Potential of new ite
 std::string UniqueCheck(int count, int level);   // Unique and Set rolls of new items (uniquecheck)
 std::string AltarCheck(int count, int level);    // idol altars' affixes at each rarity (altarcheck)
 std::string InventoryAffixes();                   // invaffixes
+std::string FarSpawn(int distance);              // farspawn
+std::string LabelClick(int click);               // labelclick
 std::string BoneDrop(int amount);                 // bonedrop
 std::string MethodRva(const std::string& klass, const std::string& name);  // methodrva
 #endif

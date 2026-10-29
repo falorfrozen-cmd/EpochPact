@@ -149,6 +149,7 @@ def sections(page, controls, counts):
         return result
     if page == "loot":
         return [settings("Automatic collection", ["autopickup", "pickup_radius", "pickup_interval"]),
+                settings("Pick up from afar", ["remotepickup"]),
                 native("recent_pickups", controls=["loot_log", "loot_log_clear"]), native("collect_now", controls=["pickup_now"]),
                 settings("Quality rules", ["loot_lp", "loot_ww", "loot_t7", "loot_filter"]),
                 native("filter_files"),
@@ -180,7 +181,8 @@ def sections(page, controls, counts):
                 settings("Projectiles", ["build_projectiles", "build_projectileflat"]),
                 native("free_respec", controls=["respec_skills", "respec_passives", "respec_weaver"])]
     if page == "equipment":
-        return [native("cached_summary", read="buildread"), settings("Equipment rules", ["build_offhand", "build_fullsets", "build_primordials"])]
+        return [native("cached_summary", read="buildread"), settings("Equipment rules", ["build_offhand", "build_fullsets", "build_primordials"]),
+                native("item_looks", controls=["transmog_read", "transmog_set"])]
     if page == "summons":
         return [native("damage_meter", controls=["damage_session", "damage_session_read"]),
                 settings("Death recap", ["death_recap"], text=DEATH_TEXT, head="tail", tail="death_recap",

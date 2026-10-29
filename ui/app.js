@@ -208,7 +208,7 @@ async function restoreBonuses(){
  const n=Number(/^statrestore: restored (\d+) /.exec(result?.text||"")?.[1]||0);
  if(n)notify(n===1?"1 character bonus restored.":`${n} character bonuses restored.`);
 }
-function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|qolarea|pickupradius|pickupinterval|autopickup|mapreveal|mapset|tierset|fontset|effectsset|deathrecap|rageset|invset) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
+function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|qolarea|pickupradius|pickupinterval|autopickup|remotepickup|mapreveal|mapset|tierset|fontset|effectsset|deathrecap|rageset|invset) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
 function automaticOwner(){
  if(preview)return "preview";
  const p=connected.player;
@@ -742,6 +742,7 @@ async function openPage(){
  if(page==="world")await refreshSection("map_read",{refreshConnectionFirst:false});
  if(page==="world"&&!preview&&controlById("rage_read")&&eligible(controlById("rage_read"))){await refreshSection("rage_read",{refreshConnectionFirst:false});for(const id of ["rage_spawn","rage_hunttime","rage_charges","rage_buffs","rage_blood"])syncSettingUi(id);}
  if(page==="inventory"&&!preview&&controlById("categories_read")&&eligible(controlById("categories_read")))await readCategories();
+ if(page==="equipment"&&!preview&&controlById("transmog_read")&&eligible(controlById("transmog_read")))await readLooks();
  if(page==="inventory"&&!preview&&controlById("inventory_tools_read")&&eligible(controlById("inventory_tools_read"))){await refreshSection("inventory_tools_read",{refreshConnectionFirst:false});syncInventoryTools(cache.inventory_tools_read);}
  if(page==="crafting"&&!preview&&eligible(controlById("craft_materials_read")))await refreshSection("craft_materials_read",{refreshConnectionFirst:false});
  if(["general","monolith"].includes(page)&&!cache.build_read&&controlById("build_read")&&eligible(controlById("build_read")))await refreshSection("build_read",{refreshConnectionFirst:false});
@@ -763,14 +764,14 @@ function renderPage(){
  }else if(page==="inventory"){
   content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory shortcuts</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the game's placement: tabs whose stash priority matches an item first, otherwise the selected tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_stash","inventory_vendor","inventory_stashall","inventory_sellall"].map(controlById).filter(Boolean).map(c=>actionCard(c)).join("")}</div></section>`+categoriesPanel()+autoSortPanel()+stashRulesPanel();
  }else if(page==="loot"){
-  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius"),controlById("pickup_interval")])+lootPanel()+`<section class="panel"><h2>Collect now</h2>${cache.pickup_radius_read?.inventoryFull?`<p class="note">Your inventory is full. Equipment pickup is paused until you open and close your inventory; gold, potions, tomes, bones and materials are still collected.</p>`:""}<div class="control-grid">${actionCard(controlById("pickup_now"))}</div></section>`+settingPanel("Quality rules",["loot_lp","loot_ww","loot_t7","loot_filter"].map(controlById).filter(Boolean))+filterFilesPanel()+settingPanel("Loot filter window",["tier_filter_colors","tier_name_colors"].map(controlById).filter(Boolean))+(controlById("tier_name_colors")?`<p class="note">${esc(tr("Rule name examples"))}: <code>${esc(nameTagExamples.join("   "))}</code></p>`:"")+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
+  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius"),controlById("pickup_interval")])+settingPanel("Pick up from afar",[controlById("remotepickup")])+lootPanel()+`<section class="panel"><h2>Collect now</h2>${cache.pickup_radius_read?.inventoryFull?`<p class="note">Your inventory is full. Equipment pickup is paused until you open and close your inventory; gold, potions, tomes, bones and materials are still collected.</p>`:""}<div class="control-grid">${actionCard(controlById("pickup_now"))}</div></section>`+settingPanel("Quality rules",["loot_lp","loot_ww","loot_t7","loot_filter"].map(controlById).filter(Boolean))+filterFilesPanel()+settingPanel("Loot filter window",["tier_filter_colors","tier_name_colors"].map(controlById).filter(Boolean))+(controlById("tier_name_colors")?`<p class="note">${esc(tr("Rule name examples"))}: <code>${esc(nameTagExamples.join("   "))}</code></p>`:"")+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
  }else if(page==="crafting"){
   content.innerHTML=renderCrafting();
  }else if(page==="skills"){
   const ids=keys=>keys.map(key=>controlById("build_"+key));
   content.innerHTML=cachedSummary("build_read")+`<section class="panel"><div class="section-head"><h2>Skill and point budgets</h2><button data-refresh="build_read" data-control-id="build_read">Refresh live</button></div><div class="summary-grid"><div class="summary"><strong>${cache.build_read?.passivePoints??"—"}</strong><span>Passive budget</span></div><div class="summary"><strong>${cache.build_read?.weaverPoints??"—"}</strong><span>Weaver budget</span></div></div><p class="note">Point multipliers are session settings. Individual node caps still apply. Existing allocations stay when you lower a budget. Available points stop at zero until the budget covers those allocations.</p></section>`+settingPanel("Experience and skill points",ids(["skillxp","skillpoints","passivepoints"]))+settingPanel("Weaver points",ids(["weaverpoints","weaverflat"]))+settingPanel("Tree connections",ids(["skillnodes","passivenodes","weavernodes"]))+settingPanel("Projectiles",ids(["projectiles","projectileflat"]))+`<section class="panel"><h2>Free respec</h2><p class="note">Refund points from the selected tree group. Levels and earned budgets stay. Each action creates a recovery backup and runs only after confirmation.</p><div class="control-grid">${["respec_skills","respec_passives","respec_weaver"].map(id=>actionCard(controlById(id))).join("")}</div></section>`;
  }else if(page==="equipment"){
-  content.innerHTML=cachedSummary("build_read")+settingPanel("Equipment rules",["offhand","fullsets","primordials"].map(key=>controlById("build_"+key)));
+  content.innerHTML=cachedSummary("build_read")+settingPanel("Equipment rules",["offhand","fullsets","primordials"].map(key=>controlById("build_"+key)))+looksPanel();
  }else if(page==="summons"){
   const aliases=catalog.characterStats.aliases;
   const summonStats=aliases.map((row,index)=>({row,index})).filter(x=>/^minion|^maxcompanions/.test(x.row.name));
@@ -1196,6 +1197,25 @@ async function categoriesAction(kind,category){
  }
  await readCategories();
 }
+// ---- item looks: an equipped item can look like another item of the same type (transmog)
+let itemLooks=null;
+const lookSlotNames={helmet:"Helmet",body:"Body armour",gloves:"Gloves",boots:"Boots",belt:"Belt",weapon:"Weapon",offhand:"Off-hand"};
+function looksPanel(){
+ if(!controlById("transmog_read"))return "";
+ const s=itemLooks&&String(itemLooks.player?.id)===String(connected.player?.id)?itemLooks:null;
+ const head=`<section class="panel" id="item-looks"><div class="section-head"><h2>Item looks</h2><button data-looks="read" data-control-id="transmog_read">${s?"Refresh":"Read looks"}</button></div><p class="muted">Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you choose the item's own look again. Shop cosmetics are not touched.</p>`;
+ if(!s)return head+`<p class="empty">Read the looks of the loaded character.</p></section>`;
+ const slots=s.slots.filter(x=>x.item);
+ if(!slots.length)return head+`<p class="empty">Equip an item to change its look.</p></section>`;
+ return head+`<div class="form-grid">${slots.map(x=>`<label>${esc(tr(lookSlotNames[x.slot]??x.slot))} · ${esc(x.item.name)}<select data-look-slot="${esc(x.slot)}" data-control-id="transmog_set"><option value="none">${esc(tr("Own look: {0}").replace("{0}",x.item.name))}</option>${x.options.filter(o=>o.key!==x.item.key).map(o=>`<option value="${esc(o.key)}" ${x.look?.key===o.key?"selected":""}>${esc(o.name)}</option>`).join("")}</select></label>`).join("")}</div></section>`;
+}
+function renderLooks(){const node=$("#item-looks");if(node)node.outerHTML=looksPanel();updateDisabled();}
+async function readLooks(){const r=await runTask({type:"control",id:"transmog_read",operation:"read"},{silent:true});if(r?.ok&&r.slots)itemLooks=r;renderLooks();}
+async function setLook(slot,look){
+ const r=await runTask({type:"control",id:"transmog_set",operation:"set",args:{slot,look}},{silent:true});
+ if(r?.ok&&r.slots){itemLooks=r;notify("Look changed.");renderLooks();return;}
+ await readLooks();
+}
 // ---- interface font
 // Every Windows font face: each family, then its other styles ("Segoe UI — Semibold", sent as Family|Style).
 let fontFilter="";
@@ -1568,6 +1588,7 @@ content.addEventListener("click",async e=>{
  }
  else if(b.dataset.tierReset!==undefined){try{localStorage.removeItem("epochpact.tier-palette.v1");localStorage.removeItem("epochpact.rule-line-color.v1");}catch{}const r=await runTask({type:"control",id:"tier_color",operation:"reset"},{silent:true});if(r?.ok){notify("Tier colours reset.");renderPage();}}
  else if(b.dataset.categories)await categoriesAction(b.dataset.categories,{key:b.dataset.category});
+ else if(b.dataset.looks)await readLooks();
  else if(b.dataset.stashRules)await stashRulesAction(b.dataset.stashRules,b.dataset.stashRules==="create"?{hidden:$("#stash-rules-hidden")?.checked?1:0,disabled:$("#stash-rules-disabled")?.checked?1:0}:{});
  else if(b.dataset.reportNow!==undefined){const r=await runTask({type:"control",id:"report_now"},{silent:true});if(r?.ok){notify(`Report saved: ${r.folder.split(/[\\/]/).pop()} (in the game's EpochPact\\reports folder).`);void refreshSection("report_read");}}
  else if(b.dataset.damageAction)await damageAction(b.dataset.damageAction);
@@ -1717,6 +1738,7 @@ content.addEventListener("change",e=>{
  if(e.target.id==="text-scale"){try{localStorage.setItem("epochpact.text-scale.v1",JSON.stringify(Number(e.target.value)));}catch{}applyTextScale();return;}
  if(e.target.id==="remember-scroll"){writeStored("remember-scroll",e.target.checked);return;}
  if(e.target.id==="update-check"){writeStored("update-check",e.target.checked);return;}
+ if(e.target.dataset.lookSlot){void setLook(e.target.dataset.lookSlot,e.target.value);return;}
  if(e.target.dataset.categoryAuto){void categoriesAction("auto",{key:e.target.dataset.categoryAuto,value:e.target.checked?1:0});return;}
  if(e.target.id==="categories-column"){try{localStorage.setItem("epochpact.categories.v1",JSON.stringify({column:e.target.checked}));}catch{}return;}
  if(e.target.dataset.sortTab){void runTask({type:"control",id:"inventory_sorttab",args:{tab:Number(e.target.dataset.sortTab),value:e.target.checked?1:0}},{silent:true}).then(syncInventoryTools);return;}

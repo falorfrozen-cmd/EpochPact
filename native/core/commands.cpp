@@ -35,6 +35,7 @@
 #include "weaver.hpp"
 #include "idols.hpp"
 #include "enchanter.hpp"
+#include "transmog.hpp"
 #include "unique_rolls.hpp"
 #include "effects.hpp"
 #include "ingame_panel.hpp"
@@ -119,6 +120,7 @@ std::string Execute(const std::string& line) {
     if(cmd=="pickupinterval"){double value=0;return args.size()==1&&statedit::Number(args[0],&value)?items::SetInterval(value):"{\"ok\":false,\"error\":\"use pickupinterval 0.25..10\"}";}
     if(cmd=="lootlog"){unsigned long long since=0;if(args.size()>1||(args.size()==1&&std::from_chars(args[0].data(),args[0].data()+args[0].size(),since).ec!=std::errc{}))return "{\"ok\":false,\"error\":\"use lootlog [since]\"}";return items::LootLog(since);}
     if(cmd=="lootlogclear")return args.empty()?items::ClearLootLog():"{\"ok\":false,\"error\":\"lootlogclear expects no arguments\"}";
+    if(cmd=="remotepickup"){double value=0;if(args.empty())return items::Status().substr(items::Status().rfind("remotepickup:"));return args.size()==1&&statedit::Number(args[0],&value)?items::SetRemote(value):"remotepickup: refused: use remotepickup 0|1";}
     if(cmd=="pickupnow")return args.empty()?items::PickupNow():"{\"ok\":false,\"error\":\"pickupnow expects no arguments\"}";
     if(cmd=="pickupradius"){double value=0;if(args.empty())return items::RadiusStatus();return args.size()==1&&statedit::Number(args[0],&value)?items::SetRadius(value):"{\"ok\":false,\"error\":\"use pickupradius 0..60\"}";}
     if(cmd=="reportread")return args.empty()?report::Read():"{\"ok\":false,\"error\":\"reportread expects no arguments\"}";
@@ -168,6 +170,8 @@ std::string Execute(const std::string& line) {
         if(args.size()==2&&statedit::Integer(args[0],1,100,&count)&&statedit::Integer(args[1],1,100,&level))return spawn::AltarCheck(static_cast<int>(count),static_cast<int>(level));
         return "{\"ok\":false,\"error\":\"use altarcheck count level\"}";}
     if(cmd=="invaffixes")return args.empty()?spawn::InventoryAffixes():"{\"ok\":false,\"error\":\"invaffixes expects no arguments\"}";
+    if(cmd=="farspawn"){long long d=0;if(args.size()==1&&statedit::Integer(args[0],1,60,&d))return spawn::FarSpawn(static_cast<int>(d));return "{\"ok\":false,\"error\":\"use farspawn 1..60\"}";}
+    if(cmd=="labelclick"){long long k=0;if(args.size()==1&&statedit::Integer(args[0],0,1,&k))return spawn::LabelClick(static_cast<int>(k));return "{\"ok\":false,\"error\":\"use labelclick 0|1\"}";}
     if(cmd=="bonedrop"){long long amount=0;
         if(args.size()==1&&statedit::Integer(args[0],0,100000,&amount))return spawn::BoneDrop(static_cast<int>(amount));
         return "{\"ok\":false,\"error\":\"use bonedrop amount\"}";}
@@ -290,6 +294,8 @@ std::string Execute(const std::string& line) {
         if (args.size() != 1 || end == args[0].c_str() || *end) return cmd + ": refused: not a number: " + (args.empty() ? std::string() : args[0]);
         return cmd == "idolprefixes" ? idols::SetPrefixes(v) : idols::SetSuffixes(v);
     }
+    if (cmd == "transmogread") return args.empty() ? transmog::Read() : "{\"ok\":false,\"error\":\"transmogread expects no arguments\"}";
+    if (cmd == "transmog") return args.size() == 2 ? transmog::Set(args[0], args[1]) : "{\"ok\":false,\"error\":\"use transmog <slot> <look|none>\"}";
     if (cmd == "enchanteruses") {
         if (args.empty()) return enchanter::Status();
         char* end = nullptr;
@@ -306,7 +312,7 @@ std::string Execute(const std::string& line) {
     }
     if (cmd == "status") {
         std::string s = std::string("EpochPact ") + kVersion + "; gate: " + game::GateText() + "\n" + xp::Status() + "\n" +
-                        loot::Status() + "\n" + density::Status() + "\n" + monolith::Status() + "\n" + cof::Status() + "\n" + items::Status() + "\n" + weaver::Status() + "\n" + idols::Status() + "\n" + enchanter::Status() + "\n" + uniquerolls::Status() + "\n" + player::Status() + "\nframe hook: " +
+                        loot::Status() + "\n" + density::Status() + "\n" + monolith::Status() + "\n" + cof::Status() + "\n" + items::Status() + "\n" + weaver::Status() + "\n" + idols::Status() + "\n" + enchanter::Status() + "\n" + transmog::Status() + "\n" + uniquerolls::Status() + "\n" + player::Status() + "\nframe hook: " +
                         (mainthread::HookInstalled() ? "in" : "out (idle)");
 #ifdef EPOCHPACT_RESEARCH
         s += "\n" + research::Status();

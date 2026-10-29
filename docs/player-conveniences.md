@@ -44,6 +44,22 @@ retries once.
 ("amber"). The game normally collects them only when you walk close; with the
 category enabled, Auto Pickup and Pick up everything now collect them like gold.
 
+### Pick up from afar
+
+**Pick up from afar** (Loot & Pickup, player request 2026-10-29: "where I click it loots, I
+don't have to walk to the loot myself") picks up an item you click on the ground where it
+lies, without walking there. A click on an item's name (`GroundItemLabel.ClickedItem`, also
+the gamepad's) asks the game's own pickup (`requestPickup`) with the item's ground record
+moved to your character's feet for that call, as auto pickup does, so the game's range check
+passes; inventory space and the item categories' routing still apply. When the
+game keeps the item (no room in the inventory), the click goes on as usual and your character
+walks there. Offline only; switched off, the hook is removed.
+
+Live check 2026-10-29 (EpFeedbackTest clone, `builds\remote-live1`, test commands `farspawn`
+and `labelclick`): an item dropped 15 units away and its label clicked. Off: the character
+walked 9.7 units and picked it up on arrival. On: the character did not move (0.0) and the
+item was in the inventory within 1.5 s; counters picked 1, walked 0.
+
 ### Recent pickups and the loot window
 
 The Loot page lists recent item, gold and amber pickups (up to 300, newest first)
@@ -748,6 +764,31 @@ window, with the count of items in each tab once the stash has been opened.
 Commands: `catread`, `catauto <category> 0|1`, `catshow <category|none>`,
 `catopen <category>`, `catsetup <save id>`, `catsort <save id>`, `catmaterials`
 (category keys: unique, exalted, idol, special, weapon, armour, jewellery, other).
+
+### Item looks
+
+**Item looks** (Equipment page, player request 2026-10-29: "Vanity - transmog, no skin unlock")
+lets an equipped item look like another item of the same type: any base item or Unique of
+that type, with the game's own art. Slots: helmet, body armour, gloves, boots, belt, weapon and
+off-hand. Shop cosmetics are not touched and nothing is unlocked.
+
+- Each slot with an item has a list: the item's own look first, then the base items and the
+  Uniques and Set items of that type. A choice applies at once.
+- The game sends a character's visuals through `PlayerActorSync.ReceiveEquipGear` (armour)
+  and `ReceiveEquipWeapon` (weapons and off-hands) when it loads and on every equip; EpochPact
+  replaces the subtype and Unique there with the look's. So the look stays through zone
+  changes, restarts and new items of the same type, until you choose the item's own look again.
+  Equipping an item of another type shows that item's own look (the stored look waits for its
+  type).
+- Looks are kept per character in `<game>/EpochPact/transmog.txt`. Display only: the item, its
+  stats and your save do not change.
+
+Live check 2026-10-29 (EpFeedbackTest clone, `builds\tm-live1`): at load the game sent 5
+armour and 2 weapon visuals through the hooks. Unique looks set on the body armour, helmet,
+gloves, boots, weapon and shield changed the character in the screenshot (a blue coat and a
+wooden shield became Flesh of Stone, Somnia, Hazelroot, Corsair's Boarding Shield ...); a
+look of another type was refused; after a restart the six looks were applied again as the
+character loaded; back to the own looks, the character looked as before.
 
 ### Stash tabs from the loot filter
 

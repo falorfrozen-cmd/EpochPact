@@ -317,24 +317,38 @@ GroundOffsets g_ground[6];
 size_t g_offlineItems=0,g_labelVisuals=0,g_visualId=0,g_pickupId=0;
 bool g_vacuumReady=false;
 struct AutoScope { bool previous = t_autoPickup; AutoScope() { t_autoPickup = true; } ~AutoScope() { t_autoPickup = previous; } };
+uint32_t PickId(void* object,int kind){
+    return kind==0?managed::Get<uint32_t>(managed::Get<void*>(object,g_labelVisuals),g_visualId):managed::Get<uint32_t>(object,g_pickupId);
+}
+// The offline ground record (GroundItem, GroundGold, ...) with that id, or null.
+void* Record(int kind,uint32_t id){
+    void* manager=game::StaticObject(g_managerField);
+    if(!manager)return nullptr;
+    void* list=managed::Get<void*>(managed::Get<void*>(manager,g_offlineItems),g_ground[kind].list);
+    void* array=managed::Get<void*>(list,kListItems);int n=managed::Get<int>(list,kListSize);
+    if(n<0||n>8192||!array||static_cast<uintptr_t>(n)>managed::Get<uintptr_t>(array,kArrayLength))return nullptr;
+    for(int i=0;i<n;++i){void* record=managed::Get<void*>(array,kArrayFirst+8*i);
+        if(record&&managed::Get<uint32_t>(record,g_ground[kind].id)==id)return record;}
+    return nullptr;
+}
+// The game's own pickup call, with the ground record at the character's feet for that call, so its range
+// check passes wherever the drop lies. False when there is no record (nothing was asked).
+bool PickHere(void* object,game::MethodRef method,int kind){
+    void* actor=managed::Invoke(m_getActor);
+    if(!actor||!game::IsAlive(actor))return false;
+    void* record=Record(kind,PickId(object,kind));
+    if(!record)return false;
+    managed::Root pin(record),transform(managed::Invoke(m_componentTransform,actor));
+    Position player=managed::Value<Position>(m_transformPosition,transform.Get());
+    auto& location=*reinterpret_cast<Position*>(static_cast<char*>(record)+g_ground[kind].location);
+    rules::BorrowLocation borrow(location,player);
+    managed::Invoke(method,object);
+    return true;
+}
 void Pickup(void* object,game::MethodRef method,int kind){
     AutoScope automatic;
     if(!g_vacuumReady){managed::Invoke(method,object);return;}
-    void* manager=game::StaticObject(g_managerField),*actor=managed::Invoke(m_getActor);
-    if(!manager||!actor||!game::IsAlive(actor)){g_missedRecords.fetch_add(1,std::memory_order_relaxed);return;}
-    const auto id=kind==0?managed::Get<uint32_t>(managed::Get<void*>(object,g_labelVisuals),g_visualId):managed::Get<uint32_t>(object,g_pickupId);
-    void* list=managed::Get<void*>(managed::Get<void*>(manager,g_offlineItems),g_ground[kind].list);
-    void* array=managed::Get<void*>(list,kListItems);int n=managed::Get<int>(list,kListSize);
-    if(n<0||n>8192||!array||static_cast<uintptr_t>(n)>managed::Get<uintptr_t>(array,kArrayLength))return;
-    for(int i=0;i<n;++i){void* record=managed::Get<void*>(array,kArrayFirst+8*i);
-        if(!record||managed::Get<uint32_t>(record,g_ground[kind].id)!=id)continue;
-        managed::Root pin(record),transform(managed::Invoke(m_componentTransform,actor));
-        Position player=managed::Value<Position>(m_transformPosition,transform.Get());
-        auto& location=*reinterpret_cast<Position*>(static_cast<char*>(record)+g_ground[kind].location);
-        rules::BorrowLocation borrow(location,player);
-        managed::Invoke(method,object);return;
-    }
-    g_missedRecords.fetch_add(1,std::memory_order_relaxed);  // no ground record with this id: nothing was asked
+    if(!PickHere(object,method,kind))g_missedRecords.fetch_add(1,std::memory_order_relaxed);  // no ground record with this id: nothing was asked
 }
 size_t g_groundItemData = 0, g_goldValue = 0, g_itemTypeOffset = 0, g_subTypeOffset = 0, g_uniqueIdOffset = 0;
 game::MethodRef m_itemListGet, m_uniqueName, m_unpack, m_pickupItem, m_pickupGold;
@@ -716,6 +730,34 @@ void d_distantTick(void* self, float deltaTime, const Method* m) {
 feature::Hook h_distantTick{"DistantItemPickupHandler.OnUpdateTick", {}, reinterpret_cast<void*>(&d_distantTick),
                             reinterpret_cast<void**>(&o_distantTick)};
 
+// ---- remote pickup: a click on a ground item's label (GroundItemLabel.ClickedItem, also the gamepad's
+// PerformClick) picks the item up where it lies instead of walking there. When the game keeps it (no room in
+// the inventory), the click goes on as usual.
+std::atomic<bool> g_remote{false};
+std::atomic<uint64_t> g_remotePicked{0}, g_remoteWalked{0};
+using ClickedFn = void (*)(void* self, const Method* m);
+ClickedFn o_clicked = nullptr;
+void d_clicked(void* self, const Method* m) {
+    bool picked = false;
+    if (g_remote.load(std::memory_order_relaxed) && self && g_vacuumReady && m_requestPickup && game::IsOfflinePlay())
+        game::Guarded([&] {
+            const uint32_t id = PickId(self, 0);
+            if (PickHere(self, m_requestPickup, 0)) picked = !Record(0, id);
+        }, nullptr);
+    if (picked) { g_remotePicked.fetch_add(1, std::memory_order_relaxed); return; }
+    if (g_remote.load(std::memory_order_relaxed)) g_remoteWalked.fetch_add(1, std::memory_order_relaxed);
+    o_clicked(self, m);
+}
+feature::Hook h_clicked{"GroundItemLabel.ClickedItem", {}, reinterpret_cast<void*>(&d_clicked), reinterpret_cast<void**>(&o_clicked)};
+
+std::string RemoteStatus() {
+    char buf[160];
+    std::snprintf(buf, sizeof buf, "remotepickup: x%d, hook %s, picked %llu, walked %llu", g_remote.load() ? 1 : 0,
+                  h_clicked.ref && hook::IsInstalled(h_clicked.ref.code) ? "in" : "out", static_cast<unsigned long long>(g_remotePicked.load()),
+                  static_cast<unsigned long long>(g_remoteWalked.load()));
+    return buf;
+}
+
 std::string AutoStatus() {
     const bool in = h_distantTick.ref && hook::IsInstalled(h_distantTick.ref.code);
     char buf[200];
@@ -758,6 +800,7 @@ bool Init() {
     }, nullptr);
 
     h_distantTick.ref = game::FindMethod("LE.dll", "", "DistantItemPickupHandler", "OnUpdateTick", 1);
+    h_clicked.ref = game::FindMethod("LE.dll", "", "GroundItemLabel", "ClickedItem", 0);
     g_labelListField = game::FindStaticField("LE.dll", "", "ItemTooltipOrganizer", "pickableGroundLabelList");
     g_managerField = game::FindStaticField("LE.dll", "", "GroundItemManager", "instance");
     g_hoveredItemField = game::FindStaticField("LE.dll", "", "TooltipItem", "highlightedTooltipItem");
@@ -911,7 +954,23 @@ std::string SetAuto(double on) {
     return "autopickup -> on (items, gold, potions, tomes and bones; pauses while inspecting an item)";
 }
 
-std::string Status() { return feature::Line(g_rarity) + "\n" + feature::Line(g_weaversWill) + "\n" + feature::Line(g_lpRolls) + "\n" + ForgingPotentialStatus() + "\n" + AutoStatus(); }
+std::string Status() { return feature::Line(g_rarity) + "\n" + feature::Line(g_weaversWill) + "\n" + feature::Line(g_lpRolls) + "\n" + ForgingPotentialStatus() + "\n" + AutoStatus() + "\n" + RemoteStatus(); }
+
+std::string SetRemote(double on) {
+    if (on != 0.0 && on != 1.0) return "remotepickup: refused: use 0 (off) or 1 (on)";
+    if (!h_clicked.ref || !m_requestPickup || !g_vacuumReady) return "remotepickup: refused: the ground item click was not found in this game build";
+    std::string why;
+    if (on == 0.0) {
+        g_remote = false;
+        if (hook::IsInstalled(h_clicked.ref.code) && !hook::Remove(h_clicked.ref.code, &why)) return "remotepickup: off, but the hook stays: " + why;
+        return "remotepickup -> off (hook removed)";
+    }
+    if (!game::IsOfflinePlay()) return "remotepickup: refused: " + game::GateText();
+    if (!hook::IsInstalled(h_clicked.ref.code) && !hook::Install(h_clicked.ref.code, h_clicked.detour, h_clicked.original, &why))
+        return "remotepickup: refused: the hook did not go in: " + why;
+    g_remote = true;
+    return "remotepickup -> on (a click on an item's label picks it up where it lies)";
+}
 
 bool IsInspectingItem(){return InspectingItem();}
 void SetPickupObserver(PickupObserver observer){g_pickupObserver=observer;}
