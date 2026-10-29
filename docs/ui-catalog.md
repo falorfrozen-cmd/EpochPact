@@ -301,7 +301,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `cof_charges` — Tamamlanmış prophecy şarjları | `cofcharges {save_id} {slot} {value}` | slot: 0…3; value: 0…99 | — | Oyun kaydı |
 | `cof_favor_multiplier` — Favor kazanım çarpanı | `coffavormult {value}` | value: 1…100 | 1 | Oturum |
 | `cof_reputation_multiplier` — Reputation kazanım çarpanı | `cofrepmult {value}` | value: 1…100 | 1 | Oturum |
-| `cof_charge_multiplier` — Prophecy şarj hızı | `cofchargemult {value}` | value: 1…100 | 1 | Oturum |
+| `cof_charge_multiplier` — Prophecy şarj hızı | `cofchargemult {value}` | value: 0…100 | 1 | Oturum |
 | `cof_reward_multiplier` — Prophecy ödül adedi | `cofrewardmult {value}` | value: 1…25 | 1 | Oturum |
 | `cof_exalted_multiplier` — Exalted roll katsayısı | `cofexaltedmult {value}` | value: 1…100 | 1 | Oturum |
 | `cof_t7_multiplier` — T7 roll katsayısı | `coft7mult {value}` | value: 1…100 | 1 | Oturum |
@@ -323,7 +323,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Tamamlanmış prophecy şarjları:** 0–99 şarj; hemen eşya üretmez. Azaltma kesirli ilerlemeyi de sıfırlar. API: `tools.cof_backend.charges(save_id, slot, value)`.
 - **Favor kazanım çarpanı:** Normal pozitif Favor; doğal türetilen Reputation ve prophecy akışı devam eder. API: `tools.cof_backend.favor_multiplier(value)`. Reset: `coffavormult 1`.
 - **Reputation kazanım çarpanı:** Favor kazanım/harcamasından gelen Rep; elle ekleme hariç. Favor kazancında iki çarpan birleşir. API: `tools.cof_backend.reputation_multiplier(value)`. Reset: `cofrepmult 1`.
-- **Prophecy şarj hızı:** Favor/Rep bakiyesinden bağımsız; Tyranny harcama maliyetini artırmaz. API: `tools.cof_backend.charge_multiplier(value)`. Reset: `cofchargemult 1`.
+- **Prophecy şarj hızı:** Kehanetlerin, kazandığınız Favor'dan ne hızla dolduğu; deneyim ve Favor çarpanları bunu artık hızlandırmaz. 1 oyunun kendi hızı, 0 durdurur, en fazla 100. Favor/Rep bakiyesini değiştirmez; Tyranny harcama maliyetini artırmaz. API: `tools.cof_backend.charge_multiplier(value)`. Reset: `cofchargemult 1`.
 - **Prophecy ödül adedi:** Normal spawn başına temel adet üst sınırı 250; rank12/Duplication birleşir; ek şarj tüketmez. API: `tools.cof_backend.reward_multiplier(value)`. Reset: `cofrewardmult 1`.
 - **Exalted roll katsayısı:** Native coefficient × ayar (rank12: 1.5); Rare→Exalted gerçek şansına da uygulanır. Yüzde değildir. API: `tools.cof_backend.exalted_multiplier(value)`. Reset: `cofexaltedmult 1`.
 - **T7 roll katsayısı:** Native coefficient × ayar (rank12: 2); seviye/tier uygunluğu oyunda kalır. Yüzde değildir. API: `tools.cof_backend.t7_multiplier(value)`. Reset: `coft7mult 1`.

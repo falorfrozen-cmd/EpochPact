@@ -1541,7 +1541,7 @@
 "Reputation gain multiplier": "Множитель получения Репутации",
 "Multiplies Reputation from earning or spending Favor, excluding manual grants. Favor gains combine both gain multipliers.": "Умножает Репутацию за получение или трату Благосклонности, кроме ручных начислений. При получении Благосклонности действуют оба множителя.",
 "Prophecy charge speed": "Скорость зарядки пророчеств",
-"Changes prophecy progress independently of Favor and Reputation balances. Does not raise Tyranny's spending cost.": "Меняет прогресс пророчеств независимо от запаса Благосклонности и Репутации. Не повышает стоимость трат для Тирании.",
+"How fast prophecies fill from the Favor you earn; the experience and Favor multipliers no longer speed them up. 1 is the game's own speed, 0 stops them, up to 100. Favor and Reputation balances do not change; Tyranny's spending cost does not rise.": "Скорость заполнения пророчеств от получаемой Благосклонности; множители опыта и Благосклонности её больше не ускоряют. 1 — скорость игры, 0 останавливает, до 100. Балансы Благосклонности и Репутации не меняются; стоимость трат Тирании не растёт.",
 "Prophecy reward quantity": "Количество наград пророчеств",
 "Multiplies the base reward quantity, capped at 250 per normal spawn. Combines with rank 12 and Duplication without consuming extra charges.": "Умножает базовое количество награды, максимум 250 за обычное появление. Сочетается с 12 рангом и Дублированием без расхода дополнительных зарядов.",
 "Exalted roll multiplier": "Множитель шанса Возвышенных",

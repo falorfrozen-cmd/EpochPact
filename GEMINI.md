@@ -182,7 +182,7 @@ py -3 tools/le_session.py restore-saves <backup folder>
 | `coflenses` / `cofpreview` / `cofprophecy` / `cofcharges` | rank-gated lens unlock, selection preview/configuration, charge edit | normal slot copies/setters/validation; no manual item writes |
 | `coffavormult <1–100>` | positive CoF favor gains; x1 removes hook | session only; normal reputation/prophecy flow remains |
 | `cofrepmult <1–100>` | positive CoF Reputation gains from gaining/spending Favor; x1 removes hook | session only; normal rank progression; manual gifts excluded; combines with Favor multiplier on gained Favor |
-| `cofchargemult` / `cofrewardmult` | independent prophecy charge speed / normal reward item count | scoped AddFavor / SpawnRewardForPlayer; wallet and charges consumed remain normal |
+| `cofchargemult` / `cofrewardmult` | prophecy charge speed 0–100 (alone; experience/Favor multiplier shares divided out via thread-local `cof::tuning::FavorBoost`) / normal reward item count | scoped AddFavor / SpawnRewardForPlayer; wallet and charges consumed remain normal; charge hook in while xp, Favor or charge multiplier != 1 |
 | `cofdouble enemy\|echo <0–100\|reset>` | separate double-item probabilities | enemy-death dispatcher shared with global drops; normal echo-specific rewards, excludes Tomb source |
 | `cofexaltedmult` / `coft7mult` / `coflpmult` `<1–100>` | CoF loot Exalted/T7/eligible Unique LP roll coefficients | scoped normal item generation; preserves level/eligibility; LP original result checked first |
 | `coflensmult celerity\|charity\|duplication <1–100>` | lens extra-charge contribution / duplication chance | shared assets temporarily borrowed, restored on return/exception |

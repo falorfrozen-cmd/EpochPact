@@ -5582,14 +5582,14 @@
         {
           "name": "value",
           "type": "number",
-          "minimum": 1,
+          "minimum": 0,
           "maximum": 100
         }
       ],
       "default": 1,
       "resetCommand": "cofchargemult 1",
       "lifetime": "session",
-      "description": "Favor/Rep bakiyesinden bağımsız; Tyranny harcama maliyetini artırmaz.",
+      "description": "Kehanetlerin, kazandığınız Favor'dan ne hızla dolduğu; deneyim ve Favor çarpanları bunu artık hızlandırmaz. 1 oyunun kendi hızı, 0 durdurur, en fazla 100. Favor/Rep bakiyesini değiştirmez; Tyranny harcama maliyetini artırmaz.",
       "currentSource": "liveState.cofread.tuning.settings.charge",
       "requirements": [
         "offline",

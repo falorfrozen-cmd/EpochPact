@@ -567,13 +567,15 @@ def controls():
     for id, label, cmd, high, function, description, current in (
         ("cof_favor_multiplier", "Favor kazanım çarpanı", "coffavormult", 100, "favor_multiplier", "Normal pozitif Favor; doğal türetilen Reputation ve prophecy akışı devam eder.", "liveState.cofread.favorMultiplier"),
         ("cof_reputation_multiplier", "Reputation kazanım çarpanı", "cofrepmult", 100, "reputation_multiplier", "Favor kazanım/harcamasından gelen Rep; elle ekleme hariç. Favor kazancında iki çarpan birleşir.", "liveState.cofread.reputationMultiplier"),
-        ("cof_charge_multiplier", "Prophecy şarj hızı", "cofchargemult", 100, "charge_multiplier", "Favor/Rep bakiyesinden bağımsız; Tyranny harcama maliyetini artırmaz.", "liveState.cofread.tuning.settings.charge"),
+        ("cof_charge_multiplier", "Prophecy şarj hızı", "cofchargemult", 100, "charge_multiplier", "Kehanetlerin, kazandığınız Favor'dan ne hızla dolduğu; deneyim ve Favor çarpanları bunu artık hızlandırmaz. 1 oyunun kendi hızı, 0 durdurur, en fazla 100. Favor/Rep bakiyesini değiştirmez; Tyranny harcama maliyetini artırmaz.", "liveState.cofread.tuning.settings.charge"),
         ("cof_reward_multiplier", "Prophecy ödül adedi", "cofrewardmult", 25, "reward_multiplier", "Normal spawn başına temel adet üst sınırı 250; rank12/Duplication birleşir; ek şarj tüketmez.", "liveState.cofread.tuning.settings.reward"),
         ("cof_exalted_multiplier", "Exalted roll katsayısı", "cofexaltedmult", 100, "exalted_multiplier", "Native coefficient × ayar (rank12: 1.5); Rare→Exalted gerçek şansına da uygulanır. Yüzde değildir.", "liveState.cofread.tuning.settings.exalted"),
         ("cof_t7_multiplier", "T7 roll katsayısı", "coft7mult", 100, "t7_multiplier", "Native coefficient × ayar (rank12: 2); seviye/tier uygunluğu oyunda kalır. Yüzde değildir.", "liveState.cofread.tuning.settings.t7"),
         ("cof_lp_multiplier", "Unique LP roll katsayısı", "coflpmult", 100, "lp_multiplier", "Yalnız native CoF bonusuna uygun Unique. LP 0–4; Weaver's Will istisnası; garanti LP adedi değildir.", "liveState.cofread.tuning.settings.lp"),
     ):
         mult(id, "cof", label, cmd, high, description, f"tools.cof_backend.{function}(value)", current, "docs/cof.md", requires=("cof_member_to_enable",))
+        if id == "cof_charge_multiplier":
+            items[-1]["parameters"][0]["minimum"] = 0  # 0 stops prophecies
     for source, label in (("enemy", "Düşman çift eşya ihtimali (%)"), ("echo", "Normal Monolith çift eşya ihtimali (%)")):
         add("cof_double_" + source, "cof", label, "number", f"cofdouble {source} {{value}}", "session",
             "Ayar doğrudan yüzde; 0 etkisiz çift şans, reset normal rank bonusu. Echo: eşya ödülü, Tomb/Gold/XP istisnaları normal.",

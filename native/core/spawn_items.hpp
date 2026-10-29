@@ -26,6 +26,9 @@ std::string AltarCheck(int count, int level);    // idol altars' affixes at each
 std::string InventoryAffixes();                   // invaffixes
 std::string FarSpawn(int distance);              // farspawn
 std::string LabelClick(int click);               // labelclick
+std::string DropTest(int count, int level);      // droptest
+std::string GroundIdols();                       // groundidols
+std::string XpGain(long long amount);            // xpgain
 std::string BoneDrop(int amount);                 // bonedrop
 std::string MethodRva(const std::string& klass, const std::string& name);  // methodrva
 #endif

@@ -249,6 +249,7 @@ void Detour(void* self, int amount, bool ignoreRep, bool ignoreMultiplier, const
         } else ++refused;
     }
     lastIn = amount; lastOut = scaled;
+    tuning::FavorBoost boost(amount > 0 && scaled != amount && lastFaction.load() == 0 ? static_cast<double>(scaled) / amount : 1.0);
     original(self, scaled, ignoreRep, ignoreMultiplier, method);
 }
 void ReputationDetour(void* self, int amount, const il2cpp::Method* method) {
@@ -473,6 +474,8 @@ std::string Multiplier(double value) {
             if (!hook::IsInstalled(gain.code) && !hook::Install(gain.code, reinterpret_cast<void*>(&Detour), reinterpret_cast<void**>(&original), &why)) throw std::runtime_error(why);
             multiplier = value;
         }
+        tuning::favorSetting = value;
+        tuning::BoostSettingChanged();
         return "{\"ok\":true,\"favorMultiplier\":" + std::to_string(value) + "}";
     });
 }

@@ -765,6 +765,72 @@ std::string LabelClick(int click) {
         return out.str() + "}";
     });
 }
+// Enemy drops through the game's own static ItemDrop.DropItem at the character (as a kill does), count times.
+std::string DropTest(int count, int level) {
+    return Run([=] {
+        const auto c = Current();
+        Vec3 at = PlayerAt(c.actor);
+        const int scene = Value<int>(M("SceneManager", "GetActiveScene", 0, "UnityEngine.SceneManagement", "UnityEngine.CoreModule.dll"));
+        float chance = 1, itemMult = 1, gold = 0, crafting = 0, radius = 3;
+        int lvl = level, baseRates = 0, flags = 1, goldType = 0, corrupt = 0, sc = scene;
+        bool compatible = false, additional = false, death = true, craftingOnly = false, onePile = true;
+        void* args[]{&lvl, &at, &chance, &compatible, &itemMult, &baseRates, &additional, &gold, &gold, &crafting, &flags, &sc, &death, &craftingOnly,
+                     &onePile, &goldType, &corrupt, &radius};
+        // the ground cleared first (the game's own call), so labels of earlier drops do not fill the label list
+        if (void* manager = game::StaticObject(game::FindStaticField("LE.dll", "", "GroundItemManager", "instance")))
+            Invoke(M("GroundItemManager", "ClearAllGroundDrops", 0), manager);
+        const auto drop = M("ItemDrop", "DropItem", 18);
+        for (int i = 0; i < count; ++i) Invoke(drop, nullptr, args);
+        return "{\"ok\":true,\"drops\":" + std::to_string(count) + "}";
+    });
+}
+// The ground items the UI labels: each idol's or idol altar's type, subtype, rarity and prefix/suffix counts.
+std::string GroundIdols() {
+    return Run([] {
+        (void)Current();
+        void* holder = game::StaticObject(game::FindStaticField("LE.dll", "", "ItemTooltipOrganizer", "pickableGroundLabelList"));
+        std::ostringstream out;
+        out << "{\"ok\":true,\"items\":[";
+        bool first = true;
+        int labels = 0;
+        if (holder) {
+            const auto* listField = il2cpp::api().class_get_field_from_name(il2cpp::api().object_get_class(holder), "_list");
+            void* list = listField ? Get<void*>(holder, il2cpp::api().field_get_offset(listField)) : nullptr;
+            const auto* labelClass = game::FindClass("LE.dll", "", "GroundItemLabel");
+            if (list) for (void* label : Entries(list)) {
+                if (!label || il2cpp::api().object_get_class(label) != labelClass || !game::IsAlive(label)) continue;
+                ++labels;
+                void* item = Invoke(Method(label, "getItemData", 0), label);
+                if (!item) continue;
+                const int type = Get<uint8_t>(item, F("ItemData", "itemType"));
+                if (!((type >= 25 && type <= 33) || type == 41)) continue;
+                int p = 0, s = 0, w = 0;
+                for (void* a : Entries(Get<void*>(item, F("ItemData", "affixes")))) {
+                    if (!a) continue;
+                    const int kind = Get<int>(a, F("ItemAffix", "affixType"));
+                    p += kind == 0;
+                    s += kind == 1;
+                    w += Get<int>(a, F("ItemAffix", "specialAffixType")) == 5;
+                }
+                out << (first ? "" : ",") << "{\"t\":" << type << ",\"s\":" << Get<uint16_t>(item, F("ItemData", "subType"))
+                    << ",\"rarity\":" << static_cast<int>(Get<uint8_t>(item, F("ItemData", "rarity"))) << ",\"p\":" << p << ",\"x\":" << s << ",\"w\":" << w << '}';
+                first = false;
+            }
+        }
+        return out.str() + "],\"labels\":" + std::to_string(labels) + "}";
+    });
+}
+// Experience for the character through ExperienceTracker.GainExpFromEnemyOrMote (as a kill gives it; hooks run).
+std::string XpGain(long long amount) {
+    return Run([=] {
+        const auto c = Current();
+        void* tracker = Get<void*>(c.actor, F("Actor", "experienceTracker"));
+        int64_t n = amount;
+        void* a[]{&n};
+        Invoke(M("ExperienceTracker", "GainExpFromEnemyOrMote", 1), tracker, a);
+        return std::string("{\"ok\":true}");
+    });
+}
 // Every method of that name on an LE.dll class ("Namespace:Class" or "Class"): arity and RVA in this GameAssembly.
 std::string MethodRva(const std::string& klass, const std::string& name) {
     std::string ns, cls = klass;

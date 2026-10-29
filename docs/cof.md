@@ -21,7 +21,7 @@ Kalıcı işlemlerde `cofread` çıktısındaki **yüklü** karakter kimliği ge
 | `cofcharges <id> <0–3> <0–99>` | Seçilmiş prophecy'nin tamamlanmış şarj sayısını ayarlar. |
 | `coffavormult <1–100>` | Pozitif CoF Favor kazanımını çarpar; x1 hook'u kaldırır. Oturum ayarıdır. |
 | `cofrepmult <1–100>` | Pozitif CoF Reputation kazanımını çarpar; Favor kazanımı ve harcamasından gelen Reputation'a uygulanır. x1 hook'u kaldırır. Oturum ayarıdır. |
-| `cofchargemult <1–100>` | Prophecy şarj kazanımını Favor/Reputation bakiyesinden bağımsız artırır. |
+| `cofchargemult <0–100>` | Prophecy şarj hızını tek başına belirler: 1 oyunun kendi hızı, 0 durdurur. Deneyim ve Favor çarpanları kehanetleri artık hızlandırmaz (kazanılan Favor çarpılır, kehanet ilerlemesi doğal Favor'a göre işler). Favor/Reputation bakiyesini değiştirmez. |
 | `cofrewardmult <1–25>` | Tamamlanan prophecy'nin normal eşya üretimindeki adedi artırır; ilave şarj harcamaz. |
 | `cofdouble enemy\|echo <0–100\|reset>` | Düşman veya normal Monolith echo eşya ödülünün çift gelme ihtimalini yüzde olarak ayarlar. `reset` normal rank bonusunu kullanır. |
 | `cofexaltedmult <1–100>` | Normal loot Exalted affix roll katsayısını ve mevcut Rare→Exalted şansını artırır. |
@@ -246,3 +246,22 @@ Mevcut Favor x5 geri açıldı; Reputation x1 ve yeni kontroller x1/normal bıra
 11 kurtarma/kurulum kontrolü geçti, kurulu DLL son build ile aynı SHA-256'ya sahip.
 Kanıt: `research/live/cof-tuning-20261007/checks.json` (`finalChecks`),
 `owner-final.json`; güncel manifest `cof-tuning-test-manifest.json` restored=true.
+
+### Prophecy charge speed and the experience / Favor multipliers (2026-10-29)
+
+A prophecy fills from the Favor a Circle of Fortune member gains, and that Favor comes from
+experience. Before 0.1.2-dev.48 the experience multiplier (`xp`) and the Favor multiplier
+(`coffavormult`) raised that Favor and so filled prophecies just as much faster: at experience
+×100 a prophecy filled at once, whatever the charge speed (player report 2026-10-29). Now the
+Favor itself is still multiplied, but `ProphecySlot.AddFavor` receives only the natural part
+of it times the charge speed: `xp.cpp` and `cof.cpp` mark their share on the thread
+(`cof::tuning::FavorBoost`) for the synchronous chain experience → `Faction.GainFavor` →
+`CircleOfFortune.OnFavorGained` → `AddFavorToSlot` → `AddFavor`, and the charge hook divides
+by it. The charge hook is in while either multiplier or the charge speed is not 1. The charge
+speed is now 0–100; 0 stops prophecies.
+
+Live check (EpFeedbackTest clone, `builds\fix-live1`, test command `xpgain 20000`, slot 0 with
+the first available reward): experience ×1: 1615 Favor, 1 charge and 1552 progress; experience
+×10: 16924 Favor, progress as for 1692 natural Favor (1 charge + 25465); Favor ×10: 19225
+Favor, progress as for 1922 (1 charge + 97205); charge speed 0: 2001 Favor, no progress; charge
+speed 2: 1999 Favor, 2 charges + 241615 (twice the natural progress).

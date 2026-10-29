@@ -172,6 +172,9 @@ std::string Execute(const std::string& line) {
     if(cmd=="invaffixes")return args.empty()?spawn::InventoryAffixes():"{\"ok\":false,\"error\":\"invaffixes expects no arguments\"}";
     if(cmd=="farspawn"){long long d=0;if(args.size()==1&&statedit::Integer(args[0],1,60,&d))return spawn::FarSpawn(static_cast<int>(d));return "{\"ok\":false,\"error\":\"use farspawn 1..60\"}";}
     if(cmd=="labelclick"){long long k=0;if(args.size()==1&&statedit::Integer(args[0],0,1,&k))return spawn::LabelClick(static_cast<int>(k));return "{\"ok\":false,\"error\":\"use labelclick 0|1\"}";}
+    if(cmd=="droptest"){long long n=0,l=0;if(args.size()==2&&statedit::Integer(args[0],1,500,&n)&&statedit::Integer(args[1],1,100,&l))return spawn::DropTest(static_cast<int>(n),static_cast<int>(l));return "{\"ok\":false,\"error\":\"use droptest count level\"}";}
+    if(cmd=="groundidols")return args.empty()?spawn::GroundIdols():"{\"ok\":false,\"error\":\"groundidols expects no arguments\"}";
+    if(cmd=="xpgain"){long long n=0;if(args.size()==1&&statedit::Integer(args[0],1,1000000000,&n))return spawn::XpGain(n);return "{\"ok\":false,\"error\":\"use xpgain amount\"}";}
     if(cmd=="bonedrop"){long long amount=0;
         if(args.size()==1&&statedit::Integer(args[0],0,100000,&amount))return spawn::BoneDrop(static_cast<int>(amount));
         return "{\"ok\":false,\"error\":\"use bonedrop amount\"}";}

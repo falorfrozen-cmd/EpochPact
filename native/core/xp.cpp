@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "game.hpp"
 #include "hook.hpp"
+#include "cof_tuning.hpp"
 
 #include <atomic>
 #include <cmath>
@@ -44,6 +45,8 @@ void Detour(void* self, int64_t amount, const il2cpp::Method* method) {
     }
     g_lastIn = amount;
     g_lastOut = out;
+    // the Favor this experience gives a Circle of Fortune member grows with it; prophecies must not
+    cof::tuning::FavorBoost boost(out != amount && amount > 0 ? static_cast<double>(out) / static_cast<double>(amount) : 1.0);
     g_orig(self, out, method);
 }
 
@@ -66,6 +69,8 @@ std::string Set(double m) {
     }
     if (m == 1.0) {
         g_mult = 1.0;
+        cof::tuning::xpSetting = 1.0;
+        cof::tuning::BoostSettingChanged();
         std::string why;
         if (hook::IsInstalled(g_target.code) && !hook::Remove(g_target.code, &why)) return "xp: x1 set, but the hook stays: " + why;
         return "xp -> x1 (off; hook removed)";
@@ -81,6 +86,8 @@ std::string Set(double m) {
             return "xp: refused: the hook did not go in: " + why;
         }
     }
+    cof::tuning::xpSetting = m;
+    cof::tuning::BoostSettingChanged();
     std::snprintf(buf, sizeof buf, "xp -> x%g (hook on ExperienceTracker.GainExpFromEnemyOrMote)", m);
     return buf;
 }

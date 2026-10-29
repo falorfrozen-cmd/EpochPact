@@ -1541,7 +1541,7 @@
 "Reputation gain multiplier": "İtibar kazanç çarpanı",
 "Multiplies Reputation from earning or spending Favor, excluding manual grants. Favor gains combine both gain multipliers.": "Elle verilenler hariç, Favor kazanırken veya harcarken elde edilen İtibarı çarpar. Favor kazançları iki kazanç çarpanını birleştirir.",
 "Prophecy charge speed": "Prophecy şarj hızı",
-"Changes prophecy progress independently of Favor and Reputation balances. Does not raise Tyranny's spending cost.": "Prophecy ilerlemesini Favor ve İtibar bakiyelerinden bağımsız olarak değiştirir. Tyranny'nin harcama maliyetini artırmaz.",
+"How fast prophecies fill from the Favor you earn; the experience and Favor multipliers no longer speed them up. 1 is the game's own speed, 0 stops them, up to 100. Favor and Reputation balances do not change; Tyranny's spending cost does not rise.": "Kehanetlerin kazandığınız Favor'dan ne hızla dolduğu; deneyim ve Favor çarpanları bunu artık hızlandırmaz. 1 oyunun kendi hızı, 0 durdurur, en fazla 100. Favor ve Reputation bakiyeleri değişmez; Tyranny'nin harcama maliyeti artmaz.",
 "Prophecy reward quantity": "Prophecy ödül miktarı",
 "Multiplies the base reward quantity, capped at 250 per normal spawn. Combines with rank 12 and Duplication without consuming extra charges.": "Temel ödül miktarını çarpar; normal spawn başına üst sınır 250'dir. Ek şarj harcamadan rütbe 12 ve Duplication ile birleşir.",
 "Exalted roll multiplier": "Exalted roll çarpanı",

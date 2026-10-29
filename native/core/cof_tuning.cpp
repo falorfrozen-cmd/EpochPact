@@ -24,6 +24,7 @@ struct Setting {
 Setting settings[Count]{{"charge", 1}, {"reward", 1}, {"enemy", -1}, {"echo", -1},
     {"exalted", 1}, {"t7", 1}, {"lp", 1}, {"celerity", 1}, {"charity", 1}, {"duplication", 1}};
 bool ready = false;
+std::atomic<bool> boosts{false};  // an experience or Favor multiplier above 1 (BoostsChanged)
 std::atomic<uint64_t> faults{0};
 size_t actorGenerator, generatorActor, exaltedExtra, t7Chance, rareExalted, enemyChance, echoChance;
 size_t celerityExtra, charityExtra, duplicationChance, rewardCount, rewardBaseFavor, slotReward, slotProgress;
@@ -100,7 +101,8 @@ void LensCharge(Borrowed& fields, void* data) {
 }
 void ChargeDetour(void* self, int amount, void* slots, const il2cpp::Method* method) {
     ++settings[Charge].calls;
-    if (chargeDepth || amount <= 0 || !(Active(Charge) || Active(Celerity) || Active(Charity))) {
+    const double boost = favorBoost;  // our multipliers' share of this Favor, taken back out of the progress
+    if (chargeDepth || amount <= 0 || !(Active(Charge) || Active(Celerity) || Active(Charity) || boost != 1)) {
         originalCharge(self, amount, slots, method); return;
     }
     Depth depth(chargeDepth); Borrowed fields; int scaled = amount;
@@ -116,7 +118,7 @@ void ChargeDetour(void* self, int amount, void* slots, const il2cpp::Method* met
         if (Lens(self) == 0) factor *= 1.0 + Get<float>(data, celerityExtra);
         for (void* slot : all)
             if (slot && slot != self && Lens(slot) == 2) factor *= 1.0 + Get<float>(data, charityExtra);
-        scaled = rules::ChargeInput(amount, settings[Charge].value.load(), factor, Get<int>(self, slotProgress));
+        scaled = rules::ChargeInput(amount, settings[Charge].value.load() / boost, factor, Get<int>(self, slotProgress));
         Record(Charge, amount, scaled);
     })) { fields.Restore(); scaled = amount; }
     originalCharge(self, scaled, slots, method);
@@ -202,7 +204,7 @@ void EchoDetour(void* actor, const void* position, void* reward, bool extra, int
 struct HookSpec { game::MethodRef method; void* detour; void** original; };
 std::vector<HookSpec> Required() {
     std::vector<HookSpec> result;
-    if (Active(Charge) || Active(Celerity) || Active(Charity)) result.push_back({chargeMethod, reinterpret_cast<void*>(&ChargeDetour), reinterpret_cast<void**>(&originalCharge)});
+    if (Active(Charge) || Active(Celerity) || Active(Charity) || boosts) result.push_back({chargeMethod, reinterpret_cast<void*>(&ChargeDetour), reinterpret_cast<void**>(&originalCharge)});
     if (Active(Reward) || Active(Duplication)) result.push_back({rewardMethod, reinterpret_cast<void*>(&RewardDetour), reinterpret_cast<void**>(&originalReward)});
     if (Active(Exalted) || Active(T7)) result.push_back({affixMethod, reinterpret_cast<void*>(&AffixDetour), reinterpret_cast<void**>(&originalAffixes)});
     if (Active(LP)) result.push_back({lpMethod, reinterpret_cast<void*>(&LPDetour), reinterpret_cast<void**>(&originalLP)});
@@ -231,6 +233,7 @@ game::MethodRef Resolve(const char* cls, const char* name, int arity, const char
     return result;
 }
 }
+void BoostsChanged();  // below Set: the prophecy hook follows the experience and Favor multipliers
 bool Init() {
     std::string why;
     ready = game::Guarded([&] {
@@ -252,6 +255,7 @@ bool Init() {
         slotReward = Offset("ProphecySlot", "<Reward>k__BackingField", "LE.Factions");
         slotProgress = Offset("ProphecySlot", "<ChargeInProgress>k__BackingField", "LE.Factions");
     }, &why);
+    boostsObserver = &BoostsChanged;
     Log("cof tuning: %s%s", ready ? "metadata ready" : "unavailable: ", ready ? "" : why.c_str()); return ready;
 }
 std::string Set(const std::string& name, double value) {
@@ -261,8 +265,9 @@ std::string Set(const std::string& name, double value) {
         for (int i = 0; i < Count; ++i) if (name == settings[i].name) key = static_cast<Key>(i);
         if (key == Count) throw std::runtime_error("unknown CoF tuning control");
         const bool probability = key == Enemy || key == Echo;
-        if (!(probability ? value == -1 || rules::Chance(value) : key == Reward ? rules::RewardMultiplier(value) : cof::rules::Multiplier(value)))
-            throw std::runtime_error("invalid CoF tuning value: multiplier 1..100, reward 1..25, chance 0..100/reset");
+        if (!(probability ? value == -1 || rules::Chance(value) : key == Reward ? rules::RewardMultiplier(value)
+                                : key == Charge ? rules::ChargeSpeed(value) : cof::rules::Multiplier(value)))
+            throw std::runtime_error("invalid CoF tuning value: multiplier 1..100, charge speed 0..100, reward 1..25, chance 0..100/reset");
         const bool enabling = probability ? value >= 0 : value != 1;
         if (enabling) { TuningContext c{}; if (!Owner(c)) throw std::runtime_error("join offline Circle of Fortune first"); }
         const double previous = settings[key].value.exchange(value);
@@ -270,6 +275,15 @@ std::string Set(const std::string& name, double value) {
         catch (...) { settings[key].value = previous; try { Reconcile(); } catch (...) { Log("cof tuning rollback reconciliation failed"); } throw; }
         return "{\"ok\":true,\"setting\":" + Json(name) + ",\"value\":" + (value == -1 ? "null" : std::to_string(value)) + "}";
     });
+}
+void BoostsChanged() {
+    const bool boosted = xpSetting.load() != 1 || favorSetting.load() != 1;
+    if (boosts.exchange(boosted) == boosted || !ready) return;
+    // posted, never waited for: the experience and Favor commands may come from the main thread itself
+    std::string why;
+    if (!mainthread::Post([] {
+            try { Reconcile(); } catch (const std::exception& e) { ++faults; Log("cof tuning: prophecy hook not changed: %s", e.what()); }
+        }, &why)) Log("cof tuning: prophecy hook change not posted: %s", why.c_str());
 }
 std::string Read() {
     if (!ready) return "{\"ready\":false}";

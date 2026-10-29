@@ -80,7 +80,10 @@ multiplier = favor_multiplier  # Existing UI callers retain their Favor control.
 
 
 def charge_multiplier(value: float) -> dict:
-    return progression.request(f"cofchargemult {_multiplier(value)}")
+    # 0 stops prophecies; the experience and Favor multipliers no longer speed them up
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 100:
+        raise ValueError("Prophecy şarj hızı 0–100 arasında olmalı.")
+    return progression.request(f"cofchargemult {value:.9g}")
 
 
 def reward_multiplier(value: float) -> dict:

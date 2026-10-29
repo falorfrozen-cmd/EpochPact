@@ -1572,7 +1572,7 @@
 "Reputation gain multiplier",
 "Multiplies Reputation from earning or spending Favor, excluding manual grants. Favor gains combine both gain multipliers.",
 "Prophecy charge speed",
-"Changes prophecy progress independently of Favor and Reputation balances. Does not raise Tyranny's spending cost.",
+"How fast prophecies fill from the Favor you earn; the experience and Favor multipliers no longer speed them up. 1 is the game's own speed, 0 stops them, up to 100. Favor and Reputation balances do not change; Tyranny's spending cost does not rise.",
 "Prophecy reward quantity",
 "Multiplies the base reward quantity, capped at 250 per normal spawn. Combines with rank 12 and Duplication without consuming extra charges.",
 "Exalted roll multiplier",

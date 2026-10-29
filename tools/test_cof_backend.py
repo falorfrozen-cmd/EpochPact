@@ -60,10 +60,15 @@ class CoFBoundaryTests(unittest.TestCase):
                 "cofdouble enemy reset", "cofexaltedmult 3", "coft7mult 4", "coflpmult 2",
                 "coflensmult celerity 3", "coflensmult charity 3", "coflensmult duplication 3"])
 
+    def test_prophecy_charge_speed_can_stop_prophecies_at_zero(self):
+        with patch.object(cof.progression, "request", return_value={"ok": True}) as request:
+            cof.charge_multiplier(0); cof.charge_multiplier(0.25); cof.charge_multiplier(100)
+        self.assertEqual([c.args[0] for c in request.call_args_list], ["cofchargemult 0", "cofchargemult 0.25", "cofchargemult 100"])
+
     def test_invalid_tuning_values_never_reach_ipc(self):
         with patch.object(cof.progression, "request") as request:
             for method in (cof.charge_multiplier, cof.reward_multiplier, cof.exalted_multiplier, cof.t7_multiplier, cof.lp_multiplier):
-                for value in (True, float("nan"), float("inf"), 0, 101, "2"):
+                for value in (True, float("nan"), float("inf"), -0.5, 101, "2") + (() if method is cof.charge_multiplier else (0,)):
                     with self.assertRaises(ValueError): method(value)
             for source, value in (("enemy", True), ("enemy", -1), ("echo", 101), ("enemy", float("nan")), ("both", 50)):
                 with self.assertRaises(ValueError): cof.double_drop_chance(source, value)

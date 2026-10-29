@@ -502,6 +502,13 @@ base from the game's generator, nothing dropped):
   with 20–33 prefixes in their pool) are common idol affixes the samples had not met yet
   (with 50 samples per base it was 121).
 
+Enemy drops check 2026-10-29 (player report: idols did not drop with more affixes;
+`buildsix-live3`, test commands `droptest` and `groundidols`): 120 enemy drops through the game's own
+static `ItemDrop.DropItem` per round, the ground cleared before each round, at idol settings 3/3:
+rarity x1 7 idols, rarity x10 2, rarity x10 with Forging Potential x3, Unique minimum roll 100 and
+LP rolls 50 4; every idol had its extra affixes (the hook counted each one), all still Magic.
+Settings are per session unless Apply at startup restores them; idols already dropped keep theirs.
+
 ### Idol altars and Weaver idols
 
 **Idol prefixes** and **Idol suffixes** also cover idol altars and Weaver idols (player

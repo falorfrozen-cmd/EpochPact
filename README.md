@@ -147,7 +147,7 @@ with EpochPact completely removed. This release remains an alpha.
 | `craftshards <0/1>` / `craftread` / `craftreset` | Preserve the shard actually consumed, read normal forge preview, or reset all crafting controls. Rune/glyph consumption remains normal. |
 | `coffavormult <1-100>` | CoF Favor gained times the number; normal prophecy charging and derived Reputation continue. |
 | `cofrepmult <1-100>` | CoF Reputation gained from gaining or spending Favor times the number; normal rank progression and cap remain. Manual grants are excluded. |
-| `cofchargemult` / `cofrewardmult` | Independent prophecy charge speed and normal reward item count; preserves wallet and charge consumption. |
+| `cofchargemult` / `cofrewardmult` | Prophecy charge speed (0–100; 0 stops prophecies; the experience and Favor multipliers no longer speed prophecies up) and normal reward item count; preserves wallet and charge consumption. |
 | `cofdouble enemy\|echo <0-100\|reset>` | Separate enemy/Monolith double-item probabilities; reset uses the game's normal rank bonus. |
 | `cofexaltedmult` / `coft7mult` / `coflpmult` | Separate CoF item-generation roll coefficients; normal item/level eligibility remains. |
 | `coflensmult celerity\|charity\|duplication <1-100>` | Separate lens extra-charge contributions and duplicate-reward chance. |

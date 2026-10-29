@@ -4,6 +4,7 @@ namespace ep::cof::tuning::rules {
 constexpr int MaxItemsPerReward = 250;
 inline bool Chance(double value) { return std::isfinite(value) && value >= 0 && value <= 100; }
 inline bool RewardMultiplier(double value) { return std::isfinite(value) && value >= 1 && value <= 25; }
+inline bool ChargeSpeed(double value) { return std::isfinite(value) && value >= 0 && value <= 100; }  // 0 stops prophecies
 inline float Probability(float base, double multiplier) {
     return static_cast<float>(std::clamp(static_cast<double>(base) * multiplier, 0.0, 1.0));
 }
