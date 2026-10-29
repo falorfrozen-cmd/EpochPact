@@ -253,6 +253,7 @@ def controls():
     for id, label, high, description in (
         ("xp", "Öldürme / mote XP çarpanı", 100, "GainExpFromEnemyOrMote kazancı; görev XP ödüllerini çarpmaz."),
         ("gold", "Yerden toplanan altın çarpanı", 100, "Normal altın pickup kazancına uygulanır."),
+        ("bones", "Ancient Bones çarpanı", 100, "GroundItemManager.dropAncientBoneForPlayer miktarını çarpar (yuvarlar, en fazla Int32): yerdeki yığın büyük sayıyı gösterir, toplayınca o kadar gelir. Harcama ve mevcut kemikler değişmez."),
         ("amber", "Memory Amber kazanım çarpanı", 100, "The Woven üyesinin kazandığı Memory Amber'a (faction favor) uygulanır; o amber ile gelen itibar da artar."),
         ("drops", "Genel eşya drop adedi çarpanı", 25, "ItemDrop.itemMultiplier; CoF düşman hook'u ile ortak dispatcher."),
         ("density", "Monster density", 5, "Gelecekteki uygun normal paketlerin ortalama boyutu; mevcut paketler değişmez, boss/özel spawn hariç."),
@@ -281,11 +282,15 @@ def controls():
         if id == "speed":
             items[-1]["statBinding"] = dict(sp=9, tags=0, special=0, extra=0, mode="increased", valueTransform="x - 1", readCommand="statraw 9 0 0 0")
     for id, label, description in (
-        ("idolprefixes", "İdol prefix sayısı", "GenerateItems.GenerateAffixes sonrası, dükkân ve kumarbaz dışındaki her benzersiz olmayan idol (düşüşler, ödüller, Nemesis, Spawn Items) 1 ile bu sayı arasında prefix alır; ekler oyunun IsValidAffix, AffixWeighting ve RollTier kurallarıyla seçilir, eşya verisi yeniden oluşturulur. Weaver ve Heretical idoller değişmez; 1 oyunun kendisi."),
-        ("idolsuffixes", "İdol suffix sayısı", "Aynısı suffix'ler için: her idol 1 ile bu sayı arasında suffix alır; 1 oyunun kendisi."),
+        ("idolprefixes", "İdol prefix sayısı", "GenerateItems.GenerateAffixes sonrası, dükkân ve kumarbaz dışındaki her benzersiz olmayan idol ve idol altarı (düşüşler, ödüller, Nemesis, Spawn Items) oyunun verdiğinden en fazla n−1 fazla prefix alır: idol 1–n, Rare altar 2–(n+1); ekler oyunun IsValidAffix, AffixWeighting ve RollTier kurallarıyla seçilir (Weaver idolde Weaver affix'leri de), eşya verisi yeniden oluşturulur. Heretical idoller değişmez; 1 oyunun kendisi."),
+        ("idolsuffixes", "İdol suffix sayısı", "Aynısı suffix'ler için: her idol 1 ile bu sayı arasında, her Rare idol altarı 2 ile bu sayının bir fazlası arasında suffix alır; 1 oyunun kendisi."),
     ):
         mult(id, "general", label, id, 3, description, current=f"currentValues.{id}", doc="docs/player-conveniences.md")
         items[-1]["parameters"][0]["type"] = "integer"
+    mult("enchanteruses", "general", "Woven Enchanter kullanım hakkı", "enchanteruses", 40,
+         "ZoneRestrictedCraftingManager (CraftingType IdolEnchantment) maxUses değeri oyunun CalculateMaxUses sonucunun bu katı olur; karşılaşılan her Woven Enchanter'da ve o an sahnede olanda geçerli (OnUsesChanged ile pencere güncellenir). Memory Amber bedeli ve craft'ın kendisi oyununki; 1 oyunun kendisi.",
+         current="currentValues.enchanteruses", doc="docs/player-conveniences.md")
+    items[-1]["parameters"][0]["type"] = "integer"
     add("uniqueroll", "general", "Unique minimum roll", "number", "uniqueroll {value}", "session",
         "GenerateItems.RollBaseItem bir Unique, Set ya da Legendary yaptıktan sonra her roll (0-255) aralığın en iyi (100−n)%'sine taşınır, yeri korunur; hangi ucun iyi olduğunu oyunun MaxRollIsBestForUniqueRollID'si söyler (implicit'lerde yüksek). 100 her değer en iyi, 0 kapalı. Kumarbazlar (rollItemFor*Gambling), craft ile yeniden atılan değerler, benzer-eşya ödülleri ve mevcut eşyalar değişmez.",
         params=[parameter("value", "number", 0, 100)], default=0, reset="uniqueroll 0", response="text", current="currentValues.uniqueroll",

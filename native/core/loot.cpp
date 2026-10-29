@@ -120,6 +120,27 @@ void d_dropItem(int32_t level, const void* position, float itemDropChance, bool 
 
 Hook h_dropItem{"ItemDrop.DropItem (static)", {}, reinterpret_cast<void*>(&d_dropItem), reinterpret_cast<void**>(&o_dropItem)};
 
+// ---- bones: GroundItemManager.dropAncientBoneForPlayer(Actor, int amount, Vector3 location, bool playDropSound,
+// bool randomiseLocation); the Vector3 comes by reference. The ground pile carries the amount the pickup adds.
+
+Feature g_bones;
+
+using DropBoneFn = void (*)(void* self, void* player, int32_t amount, const void* location, bool sound, bool randomise, const Method* m);
+DropBoneFn o_dropBone = nullptr;
+
+void d_dropBone(void* self, void* player, int32_t amount, const void* location, bool sound, bool randomise, const Method* m) {
+    double mult = 1.0;
+    if (amount > 0 && Active(g_bones, &mult)) {
+        const long long v = std::llround(amount * mult);
+        const int32_t scaled = v >= INT32_MAX ? INT32_MAX : static_cast<int32_t>(v);
+        if (g_bones.firstPending.exchange(false)) Log("bones: first boosted drop %d -> %d (x%g)", amount, scaled, mult);
+        amount = scaled;
+    }
+    o_dropBone(self, player, amount, location, sound, randomise, m);
+}
+
+Hook h_dropBone{"GroundItemManager.dropAncientBoneForPlayer", {}, reinterpret_cast<void*>(&d_dropBone), reinterpret_cast<void**>(&o_dropBone)};
+
 }  // namespace
 
 bool Init() {
@@ -129,12 +150,17 @@ bool Init() {
     g_drops.cmd = "drops";
     g_drops.max = 25;
     g_drops.hooks = {&h_dropItem};
+    g_bones.cmd = "bones";
+    g_bones.max = 100;
+    g_bones.hooks = {&h_dropBone};
 
     g_pickupRef = GoldPickupMethod();
     h_modifyGold.ref = game::FindMethod("LE.dll", "", "GoldTracker", "modifyGold", 1);
     h_dropItem.ref = game::FindMethod("LE.dll", "", "ItemDrop", "DropItem", 18);
-    Log("loot: pickupGold %s, modifyGold %s, DropItem(18) %s",
-        g_pickupRef ? "found" : "MISSING", h_modifyGold.ref ? "found" : "MISSING", h_dropItem.ref ? "found" : "MISSING");
+    h_dropBone.ref = game::FindMethod("LE.dll", "", "GroundItemManager", "dropAncientBoneForPlayer", 5);
+    Log("loot: pickupGold %s, modifyGold %s, DropItem(18) %s, dropAncientBoneForPlayer %s",
+        g_pickupRef ? "found" : "MISSING", h_modifyGold.ref ? "found" : "MISSING", h_dropItem.ref ? "found" : "MISSING",
+        h_dropBone.ref ? "found" : "MISSING");
     return g_pickupRef && h_modifyGold.ref && h_dropItem.ref;
 }
 
@@ -171,6 +197,7 @@ bool SetCoFDropDependency(bool enabled, std::string* why) {
         !hook::Remove(h_dropItem.ref.code, why)) return false;
     cofDropDependency = enabled; return true;
 }
-std::string Status() { return Line(g_gold) + "\n" + Line(g_drops); }
+std::string SetBones(double m) { return Set(g_bones, m); }
+std::string Status() { return Line(g_gold) + "\n" + Line(g_drops) + "\n" + Line(g_bones); }
 
 }  // namespace ep::loot

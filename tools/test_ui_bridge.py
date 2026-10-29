@@ -737,6 +737,32 @@ class BridgeTests(unittest.TestCase):
                 self.bridge.execute('fpdrops', {'value': bad})
         self.assertEqual(len(self.commands), sent)
 
+    def test_bones_and_enchanter_uses_are_read_from_status_and_stay_in_range(self):
+        def status(command, **kwargs):
+            if command == 'status':  # loot::Status ends with bones; enchanter::Status follows idols::Status
+                return ('EpochPact; gate: offline play [client only]\n'
+                        'drops: x1, hooks out, boosted 0, refused online 0\n'
+                        'bones: x7, hooks in, boosted 3, refused online 0\n'
+                        'idolsuffixes: x1\n'
+                        'enchanteruses: x20, hook in, raised 2, last 1 -> 20, faults 0')
+            return self.send(command, **kwargs)
+        with patch.object(ui.le, 'send', side_effect=status):
+            live = self.bridge.connection()
+        self.assertEqual(live['values']['bones'], 7)
+        self.assertEqual(live['values']['enchanteruses'], 20)
+        for value in (1, 2.5, 100):
+            self.bridge.execute('bones', {'value': value})
+            self.assertEqual(self.commands[-1], f'bones {value}')
+        for value in (1, 20, 40):
+            self.bridge.execute('enchanteruses', {'value': value})
+            self.assertEqual(self.commands[-1], f'enchanteruses {value}')
+        sent = len(self.commands)
+        for command, bad in (('bones', 0.5), ('bones', 101), ('bones', float('nan')), ('enchanteruses', 0), ('enchanteruses', 41),
+                             ('enchanteruses', 2.5), ('enchanteruses', '3'), ('enchanteruses', None)):
+            with self.subTest(command=command, value=bad), self.assertRaises(ValueError):
+                self.bridge.execute(command, {'value': bad})
+        self.assertEqual(len(self.commands), sent)
+
     def test_unique_minimum_roll_is_read_from_status_and_stays_from_0_to_100(self):
         def ur_status(command, **kwargs):
             if command == 'status':  # the line after the idol lines

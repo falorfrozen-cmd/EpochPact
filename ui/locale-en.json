@@ -113,6 +113,10 @@
       "Gold pickup multiplier",
       "Multiplies gold gained from normal gold pickups."
     ],
+    "bones": [
+      "Ancient Bones multiplier",
+      "Multiplies the Ancient Bones that drop for you, rounded: the pile on the ground already shows the larger amount and picking it up gives that much. Bones you already have and what you spend do not change. Offline only; off at 1."
+    ],
     "amber": [
       "Memory Amber gain multiplier",
       "Multiplies the Memory Amber that a member of The Woven gains. Reputation earned with that amber rises with it. Offline only; off at 1."
@@ -155,11 +159,15 @@
     ],
     "idolprefixes": [
       "Idol prefixes",
-      "The game gives an idol one prefix. With 2 or 3, each idol that drops (and idols from rewards, Nemesis and Spawn Items) rolls 1 to this many prefixes, picked by the game's own rules for that idol: its level, type and class, no repeats, the usual weights and tiers. Shops, gamblers, Weaver and Heretical idols and idols you already have do not change. Offline only; the game's own at 1."
+      "The game gives an idol one prefix and a Rare idol altar two. With 2 or 3, each idol that drops (and idols from rewards, Nemesis and Spawn Items) rolls 1 to this many prefixes and each idol altar 2 to one more than this many, picked by the game's own rules for that item: its level, type and class, no repeats, the usual weights and tiers. A Weaver idol can get more Weaver affixes this way too. Shops, gamblers, Heretical idols and items you already have do not change. Offline only; the game's own at 1."
     ],
     "idolsuffixes": [
       "Idol suffixes",
-      "The same for suffixes: each new idol rolls 1 to this many suffixes. Offline only; the game's own at 1."
+      "The same for suffixes: each new idol rolls 1 to this many suffixes, each new idol altar 2 to one more than this many. Offline only; the game's own at 1."
+    ],
+    "enchanteruses": [
+      "Woven Enchanter uses",
+      "Each Woven Enchanter you meet allows this many times its usual uses, so you can reforge more idols there: at 20, \"1/1 uses remain\" becomes 20/20. It also applies to an Enchanter you are standing at. Each craft still costs its Memory Amber. Offline only; the game's own at 1."
     ],
     "weaver_affixes": [
       "Weaver's Will affixes",

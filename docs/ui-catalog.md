@@ -97,6 +97,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 |---|---|---|---|---|
 | `xp` — Öldürme / mote XP çarpanı | `xp {value}` | value: 1…100 | 1 | Oturum |
 | `gold` — Yerden toplanan altın çarpanı | `gold {value}` | value: 1…100 | 1 | Oturum |
+| `bones` — Ancient Bones çarpanı | `bones {value}` | value: 1…100 | 1 | Oturum |
 | `amber` — Memory Amber kazanım çarpanı | `amber {value}` | value: 1…100 | 1 | Oturum |
 | `drops` — Genel eşya drop adedi çarpanı | `drops {value}` | value: 1…25 | 1 | Oturum |
 | `density` — Monster density | `density {value}` | value: 1…5 | 1 | Oturum |
@@ -113,10 +114,12 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `cooldown` — Cooldown / charge hız çarpanı | `cooldown {value}` | value: 1…10 | 1 | Oturum |
 | `idolprefixes` — İdol prefix sayısı | `idolprefixes {value}` | value: 1…3 | 1 | Oturum |
 | `idolsuffixes` — İdol suffix sayısı | `idolsuffixes {value}` | value: 1…3 | 1 | Oturum |
+| `enchanteruses` — Woven Enchanter kullanım hakkı | `enchanteruses {value}` | value: 1…40 | 1 | Oturum |
 | `density_read` — Density ölçümü | `densityread` | — | — | Okuma |
 
 - **Öldürme / mote XP çarpanı:** GainExpFromEnemyOrMote kazancı; görev XP ödüllerini çarpmaz. Reset: `xp 1`.
 - **Yerden toplanan altın çarpanı:** Normal altın pickup kazancına uygulanır. Reset: `gold 1`.
+- **Ancient Bones çarpanı:** GroundItemManager.dropAncientBoneForPlayer miktarını çarpar (yuvarlar, en fazla Int32): yerdeki yığın büyük sayıyı gösterir, toplayınca o kadar gelir. Harcama ve mevcut kemikler değişmez. Reset: `bones 1`.
 - **Memory Amber kazanım çarpanı:** The Woven üyesinin kazandığı Memory Amber'a (faction favor) uygulanır; o amber ile gelen itibar da artar. Reset: `amber 1`.
 - **Genel eşya drop adedi çarpanı:** ItemDrop.itemMultiplier; CoF düşman hook'u ile ortak dispatcher. Reset: `drops 1`.
 - **Monster density:** Gelecekteki uygun normal paketlerin ortalama boyutu; mevcut paketler değişmez, boss/özel spawn hariç. Reset: `density 1`.
@@ -131,8 +134,9 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Weaver's Will ayarları:** weaverread: pay, hız, istenen affix'ler ve sayaçlar (salt okunur).
 - **Hareket hızı çarpanı:** Movespeed increased katkısı = x−1; movespeed alias/raw stat ile aynı full key'i paylaşır. Reset: `speed 1`.
 - **Cooldown / charge hız çarpanı:** Normal charge tick hızını ve cooldown sorgusunu ölçekler. Reset: `cooldown 1`.
-- **İdol prefix sayısı:** GenerateItems.GenerateAffixes sonrası, dükkân ve kumarbaz dışındaki her benzersiz olmayan idol (düşüşler, ödüller, Nemesis, Spawn Items) 1 ile bu sayı arasında prefix alır; ekler oyunun IsValidAffix, AffixWeighting ve RollTier kurallarıyla seçilir, eşya verisi yeniden oluşturulur. Weaver ve Heretical idoller değişmez; 1 oyunun kendisi. Reset: `idolprefixes 1`.
-- **İdol suffix sayısı:** Aynısı suffix'ler için: her idol 1 ile bu sayı arasında suffix alır; 1 oyunun kendisi. Reset: `idolsuffixes 1`.
+- **İdol prefix sayısı:** GenerateItems.GenerateAffixes sonrası, dükkân ve kumarbaz dışındaki her benzersiz olmayan idol ve idol altarı (düşüşler, ödüller, Nemesis, Spawn Items) oyunun verdiğinden en fazla n−1 fazla prefix alır: idol 1–n, Rare altar 2–(n+1); ekler oyunun IsValidAffix, AffixWeighting ve RollTier kurallarıyla seçilir (Weaver idolde Weaver affix'leri de), eşya verisi yeniden oluşturulur. Heretical idoller değişmez; 1 oyunun kendisi. Reset: `idolprefixes 1`.
+- **İdol suffix sayısı:** Aynısı suffix'ler için: her idol 1 ile bu sayı arasında, her Rare idol altarı 2 ile bu sayının bir fazlası arasında suffix alır; 1 oyunun kendisi. Reset: `idolsuffixes 1`.
+- **Woven Enchanter kullanım hakkı:** ZoneRestrictedCraftingManager (CraftingType IdolEnchantment) maxUses değeri oyunun CalculateMaxUses sonucunun bu katı olur; karşılaşılan her Woven Enchanter'da ve o an sahnede olanda geçerli (OnUsesChanged ile pencere güncellenir). Memory Amber bedeli ve craft'ın kendisi oyununki; 1 oyunun kendisi. Reset: `enchanteruses 1`.
 - **Density ölçümü:** Paket/generator/planlanan-gözlenen spawn ve dışlama sayaçları.
 
 ## C ekranı / karakter statları

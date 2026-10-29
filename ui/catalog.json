@@ -2498,6 +2498,33 @@
       "documentation": "GEMINI.md"
     },
     {
+      "id": "bones",
+      "group": "general",
+      "label": "Ancient Bones çarpanı",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "bones {value}",
+      "pythonApi": null,
+      "responseFormat": "text",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 1,
+          "maximum": 100
+        }
+      ],
+      "default": 1,
+      "resetCommand": "bones 1",
+      "lifetime": "session",
+      "description": "GroundItemManager.dropAncientBoneForPlayer miktarını çarpar (yuvarlar, en fazla Int32): yerdeki yığın büyük sayıyı gösterir, toplayınca o kadar gelir. Harcama ve mevcut kemikler değişmez.",
+      "currentSource": "currentValues.bones",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "GEMINI.md"
+    },
+    {
       "id": "amber",
       "group": "general",
       "label": "Memory Amber kazanım çarpanı",
@@ -2897,7 +2924,7 @@
       "default": 1,
       "resetCommand": "idolprefixes 1",
       "lifetime": "session",
-      "description": "GenerateItems.GenerateAffixes sonrası, dükkân ve kumarbaz dışındaki her benzersiz olmayan idol (düşüşler, ödüller, Nemesis, Spawn Items) 1 ile bu sayı arasında prefix alır; ekler oyunun IsValidAffix, AffixWeighting ve RollTier kurallarıyla seçilir, eşya verisi yeniden oluşturulur. Weaver ve Heretical idoller değişmez; 1 oyunun kendisi.",
+      "description": "GenerateItems.GenerateAffixes sonrası, dükkân ve kumarbaz dışındaki her benzersiz olmayan idol ve idol altarı (düşüşler, ödüller, Nemesis, Spawn Items) oyunun verdiğinden en fazla n−1 fazla prefix alır: idol 1–n, Rare altar 2–(n+1); ekler oyunun IsValidAffix, AffixWeighting ve RollTier kurallarıyla seçilir (Weaver idolde Weaver affix'leri de), eşya verisi yeniden oluşturulur. Heretical idoller değişmez; 1 oyunun kendisi.",
       "currentSource": "currentValues.idolprefixes",
       "requirements": [
         "offline"
@@ -2924,8 +2951,35 @@
       "default": 1,
       "resetCommand": "idolsuffixes 1",
       "lifetime": "session",
-      "description": "Aynısı suffix'ler için: her idol 1 ile bu sayı arasında suffix alır; 1 oyunun kendisi.",
+      "description": "Aynısı suffix'ler için: her idol 1 ile bu sayı arasında, her Rare idol altarı 2 ile bu sayının bir fazlası arasında suffix alır; 1 oyunun kendisi.",
       "currentSource": "currentValues.idolsuffixes",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "enchanteruses",
+      "group": "general",
+      "label": "Woven Enchanter kullanım hakkı",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "enchanteruses {value}",
+      "pythonApi": null,
+      "responseFormat": "text",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 40
+        }
+      ],
+      "default": 1,
+      "resetCommand": "enchanteruses 1",
+      "lifetime": "session",
+      "description": "ZoneRestrictedCraftingManager (CraftingType IdolEnchantment) maxUses değeri oyunun CalculateMaxUses sonucunun bu katı olur; karşılaşılan her Woven Enchanter'da ve o an sahnede olanda geçerli (OnUsesChanged ile pencere güncellenir). Memory Amber bedeli ve craft'ın kendisi oyununki; 1 oyunun kendisi.",
+      "currentSource": "currentValues.enchanteruses",
       "requirements": [
         "offline"
       ],
@@ -34763,7 +34817,7 @@
     ]
   },
   "counts": {
-    "controls": 214,
+    "controls": 216,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

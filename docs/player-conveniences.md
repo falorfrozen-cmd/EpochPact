@@ -451,9 +451,9 @@ affixes and the loader has no idol limit, so EpochPact adds the extra ones after
 has rolled its own:
 
 - After `GenerateItems.GenerateAffixes`, for an idol (types 25–33) of rarity 2 that is not
-  a Weaver or Heretical idol (`ItemList.IsWeaverIdol` / `IsHereticalIdol`), made outside
-  the Shop, Gambler and Soul Gambler contexts: drops, rewards, Nemesis and Spawn Items.
-  Idols you already have do not change.
+  a Heretical idol (`ItemList.IsHereticalIdol`), made outside the Shop, Gambler and Soul
+  Gambler contexts: drops, rewards, Nemesis and Spawn Items. Idols you already have do not
+  change. Since 2026-10-29 Weaver idols and idol altars too (see below).
 - Each idol rolls 1 to n prefixes and 1 to n suffixes (evenly). Each extra affix is picked
   among the standard affixes of that kind that can roll on the idol type and that the
   game's own `IsValidAffix` allows on this idol with its affixes so far (level, idol type,
@@ -486,6 +486,60 @@ base from the game's generator, nothing dropped):
   with 20–33 prefixes in their pool) are common idol affixes the samples had not met yet
   (with 50 samples per base it was 121).
 
+### Idol altars and Weaver idols
+
+**Idol prefixes** and **Idol suffixes** also cover idol altars and Weaver idols (player
+request 2026-10-29: altars and Weaver idols should benefit from more prefixes and suffixes
+on drop as well). Each one gets up to n − 1 more of each kind than the game gave it:
+
+- **Idol altars** drop Rare with two prefixes and two suffixes (the base allows four); with
+  3 a new altar rolls 2 to 4 prefixes and 2 to 4 suffixes, picked among the altar affixes
+  (Effect of Prefixes / Suffixes for Idols in Refracted Slots, Maximum Omen Idols, Health
+  per Equipped Heretical Idol, ...) by the game's own `IsValidAffix` (as a non-idol),
+  `AffixWeighting` and `RollTier` at the altar's rarity. A Magic altar (Spawn Items) keeps
+  its 0–2 of each kind and gains up to n − 1; Normal altars have none and stay so.
+- **Weaver idols** (Small, Minor, Humble and Stout Weaver Idol) drop with one prefix and
+  one suffix, at least one of them a Weaver affix. Their extra affixes come from the same
+  pool the game uses for that Weaver idol: its Weaver affixes and the standard idol
+  affixes, as `IsValidAffix` allows them on a Weaver idol (`isWeaverIdol` and
+  `secondAffixCanBeIdolWeaver` on), weighted as the game weighs them.
+- Heretical idols, shops, gamblers and items you already have do not change.
+
+Live checks 2026-10-29 (EpFeedbackTest clone, test build):
+
+- `builds\ench-live1`: 160 Weaver idols at 3 / 3 (40 of each Weaver base, item level 100):
+  every shape from 1p1s to 3p3s, 1 to 6 Weaver affixes per idol, no affix twice, every
+  saved form read back the same, all still Magic.
+- `builds\ench-live2` (test command `altarcheck`, 8 altars of each of the 13 altar bases per
+  rarity, item level 100): at 1 / 1 every Rare altar 2p2s (208), Magic altars 1p1s 50,
+  0p2s 48, 2p0s 6, Normal altars none. At 3 / 3 the 208 Rare altars spread over 2p2s 30,
+  2p3s 19, 2p4s 28, 3p2s 29, 3p3s 22, 3p4s 19, 4p2s 22, 4p3s 17, 4p4s 22; only the 14 altar
+  affixes the game itself rolled at 1 / 1, every saved form read back the same. 516
+  idols at 3 / 3 in the same run: plain idols 1p1s to 3p3s as before (no Weaver affix on
+  them), Weaver idols 1p1s to 3p3s. Three Rare altars (8, 7 and 6 affixes) and three Weaver
+  idols (4, 5 and 5) spawned and picked up, then the game closed and started again: the
+  same six items, affix for affix.
+
+### Woven Enchanter uses
+
+**Woven Enchanter uses** (General settings, x1–x40, player request 2026-10-29: "a custom
+slider on uses every time you encounter it, from 1 to 20-40") multiplies the uses a Woven
+Enchanter allows each time you meet one, so you can reforge more idols there: the window's
+"(1/1 USES REMAIN)" becomes 20/20 at x20. The Enchanter's limit is a
+`ZoneRestrictedCraftingManager` of crafting type IdolEnchantment; after the game's own
+`CalculateMaxUses` its `maxUses` becomes the game's value times the setting (EpochPact
+remembers the game's value, so a second calculation is not multiplied again). A change
+also applies to an Enchanter already in the scene and refreshes its window
+(`OnUsesChanged`). Each craft still costs its Memory Amber, and the craft itself is the
+game's. Offline only; at x1 the game's own value is put back and the hook is removed.
+
+Live check 2026-10-29 (EpFeedbackTest clone, `builds\ench-live1`, test command
+`enchantercheck`; the clone cannot reach a Woven Echo, so the check uses an Enchanter
+manager of its own on a hidden object, with both use-limit types): at x1 1/1 use, after one
+craft 0/1 and `CanCraft` false; at x5 5/5, a second `CalculateMaxUses` still 5, after one
+craft 4/5 and `CanCraft` true, the window values (`GetUsesValuesForUI`) the same; back at x1
+1/1 again and the hook out.
+
 ### Gold multiplier and Recent pickups
 
 The gold multiplier counts the gold `GoldTracker.modifyGold` adds while
@@ -501,6 +555,20 @@ removes what it put in.
 Live check 2026-10-27 (EpFeedbackTest clone, `builds\spawn-live2`): a 25 gold pile picked
 up at x1, x10 and x1 again added 25, 250 and 25 gold; Recent pickups listed each pile,
 also after the multiplier was off again.
+
+### Ancient Bones multiplier
+
+**Ancient Bones multiplier** (General settings, x1–x100, player request 2026-10-29:
+"Bones from the dino mechanic, an increase or multiplier slider") multiplies the Ancient
+Bones that drop for you. Every bone drop goes through
+`GroundItemManager.dropAncientBoneForPlayer(player, amount, ...)`; EpochPact multiplies
+the amount there (rounded, at most 2,147,483,647), so the pile on the ground already shows
+the larger number and picking it up gives that much. Bones you have and what you spend do
+not change. Offline only; at x1 the hook is removed.
+
+Live check 2026-10-29 (EpFeedbackTest clone, `builds\ench-live1`, test command `bonedrop`):
+a 10-bone pile dropped through the game's call and picked up by auto pickup added 50 bones
+at x5 and 10 at x1.
 
 ### Weaver's Will Unique share, upgrade speed and affixes
 

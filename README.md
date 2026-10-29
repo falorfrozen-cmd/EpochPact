@@ -124,6 +124,7 @@ with EpochPact completely removed. This release remains an alpha.
 | `xp <1-100>` | Experience from kills and experience motes times the number, before the game's own level rules. `xp 1` removes the hook. |
 | `gold <1-100>` | Gold picked up from the ground times the number. Shops, respecs and quest rewards are untouched. |
 | `drops <1-25>` | The item count of every loot drop (enemy deaths, objectives, arenas, bosses) times the number. |
+| `bones <1-100>` | Ancient Bones that drop for you times the number; the pile on the ground already shows the larger amount. |
 | `density <1-5>` | Monsters per pack times the number, for packs rolled from then on. Single spawns (bosses, unique enemies) stay single. |
 | `rarity <1-10>` | Each numeric rarity roll below grade 4 has a (mult-1)/mult chance to increase by one. Exalted/T7 tuning has separate controls; rarity enum IDs are cataloged by type. |
 | `weaverswill <1-10>` | The Weaver's Will the game rolls for a Unique (drops, rewards, opened cocoons), times the number, rounded and at most 28 (the game's maximum). |
@@ -132,7 +133,8 @@ with EpochPact completely removed. This release remains an alpha.
 | `weaversdrop <0-100>` | Percent of the Uniques the game picks at random that come as a Weaver's Will Unique where one fits (about 4 % normally). |
 | `weaversupgrades <1-10>` | Every Weaver's Will upgrade a kill grants an equipped item happens that many times (each uses 1 Weaver's Will). |
 | `weaveraffixes <ids\|none>` | The affixes Weaver's Will upgrades raise and add when they can; otherwise the game chooses. |
-| `idolprefixes <1-3>` / `idolsuffixes <1-3>` | Each new idol (drops, rewards, Nemesis, Spawn Items; not shops or gamblers) rolls 1 to that many prefixes / suffixes, picked by the game's own affix rules. Weaver and Heretical idols keep the game's 1 and 1. |
+| `idolprefixes <1-3>` / `idolsuffixes <1-3>` | Each new idol (drops, rewards, Nemesis, Spawn Items; not shops or gamblers) rolls 1 to that many prefixes / suffixes and each new idol altar 2 to one more, picked by the game's own affix rules; Weaver idols can get more Weaver affixes too. Heretical idols keep the game's 1 and 1. |
+| `enchanteruses <1-40>` | Each Woven Enchanter allows that many times its usual uses ("1/1 uses remain" becomes 20/20 at 20), also the one you are standing at. Each craft still costs its Memory Amber. |
 | `catauto <category> 0\|1`, `catshow`, `catopen`, `catsetup`, `catsort` | Item categories: one stash tab per category (Unique & Set, Exalted, Idols, Keys & special, Weapons, Armour, Jewellery, Other) in a folder named EpochPact. Picked-up items of a ticked category go straight to its tab; a column beside the in-game inventory has the ticks, opens a category's tab with one click and can show one category with the others faint. |
 | `speed <1-5>` | Movement speed: writes the game's own Movespeed stat (like an item or a buff), so the character sheet, the animation and the movement all scale together. |
 | `cooldown <1-10>` | Charges and cooldowns count down that many times faster. |

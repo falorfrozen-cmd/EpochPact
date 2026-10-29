@@ -43,10 +43,11 @@ double Uniform() {
 }
 int Below(int n) { return (std::min)(n - 1, static_cast<int>(Uniform() * n)); }
 
-constexpr int kFirstIdol = 25, kLastIdol = 33;  // EquipmentType: the idols (altars are 41)
-constexpr int kMagic = 2;                       // every non-unique idol comes out Magic
+constexpr int kFirstIdol = 25, kLastIdol = 33;  // EquipmentType: the idols
+constexpr int kAltar = 41;                      // EquipmentType: idol altars
+constexpr int kMagic = 2, kRare = 4;            // every non-unique idol comes out Magic; altars drop Rare (2 + 2)
 constexpr int kPrefix = 0, kSuffix = 1;         // AffixList.AffixType
-constexpr int kStandard = 0;                    // AffixList.SpecialAffixType
+constexpr int kStandard = 0, kIdolWeaver = 5;   // AffixList.SpecialAffixType
 constexpr int kMaximum = 3;
 
 std::atomic<int> g_prefixes{1}, g_suffixes{1};
@@ -73,21 +74,26 @@ bool Holds(void* list, int value) {
     return false;
 }
 
-// What one idol needs while affixes are added to it.
+// What one idol (or idol altar) needs while affixes are added to it.
 struct Idol {
     void* generator;
     void* item;
-    int ilvl, context, type;
+    int ilvl, context, type, rarity;
     void* modifiers;
     void* equipment = nullptr;
     float effect = 1;
     void* existing = nullptr;  // List<int>: the affix IDs already on the idol
+    bool weaver = false;       // a Weaver idol: Weaver affixes may come as well
+    bool altar = false;
 };
+
+// The affixes added to an idol: standard ones, and on a Weaver idol its Weaver affixes too.
+bool Kind(int special, bool weaver) { return special == kStandard || (weaver && special == kIdolWeaver); }
 
 bool Valid(const Idol& d, void* affix) {
     int ilvl = d.ilvl, none = 0;
-    bool idol = true, no = false;
-    void* a[]{affix, d.item, d.equipment, &ilvl, d.existing, &none, &none, &idol, &no, &no, &no};
+    bool idol = !d.altar, weaver = d.weaver, no = false;
+    void* a[]{affix, d.item, d.equipment, &ilvl, d.existing, &none, &none, &idol, &weaver, &weaver, &no};
     return Value<bool>(m_isValid, d.generator, a);
 }
 
@@ -97,7 +103,7 @@ bool AddOne(const Idol& d, const std::vector<void*>& all, int kind) {
     std::vector<float> weights;
     float total = 0;
     for (void* affix : all) {
-        if (!affix || Get<int>(affix, o_listType) != kind || Get<int>(affix, o_listSpecial) != kStandard ||
+        if (!affix || Get<int>(affix, o_listType) != kind || !Kind(Get<int>(affix, o_listSpecial), d.weaver) ||
             !Holds(Get<void*>(affix, o_canRollOn), d.type) || !Valid(d, affix))
             continue;
         int context = d.context;
@@ -116,7 +122,7 @@ bool AddOne(const Idol& d, const std::vector<void*>& all, int kind) {
         pick -= weights[i];
     }
     void* affix = pool[chosen];
-    int ilvl = d.ilvl, rarity = kMagic, context = d.context;
+    int ilvl = d.ilvl, rarity = d.rarity, context = d.context;
     bool no = false;
     float effect = d.effect;
     void* t[]{d.item, affix, &ilvl, &no, &rarity, &effect, &context, d.modifiers};
@@ -136,22 +142,27 @@ bool AddOne(const Idol& d, const std::vector<void*>& all, int kind) {
     return true;
 }
 
+// Up to n - 1 more of each kind than the game gave: an idol (1 + 1) rolls 1 to n prefixes, a Rare altar (2 + 2) 2 to n + 1.
 void AddAffixes(void* generator, void* item, int ilvl, int context, void* modifiers, int prefixes, int suffixes) {
-    const int type = Get<uint8_t>(item, o_itemType);
-    if (type < kFirstIdol || type > kLastIdol || Get<uint8_t>(item, o_rarity) != kMagic) return;
+    const int type = Get<uint8_t>(item, o_itemType), rarity = Get<uint8_t>(item, o_rarity);
+    const bool altar = type == kAltar;
+    if (altar ? rarity < 1 || rarity > kRare : type < kFirstIdol || type > kLastIdol || rarity != kMagic) return;
     void* a[]{item};
-    if (Value<bool>(m_isWeaver, nullptr, a) || Value<bool>(m_isHeretical, nullptr, a)) return;
+    if (Value<bool>(m_isHeretical, nullptr, a)) return;
+    const bool weaver = Value<bool>(m_isWeaver, nullptr, a);
     // the idol's own affixes: what it has of each kind now
     int havePrefixes = 0, haveSuffixes = 0;
     for (void* affix : Entries(Get<void*>(item, o_affixes))) {
-        if (!affix || Get<int>(affix, o_affixSpecial) != kStandard) continue;
+        if (!affix || !Kind(Get<int>(affix, o_affixSpecial), weaver)) continue;
         const int kind = Get<int>(affix, o_affixType);
         havePrefixes += kind == kPrefix;
         haveSuffixes += kind == kSuffix;
     }
-    const int wantPrefixes = 1 + Below(prefixes), wantSuffixes = 1 + Below(suffixes);
+    const int wantPrefixes = havePrefixes + Below(prefixes), wantSuffixes = haveSuffixes + Below(suffixes);
     if (havePrefixes >= wantPrefixes && haveSuffixes >= wantSuffixes) return;
-    Idol d{generator, item, ilvl, context, type, modifiers};
+    Idol d{generator, item, ilvl, context, type, rarity, modifiers};
+    d.weaver = weaver;
+    d.altar = altar;
     Root types(Invoke(m_itemList));
     int t = type, sub = Get<uint16_t>(item, o_subType);
     void* e[]{&t, &sub, &d.effect};

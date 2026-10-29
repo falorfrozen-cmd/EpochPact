@@ -5,6 +5,8 @@
 //                    GoldTracker.modifyGold); spending, quest rewards and vendors are untouched
 //   drops <1-25>     ItemDrop.DropItem's itemMultiplier, the item count every loot source
 //                    (enemy deaths, objectives, arenas, bosses) passes to the game's drop roll
+//   bones <1-100>    Ancient Bones dropped for the player (GroundItemManager.dropAncientBoneForPlayer),
+//                    so the pile on the ground already shows the larger amount
 #pragma once
 
 #include <string>
@@ -24,6 +26,7 @@ bool SetCoFDropDependency(bool enabled, std::string* why);
 bool Init();
 std::string SetGold(double m);
 std::string SetDrops(double m);
+std::string SetBones(double m);
 std::string Status();
 
 }  // namespace ep::loot

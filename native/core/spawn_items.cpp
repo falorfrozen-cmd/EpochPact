@@ -599,6 +599,134 @@ std::string UniqueCheck(int count, int level) {
         return out.str();
     });
 }
+// Idol altars from the generator at each raw rarity (0, 2, 4 and 4 exalted): their affixes (kind, ID, tier,
+// special type, name) and the base's maximum affixes; nothing dropped.
+std::string AltarCheck(int count, int level) {
+    return Run([=] {
+        const auto c = Current();
+        Root types(Invoke(M("ItemList", "get", 0))), catalog(Invoke(M("AffixList", "get", 0)));
+        void* generator = Get<void*>(c.actor, F("Actor", "generateItems"));
+        const auto generate = M("GenerateItems", "initialiseRandomItemData", 26);
+        std::map<int, std::string> names;
+        std::ostringstream out;
+        out << "{\"ok\":true,\"items\":[";
+        bool first = true;
+        for (const auto& b : Bases(types.Get())) {
+            if (b.type != 41) continue;
+            for (int variant = 0; variant < 4; ++variant) {
+                Request r;
+                r.type = b.type;
+                r.sub = b.sub;
+                r.gameRarity = variant == 0 ? 0 : variant == 1 ? 2 : 4;
+                r.exalted = variant == 3;
+                for (int i = 0; i < count; ++i) {
+                    const auto root = Generate(generator, generate, r, level);
+                    if (!root) continue;
+                    void* item = root->Get();
+                    const auto ids = [&] {
+                        std::string s;
+                        for (void* a : Entries(Get<void*>(item, F("ItemData", "affixes"))))
+                            if (a) s += std::to_string(Get<uint16_t>(a, F("ItemAffix", "affixId"))) + "/" + std::to_string(Get<uint8_t>(a, F("ItemAffix", "affixTier"))) + ",";
+                        return s;
+                    };
+                    const std::string before = ids();
+                    Invoke(Method(item, "RebuildID", 0), item);
+                    Invoke(Method(item, "setValuesFromSerialisation", 0), item);
+                    out << (first ? "" : ",") << "{\"same\":" << Boolean(before == ids()) << ",\"s\":" << b.sub << ",\"max\":" << b.maxAffixes << ",\"asked\":" << r.gameRarity
+                        << ",\"exalted\":" << Boolean(r.exalted) << ",\"rarity\":" << static_cast<int>(Get<uint8_t>(item, F("ItemData", "rarity"))) << ",\"a\":[";
+                    first = false;
+                    bool a1 = true;
+                    for (void* a : Entries(Get<void*>(item, F("ItemData", "affixes")))) {
+                        if (!a) continue;
+                        const int id = Get<uint16_t>(a, F("ItemAffix", "affixId"));
+                        if (!names.count(id)) {
+                            int arg = id;
+                            void* g[]{&arg};
+                            names[id] = Text(Invoke(Method(catalog.Get(), "GetAffixName", 1), catalog.Get(), g));
+                        }
+                        out << (a1 ? "" : ",") << '[' << Get<int>(a, F("ItemAffix", "affixType")) << ',' << id << ','
+                            << static_cast<int>(Get<uint8_t>(a, F("ItemAffix", "affixTier"))) << ',' << Get<int>(a, F("ItemAffix", "specialAffixType")) << ']';
+                        a1 = false;
+                    }
+                    out << "]}";
+                }
+            }
+        }
+        out << "],\"names\":{";
+        first = true;
+        for (const auto& [id, name] : names) { out << (first ? "" : ",") << '"' << id << "\":" << Json(name); first = false; }
+        return out.str() + "}}";
+    });
+}
+// A pile of Ancient Bones dropped next to the character by GroundItemManager.dropAncientBoneForPlayer (the
+// path every bone drop takes), and the bones the character holds; amount 0 only reads.
+std::string BoneDrop(int amount) {
+    return Run([=] {
+        const auto c = Current();
+        void* tracker = Get<void*>(c.actor, F("Actor", "ancientBonesTracker"));
+        if (amount > 0) {
+            void* manager = game::StaticObject(game::FindStaticField("LE.dll", "", "GroundItemManager", "instance"));
+            if (!manager) throw std::runtime_error("ground items unavailable");
+            Root transform(Invoke(M("Component", "get_transform", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), c.actor));
+            Vec3 at = Value<Vec3>(M("Transform", "get_position", 0, "UnityEngine", "UnityEngine.CoreModule.dll"), transform.Get());
+            at.x += 1.5f;
+            int n = amount;
+            bool sound = true, randomise = false;
+            void* a[]{c.actor, &n, &at, &sound, &randomise};
+            Invoke(M("GroundItemManager", "dropAncientBoneForPlayer", 5), manager, a);
+        }
+        return "{\"ok\":true,\"bones\":" + std::to_string(tracker ? Get<int>(tracker, F("AncientBonesTracker", "value")) : -1) + "}";
+    });
+}
+// The inventory's idols and idol altars: type, subtype, rarity and affixes (kind, ID, special type).
+std::string InventoryAffixes() {
+    return Run([] {
+        const auto c = Current();
+        void* manager = Get<void*>(c.actor, F("Actor", "itemContainersManager"));
+        void* inventory = Get<void*>(manager, F("ItemContainersManager", "inventory"));
+        Root content(Invoke(Method(inventory, "GetContent", 0), inventory));
+        std::ostringstream out;
+        out << "{\"ok\":true,\"items\":[";
+        bool first = true;
+        for (void* e : Entries(content.Get())) {
+            void* data = e ? Get<void*>(e, F("ItemContainerEntry", "data")) : nullptr;
+            if (!data) continue;
+            const int type = Get<uint8_t>(data, F("ItemData", "itemType"));
+            if (!((type >= 25 && type <= 33) || type == 41)) continue;
+            out << (first ? "" : ",") << "{\"t\":" << type << ",\"s\":" << Get<uint16_t>(data, F("ItemData", "subType"))
+                << ",\"rarity\":" << static_cast<int>(Get<uint8_t>(data, F("ItemData", "rarity"))) << ",\"a\":[";
+            first = false;
+            bool a1 = true;
+            for (void* a : Entries(Get<void*>(data, F("ItemData", "affixes")))) {
+                if (!a) continue;
+                out << (a1 ? "" : ",") << '[' << Get<int>(a, F("ItemAffix", "affixType")) << ',' << Get<uint16_t>(a, F("ItemAffix", "affixId")) << ','
+                    << static_cast<int>(Get<uint8_t>(a, F("ItemAffix", "affixTier"))) << ',' << Get<int>(a, F("ItemAffix", "specialAffixType")) << ']';
+                a1 = false;
+            }
+            out << "]}";
+        }
+        return out.str() + "]}";
+    });
+}
+// Every method of that name on an LE.dll class ("Namespace:Class" or "Class"): arity and RVA in this GameAssembly.
+std::string MethodRva(const std::string& klass, const std::string& name) {
+    std::string ns, cls = klass;
+    if (const auto colon = cls.find(':'); colon != std::string::npos) { ns = cls.substr(0, colon); cls = cls.substr(colon + 1); }
+    const auto* k = game::FindClass("LE.dll", ns.c_str(), cls.c_str());
+    if (!k) return "{\"ok\":false,\"error\":\"class not found\"}";
+    const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleW(L"GameAssembly.dll"));
+    std::ostringstream out;
+    out << "{\"ok\":true,\"methods\":[";
+    bool first = true;
+    void* iter = nullptr;
+    while (const auto* m = il2cpp::api().class_get_methods(k, &iter)) {
+        if (name != il2cpp::api().method_get_name(m)) continue;
+        const auto code = reinterpret_cast<uintptr_t>(*reinterpret_cast<void* const*>(m));
+        out << (first ? "" : ",") << "{\"arity\":" << il2cpp::api().method_get_param_count(m) << ",\"rva\":\"0x" << std::hex << (code ? code - base : 0) << std::dec << "\"}";
+        first = false;
+    }
+    return out.str() + "]}";
+}
 #endif
 
 }  // namespace ep::spawn

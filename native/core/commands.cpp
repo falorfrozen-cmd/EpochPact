@@ -34,6 +34,7 @@
 #include "rage.hpp"
 #include "weaver.hpp"
 #include "idols.hpp"
+#include "enchanter.hpp"
 #include "unique_rolls.hpp"
 #include "effects.hpp"
 #include "ingame_panel.hpp"
@@ -163,6 +164,17 @@ std::string Execute(const std::string& line) {
     if(cmd=="idolcheck"){long long count=0,level=0;
         if(args.size()==2&&statedit::Integer(args[0],1,100,&count)&&statedit::Integer(args[1],1,100,&level))return spawn::IdolCheck(static_cast<int>(count),static_cast<int>(level));
         return "{\"ok\":false,\"error\":\"use idolcheck count level\"}";}
+    if(cmd=="altarcheck"){long long count=0,level=0;
+        if(args.size()==2&&statedit::Integer(args[0],1,100,&count)&&statedit::Integer(args[1],1,100,&level))return spawn::AltarCheck(static_cast<int>(count),static_cast<int>(level));
+        return "{\"ok\":false,\"error\":\"use altarcheck count level\"}";}
+    if(cmd=="invaffixes")return args.empty()?spawn::InventoryAffixes():"{\"ok\":false,\"error\":\"invaffixes expects no arguments\"}";
+    if(cmd=="bonedrop"){long long amount=0;
+        if(args.size()==1&&statedit::Integer(args[0],0,100000,&amount))return spawn::BoneDrop(static_cast<int>(amount));
+        return "{\"ok\":false,\"error\":\"use bonedrop amount\"}";}
+    if(cmd=="methodrva")return args.size()==2?spawn::MethodRva(args[0],args[1]):"{\"ok\":false,\"error\":\"use methodrva [ns:]class name\"}";
+    if(cmd=="enchantercheck"){long long limit=0;
+        if(args.size()==1&&statedit::Integer(args[0],0,1,&limit))return enchanter::Check(static_cast<int>(limit));
+        return "{\"ok\":false,\"error\":\"use enchantercheck 0|1\"}";}
     if(cmd=="fpcheck"){long long count=0,level=0;
         if(args.size()==2&&statedit::Integer(args[0],1,200,&count)&&statedit::Integer(args[1],1,100,&level))return spawn::ForgingCheck(static_cast<int>(count),static_cast<int>(level));
         return "{\"ok\":false,\"error\":\"use fpcheck count level\"}";}
@@ -278,6 +290,13 @@ std::string Execute(const std::string& line) {
         if (args.size() != 1 || end == args[0].c_str() || *end) return cmd + ": refused: not a number: " + (args.empty() ? std::string() : args[0]);
         return cmd == "idolprefixes" ? idols::SetPrefixes(v) : idols::SetSuffixes(v);
     }
+    if (cmd == "enchanteruses") {
+        if (args.empty()) return enchanter::Status();
+        char* end = nullptr;
+        const double v = std::strtod(args[0].c_str(), &end);
+        if (args.size() != 1 || end == args[0].c_str() || *end) return "enchanteruses: refused: not a number: " + (args.empty() ? std::string() : args[0]);
+        return enchanter::SetUses(v);
+    }
     if (cmd == "uniqueroll") {
         if (args.empty()) return uniquerolls::Status();
         char* end = nullptr;
@@ -287,7 +306,7 @@ std::string Execute(const std::string& line) {
     }
     if (cmd == "status") {
         std::string s = std::string("EpochPact ") + kVersion + "; gate: " + game::GateText() + "\n" + xp::Status() + "\n" +
-                        loot::Status() + "\n" + density::Status() + "\n" + monolith::Status() + "\n" + cof::Status() + "\n" + items::Status() + "\n" + weaver::Status() + "\n" + idols::Status() + "\n" + uniquerolls::Status() + "\n" + player::Status() + "\nframe hook: " +
+                        loot::Status() + "\n" + density::Status() + "\n" + monolith::Status() + "\n" + cof::Status() + "\n" + items::Status() + "\n" + weaver::Status() + "\n" + idols::Status() + "\n" + enchanter::Status() + "\n" + uniquerolls::Status() + "\n" + player::Status() + "\nframe hook: " +
                         (mainthread::HookInstalled() ? "in" : "out (idle)");
 #ifdef EPOCHPACT_RESEARCH
         s += "\n" + research::Status();
@@ -412,7 +431,7 @@ std::string Execute(const std::string& line) {
 #endif
     }
     if (cmd == "xp" || cmd == "gold" || cmd == "drops" || cmd == "rarity" || cmd == "speed" ||
-        cmd == "cooldown" || cmd == "amber" || cmd == "weaverswill" || cmd == "lprolls" || cmd == "fpdrops") {
+        cmd == "cooldown" || cmd == "amber" || cmd == "weaverswill" || cmd == "lprolls" || cmd == "fpdrops" || cmd == "bones") {
         if (args.empty()) {
             if (cmd == "xp") return xp::Status();
             if (cmd == "amber") return cof::AmberStatus();
@@ -430,6 +449,7 @@ std::string Execute(const std::string& line) {
         if (cmd == "gold") return loot::SetGold(m);
         if (cmd == "amber") return cof::AmberMultiplier(m);
         if (cmd == "drops") return loot::SetDrops(m);
+        if (cmd == "bones") return loot::SetBones(m);
         if (cmd == "rarity") return items::SetRarity(m);
         if (cmd == "weaverswill") return items::SetWeaversWill(m);
         if (cmd == "lprolls") return items::SetLegendaryRolls(m);
