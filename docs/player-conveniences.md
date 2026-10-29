@@ -773,7 +773,14 @@ that type, with the game's own art. Slots: helmet, body armour, gloves, boots, b
 off-hand. Shop cosmetics are not touched and nothing is unlocked.
 
 - Each slot with an item has a list: the item's own look first, then the base items and the
-  Uniques and Set items of that type. A choice applies at once.
+  Uniques ("Unique · ") and Set items ("Set · ") of that type. A choice applies at once;
+  **Reset all looks** takes every look off.
+- **The mirror** beside the lists shows your character with the looks it wears, from the
+  front; **Turn left**, **Front** and **Turn right** turn it by 45°. In the F6 window it is
+  live: a camera of EpochPact's own renders only the character's own meshes on a dark
+  background, one frame per frame while the section is on screen (the camera stays disabled
+  otherwise). The desktop app shows a picture of the same mirror (`transmogshot <yaw>`, a JPEG),
+  taken again after each change and turn.
 - The game sends a character's visuals through `PlayerActorSync.ReceiveEquipGear` (armour)
   and `ReceiveEquipWeapon` (weapons and off-hands) when it loads and on every equip; EpochPact
   replaces the subtype and Unique there with the look's. So the look stays through zone
@@ -789,6 +796,12 @@ gloves, boots, weapon and shield changed the character in the screenshot (a blue
 wooden shield became Flesh of Stone, Somnia, Hazelroot, Corsair's Boarding Shield ...); a
 look of another type was refused; after a restart the six looks were applied again as the
 character loaded; back to the own looks, the character looked as before.
+
+Mirror checks 2026-10-29 (`builds\mirror-live2`, `builds\mirror-live3`): the F6 section shows the
+character live beside the lists and follows each look; `transmogshot 0` and `transmogshot 180`
+gave JPEGs of 41-52 KB with the whole character from the front and the back, the town's other
+people behind it cut away by the clip planes; Turn right turned the F6 mirror; Refresh then
+Reset all looks in F6 took all six looks off.
 
 ### Stash tabs from the loot filter
 

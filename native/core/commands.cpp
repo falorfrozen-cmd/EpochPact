@@ -295,6 +295,11 @@ std::string Execute(const std::string& line) {
         return cmd == "idolprefixes" ? idols::SetPrefixes(v) : idols::SetSuffixes(v);
     }
     if (cmd == "transmogread") return args.empty() ? transmog::Read() : "{\"ok\":false,\"error\":\"transmogread expects no arguments\"}";
+    if (cmd == "transmogshot") {
+        long long yaw = 0;
+        if (args.size() > 1 || (args.size() == 1 && !statedit::Integer(args[0], -360, 360, &yaw))) return "{\"ok\":false,\"error\":\"use transmogshot [yaw -360..360]\"}";
+        return ingame::view::MirrorShot(static_cast<float>(yaw));
+    }
     if (cmd == "transmog") return args.size() == 2 ? transmog::Set(args[0], args[1]) : "{\"ok\":false,\"error\":\"use transmog <slot> <look|none>\"}";
     if (cmd == "enchanteruses") {
         if (args.empty()) return enchanter::Status();

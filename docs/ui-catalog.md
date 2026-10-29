@@ -432,13 +432,15 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `build_fullsets` — Full set bonuses from one piece | `buildset fullsets {value}` | value: 0…1 | 0 | Oturum |
 | `build_primordials` — Wear any number of primordial items | `buildset primordials {value}` | value: 0…1 | 0 | Oturum |
 | `transmog_read` — Item looks | `transmogread` | — | — | Okuma |
-| `transmog_set` — Change an item's look | `transmog {slot} {look}` | slot: helmet/body/gloves/boots/belt/weapon/offhand; look: single_token | — | Yüklü aktör |
+| `transmog_mirror` — Character mirror | `transmogshot {yaw}` | yaw: -360…360 | — | Okuma |
+| `transmog_set` — Change an item's look | `transmog {slot} {look}` | slot: helmet/body/gloves/boots/belt/weapon/offhand/all; look: single_token | — | Yüklü aktör |
 
 - **Unrestricted offhand equipment:** Allow weapons in the offhand and remove linked two-handed equipment conflicts. Normal level and class requirements still apply. Reset: `buildset offhand 0`.
 - **Full set bonuses from one piece:** Activate the missing bonuses of each equipped set. Removing its last piece removes the bonuses. Reset: `buildset fullsets 0`.
 - **Wear any number of primordial items:** Wear more than one primordial item (Primordial Unique or Exalted) and get the bonuses of all of them. Switched off, the game's limit of one returns: while you wear more, their bonuses stop until you take the extra items off. Reset: `buildset primordials 0`.
 - **Item looks:** Read the looks of the equipped items: each visible slot's item, the look it shows and the looks that fit.
-- **Change an item's look:** Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you set it back to the item's own look. Shop cosmetics are not touched. Remembered per character by EpochPact.
+- **Character mirror:** A picture of the loaded character, from the front or turned, with the looks it wears.
+- **Change an item's look:** Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you set it back to the item's own look. Shop cosmetics are not touched. Remembered per character by EpochPact. Slot all with none takes every look off.
 
 ## Summons
 

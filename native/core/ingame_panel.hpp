@@ -13,4 +13,5 @@ std::string Panel(const std::string& action);
 // panelkey F5-F12 | off
 std::string SetKey(const std::string& key);
 void ReleaseRoots();
+namespace view { std::string MirrorShot(float yaw); }  // the Item looks mirror as a JPEG (ingame_mirror.cpp)
 }  // namespace ep::ingame

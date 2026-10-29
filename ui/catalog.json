@@ -495,6 +495,33 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "transmog_mirror",
+      "group": "equipment",
+      "label": "Character mirror",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "transmogshot {yaw}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "yaw",
+          "type": "integer",
+          "minimum": -360,
+          "maximum": 360
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "A picture of the loaded character, from the front or turned, with the looks it wears.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "transmog_set",
       "group": "equipment",
       "label": "Change an item's look",
@@ -514,7 +541,8 @@
             "boots",
             "belt",
             "weapon",
-            "offhand"
+            "offhand",
+            "all"
           ]
         },
         {
@@ -526,7 +554,7 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "actor",
-      "description": "Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you set it back to the item's own look. Shop cosmetics are not touched. Remembered per character by EpochPact.",
+      "description": "Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you set it back to the item's own look. Shop cosmetics are not touched. Remembered per character by EpochPact. Slot all with none takes every look off.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -34903,7 +34931,7 @@
     ]
   },
   "counts": {
-    "controls": 219,
+    "controls": 220,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

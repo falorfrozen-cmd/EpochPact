@@ -378,8 +378,10 @@ def controls():
         "Read the base items, Uniques and Sets the game can make. Does not create items.",
         requires=("loaded_actor",), doc="docs/player-conveniences.md")
     add("transmog_read", "equipment", "Item looks", "read", "transmogread", "read_only", "Read the looks of the equipped items: each visible slot's item, the look it shows and the looks that fit.", doc="docs/player-conveniences.md")
-    add("transmog_set", "equipment", "Change an item's look", "selector", "transmog {slot} {look}", "actor", "Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you set it back to the item's own look. Shop cosmetics are not touched. Remembered per character by EpochPact.",
-        params=[parameter("slot", "enum", choices=["helmet", "body", "gloves", "boots", "belt", "weapon", "offhand"]), parameter("look", "single_token")], doc="docs/player-conveniences.md")
+    add("transmog_mirror", "equipment", "Character mirror", "read", "transmogshot {yaw}", "read_only", "A picture of the loaded character, from the front or turned, with the looks it wears.",
+        params=[parameter("yaw", "integer", -360, 360)], doc="docs/player-conveniences.md")
+    add("transmog_set", "equipment", "Change an item's look", "selector", "transmog {slot} {look}", "actor", "Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you set it back to the item's own look. Shop cosmetics are not touched. Remembered per character by EpochPact. Slot all with none takes every look off.",
+        params=[parameter("slot", "enum", choices=["helmet", "body", "gloves", "boots", "belt", "weapon", "offhand", "all"]), parameter("look", "single_token")], doc="docs/player-conveniences.md")
     items[-1]["parameters"][1]["maximumLength"] = 16
     add("spawn_item", "crafting", "Spawn item", "button", "spawnitem {save_id} {item} {rarity} {lp} {item_level} {count}", "actor",
         "The game makes the chosen base item, Unique or Set with its own rules and drops it next to your character, like a monster drop. "

@@ -1019,14 +1019,18 @@ test('item looks: each equipped slot gets its looks, the own look first, and a c
  const state={ok:true,player:{id:'6'},slots:[
   {slot:'helmet',item:{type:0,sub:3,rarity:4,uniqueId:0,key:'b0.3',name:'Copper Circlet'},look:{key:'u239',name:'Somnia',shown:true},options:[{key:'b0.3',name:'Copper Circlet',unique:false},{key:'b0.4',name:'Iron Helm',unique:false},{key:'u239',name:'Somnia',unique:true}]},
   {slot:'belt',item:null,look:null,options:[]}]};
- h.replies.push(state);await h.run('readLooks()');
+ h.replies.push(state,{ok:true,width:480,height:600,jpg:'AAAA'});await h.run('readLooks()');
  const html=h.run('looksPanel()');
  assert.ok(html.includes('data-look-slot="helmet"'));assert.ok(!html.includes('data-look-slot="belt"'));
  assert.ok(html.includes('<option value="none">Own look: Copper Circlet</option>'));assert.ok(!html.includes('value="b0.3"'));
- assert.ok(html.includes('<option value="u239" selected>Somnia</option>'));
+ assert.ok(html.includes('<option value="u239" selected>Unique · Somnia</option>'));assert.ok(html.includes('src="data:image/jpeg;base64,AAAA"'));
+ assert.ok(html.includes('data-look-reset data-control-id="transmog_set" >'));
  h.run('connected.player.id="7"');assert.ok(!h.run('looksPanel()').includes('Somnia'));h.run('connected.player.id="6"');
- h.replies.push({...state,slots:[{...state.slots[0],look:null},state.slots[1]]});await h.run(`setLook('helmet','none')`);
- assert.deepEqual(h.calls.map(c=>[c.id,c.operation,c.args]),[['transmog_read','read',undefined],['transmog_set','set',{slot:'helmet',look:'none'}]]);
+ h.replies.push({...state,slots:[{...state.slots[0],look:null},state.slots[1]]},{ok:true,jpg:'BBBB'},{ok:true,jpg:'CCCC'},{...state,slots:[{...state.slots[0],look:null},state.slots[1]]},{ok:true,jpg:'DDDD'});
+ await h.run(`setLook('helmet','none')`);await h.run('turnMirror(45)');await h.run(`setLook('all','none')`);
+ assert.deepEqual(h.calls.map(c=>[c.id,c.operation,c.args]),[['transmog_read','read',undefined],['transmog_mirror','read',{yaw:0}],['transmog_set','set',{slot:'helmet',look:'none'}],
+  ['transmog_mirror','read',{yaw:0}],['transmog_mirror','read',{yaw:45}],['transmog_set','set',{slot:'all',look:'none'}],['transmog_mirror','read',{yaw:45}]]);
+ assert.ok(h.run('looksPanel()').includes('base64,DDDD'));assert.ok(h.run('looksPanel()').includes('data-look-reset data-control-id="transmog_set" disabled'));
  assert.ok(h.run('looksPanel()').includes('<option value="none">Own look: Copper Circlet</option>'));
 });
 test('font list offers every style, narrows with the search box and sends Family|Style encoded',async()=>{

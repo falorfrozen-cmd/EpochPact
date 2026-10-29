@@ -1198,24 +1198,28 @@ async function categoriesAction(kind,category){
  await readCategories();
 }
 // ---- item looks: an equipped item can look like another item of the same type (transmog)
-let itemLooks=null;
+let itemLooks=null,lookYaw=0,lookShot=null;
 const lookSlotNames={helmet:"Helmet",body:"Body armour",gloves:"Gloves",boots:"Boots",belt:"Belt",weapon:"Weapon",offhand:"Off-hand"};
+function lookLabel(o){return o.set?`Set · ${o.name}`:o.unique?`Unique · ${o.name}`:o.name;}
 function looksPanel(){
  if(!controlById("transmog_read"))return "";
  const s=itemLooks&&String(itemLooks.player?.id)===String(connected.player?.id)?itemLooks:null;
  const head=`<section class="panel" id="item-looks"><div class="section-head"><h2>Item looks</h2><button data-looks="read" data-control-id="transmog_read">${s?"Refresh":"Read looks"}</button></div><p class="muted">Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you choose the item's own look again. Shop cosmetics are not touched.</p>`;
  if(!s)return head+`<p class="empty">Read the looks of the loaded character.</p></section>`;
- const slots=s.slots.filter(x=>x.item);
- if(!slots.length)return head+`<p class="empty">Equip an item to change its look.</p></section>`;
- return head+`<div class="form-grid">${slots.map(x=>`<label>${esc(tr(lookSlotNames[x.slot]??x.slot))} · ${esc(x.item.name)}<select data-look-slot="${esc(x.slot)}" data-control-id="transmog_set"><option value="none">${esc(tr("Own look: {0}").replace("{0}",x.item.name))}</option>${x.options.filter(o=>o.key!==x.item.key).map(o=>`<option value="${esc(o.key)}" ${x.look?.key===o.key?"selected":""}>${esc(o.name)}</option>`).join("")}</select></label>`).join("")}</div></section>`;
+ const slots=s.slots.filter(x=>x.item),anyLook=s.slots.some(x=>x.look);
+ const mirror=`<div class="look-mirror"><div class="look-mirror-frame">${lookShot?`<img src="data:image/jpeg;base64,${lookShot}" alt="${esc(tr("Character mirror"))}">`:`<p class="empty">${esc(tr("The mirror shows your character once the looks are read."))}</p>`}</div><div class="actions"><button class="quiet" data-look-turn="-45" data-control-id="transmog_mirror">Turn left</button><button class="quiet" data-look-turn="0" data-control-id="transmog_mirror">Front</button><button class="quiet" data-look-turn="45" data-control-id="transmog_mirror">Turn right</button></div></div>`;
+ const list=slots.length?`<div class="look-slots">${slots.map(x=>`<label>${esc(tr(lookSlotNames[x.slot]??x.slot))} · ${esc(x.item.name)}<select data-look-slot="${esc(x.slot)}" data-control-id="transmog_set"><option value="none">${esc(tr("Own look: {0}").replace("{0}",x.item.name))}</option>${x.options.filter(o=>o.key!==x.item.key).map(o=>`<option value="${esc(o.key)}" ${x.look?.key===o.key?"selected":""}>${esc(lookLabel(o))}</option>`).join("")}</select></label>`).join("")}<div class="actions"><button data-look-reset data-control-id="transmog_set" ${anyLook?"":"disabled"}>Reset all looks</button></div></div>`:`<p class="empty">Equip an item to change its look.</p>`;
+ return head+`<div class="looks-layout">${mirror}${list}</div></section>`;
 }
 function renderLooks(){const node=$("#item-looks");if(node)node.outerHTML=looksPanel();updateDisabled();}
-async function readLooks(){const r=await runTask({type:"control",id:"transmog_read",operation:"read"},{silent:true});if(r?.ok&&r.slots)itemLooks=r;renderLooks();}
+async function readMirror(){const r=await runTask({type:"control",id:"transmog_mirror",operation:"read",args:{yaw:lookYaw}},{silent:true});if(r?.ok&&r.jpg)lookShot=r.jpg;renderLooks();}
+async function readLooks(){const r=await runTask({type:"control",id:"transmog_read",operation:"read"},{silent:true});if(r?.ok&&r.slots)itemLooks=r;renderLooks();if(itemLooks)await readMirror();}
 async function setLook(slot,look){
  const r=await runTask({type:"control",id:"transmog_set",operation:"set",args:{slot,look}},{silent:true});
- if(r?.ok&&r.slots){itemLooks=r;notify("Look changed.");renderLooks();return;}
+ if(r?.ok&&r.slots){itemLooks=r;notify("Look changed.");renderLooks();await readMirror();return;}
  await readLooks();
 }
+async function turnMirror(by){lookYaw=by===0?0:((lookYaw+by)%360+360)%360;await readMirror();}
 // ---- interface font
 // Every Windows font face: each family, then its other styles ("Segoe UI — Semibold", sent as Family|Style).
 let fontFilter="";
@@ -1589,6 +1593,8 @@ content.addEventListener("click",async e=>{
  else if(b.dataset.tierReset!==undefined){try{localStorage.removeItem("epochpact.tier-palette.v1");localStorage.removeItem("epochpact.rule-line-color.v1");}catch{}const r=await runTask({type:"control",id:"tier_color",operation:"reset"},{silent:true});if(r?.ok){notify("Tier colours reset.");renderPage();}}
  else if(b.dataset.categories)await categoriesAction(b.dataset.categories,{key:b.dataset.category});
  else if(b.dataset.looks)await readLooks();
+ else if(b.dataset.lookTurn!==undefined)await turnMirror(Number(b.dataset.lookTurn));
+ else if(b.dataset.lookReset!==undefined)await setLook("all","none");
  else if(b.dataset.stashRules)await stashRulesAction(b.dataset.stashRules,b.dataset.stashRules==="create"?{hidden:$("#stash-rules-hidden")?.checked?1:0,disabled:$("#stash-rules-disabled")?.checked?1:0}:{});
  else if(b.dataset.reportNow!==undefined){const r=await runTask({type:"control",id:"report_now"},{silent:true});if(r?.ok){notify(`Report saved: ${r.folder.split(/[\\/]/).pop()} (in the game's EpochPact\\reports folder).`);void refreshSection("report_read");}}
  else if(b.dataset.damageAction)await damageAction(b.dataset.damageAction);

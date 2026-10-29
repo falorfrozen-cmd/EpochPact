@@ -295,24 +295,81 @@ void LookCommand(const std::string& line) {
         Read("transmogread");
     });
 }
+// The look list of a slot: the item's own look first, then base items, Uniques ("Unique · ") and Sets ("Set · ").
+std::string LookLabel(const JValue& o) {
+    const std::string name = o["name"].Str();
+    if (o["set"].IsBool() && o["set"].boolean) return "Set \xC2\xB7 " + name;
+    if (o["unique"].IsBool() && o["unique"].boolean) return "Unique \xC2\xB7 " + name;
+    return name;
+}
+float MirrorYaw(int sectionId) {
+    Section* s = FindSection(sectionId);
+    if (!s) return 0.f;
+    const auto it = s->state.find("yaw");
+    return it == s->state.end() ? 0.f : std::strtof(it->second.c_str(), nullptr);
+}
+void TurnMirror(int sectionId, float by) {
+    if (Section* s = FindSection(sectionId)) {
+        const float yaw = by == 0 ? 0 : std::fmod(MirrorYaw(sectionId) + by + 360.f, 360.f);
+        s->state["yaw"] = std::to_string(yaw);
+    }
+}
 void MakeItemLooks(Section& s) {
     s.reads.insert("inventoryread");
     s.reads.insert("transmogread");
+    // the mirror: one frame of the character each frame while the page is shown
+    s.tick = [](Section& self) {
+        const float yaw = MirrorYaw(self.id);
+        std::string why;
+        game::Guarded([&] {
+            try { MirrorRender(yaw); } catch (const std::exception&) {}
+        }, &why);
+    };
     s.build = [](Section&, const Ctx& c) {
         return InPanel(c, [](const Ctx& in, float y) {
             const JValue* st = CurrentLooks();
             const bool eligible = ViewReason().empty();
+            const int sid = in.section;
             y += HeadWithButton(in, y, Tr("Item looks"), Tr(st ? "Refresh" : "Read looks"), [] { Forget("transmogread"); Read("transmogread"); }, "transmog_read",
                                 eligible) + 16;
             y += Muted(in.parent, kPanelPad, y, kPanelInner,
                        Tr("Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. "
                           "The look stays when you change zone or equip another item of that type, until you choose the item's own look again. "
-                          "Shop cosmetics are not touched.")) + 14;
-            if (!st) return y + EmptyText(in.parent, kPanelPad, y, kPanelInner, Tr("Read the looks of the loaded character.")) + 10;
-            const float gap = 16, colW = (kPanelInner - gap) / 2;
-            int col = 0, shown = 0;
-            float rowH = 0;
+                          "Shop cosmetics are not touched.")) + 16;
+            // the mirror (left) and its turn buttons
+            const float mirrorW = 320, mirrorH = 400, gap = 24, top = y;
+            Fill(in.parent, "Mirror back", kPanelPad, y, mirrorW, mirrorH, Hex("#0b1312"), 4);
+            {
+                Node n = New("Mirror", in.parent, kPanelPad + 1, y + 1, mirrorW - 2, mirrorH - 2);
+                void* raw = Add(n.go, "UnityEngine.UI.dll", "UnityEngine.UI", "RawImage");
+                Raycast(raw, false);
+                std::string why;
+                game::Guarded([&] {
+                    try {
+                        void* a[]{MirrorTexture()};
+                        managed::Invoke(UI("RawImage", "set_texture", 1), raw, a);
+                    } catch (const std::exception&) {}
+                }, &why);
+            }
+            Outline(in.parent, "Mirror border", kPanelPad, y, mirrorW, mirrorH, Hex("#7b745a99"), 4);
+            float by = y + mirrorH + 10, bx = kPanelPad;
+            Button left = AddButton(in, bx, by, Tr("Turn left"), Look::Quiet, [sid] { TurnMirror(sid, -45); }, false, "mirror-left");
+            bx += left.w + 6;
+            Button front = AddButton(in, bx, by, Tr("Front"), Look::Quiet, [sid] { TurnMirror(sid, 0); }, false, "mirror-front");
+            bx += front.w + 6;
+            Button right = AddButton(in, bx, by, Tr("Turn right"), Look::Quiet, [sid] { TurnMirror(sid, 45); }, false, "mirror-right");
+            const float mirrorBottom = by + std::max({left.h, front.h, right.h});
+            // the slots (right)
+            const float sx = kPanelPad + mirrorW + gap, sw = kPanelInner - mirrorW - gap;
+            float sy = top;
+            if (!st) {
+                sy += EmptyText(in.parent, sx, sy, sw, Tr("Read the looks of the loaded character.")) + 10;
+                return std::max(sy, mirrorBottom);
+            }
+            int shown = 0;
+            bool anyLook = false;
             for (const auto& slot : (*st)["slots"].items) {
+                if (slot["look"].IsObject()) anyLook = true;
                 if (slot["item"].IsNull()) continue;
                 const std::string key = slot["slot"].Str(), own = slot["item"]["key"].Str();
                 const std::string chosen = slot["look"].IsObject() ? slot["look"]["key"].Str() : "";
@@ -320,20 +377,21 @@ void MakeItemLooks(Section& s) {
                 int current = 0;
                 for (const auto& o : slot["options"].items) {
                     if (o["key"].Str() == own) continue;
-                    labels.push_back(o["name"].Str());
+                    labels.push_back(LookLabel(o));
                     keys.push_back(o["key"].Str());
                     if (o["key"].Str() == chosen) current = static_cast<int>(keys.size()) - 1;
                 }
-                const float h = SelectField(in, kPanelPad + col * (colW + gap), y, colW, LookSlotName(key) + " \xC2\xB7 " + slot["item"]["name"].Str(), labels, current,
-                                            [key, keys](int i) { if (i >= 0 && i < static_cast<int>(keys.size())) LookCommand("transmog " + key + " " + keys[static_cast<size_t>(i)]); },
-                                            "transmog-" + key);
-                rowH = std::max(rowH, h);
+                sy += SelectField(in, sx, sy, sw, LookSlotName(key) + " \xC2\xB7 " + slot["item"]["name"].Str(), labels, current,
+                                  [key, keys](int i) { if (i >= 0 && i < static_cast<int>(keys.size())) LookCommand("transmog " + key + " " + keys[static_cast<size_t>(i)]); },
+                                  "transmog-" + key) + 12;
                 ++shown;
-                if (++col == 2) { col = 0; y += rowH + 14; rowH = 0; }
             }
-            if (col) y += rowH + 14;
-            if (!shown) y += EmptyText(in.parent, kPanelPad, y, kPanelInner, Tr("Equip an item to change its look.")) + 10;
-            return y;
+            if (!shown) sy += EmptyText(in.parent, sx, sy, sw, Tr("Equip an item to change its look.")) + 10;
+            sy += 6;
+            Button reset = AddButton(in, sx, sy, Tr("Reset all looks"), Look::Normal, [] { LookCommand("transmog all none"); }, false, "transmog-reset");
+            if (!anyLook || !eligible) SetEnabled(in, reset, false);
+            sy += reset.h;
+            return std::max(sy, mirrorBottom);
         });
     };
 }

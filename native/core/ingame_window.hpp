@@ -123,6 +123,13 @@ std::string HudState();
 bool HudFixture(const std::string& style);
 bool PressCategoryHit(const std::string& name);  // the category column's control of that name, without mouse input
 #endif
+// The character mirror of the Item looks section (ingame_mirror.cpp): its texture, one frame of the loaded
+// character from the front turned by yaw degrees (false when there is no character to show), and the release
+// (destroy: the camera's GameObject too; never at runtime shutdown).
+void* MirrorTexture();
+bool MirrorRender(float yaw);
+void ReleaseMirror(bool destroy);
+std::string MirrorShot(float yaw);  // {"jpg": base64} for the desktop app; runs on the main thread
 void ForgetInputs(int owner);
 float DrawHudRecap(const Ctx& c, float x, float y, float w, int* index, Action changed);
 void SettingsStep();                     // once per ready offline owner, even with F6 closed

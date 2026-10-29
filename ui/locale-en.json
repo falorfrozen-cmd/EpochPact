@@ -449,9 +449,13 @@
       "Item looks",
       "Read the looks of the equipped items: each visible slot's item, the look it shows and the looks that fit."
     ],
+    "transmog_mirror": [
+      "Character mirror",
+      "A picture of the loaded character, from the front or turned, with the looks it wears."
+    ],
     "transmog_set": [
       "Change an item's look",
-      "Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you set it back to the item's own look. Shop cosmetics are not touched. Remembered per character by EpochPact."
+      "Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you set it back to the item's own look. Shop cosmetics are not touched. Remembered per character by EpochPact. Slot all with none takes every look off."
     ],
     "build_zoom": [
       "Camera distance",

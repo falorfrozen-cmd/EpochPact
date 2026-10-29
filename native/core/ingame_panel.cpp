@@ -2281,6 +2281,7 @@ void Show(bool open) {
 void Destroy() {
     ReleaseHud();
     ReleaseStatRoots();
+    ReleaseMirror(true);
     ++dialogCounter;
     BlockGameKeys(false);  // never leave the game's keys switched off
     timers.clear();
@@ -3735,7 +3736,7 @@ std::string Panel(const std::string& action) {
             const auto control=name.substr(6);
             const bool save=control=="craft_materials" || control=="craft_forge" || control=="craft_custom";
             const bool view=control=="craft_custom_catalog" || control=="spawn_list" || control=="spawn_item" || control.rfind("spawn-",0)==0 || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0
-                || control=="categories_read" || control.rfind("category-",0)==0 || control=="transmog_read" || control.rfind("transmog-",0)==0;
+                || control=="categories_read" || control.rfind("category-",0)==0 || control=="transmog_read" || control.rfind("transmog-",0)==0 || control.rfind("mirror-",0)==0;
             if (!save && !view) throw std::runtime_error("Control not in QA allowlist");
             if (win.dialogOpen || win.listOpen) throw std::runtime_error("Dismiss the current dialog first");
             for(int id:win.pages[win.page].sections) if(!Sec(id).hidden) for(const auto& h:Sec(id).hits)
@@ -3830,6 +3831,7 @@ void ReleaseRoots() {
     view::ReleaseFilterFiles();
     view::ReleaseHud();
     view::ReleaseStatRoots();
+    view::ReleaseMirror(false);
     win = Window{};
     cache.clear();
     ui::ReleaseTypes();

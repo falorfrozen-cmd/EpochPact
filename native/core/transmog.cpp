@@ -298,7 +298,8 @@ std::string ReadNow() {
         out << ",\"options\":[";
         bool first = true;
         for (const Look& o : Options(types.Get(), uniques.Get(), v.type)) {
-            out << (first ? "" : ",") << "{\"key\":" << Json(Key(o)) << ",\"name\":" << Json(LookName(types.Get(), o)) << ",\"unique\":" << Boolean(Unique(o)) << '}';
+            out << (first ? "" : ",") << "{\"key\":" << Json(Key(o)) << ",\"name\":" << Json(LookName(types.Get(), o)) << ",\"unique\":" << Boolean(Unique(o))
+                << ",\"set\":" << Boolean(o.rarity == 8) << '}';
             first = false;
         }
         out << "]}";
@@ -328,9 +329,20 @@ std::string Read() { return Run([] { return ReadNow(); }); }
 
 std::string Set(const std::string& slotKey, const std::string& lookKey) {
     return Run([=] {
+        const Ctx c = Current();
+        if (slotKey == "all") {
+            if (lookKey != "none") throw std::runtime_error("Only none can be set on every slot.");
+            {
+                std::lock_guard<std::mutex> hold(g_lock);
+                LoadLocked();
+                g_looks.erase(c.id);
+                SaveLocked();
+            }
+            for (int s = 0; s < kSlots; ++s) Show(c, s);
+            return ReadNow();
+        }
         const int slot = SlotIndex(slotKey);
         if (slot < 0) throw std::runtime_error("Unknown slot.");
-        const Ctx c = Current();
         Look look;
         const bool clear = lookKey == "none";
         if (!clear) {
