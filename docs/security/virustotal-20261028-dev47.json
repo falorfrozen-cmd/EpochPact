@@ -1,0 +1,56 @@
+{
+  "version": "0.1.2-dev.47",
+  "observed": "2026-10-28 (UTC+03:00), fresh uploads through the VirusTotal web interface; investigation 2026-10-29",
+  "build": "ingame-ui commit 0afb031 (player flavor; build-info loaderSha256 = version.dll below); desktop edition again from a2873fa with the same player files",
+  "files": {
+    "version.dll": {
+      "sha256": "d9556c160a7850b6c3d58c6970e56d15853dddb810d6b4c836d75a430c3ff1af",
+      "bytes": 8231936,
+      "in": [
+        "EpochPact-0.1.2-dev.47-InGame.zip",
+        "EpochPact-0.1.2-dev.47.zip (Manual Installation and the app's player files)"
+      ],
+      "virusTotal": "1/71 (Kaspersky VHO:Trojan.Win32.Dllhijack.gen)",
+      "report": "https://www.virustotal.com/gui/file/d9556c160a7850b6c3d58c6970e56d15853dddb810d6b4c836d75a430c3ff1af"
+    },
+    "EpochPact.Core.dll": {
+      "sha256": "c5ffb02fe2a7cec3fc800311b5695235fc41bf7aeff8ae99e5acd9e72648957e",
+      "bytes": 8223232,
+      "in": [
+        "EpochPact-0.1.2-dev.47.zip (MelonLoader path)"
+      ],
+      "virusTotal": "0/71",
+      "report": "https://www.virustotal.com/gui/file/c5ffb02fe2a7cec3fc800311b5695235fc41bf7aeff8ae99e5acd9e72648957e"
+    },
+    "EpochPact.exe": {
+      "sha256": "0894cb16a2a4f3f7bdab46fde1f7e5fa0fec9271dd76b390b18befbd73c6521a",
+      "bytes": 372347,
+      "in": [
+        "EpochPact-0.1.2-dev.47.zip"
+      ],
+      "virusTotal": "not uploaded (desktop edition only; not on Nexus)"
+    }
+  },
+  "packages": {
+    "EpochPact-0.1.2-dev.47-InGame.zip": {
+      "sha256": "bf012afb9d4691a9cff5f9cc2576dcfe651aafe883342101f1f3f1ed6924f22a",
+      "bytes": 3561709,
+      "virusTotal": "1/68 (Kaspersky VHO:Trojan.Win32.Dllhijack.gen)",
+      "report": "https://www.virustotal.com/gui/file/bf012afb9d4691a9cff5f9cc2576dcfe651aafe883342101f1f3f1ed6924f22a",
+      "localDefender": "No threats found"
+    },
+    "EpochPact-0.1.2-dev.47.zip": {
+      "sha256": "fb325613d6920841a7c33a8ac0853a3827d67fca87226727ebd0bb235e1ba74d",
+      "bytes": 36313805,
+      "virusTotal": "not uploaded (over the 10 MB browser upload limit)",
+      "localDefender": "No threats found (folder and ZIP)"
+    }
+  },
+  "kasperskyInvestigation": {
+    "summary": "The detection is not caused by dev.47's code: fresh builds of the dev.46 source (9675dd44...) and of dev.47 (09eaae52...) are flagged the same way, while the published dev.46 file was 0/63 the day before. The core alone (EpochPact.Core.dll) is 0/71 and the stand-alone loader is not flagged by Kaspersky. Changing the export directory name, the KERNEL32 forwarders, the version resource, the export names or the uploaded file name changed nothing. Only variants whose DllMain no longer starts the core were clean; every variant that starts it (thread or thread pool) was flagged.",
+    "decision": "The loader start-up is not changed: it starts the core from DllMain since 2ba920e because a start on the first version.dll API call never happened on some PCs. Bisect builds stayed in builds\\kav-* and the scratchpad; nothing was committed."
+  },
+  "localDefender": "signatures 1.463.12.0: the InGame package folder, the desktop folder and the desktop ZIP found no threats",
+  "checks": "package_ingame_player and package_player_folder verified; verify_player_package and verify_connection_package passed; Python 390, JavaScript 243, native 26 tests; translations 1801/1801; shipping check builds\\dev47-player-live",
+  "note": "Scan counts describe these exact bytes on this date only; they are not a safety certification."
+}
