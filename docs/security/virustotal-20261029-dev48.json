@@ -1,28 +1,28 @@
 {
   "version": "0.1.2-dev.48",
   "observed": "2026-10-29 (UTC+03:00), fresh uploads through the VirusTotal web interface",
-  "build": "ingame-ui commit 4c203e4 (player flavor; build-info loaderSha256 = version.dll below); the desktop edition from the same player files",
+  "build": "ingame-ui commit 798f3e6 (player flavor; build-info loaderSha256 = version.dll below); the desktop edition from the same player files",
   "files": {
     "version.dll": {
-      "sha256": "08b8669329ef4adcc54b48da81deb1d73f73f5307a3d7dc69d26b0346c995579",
-      "bytes": 8428032,
+      "sha256": "c3e6602224eee87ecaa1470a3fca1ce7d6055e4eb776c84ef45f14449861800b",
+      "bytes": 8528896,
       "in": [
         "EpochPact-0.1.2-dev.48-InGame.zip",
         "EpochPact-0.1.2-dev.48.zip (Manual Installation and the app's player files)"
       ],
-      "virusTotal": "0/67 (Kaspersky undetected)",
-      "report": "https://www.virustotal.com/gui/file/08b8669329ef4adcc54b48da81deb1d73f73f5307a3d7dc69d26b0346c995579"
+      "virusTotal": "0/70 (Kaspersky undetected)",
+      "report": "https://www.virustotal.com/gui/file/c3e6602224eee87ecaa1470a3fca1ce7d6055e4eb776c84ef45f14449861800b"
     },
     "EpochPact.Core.dll": {
-      "sha256": "63c388c265dd19fd74bbd500d7ce736a6ff95e0b00015ea4ca81f2e161499e35",
-      "bytes": 8418816,
+      "sha256": "3c951bd4ad277bb6f9349f246f0ad6c9a456ae4437d904c4ad8f9ae41a9a1223",
+      "bytes": 8520192,
       "in": [
         "EpochPact-0.1.2-dev.48.zip (MelonLoader path)"
       ],
       "virusTotal": "not uploaded (desktop edition only; not on Nexus)"
     },
     "EpochPact.exe": {
-      "sha256": "3ced2f384b14f853a4e75e43c72714213063f4c5602fcec583b3243e0ef74af0",
+      "sha256": "c200b545999df8edcc452df1bac3e7fa8cb522d94b34906edb9f151d0dd397f4",
       "bytes": 372347,
       "in": [
         "EpochPact-0.1.2-dev.48.zip"
@@ -32,20 +32,20 @@
   },
   "packages": {
     "EpochPact-0.1.2-dev.48-InGame.zip": {
-      "sha256": "69eeba8c99597bb08524cb472bed65fc1f903f74fd4243fbd7e1515338f8a240",
-      "bytes": 3632433,
-      "virusTotal": "0/63",
-      "report": "https://www.virustotal.com/gui/file/69eeba8c99597bb08524cb472bed65fc1f903f74fd4243fbd7e1515338f8a240",
+      "sha256": "37e23994038c6cf16a11f042c83d80289f38fada9a412a13b111e69509edabb1",
+      "bytes": 3672112,
+      "virusTotal": "0/66",
+      "report": "https://www.virustotal.com/gui/file/37e23994038c6cf16a11f042c83d80289f38fada9a412a13b111e69509edabb1",
       "localDefender": "No threats found"
     },
     "EpochPact-0.1.2-dev.48.zip": {
-      "sha256": "62fd2150e3876d080b705a0c63089a4cb7536d681a1cec09681ae1c8a652d0e6",
-      "bytes": 36534439,
+      "sha256": "1094c9431b5b7593a4656e2ca97667ff09bfaec64e870061804a1e58fe65e9fd",
+      "bytes": 36657694,
       "virusTotal": "not uploaded (over the 10 MB browser upload limit)",
       "localDefender": "No threats found (folder and ZIP)"
     }
   },
   "localDefender": "signatures 1.463.21.0: the InGame package folder, the desktop folder and the desktop ZIP found no threats",
-  "checks": "package_ingame_player and package_player_folder verified; verify_player_package and verify_connection_package passed; Python 392, JavaScript 244, native 26 tests; translations 1839/1839; shipping check builds\\dev48-player-live",
+  "checks": "package_ingame_player and package_player_folder verified; verify_player_package and verify_connection_package passed; Python 394, JavaScript 245, native 26 tests; translations 1868/1868; shipping check builds\\dev48-final-live",
   "note": "Scan counts describe these exact bytes on this date only; they are not a safety certification."
 }
