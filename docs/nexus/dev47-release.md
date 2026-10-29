@@ -60,6 +60,7 @@ offers it as installable from 0.1.2-dev.46). Nexus stays on 0.1.2-dev.46.
 > @everyone
 > **EpochPact 0.1.2-dev.47**
 > • **Unique minimum roll:** new setting in *General settings* (0–100 %). New Uniques, Set items and Legendaries roll their values in the best part of each range; at 100 they drop perfectly rolled.
+> • **Fix – Spawn Items in the desktop app:** it no longer refuses every spawn with *"The loaded character has changed"*. (The F6 window was not affected.)
 > **Desktop app (EXE):** in EpochPact open *What's new → Install update*, or download it here:
 > https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.47
 > **Manual install, no EXE:** download `EpochPact-0.1.2-dev.47-InGame.zip` from the GitHub link above and copy the new `version.dll` over the old one (Nexus follows later).
