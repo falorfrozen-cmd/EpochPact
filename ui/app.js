@@ -378,7 +378,7 @@ function confirmAction(title,message) {
 }
 function finishConfirm(value) {$("#confirm-dialog").close();if(confirmationResolve){confirmationResolve(value);confirmationResolve=null;}}
 function controlById(id){return catalog.controls.find(x=>x.id===id);}
-function saveSnapshot(c){return c.group==="inventory"?cache.inventory_read:c.group==="skills"?cache.build_read:c.id==="craft_materials"?cache.craft_materials_read:["craft_forge","craft_custom"].includes(c.id)?cache.craft_read?.forgePreview:cache[c.group==="campaign"?"progress_read":c.group==="monolith"?"monolith_read":"cof_read"];}
+function saveSnapshot(c){return c.id==="spawn_item"?cache.spawn_list:c.group==="inventory"?cache.inventory_read:c.group==="skills"?cache.build_read:c.id==="craft_materials"?cache.craft_materials_read:["craft_forge","craft_custom"].includes(c.id)?cache.craft_read?.forgePreview:cache[c.group==="campaign"?"progress_read":c.group==="monolith"?"monolith_read":"cof_read"];}
 function eligible(control) {
  if(preview)return true;
  if(!connected.connected)return false;

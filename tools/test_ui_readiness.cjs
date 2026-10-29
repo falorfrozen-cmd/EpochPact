@@ -1008,6 +1008,15 @@ test('font list offers every style, narrows with the search box and sends Family
  await new Promise(setImmediate);
  assert.deepEqual([h.calls[0].id,h.calls[0].args.family],['font_family','Segoe%20UI%7CBold%20Italic']);
 });
+test('spawn items: the request names the character its item list was loaded for, whatever other pages read',()=>{
+ const h=automaticHarness();
+ h.run(`cache.spawn_list={ok:true,player:{id:'7',name:'Test'},bases:[{type:0,sub:13,name:'Burial Mask'}],uniques:[]};`);
+ const form={fields:{item:'b0.13',rarity:'2',lp:'-1',item_level:'80',count:'1'}};
+ const args=()=>h.run(`formArgs(${JSON.stringify(form)},catalog.controls.find(c=>c.id==='spawn_item'))`);
+ assert.equal(args().expected_id,'7');
+ h.run(`cache.cof_read={ok:true,player:{id:'9',name:'Other'}};`);
+ assert.equal(args().expected_id,'7');
+});
 test('automatic sorting panel: tab choices come from the stash and each tick is sent once',async()=>{
  const h=automaticHarness();h.run(`page='inventory';connected.player.id='6';connected.player.name='Test';`);
  assert.ok(h.run('autoSortPanel()').includes('Read stash tabs'));
