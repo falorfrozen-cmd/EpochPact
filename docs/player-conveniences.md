@@ -765,11 +765,12 @@ Diablo 4's wardrobe, see every look before you wear it") brings every look toget
   filters **All / Base items / Uniques / Sets / In your bags** (the items of that type in your
   inventory and the open stash) show their counts; **Search looks…** filters by name. The
   wheel or the arrows scroll it.
-- **Click a look to try it on**: the character wears it at once (`transmogpreview <slot>
-  <look>`), nothing is stored. Try several slots, then **Apply looks** keeps them all
-  (`transmog all preview`) or **Cancel** takes them off (`transmogpreview clear all`). A try-on
-  ends by itself 1.5 s after the page is left or F6 is closed. **Own look** puts the item's own
-  look back; **Reset all looks** clears every slot.
+- **Click a look to wear it**: the character wears it and keeps it at once (`transmog <slot>
+  <look>`); the item's own look, or **Own look**, puts it back; **Reset all looks** clears every
+  slot. (0.1.2-dev.49 only tried a look on until the page was left, with a separate Apply looks
+  button below the grid; the owner pressed the window's Apply changes, which is for settings,
+  and the clothes went a moment after F6 closed. Changed in 0.1.2-dev.50.) The try-on command
+  `transmogpreview` stays for scripts.
 
 **Class art.** Base helmets and body armours are made per class (Copper Circlet and Adept Robes for a Mage, Pariah
 Shroud and Outcast Rags for an Acolyte ...). The game has art of them only for their own class: on another class

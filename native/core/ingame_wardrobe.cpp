@@ -1,9 +1,8 @@
 // The Wardrobe page (F6; player request 2026-10-29 "Vanity - transmog", and the owner's "like Diablo 4's wardrobe:
 // see how every item looks before wearing it"). A mirror of the loaded character (ingame_mirror.cpp), the seven
 // slots with the pictures of the looks they show, and every look that fits the selected slot's item in a grid of the
-// game's own item pictures, with filters and a search. A click tries a look on at once (transmogpreview: worn, never
-// stored, and taken off by itself once the page is left); Apply keeps every look being tried on, Cancel takes them
-// off. The transmogread reply is the state; every command answers with it.
+// game's own item pictures, with filters and a search. A click wears a look and keeps it at once (transmog <slot> <look>;
+// the item's own look clears the slot's look). The transmogread reply is the state; every command answers with it.
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -260,7 +259,7 @@ void DestroyNode(Pin& pin) {
     pin.Reset();
 }
 
-// A small label on a tile's corner: Trying on, Worn, Own look.
+// A small label on a tile's corner: Worn, Own look.
 void Chip(void* parent, float x, float y, const std::string& text, Color color) {
     Style s{Face::BodySemi, 8.5f, color};
     s.upper = true;
@@ -287,12 +286,11 @@ void Tile(const Ctx& g, float x, float y, float w, const JValue& look, const JVa
     const std::string key = look["key"].Str(), slotKey = slot["slot"].Str();
     const bool own = key == slot["item"]["key"].Str();
     const bool stored = slot["look"].IsObject() && slot["look"]["key"].Str() == key;
-    const bool previewing = slot["preview"].IsObject() && slot["preview"]["key"].Str() == key;
-    const bool worn = !slot["preview"].IsObject() && (stored || (own && !slot["look"].IsObject()));
-    const Color kind = KindColor(look), back = previewing ? Hex("#14302a") : Hex("#0d1716");
+    const bool worn = stored || (own && !slot["look"].IsObject());
+    const Color kind = KindColor(look), back = worn ? Hex("#14302a") : Hex("#0d1716");
     void* fill = Fill(g.parent, "Tile", x, y, w, kTileH, back, 4);
-    Outline(g.parent, "Tile border", x, y, w, kTileH, previewing ? C("accent") : worn ? C("gold") : Alpha(kind, .38f), 4);
-    if (previewing || worn) Outline(g.parent, "Tile ring", x + 1, y + 1, w - 2, kTileH - 2, Alpha(previewing ? C("accent") : C("gold"), .45f), 4);
+    Outline(g.parent, "Tile border", x, y, w, kTileH, worn ? C("gold") : Alpha(kind, .38f), 4);
+    if (worn) Outline(g.parent, "Tile ring", x + 1, y + 1, w - 2, kTileH - 2, Alpha(C("gold"), .45f), 4);
     const float size = 60;
     ItemPicture(g.parent, x + (w - size) / 2, y + 9, size, look);
     Style ns{Face::Body, 10.5f, kind};
@@ -303,8 +301,7 @@ void Tile(const Ctx& g, float x, float y, float w, const JValue& look, const JVa
     int ellipsis = 1;
     void* oa[]{&ellipsis};
     Invoke(T("set_overflowMode", 1), name, oa);
-    if (previewing) Chip(g.parent, x + 4, y + 4, Tr("Trying on"), C("accent"));
-    else if (worn) Chip(g.parent, x + 4, y + 4, Tr("Worn"), C("gold"));
+    if (worn) Chip(g.parent, x + 4, y + 4, Tr("Worn"), C("gold"));
     else if (own) Chip(g.parent, x + 4, y + 4, Tr("Own look"), Hex("#aebdb7"));
     Hit hit;
     hit.kind = HitKind::Action;
@@ -313,13 +310,11 @@ void Tile(const Ctx& g, float x, float y, float w, const JValue& look, const JVa
     hit.w = w;
     hit.h = kTileH;
     hit.name = "wardrobe-look-" + key;
-    AddHover(hit, fill, back, previewing ? Hex("#1a3a33") : Hex("#173029"));
-    const bool backToWorn = slot["preview"].IsObject() && (stored || (own && !slot["look"].IsObject()));
-    hit.action = [slotKey, key, previewing, worn, backToWorn] {
-        if (previewing || worn) return;
-        // the look the slot wears anyway: the try-on ends
-        if (backToWorn) Wear("transmogpreview " + slotKey + " none");
-        else Wear("transmogpreview " + slotKey + " " + key);
+    AddHover(hit, fill, back, worn ? Hex("#1a3a33") : Hex("#173029"));
+    hit.action = [slotKey, key, own, worn] {
+        if (worn) return;
+        // worn and kept at once; the item's own look clears the slot's look
+        Wear("transmog " + slotKey + " " + (own ? std::string("none") : key), Tr("Look changed."));
     };
     g.Add(std::move(hit));
 }
@@ -398,8 +393,7 @@ float SlotStrip(const Ctx& in, float y, const JValue& data) {
         const JValue* shown = has ? &Shown(*slot) : nullptr;
         Outline(in.parent, "Slot box border", bx, by, box, box, shown ? Alpha(KindColor(*shown), .6f) : Alpha(C("line"), .4f), 4);
         if (shown) ItemPicture(in.parent, bx + 4, by + 4, box - 8, *shown);
-        if (has && slot->Find("preview") && (*slot)["preview"].IsObject()) Chip(in.parent, x + 4, y + 4, Tr("Trying on"), C("accent"));
-        else if (has && (*slot)["look"].IsObject()) {
+        if (has && (*slot)["look"].IsObject()) {
             Style mark{Face::Symbol, 13, C("gold")};
             mark.align = kCenter;
             TextBox(in.parent, "Look mark", x + w - 20, y + 4, 16, 16, mark, "\xE2\x9C\xA6");
@@ -526,41 +520,25 @@ float Filters(Section& s, const Ctx& in, float x, float y, float w, const JValue
     }, "wardrobe-search");
     return by + 34;
 }
-// Below: what is tried on or worn in the selected slot, Apply / Cancel / Own look, Reset all looks.
+// Below: what the selected slot wears, Own look, Reset all looks.
 float ActionBar(const Ctx& in, float y, const JValue& data, bool eligible) {
-    int previews = 0, stored = 0;
-    std::string tried;
-    for (const auto& x : data["slots"].items) {
-        if (x["preview"].IsObject()) {
-            ++previews;
-            tried = x["preview"]["name"].Str();
-        }
-        if (x["look"].IsObject()) ++stored;
-    }
+    int stored = 0;
+    for (const auto& x : data["slots"].items) stored += x["look"].IsObject();
     const JValue* slot = SlotOf(data, st.slot);
     Solid(in.parent, "Bar line", kPanelPad, y, kPanelInner, 1, Alpha(C("line"), .5f));
     y += 14;
     std::string text;
-    if (previews == 1) text = Fmt("Trying on {0}. Apply keeps it.", {tried});
-    else if (previews > 1) text = Fmt("Trying on {0} looks. Apply keeps them all.", {Num(previews)});
-    else if (Equipped(slot) && (*slot)["look"].IsObject()) text = Fmt("{0} wears the look of {1}.", {(*slot)["item"]["name"].Str(), (*slot)["look"]["name"].Str()});
-    else if (Equipped(slot)) text = Tr("Click a look to try it on.");
+    if (Equipped(slot) && (*slot)["look"].IsObject()) text = Fmt("{0} wears the look of {1}.", {(*slot)["item"]["name"].Str(), (*slot)["look"]["name"].Str()});
+    else if (Equipped(slot)) text = Tr("Click a look to wear it.");
     float x = kPanelPad;
-    if (previews) {
-        Button apply = AddButton(in, x, y, Tr(previews == 1 ? "Apply look" : "Apply looks"), Look::Primary, [] { Wear("transmog all preview", Tr("Looks kept.")); }, false,
-                                 "wardrobe-apply");
-        x += apply.w + 8;
-        Button cancel = AddButton(in, x, y, Tr("Cancel"), Look::Normal, [] { Wear("transmogpreview clear all"); }, false, "wardrobe-cancel");
-        x += cancel.w + 14;
-        if (!eligible) { SetEnabled(in, apply, false); SetEnabled(in, cancel, false); }
-    } else if (Equipped(slot) && (*slot)["look"].IsObject()) {
+    if (Equipped(slot) && (*slot)["look"].IsObject()) {
         Button own = AddButton(in, x, y, Tr("Own look"), Look::Normal, [key = st.slot] { Wear("transmog " + key + " none", Tr("Look changed.")); }, false, "wardrobe-own");
         if (!eligible) SetEnabled(in, own, false);
         x += own.w + 14;
     }
     Button reset = AddButton(in, kPanelPad + kPanelInner, y, Tr("Reset all looks"), Look::Normal, [] { Wear("transmog all none", Tr("Look changed.")); }, true, "transmog-reset");
     if (!stored || !eligible) SetEnabled(in, reset, false);
-    Style ts{Face::Body, 13, previews ? C("accent") : C("muted")};
+    Style ts{Face::Body, 13, C("muted")};
     ts.align = kLeft;
     TextBox(in.parent, "Bar text", x, y, std::max(60.f, kPanelPad + kPanelInner - reset.w - 14 - x), reset.h, ts, text);
     return 14 + reset.h;
@@ -577,9 +555,9 @@ float Build(Section& s, const Ctx& c) {
     float y = kPanelPad;
     y += Head(in, y, eligible, data != nullptr) + 12;
     y += Muted(in.parent, kPanelPad, y, kPanelInner,
-               Tr("Every look that fits your equipped items, with the game's own art. Click one to try it on in the mirror; Apply keeps it, Cancel takes it "
-                  "off. A look must be an item of the same type, and it stays through zone changes and restarts until you choose the item's own look "
-                  "again. Display only: your items and their stats do not change.")) + 18;
+               Tr("Every look that fits your equipped items, with the game's own art. Click one and your character wears it at once, and keeps it: "
+                  "through zone changes and restarts, until you click the item's own look or Own look. A look must be an item of the same type. "
+                  "Display only: your items and their stats do not change.")) + 18;
     if (!data) {
         y += EmptyText(in.parent, kPanelPad, y, kPanelInner, eligible ? Tr("Read the looks of the loaded character.") : reason) + 10;
         st.grid.Reset();
