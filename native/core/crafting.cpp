@@ -412,7 +412,7 @@ std::string Preview() {
     out << ",\"canForge\":" << Boolean(can) << ",\"canCustom\":" << Boolean(c.main && Value<bool>(Method(c.main,"isEquipment",0),c.main) && Get<uint8_t>(c.main,itemType)<25) << ",\"message\":" << Json(Text(error)) << ",\"successMessage\":" << Json(Text(success));
     if(c.main) {
         const int fp=Get<uint8_t>(c.main,forgingPotential);
-        out << ",\"forgingPotential\":" << fp << ",\"affixes\":[";
+        out << ",\"forgingPotential\":" << fp << ",\"itemType\":" << int(Get<uint8_t>(c.main,itemType)) << ",\"affixes\":[";
         bool first=true;
         if(void* list=Get<void*>(c.main,affixList)) for(void* a:Entries(list)) if(a) {
             if(!first) out<<','; first=false;
@@ -628,9 +628,15 @@ void* CustomItem(void* original,int templateId,const std::string& input,bool per
         // The old affixes are gone, sealed ones included.
         uint8_t no=0;for(const char* sealedFlag:{"hasSealedRegularAffix","hasSealedPrimordialAffix","hasSealedAffixFromCorruption"})Assign(copy.Get(),sealedFlag,&no);
         std::mt19937 random(std::random_device{}());
+        // ItemAffix(id, tier, roll, itemType, sealed): an affix that cannot roll on the item's type and has
+        // AffixList.Affix.convertOnIncompatibleItemType becomes its affixIDToConvertTo ("Throwing Damage" ->
+        // "Physical Damage"). Loading the item does the same, so such a choice is refused, never saved.
+        uint8_t base=Get<uint8_t>(copy.Get(),itemType);Root catalog(Invoke(Resolve("AffixList","get",0)));
+        const auto name=[&](int affix){void* args[]{&affix};void* a=Invoke(Method(catalog.Get(),"GetAffix",1),catalog.Get(),args);return a?Text(Invoke(Method(a,"getAffixDisplayName",0),a)):"affix "+std::to_string(affix);};
         for(const auto& choice:choices) {
-            uint16_t id=static_cast<uint16_t>(choice.id);uint8_t tier=static_cast<uint8_t>(choice.tier-1),affixRoll=rules::RollByte(choice.roll,perfect,static_cast<uint8_t>(random()&0xff)),extra=0;int sealed=0;
-            Root affix(il2cpp::api().object_new(game::FindClass("LE.dll","","ItemAffix")));void* args[]{&id,&tier,&affixRoll,&extra,&sealed};Invoke(Method(affix.Get(),".ctor",5),affix.Get(),args);
+            uint16_t id=static_cast<uint16_t>(choice.id);uint8_t tier=static_cast<uint8_t>(choice.tier-1),affixRoll=rules::RollByte(choice.roll,perfect,static_cast<uint8_t>(random()&0xff));int sealed=0;
+            Root affix(il2cpp::api().object_new(game::FindClass("LE.dll","","ItemAffix")));void* args[]{&id,&tier,&affixRoll,&base,&sealed};Invoke(Method(affix.Get(),".ctor",5),affix.Get(),args);
+            if(const int made=Get<uint16_t>(affix.Get(),affixId);made!=choice.id)throw std::runtime_error(name(choice.id)+" cannot be on this item type: the game turns it into "+name(made)+". Nothing was applied.");
             void* add[]{affix.Get()};Invoke(Method(list,"Add",1),list,add);
             if(choice.tier==rules::kPrimordialTier)primordial=choice.id;
         }
@@ -911,9 +917,11 @@ std::string Test(const std::string& id,const std::string& action) {
             void* args[]{set?custom->Get():item.Get(),&amount,&context};const bool accepted=Value<bool>(Method(slot,"TryAddItem",3),slot,args);
             return "{\"ok\":true,\"accepted\":"+std::string(Boolean(accepted))+",\"slot\":"+Json(slotName)+",\"class\":"+Json(il2cpp::api().class_get_name(il2cpp::api().object_get_class(slot)))+",\"type\":"+std::to_string(type)+"}";
         }
-        if(action=="customsetup") {
+        if(action=="customsetup" || action.rfind("customsetup-",0)==0) {
             if(c.main)throw std::runtime_error("empty the test forge first");
-            Root item(Fixture(c,0,0,4,true,-1,-1,8));int amount=1,context=0;void* args[]{item.Get(),&amount,&context};void* container=Get<void*>(c.craft,forgeMain);
+            // customsetup-<equipment type>: a Rare of that type, subtype 0 (customsetup: a helmet)
+            const int type=action=="customsetup"?0:std::stoi(action.substr(12));if(type<0||type>=25)throw std::runtime_error("equipment type 0-24");
+            Root item(Fixture(c,type,0,4,type==0,-1,-1,8));int amount=1,context=0;void* args[]{item.Get(),&amount,&context};void* container=Get<void*>(c.craft,forgeMain);
             if(!Value<bool>(Method(container,"TryAddItem",3),container,args))throw std::runtime_error("normal test forge insertion refused");
             SyncItems(Current());progression::SaveCurrent(id);return "{\"ok\":true,\"preview\":"+Preview()+"}";
         }

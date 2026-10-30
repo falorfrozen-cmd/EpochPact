@@ -5,6 +5,7 @@
 #ifdef EPOCHPACT_RESEARCH
 #include "items.hpp"
 #endif
+#include <algorithm>
 #include <charconv>
 #include <cstring>
 #include <sstream>
@@ -79,13 +80,11 @@ int Integer(const std::string& s) {
     if (error!=std::errc{} || end!=s.data()+s.size()) throw std::runtime_error("expected integer");
     return v;
 }
-struct CatalogAffix { int id; std::string name; size_t tiers; int classes; bool idol; };
-// An affix that only idols and idol altars roll (AffixList.Affix.canRollOn: EquipmentType 25-33 and 41), never
-// equipment. In 1.5.3 the one-tier affixes are all of this kind ("Ward Per Second" 178 on Grand and Ornate Idols,
-// beside the equipment's "Ward per Second" 382 with eight tiers).
-bool IdolOnly(void* affix, size_t rollsOn) {
+struct CatalogAffix { int id; std::string name; size_t tiers; int classes; bool idol; int convertTo; std::vector<int> rollsOn; };
+// AffixList.Affix.canRollOn: the EquipmentTypes the affix rolls on.
+std::vector<int> RollsOn(void* affix, size_t rollsOn) {
     void* rolls = Get<void*>(affix, rollsOn);
-    if (!rolls) return false;
+    if (!rolls) return {};
     static size_t sizeAt = 0, itemsAt = 0;
     if (!sizeAt) {
         const auto* cls = il2cpp::api().object_get_class(rolls);
@@ -94,12 +93,21 @@ bool IdolOnly(void* affix, size_t rollsOn) {
     }
     const int n = Get<int>(rolls, sizeAt);
     void* array = Get<void*>(rolls, itemsAt);
-    if (n <= 0 || n > 256 || !array || static_cast<uintptr_t>(n) > Get<uintptr_t>(array, 0x18)) return false;
-    for (int i = 0; i < n; ++i) {
-        const int type = Get<int>(array, 0x20 + 4 * i);
-        if (!((type >= 25 && type <= 33) || type == 41)) return false;
-    }
-    return true;
+    if (n <= 0 || n > 256 || !array || static_cast<uintptr_t>(n) > Get<uintptr_t>(array, 0x18)) return {};
+    std::vector<int> types;
+    for (int i = 0; i < n; ++i) types.push_back(Get<int>(array, 0x20 + 4 * i));
+    return types;
+}
+// An affix that only idols and idol altars roll (EquipmentType 25-33 and 41), never equipment. In 1.5.3 the one-tier
+// affixes are all of this kind ("Ward Per Second" 178 on Grand and Ornate Idols, beside the equipment's "Ward per
+// Second" 382 with eight tiers).
+bool IdolOnly(const std::vector<int>& types) {
+    return !types.empty() && std::all_of(types.begin(), types.end(), [](int t) { return (t >= 25 && t <= 33) || t == 41; });
+}
+std::string Ints(const std::vector<int>& values) {
+    std::string out;
+    for (const int v : values) out += (out.empty() ? "" : ",") + std::to_string(v);
+    return "[" + out + "]";
 }
 // With the tier count: Craft from EpochPact offers T8 only where the game has it.
 std::vector<CatalogAffix> AffixCatalog() {
@@ -107,9 +115,16 @@ std::vector<CatalogAffix> AffixCatalog() {
     Root list(Invoke(Method(data.Get(), "get_AllAffixes", 0), data.Get()));
     std::vector<CatalogAffix> result;
     const auto id=Offset("AffixList.Affix","affixId"), tiers=Offset("AffixList.Affix","tiers"), classes=Offset("AffixList.Affix","classSpecificity"),
-        rollsOn=Offset("AffixList.Affix","canRollOn");
-    for (void* a : Entries(list.Get())) if (a && !workshop::Owns(Get<int>(a,id)))
-        result.push_back({Get<int>(a,id), Text(Invoke(Method(a,"getAffixDisplayName",0),a)), Entries(Get<void*>(a,tiers)).size(), Get<int>(a,classes), IdolOnly(a,rollsOn)});
+        rollsOn=Offset("AffixList.Affix","canRollOn"), converts=Offset("AffixList.Affix","convertOnIncompatibleItemType"),
+        convertTo=Offset("AffixList.Affix","affixIDToConvertTo");
+    for (void* a : Entries(list.Get())) if (a && !workshop::Owns(Get<int>(a,id))) {
+        auto types = RollsOn(a, rollsOn);
+        // On an item type outside canRollOn the game makes this affix another one (ItemAffix's constructor).
+        const int target = Get<bool>(a, converts) ? Get<uint16_t>(a, convertTo) : -1;
+        const bool idol = IdolOnly(types);
+        result.push_back({Get<int>(a,id), Text(Invoke(Method(a,"getAffixDisplayName",0),a)), Entries(Get<void*>(a,tiers)).size(), Get<int>(a,classes), idol, target,
+                          target >= 0 ? std::move(types) : std::vector<int>{}});
+    }
     return result;
 }
 // The classes a class-specific affix belongs to (AffixList.ClassSpecificity: NonSpecific 1, Primalist 2, Mage 4,
@@ -212,7 +227,10 @@ std::string Read() {
         std::string state=State(); state.pop_back(); state+=" ,\"affixes\":[";
         bool first=true;
         if (ready) for (const auto& a:AffixCatalog()) { if(!first) state+=','; first=false;
-            state+="{\"id\":"+std::to_string(a.id)+",\"name\":"+Json(a.name)+",\"tiers\":"+std::to_string(a.tiers)+",\"classes\":"+ClassNames(a.classes)+",\"idol\":"+Boolean(a.idol)+"}"; }
+            state+="{\"id\":"+std::to_string(a.id)+",\"name\":"+Json(a.name)+",\"tiers\":"+std::to_string(a.tiers)+",\"classes\":"+ClassNames(a.classes)+",\"idol\":"+Boolean(a.idol);
+            // only for an affix the game converts: the affix it becomes and the item types it stays on
+            if (a.convertTo >= 0) state+=",\"convertTo\":"+std::to_string(a.convertTo)+",\"rollsOn\":"+Ints(a.rollsOn);
+            state+="}"; }
         return state+"]}";
     });
 }

@@ -80,7 +80,8 @@ bool Matches(const std::string& lower, const std::vector<std::string>& words) {
 }
 
 struct Item { std::string id, name, label, lower; bool set = false; };
-struct Affix { std::string id, name, lower; std::vector<std::string> classes; int tiers = 7; };  // classes: of a class-specific affix
+// classes: of a class-specific affix; convertTo, rollsOn: the affix the game makes of it on an item type outside rollsOn
+struct Affix { std::string id, name, lower; std::vector<std::string> classes; int tiers = 7, convertTo = -1; std::vector<int> rollsOn; };
 struct Modifier { std::string id, names[2], lowers[2]; };  // its name with maximum (0) and midpoint (1) rolls
 struct Catalog {
     std::string playerId, playerName;
@@ -146,6 +147,19 @@ const JValue* Forge() {
     return r->Find("preview");
 }
 bool True(const JValue* v) { return v && v->IsBool() && v->boolean; }
+// crafting-model convertsTo(): the name of the affix the game turns this one into on the forge item's type, else empty
+std::string ConvertsTo(const Catalog* data, const std::string& id, const JValue* forge) {
+    const JValue* type = forge ? forge->Find("itemType") : nullptr;
+    const auto it = data ? data->affixAt.find(id) : decltype(data->affixAt.end()){};
+    if (!type || !type->IsNumber() || !data || it == data->affixAt.end()) return "";
+    const Affix& a = data->affixes[it->second];
+    if (a.convertTo < 0 || std::find(a.rollsOn.begin(), a.rollsOn.end(), static_cast<int>(type->number)) != a.rollsOn.end()) return "";
+    const auto to = data->affixAt.find(std::to_string(a.convertTo));
+    return to == data->affixAt.end() ? "affix " + std::to_string(a.convertTo) : data->affixes[to->second].name;
+}
+std::string ConvertProblem(const Catalog* data, const std::string& id, const std::string& to) {
+    return Fmt("{0} cannot be on this item type: the game turns it into {1}. Choose another affix.", {data->affixes[data->affixAt.at(id)].name, to});
+}
 
 std::string Problem(const Draft& d, const Catalog* data, const JValue* forge) {  // crafting-model problem()
     if (!data || data->items.empty()) return "Load item choices before creating custom gear.";
@@ -159,6 +173,8 @@ std::string Problem(const Draft& d, const Catalog* data, const JValue* forge) { 
         return "Choose at most 64 different extra effects.";
     for (const auto& id : d.affixes) if (!data->affixAt.count(id)) return "An affix is no longer in the current game catalog. Review your selection.";
     for (const auto& id : d.modifiers) if (!data->modifierAt.count(id)) return "An extra effect is no longer in the current game catalog. Review your selection.";
+    for (const auto& id : d.affixes)
+        if (const std::string to = ConvertsTo(data, id, forge); !to.empty()) return ConvertProblem(data, id, to);
     int primordial = 0;
     for (const auto& id : d.affixes) {
         const Effective s = SettingOf(d, id);
@@ -301,6 +317,10 @@ void ParseCatalog(std::vector<std::string> replies) {
             const double n = x["tiers"].Num(0);
             a.tiers = std::floor(n) == n && n > 0 ? static_cast<int>(n) : 7;
             for (const auto& k : x["classes"].items) a.classes.push_back(k.Str());
+            if (x["convertTo"].IsNumber()) {
+                a.convertTo = static_cast<int>(x["convertTo"].number);
+                for (const auto& t : x["rollsOn"].items) if (t.IsNumber()) a.rollsOn.push_back(static_cast<int>(t.number));
+            }
             data->affixAt[a.id] = data->affixes.size();
             data->affixes.push_back(std::move(a));
         }
@@ -462,7 +482,8 @@ float SearchInput(const Ctx& in, float y, float w, const std::string& value, con
 // ------------------------------------------------------------------------------ the lists
 // workshopPicker(kind): "{n} matches · {m} selected", the list (40 rows, Show more adds 40), each
 // row a checkbox and the name; a checked row has the soft colour.
-struct PickRow { std::string id, name, tag; bool checked = false, made = false; float top = 0, h = 43.8f; Pin node; int hit = -1; };
+// to: the affix the game makes of this one on the forge item (the row cannot be checked)
+struct PickRow { std::string id, name, tag, to; bool checked = false, made = false; float top = 0, h = 43.8f; Pin node; int hit = -1; };
 struct Picker {
     int kind = 0;  // 0 affixes, 1 extra effects
     int section = -1;
@@ -552,7 +573,18 @@ void MakeRow(Picker& v, size_t i) {
         TextBox(node.rt, "Class tag text", tx, 13, tagW, 18, ts, r.tag);
         tagW += 10;
     }
-    const float textH = Paragraph(node.rt, "Name", textX, 11, v.rowW - textX - 14 - tagW, Text(13, "ink", 1.6f), Tr(r.name));
+    // an affix the game converts on this item: "-> <affix>" in a muted tag, the name muted
+    const bool blocked = !r.to.empty() && !r.checked;
+    if (!r.to.empty()) {
+        Style ts{Face::Body, 11, C("muted")};
+        ts.align = kCenter;
+        const std::string text = "\xE2\x86\x92 " + Tr(r.to);
+        const float w = TextAdvance(Face::Body, 11, text) + 14, tx = v.rowW - 14 - tagW - w;
+        Outline(node.rt, "Convert tag border", tx, 13, w, 18, C("line"), 3);
+        TextBox(node.rt, "Convert tag text", tx, 13, w, 18, ts, text);
+        tagW += w + 10;
+    }
+    const float textH = Paragraph(node.rt, "Name", textX, 11, v.rowW - textX - 14 - tagW, Text(13, blocked ? "muted" : "ink", 1.6f), Tr(r.name));
     CheckBox(node.rt, 14, 13, 16, r.checked);
     r.h = 11 + textH + 11 + 1;
     Solid(node.rt, "Row border", 0, r.h - 1, v.rowW, 1, Hex("#92734025"));
@@ -585,6 +617,10 @@ void Toggle(int sid, size_t index) {
     const auto at = std::find(chosen.begin(), chosen.end(), r.id);
     const size_t before = W().draft.modifiers.size();
     const bool adding = at == chosen.end();
+    if (adding && !r.to.empty()) {
+        Toast(ConvertProblem(Data(), r.id, r.to), true);
+        return;
+    }
     if (adding) chosen.push_back(r.id);
     else chosen.erase(at);
     r.checked = adding;
@@ -613,6 +649,7 @@ float BuildPicker(Section& sec, const Ctx& c, int kind) {
     const int midpoint = W().draft.perfect == "0" ? 1 : 0;
     size_t limit = static_cast<size_t>(W().limits[kind]);
     if (data) {
+        const JValue* forge = Forge();
         const auto add = [&](const std::string& id, const std::string& name, const std::string& lower, const std::string& tag) {
             if (!Matches(lower, words)) return;
             ++v->matches;
@@ -621,6 +658,7 @@ float BuildPicker(Section& sec, const Ctx& c, int kind) {
             r.id = id;
             r.name = name;
             r.tag = tag;
+            if (kind == 0) r.to = ConvertsTo(data, id, forge);
             r.checked = std::find(chosen.begin(), chosen.end(), id) != chosen.end();
             v->rows.push_back(std::move(r));
         };
@@ -729,8 +767,22 @@ float BuildPicker(Section& sec, const Ctx& c, int kind) {
     }
     return y;
 }
+// The forge item's type, which decides the affixes the game converts.
+std::string ForgeType() {
+    const JValue* f = Forge();
+    return IdOf(f ? f->Find("itemType") : nullptr);
+}
 void MakePicker(Section& s, int kind) {
-    s.build = [kind](Section& sec, const Ctx& c) { return BuildPicker(sec, c, kind); };
+    s.build = [kind](Section& sec, const Ctx& c) {
+        sec.state["type"] = ForgeType();
+        return BuildPicker(sec, c, kind);
+    };
+    if (kind == 0) {
+        s.reads.insert("craftread");
+        s.onData = [](Section& sec, const std::string&) {
+            if (sec.state["type"] != ForgeType()) Rebuild(sec.id);
+        };
+    }
     // the rows below the view are made a few a frame
     s.tick = [](Section& sec) {
         auto v = std::static_pointer_cast<Picker>(sec.live);

@@ -50,3 +50,14 @@ test('a new affix starts at T7 with the item-wide maximum or midpoint roll',()=>
  assert.deepEqual(C.setting({...C.defaults(),perfect:'0'},'4'),{tier:7,roll:50});
  assert.equal(C.tiersOf({affixes:[{id:4,tiers:12}]},'4'),8,'never above T8');
 });
+test('an affix the game converts on the forge item type is named before creating',()=>{
+ const conv={items:data.items,modifiers:[],affixes:[{id:88,name:'<b>Throwing Damage</b>',convertTo:30,rollsOn:[2,4,20,22]},{id:30,name:'Physical Damage'},{id:503,name:'Dexterity'}]};
+ const d={...C.defaults(),affixes:['503','88']};
+ assert.equal(C.convertsTo(conv,'88',{itemType:1}).name,'Physical Damage');
+ assert.equal(C.convertsTo(conv,'88',{itemType:2}),null,'a type in rollsOn keeps it');
+ assert.equal(C.convertsTo(conv,'503',{itemType:1}),null,'an affix without convertTo');
+ assert.equal(C.convertsTo(conv,'88',{}),null,'no forge item type known');
+ assert.equal(C.problem(d,conv,{itemType:1,affixes:[]}),'Throwing Damage cannot be on this item type: the game turns it into Physical Damage. Choose another affix.');
+ assert.equal(C.problem(d,conv,{itemType:4,affixes:[]}),'');
+ assert.equal(C.convertsTo({...conv,affixes:[{id:88,name:'T',convertTo:31,rollsOn:[2]}]},'88',{itemType:0}).name,'affix 31','a target outside the list');
+});

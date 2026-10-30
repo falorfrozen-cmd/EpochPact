@@ -1900,5 +1900,7 @@
 "Craft corrupted items": "Corrupted eşyaları craft et",
 "Craft a corrupted item in the forge as before it was corrupted. It has no Forging Potential left, so a craft costs none (the forge shows 1), and the item stays corrupted.": "Forge'daki corrupted eşyayı, corrupted olmadan önceki gibi craft et. Forging Potential'ı kalmadığı için craft hiç harcamaz (Forge 1 gösterir) ve eşya corrupted kalır.",
 "Corrupted items": "Corrupted eşyalar",
-"Offhand combinations, set bonuses, primordial items and level requirements.": "İkincil el kombinasyonları, Set bonusları, primordial eşyalar ve seviye şartları."
+"Offhand combinations, set bonuses, primordial items and level requirements.": "İkincil el kombinasyonları, Set bonusları, primordial eşyalar ve seviye şartları.",
+"The game turns this affix into another one on this item type.": "Oyun bu eşya tipinde bu affix'i başka bir affix'e dönüştürür.",
+"{0} cannot be on this item type: the game turns it into {1}. Choose another affix.": "{0} bu eşya tipinde olamaz; oyun onu şuna dönüştürür: {1}. Başka bir affix seçin."
 }

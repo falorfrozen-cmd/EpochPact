@@ -13,6 +13,13 @@
   return {tier:s.tier===undefined?7:s.tier,roll:s.roll===undefined?(String(draft.perfect)==='0'?50:100):s.roll};
  }
  function tiersOf(data,id){const n=Number(data?.affixes?.find(x=>String(x.id)===String(id))?.tiers);return Number.isInteger(n)&&n>0?Math.min(n,PRIMORDIAL):7;}
+ // An affix the game turns into another one on an item type it cannot roll on (lootread convertTo, rollsOn):
+ // the affix it becomes on the forge item, else null.
+ function convertsTo(data,id,forge){
+  const a=data?.affixes?.find(x=>String(x.id)===String(id));
+  if(a?.convertTo===undefined||!Number.isInteger(forge?.itemType)||(a.rollsOn||[]).includes(forge.itemType))return null;
+  return data.affixes.find(x=>x.id===a.convertTo)||{id:a.convertTo,name:'affix '+a.convertTo};
+ }
  function filtered(items,query='',kind='all'){
   const words=query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   return items.filter(x=>(kind==='all'||(kind==='set'?x.set:!x.set))&&words.every(w=>String(x.uiLabel||x.name||'').toLowerCase().includes(w)));
@@ -26,6 +33,11 @@
   if(new Set(mods).size!==mods.length||mods.length>64)return 'Choose at most 64 different extra effects.';
   if(affixes.some(id=>!data.affixes?.some(x=>String(x.id)===String(id))))return 'An affix is no longer in the current game catalog. Review your selection.';
   if(mods.some(id=>!data.modifiers?.some(x=>String(x.id)===String(id))))return 'An extra effect is no longer in the current game catalog. Review your selection.';
+  for(const id of affixes){
+   const to=convertsTo(data,id,forge);
+   const plain=s=>String(s).replace(/<[^>]*>/g,'');
+   if(to)return `${plain(data.affixes.find(x=>String(x.id)===String(id)).name)} cannot be on this item type: the game turns it into ${plain(to.name)}. Choose another affix.`;
+  }
   for(const id of affixes){
    const s=setting(draft,id);
    if(!Number.isInteger(s.tier)||s.tier<1||s.tier>PRIMORDIAL)return 'Choose a tier from T1 to T8.';
@@ -45,5 +57,5 @@
   const n=draft.affixes?.length||0,tiers=(draft.affixes||[]).map(id=>'T'+setting(draft,id).tier).join(', ');
   return {template:template?`${template.set?'Set':'Unique'} · ${template.name}`:'Exalted · keep this item’s base',affixes:n?(n===1?'1 selected affix':`${n} selected affixes`)+' · '+tiers:draft.modifiers?.length?'Current affixes rebuilt at T7':'Keep the current affixes',effects:draft.modifiers?.length?(draft.modifiers.length===1?'1 extra effect':`${draft.modifiers.length} extra effects`):'No extra effects',rolls:draft.perfect==='0'?(draft.affixes?.length||draft.modifiers?.length?'Midpoint rolls':'Midpoint for new effects · current affix rolls kept'):'Maximum rolls'};
  }
- return {sections,defaults,setting,tiersOf,filtered,problem,args,affixToken,summary,PRIMORDIAL};
+ return {sections,defaults,setting,tiersOf,convertsTo,filtered,problem,args,affixToken,summary,PRIMORDIAL};
 });

@@ -1037,6 +1037,31 @@ Three player requests:
   with the setting on (affix T1 → T3), corrupted with 0 FP in memory, in its saved form and after a
   restart; switched off, the forge refuses it again.
 
+### Custom Items: affixes the game converts (2026-10-30)
+
+A player chose Dexterity T1 and Throwing Damage T7 and the forge showed Physical Damage T7. The game builds an
+item affix with `ItemAffix(id, tier, roll, itemType, sealed)`: when the affix has
+`AffixList.Affix.convertOnIncompatibleItemType` and `canRollOn` does not hold the item's type, the constructor
+makes it `affixIDToConvertTo` instead; loading a saved item (`ItemData.loadAffixFromSerialisation`) does the
+same. Custom Items gave every affix item type 0 (Helmet), so Throwing Damage (id 88, rolls on Belt, Gloves, Amulet,
+Relic) became Physical Damage (id 30) on every base. Now:
+
+- The affix is built with the forge item's own type. On a type where the game converts the choice, nothing is
+  applied and the reply names both ("Throwing Damage cannot be on this item type: the game turns it into
+  Physical Damage. Nothing was applied.").
+- `lootread` gives such an affix `convertTo` and `rollsOn`; the forge preview (`craftread`) gives the item's
+  `itemType`. The Custom Items affix list (app and F6) shows "→ Physical Damage" beside it and does not check
+  it; Create names the problem if the forge item changed after the choice. The F6 list is built again when the
+  forge item's type changes.
+- 1.5.3 has nine such affixes: Spell Damage with Tempest Strike, Chance to Gain a Storm Stack when you use
+  Gathering Storm and Hit an enemy, Spell Damage for Curses (Helmet only, to Mana Regeneration), Increased
+  Chance to Find Potions (Belt, Amulet; to Armor), Throwing Damage, increased Area for Area Skills (Gloves,
+  Amulet; to Throwing Attack Speed), Block Chance and Effectiveness (Ring, Gloves; to Necrotic Resistance),
+  Spell Damage and Reduced Mana Cost (One-Handed Sceptre; to Spell Damage), and the idols' Health (already left out).
+- Live (EpCraftTest clone, test build): Dexterity T1 + Throwing Damage T7 refused on a body armor with the
+  forge item unchanged; on a belt both kept, the same in the saved form and after a restart; a helmet with
+  Dexterity T7 as before.
+
 ## MelonLoader installation
 
 EpochPact can recognize Windows x64 MelonLoader 0.7 installations. It preserves

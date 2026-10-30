@@ -1900,5 +1900,7 @@
 "Craft corrupted items": "Создание на осквернённых предметах",
 "Craft a corrupted item in the forge as before it was corrupted. It has no Forging Potential left, so a craft costs none (the forge shows 1), and the item stays corrupted.": "Осквернённый предмет в кузнице можно улучшать, как до осквернения. Потенциала ковки у него не осталось, поэтому улучшение его не тратит (кузница показывает 1), а предмет остаётся осквернённым.",
 "Corrupted items": "Осквернённые предметы",
-"Offhand combinations, set bonuses, primordial items and level requirements.": "Сочетания для второй руки, бонусы комплектов, первородные предметы и требования к уровню."
+"Offhand combinations, set bonuses, primordial items and level requirements.": "Сочетания для второй руки, бонусы комплектов, первородные предметы и требования к уровню.",
+"The game turns this affix into another one on this item type.": "На этом типе предмета игра превращает этот аффикс в другой.",
+"{0} cannot be on this item type: the game turns it into {1}. Choose another affix.": "{0} не может быть на этом типе предмета: игра превращает его в {1}. Выберите другой аффикс."
 }
