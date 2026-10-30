@@ -21,7 +21,7 @@ const pages = {
  crafting: ["Crafting", "⚒", "Make every craft count.", "Forge your selected item, preserve materials and customize crafting costs."],
  stats: ["Character", "♜", "Refine your character.", "Find a stat and customize its bonus."],
  skills: ["Skills & Trees", "✧", "Build beyond the branches.", "Skill experience, point budgets, tree connections and projectiles."],
- equipment: ["Equipment", "⚔", "Equip your imagination.", "Offhand combinations, full set bonuses and primordial items."],
+ equipment: ["Equipment", "⚔", "Equip your imagination.", "Offhand combinations, set bonuses, primordial items and level requirements."],
  wardrobe: ["Wardrobe", "♛", "Dress the legend.", "Try every look on your character before you wear it."],
  summons: ["Summons", "♧", "Command your companions.", "Minion bonuses and temporary summon duration."],
  display: ["Display & Camera", "◉", "See Eterra your way.", "Camera pitch, zoom and temporary graphics overrides."],
@@ -578,7 +578,7 @@ function glyphChanceCard(id,title,text){
 function workshopPicker(kind){
  const entries=kind==='affixes'?(cache.craft_custom_catalog?.affixes||[]).map(x=>({...x,name:clean(x.name)})):workshopModifierEntries();
  const matches=craftingModel.filtered(entries,workshopFilters[kind]),selected=workshopDraft[kind],shown=matches.slice(0,workshopListLimits[kind]);
- return `<div class="craft-pick-count">${matches.length} matches · ${selected.length} selected</div><div class="craft-pick-list">${shown.map(x=>`<label><input type="checkbox" data-workshop-pick="${kind}" value="${esc(x.id)}" ${selected.includes(String(x.id))?'checked':''}><span>${esc(x.name)}</span></label>`).join('')||`<p class="muted">${cache.craft_custom_catalog?.items?.length?'No matches. Try another search.':'Load item choices above to see the available options.'}</p>`}</div>${matches.length>shown.length?`<button type="button" class="quiet" data-workshop-more="${kind}">Show more (${shown.length} of ${matches.length})</button>`:''}`;
+ return `<div class="craft-pick-count">${matches.length} matches · ${selected.length} selected</div><div class="craft-pick-list">${shown.map(x=>`<label><input type="checkbox" data-workshop-pick="${kind}" value="${esc(x.id)}" ${selected.includes(String(x.id))?'checked':''}><span>${esc(x.name)}</span>${x.classes?.length?`<em class="craft-class">${esc(x.classes.map(tr).join(', '))}</em>`:''}</label>`).join('')||`<p class="muted">${cache.craft_custom_catalog?.items?.length?'No matches. Try another search.':'Load item choices above to see the available options.'}</p>`}</div>${matches.length>shown.length?`<button type="button" class="quiet" data-workshop-more="${kind}">Show more (${shown.length} of ${matches.length})</button>`:''}`;
 }
 function workshopAffixRows(){
  const data=cache.craft_custom_catalog,entries=data?.affixes||[];
@@ -677,7 +677,7 @@ function renderCrafting(){
  }else if(craftingSection==='custom')html=customWorkshop();
  else if(craftingSection==='spawn')html=spawnPanel();
  else html=`<p class="note">These settings affect the game’s normal forge. Edit them here, then use <strong>Apply changes</strong> below. No item is crafted until you craft in the game or press Craft once.</p>`+
-  settingPanel('Affix upgrade limit',[controlById('craft_t7')])+settingPanel('Preserve materials',[
+  settingPanel('Affix upgrade limit',[controlById('craft_t7')])+settingPanel('Corrupted items',[controlById('craft_corrupted')])+settingPanel('Preserve materials',[
    craftingControl('craft_shards','Keep affix shards','Keep the shard used for a craft. You need at least one to begin.'),
    craftingControl('craft_runes','Keep runes','Keep the rune used for a craft. You need at least one to begin.'),
    craftingControl('craft_glyphs','Keep glyphs','Keep the glyph used for a craft. You need at least one to begin.')])+settingPanel('Forging Potential cost',[craftingControl('craft_fp','Forging Potential cost','0 = no FP cost · 0.5 = half cost · 1 = normal cost. Does not add FP to an item.')])+
@@ -771,7 +771,7 @@ function renderPage(){
   const ids=keys=>keys.map(key=>controlById("build_"+key));
   content.innerHTML=cachedSummary("build_read")+`<section class="panel"><div class="section-head"><h2>Skill and point budgets</h2><button data-refresh="build_read" data-control-id="build_read">Refresh live</button></div><div class="summary-grid"><div class="summary"><strong>${cache.build_read?.passivePoints??"—"}</strong><span>Passive budget</span></div><div class="summary"><strong>${cache.build_read?.weaverPoints??"—"}</strong><span>Weaver budget</span></div></div><p class="note">Point multipliers are session settings. Individual node caps still apply. Existing allocations stay when you lower a budget. Available points stop at zero until the budget covers those allocations.</p></section>`+settingPanel("Experience and skill points",ids(["skillxp","skillpoints","passivepoints"]))+settingPanel("Weaver points",ids(["weaverpoints","weaverflat"]))+settingPanel("Tree connections",ids(["skillnodes","passivenodes","weavernodes"]))+settingPanel("Mastery skills",ids(["masteryskills"]))+settingPanel("Projectiles",ids(["projectiles","projectileflat"]))+`<section class="panel"><h2>Free respec</h2><p class="note">Refund points from the selected tree group. Levels and earned budgets stay. Each action creates a recovery backup and runs only after confirmation.</p><div class="control-grid">${["respec_skills","respec_passives","respec_weaver"].map(id=>actionCard(controlById(id))).join("")}</div></section>`;
  }else if(page==="equipment"){
-  content.innerHTML=cachedSummary("build_read")+settingPanel("Equipment rules",["offhand","fullsets","primordials"].map(key=>controlById("build_"+key)));
+  content.innerHTML=cachedSummary("build_read")+settingPanel("Equipment rules",["offhand","fullsets","primordials","anylevel"].map(key=>controlById("build_"+key)));
  }else if(page==="wardrobe"){
   content.innerHTML=looksPanel();
  }else if(page==="summons"){
@@ -1017,7 +1017,7 @@ function syncLootCraft(id,result){
  if(readId==='loot_read'&&Array.isArray(result.affixIds))affixPicker.receive(wantedAffixes,result.affixIds,preview?'preview':automaticOwner()||null,{force:id==='loot_reset'});
  const toggle=x=>x===undefined?undefined:Number(x);
  const fresh=readId==="map_read"?{map_reveal:toggle(result.enabled)}:readId==="loot_read"?{loot_lp:result.minimumLP,...(result.minimumWW!=null?{loot_ww:result.minimumWW}:{}),loot_t7:toggle(result.t7),loot_filter:toggle(result.respectFilter)}:
-  {craft_fp:result.fpFactor,craft_t7:toggle(result.allowT7),craft_shards:toggle(result.preserveShards),craft_runes:toggle(result.preserveRunes),craft_glyphs:toggle(result.preserveGlyphs),craft_level:toggle(result.bypassLevel),craft_hope:result.hopePercent,craft_despair:result.despairPercent};
+  {craft_fp:result.fpFactor,craft_t7:toggle(result.allowT7),craft_corrupted:toggle(result.allowCorrupted),craft_shards:toggle(result.preserveShards),craft_runes:toggle(result.preserveRunes),craft_glyphs:toggle(result.preserveGlyphs),craft_level:toggle(result.bypassLevel),craft_hope:result.hopePercent,craft_despair:result.despairPercent};
  for(const [key,value] of Object.entries(fresh))if(value!==undefined){appliedValues[key]=value;if(!dirty.has(key))values[key]=value;}
  return true;
 }

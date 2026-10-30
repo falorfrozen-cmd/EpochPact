@@ -26,14 +26,15 @@ std::atomic<double> fpFactor{1}, hope{-1}, despair{-1};
 std::atomic<bool> preserveShards{false};
 std::atomic<bool> preserveRunes{false}, preserveGlyphs{false}, bypassLevel{false};
 std::atomic<bool> allowT7{false};
+std::atomic<bool> allowCorrupted{false};
 std::set<int> sevenTierAffixes;
 std::atomic<uint64_t> refundedRunes{0}, refundedGlyphs{0}, levelChecks{0};
-std::atomic<uint64_t> crafts{0}, fpChanges{0}, hopeChanges{0}, sealChanges{0}, refunded{0}, faults{0};
+std::atomic<uint64_t> crafts{0}, fpChanges{0}, hopeChanges{0}, sealChanges{0}, refunded{0}, faults{0}, corruptedCrafts{0};
 std::atomic<int> lastNormalLoss{0}, lastEffectiveLoss{0};
 bool ready=false;
 size_t managerActor, managerCraft, managerLoaded, managerStorage, forgeMain, forgeSupport, forgeModifier;
 size_t actorTracker, trackerData, forgingPotential, affixList, affixId, affixTier, affixRoll, itemSubtype, itemRarity;
-size_t itemType, entryData, entryQuantity;
+size_t itemType, entryData, entryQuantity, itemCorrupted, individualId;
 const il2cpp::Field* managerInstance; const il2cpp::Field* craftingRng;
 game::MethodRef getActor, offline, forge, cost, setFP, seal, roll, minCost, maxCost, shardCheck, glyphCheck, getItem;
 game::MethodRef capability, requiredLevel, itemConstructor, maxCraftTier, addTier, affixStats, shardCost, rebuild, rarityFromAffixes, randomByte;
@@ -45,6 +46,9 @@ struct Rgba { float r, g, b, a; };
 using RowVisualsFn=void(*)(void*,void*,void*,bool,Rgba,bool,const il2cpp::Method*);
 RowVisualsFn originalRowVisuals=nullptr;
 game::MethodRef rowVisuals;  // optional: without it T5/T6 upgrades need their shard put in the slot by hand
+game::MethodRef itemInfo;    // CraftingSlotManager.UpdateItemInfo: the forge window's item, rows and buttons
+using ItemInfoFn=void(*)(void*,const il2cpp::Method*);
+ItemInfoFn originalItemInfo=nullptr;
 using ItemConstructorFn=void(*)(void*,void*,const il2cpp::Method*);
 ItemConstructorFn originalItemConstructor=nullptr;
 using ForgeFn=void (*)(void*,const il2cpp::Method*);
@@ -134,6 +138,31 @@ bool Checked(const std::function<void()>& work) {
     std::string why; if(game::Guarded(work,&why)) return true;
     ++faults; Log("crafting: refused preparation: %s",why.c_str()); return false;
 }
+// ---- Corrupted items. Corruption is the forge's last step: an item with no Forging Potential left can be
+// corrupted, and the forge refuses a corrupted one ("Corrupted items can't be modified in the Forge"). With
+// craftcorrupted 1 the forge's corrupted item is shown, checked and crafted as it was before it was corrupted, with
+// 1 Forging Potential lent when it has none; afterwards it is corrupted again with its own Forging Potential (a
+// craft costs none) and its saved form rebuilt.
+void Corrupted(void* item,bool corrupted) { *reinterpret_cast<bool*>(static_cast<char*>(item)+itemCorrupted)=corrupted; }
+void Potential(void* item,int fp) { *reinterpret_cast<uint8_t*>(static_cast<char*>(item)+forgingPotential)=static_cast<uint8_t>(fp); }
+struct Uncorrupt {
+    void* item=nullptr; int fp=0;
+    explicit Uncorrupt(void* forgeItem) {
+        if(!allowCorrupted.load() || !forgeItem || !Get<bool>(forgeItem,itemCorrupted)) return;
+        item=forgeItem; fp=Get<uint8_t>(item,forgingPotential);
+        Corrupted(item,false); if(fp==0) Potential(item,1);
+    }
+    ~Uncorrupt() { if(item) { Corrupted(item,true); if(fp==0) Potential(item,0); } }
+    Uncorrupt(const Uncorrupt&)=delete; Uncorrupt& operator=(const Uncorrupt&)=delete;
+};
+void SyncItems(const Context& c);
+// the forge window of the local player's forge
+void ItemInfoDetour(void* self,const il2cpp::Method* method) {
+    void* item=nullptr;
+    if(allowCorrupted.load() && game::IsOfflinePlay()) Checked([&]{item=Current().main;});
+    Uncorrupt plain(item);
+    originalItemInfo(self,method);
+}
 void ForgeDetour(void* self,const il2cpp::Method* method) {
     if(active) { originalForge(self,method); return; }
     Scope scope;
@@ -151,7 +180,22 @@ void ForgeDetour(void* self,const il2cpp::Method* method) {
         scope.owned=true;
     })) scope.owned=false;
     Binding bind(&scope);
-    originalForge(self,method); // Execute precisely one normal craft, including all native eligibility checks.
+    void* lent=nullptr; int lentFP=0; uint32_t lentId=0;
+    {
+        Uncorrupt plain(scope.owned && game::IsOfflinePlay() ? scope.c.main : nullptr);
+        if(plain.item) { lent=plain.item; lentFP=plain.fp; lentId=Get<uint32_t>(lent,individualId); }
+        originalForge(self,method); // Execute precisely one normal craft, including all native eligibility checks.
+    }
+    if(lent) Checked([&] {
+        // corrupted again (the craft may have left a new copy of the item in the forge), the saved forms rebuilt
+        ++corruptedCrafts;
+        const auto now=Current();
+        if(now.main && now.main!=lent && Get<uint32_t>(now.main,individualId)==lentId) { Corrupted(now.main,true); if(lentFP==0) Potential(now.main,0); Invoke(rebuild,now.main); }
+        Invoke(rebuild,lent);
+        if(now.actor!=scope.c.actor || now.craft!=self) return;
+        SyncItems(now); Invoke(Method(now.manager,"DirtyCharacter",0),now.manager);
+        Invoke(Method(now.manager,"UpdateCraftingSlotManagerItemInfo",0),now.manager);
+    });
     if(!scope.owned) return;
     ++crafts;
     if(scope.shard>=0) Checked([&] {
@@ -259,8 +303,9 @@ bool AddTierDetour(void* item,int id,bool free,bool reroll,bool preserve,bool se
 bool CapabilityDetour(void* self,void** error,bool* warning,bool* green,void** success,const il2cpp::Method* method) {
     void* item=nullptr;
     bool extended=false;
-    if(bypassLevel.load()||allowT7.load()) Checked([&] {const auto c=Current(); if(c.craft==self){item=c.main;if(c.modifier)extended=ExtendedSelection(c,Get<uint16_t>(c.modifier,itemSubtype));}});
+    if(bypassLevel.load()||allowT7.load()||allowCorrupted.load()) Checked([&] {const auto c=Current(); if(c.craft==self){item=c.main;if(c.modifier)extended=ExtendedSelection(c,Get<uint16_t>(c.modifier,itemSubtype));}});
     CapabilityBinding bind(item);
+    Uncorrupt plain(game::IsOfflinePlay() ? item : nullptr);
     const bool previous=extendedCapability;extendedCapability=extended;
     struct Restore {bool value;~Restore(){extendedCapability=value;}} restore{previous};
     return originalCapability(self,error,warning,green,success,method);
@@ -303,7 +348,7 @@ bool RollDetour(void* rng,float probability,const il2cpp::Method* method) {
 struct Hook { game::MethodRef m; void* detour; void** original; };
 std::vector<Hook> Hooks() {
     std::vector<Hook> result;
-    if(fpFactor.load()!=1 || hope.load()>=0 || despair.load()>=0 || preserveShards.load() || preserveRunes.load() || preserveGlyphs.load() || allowT7.load())
+    if(fpFactor.load()!=1 || hope.load()>=0 || despair.load()>=0 || preserveShards.load() || preserveRunes.load() || preserveGlyphs.load() || allowT7.load() || allowCorrupted.load())
         result.push_back({forge,reinterpret_cast<void*>(&ForgeDetour),reinterpret_cast<void**>(&originalForge)});
     if(fpFactor.load()!=1) {
         result.push_back({cost,reinterpret_cast<void*>(&CostDetour),reinterpret_cast<void**>(&originalCost)});
@@ -311,7 +356,7 @@ std::vector<Hook> Hooks() {
     }
     if(despair.load()>=0) result.push_back({seal,reinterpret_cast<void*>(&SealDetour),reinterpret_cast<void**>(&originalSeal)});
     if(hope.load()>=0) result.push_back({roll,reinterpret_cast<void*>(&RollDetour),reinterpret_cast<void**>(&originalRoll)});
-    if(bypassLevel.load()||allowT7.load())
+    if(bypassLevel.load()||allowT7.load()||allowCorrupted.load())
         result.push_back({capability,reinterpret_cast<void*>(&CapabilityDetour),reinterpret_cast<void**>(&originalCapability)});
     if(bypassLevel.load()) {
         result.push_back({requiredLevel,reinterpret_cast<void*>(&LevelDetour),reinterpret_cast<void**>(&originalLevel)});
@@ -321,6 +366,7 @@ std::vector<Hook> Hooks() {
         result.push_back({addTier,reinterpret_cast<void*>(&AddTierDetour),reinterpret_cast<void**>(&originalAddTier)});
         if(rowVisuals)result.push_back({rowVisuals,reinterpret_cast<void*>(&RowVisualsDetour),reinterpret_cast<void**>(&originalRowVisuals)});
     }
+    if(allowCorrupted.load()) result.push_back({itemInfo,reinterpret_cast<void*>(&ItemInfoDetour),reinterpret_cast<void**>(&originalItemInfo)});
     return result;
 }
 void Reconcile() {
@@ -330,7 +376,7 @@ void Reconcile() {
             if(!hook::Install(h.m.code,h.detour,h.original,&why)) throw std::runtime_error(why);
             installed.push_back(h.m.code);
         }
-        for(const auto& m:{forge,cost,setFP,seal,roll,capability,requiredLevel,maxCraftTier,addTier,rowVisuals}) if(m.code && std::none_of(required.begin(),required.end(),[&](const Hook& h){return h.m.code==m.code;}) &&
+        for(const auto& m:{forge,cost,setFP,seal,roll,capability,requiredLevel,maxCraftTier,addTier,rowVisuals,itemInfo}) if(m.code && std::none_of(required.begin(),required.end(),[&](const Hook& h){return h.m.code==m.code;}) &&
             hook::IsInstalled(m.code) && !hook::Remove(m.code,&why)) throw std::runtime_error(why);
     } catch(...) { for(void* ptr:installed) hook::Remove(ptr,nullptr); throw; }
 }
@@ -345,7 +391,7 @@ std::string Settings() {
         << ",\"despairPercent\":" << (despair.load()<0?"null":std::to_string(despair.load()))
         << ",\"preserveShards\":" << Boolean(preserveShards.load())
         << ",\"preserveRunes\":" << Boolean(preserveRunes.load()) << ",\"preserveGlyphs\":" << Boolean(preserveGlyphs.load())
-        << ",\"allowT7\":" << Boolean(allowT7.load())
+        << ",\"allowT7\":" << Boolean(allowT7.load()) << ",\"allowCorrupted\":" << Boolean(allowCorrupted.load())
         << ",\"bypassLevel\":" << Boolean(bypassLevel.load()) << ",\"hooks\":{\"forge\":" << Boolean(hook::IsInstalled(forge.code))
         << ",\"cost\":" << Boolean(hook::IsInstalled(cost.code)) << ",\"setFP\":" << Boolean(hook::IsInstalled(setFP.code))
         << ",\"seal\":" << Boolean(hook::IsInstalled(seal.code)) << ",\"rng\":" << Boolean(hook::IsInstalled(roll.code))
@@ -354,7 +400,7 @@ std::string Settings() {
         << ",\"levelChecks\":" << levelChecks.load() << ",\"crafts\":" << crafts.load() << ",\"fpChanges\":" << fpChanges.load()
         << ",\"hopeRolls\":" << hopeChanges.load() << ",\"sealChanges\":" << sealChanges.load()
         << ",\"refundedShards\":" << refunded.load() << ",\"lastNormalFPLoss\":" << lastNormalLoss.load()
-        << ",\"lastEffectiveFPLoss\":" << lastEffectiveLoss.load() << ",\"faults\":" << faults.load() << "}}";
+        << ",\"lastEffectiveFPLoss\":" << lastEffectiveLoss.load() << ",\"corruptedCrafts\":" << corruptedCrafts.load() << ",\"faults\":" << faults.load() << "}}";
     return out.str();
 }
 std::string Preview() {
@@ -410,6 +456,7 @@ bool Init() {
         requiredLevel=Resolve("ItemData","CalculateLevelRequirementAfterShard",2);
         maxCraftTier=Resolve("ItemData","AffixIsAtMaxCraftableTierOrAbove",1);addTier=Resolve("ItemData","AddAffixTier",9);
         rowVisuals=game::FindMethod("LE.dll","","AffixSlotForge","SetVisuals",5);
+        itemInfo=Resolve("CraftingSlotManager","UpdateItemInfo",0);
         affixStats=Resolve("ItemData","AddAffixValueToStatList",3);shardCost=Resolve("ItemData","applyForgingPotentialCostFromShard",4);
         rebuild=Resolve("ItemData","RebuildID",0);rarityFromAffixes=Resolve("ItemData","setRarityFromAffixesForNormalMagicOrRareItem",0);
         randomByte=game::FindMethod("LE.Core.dll","LE.Core","RngElement","RandomByte",0);
@@ -426,6 +473,7 @@ bool Init() {
         affixId=Offset("ItemAffix","affixId"); affixTier=Offset("ItemAffix","affixTier"); affixRoll=Offset("ItemAffix","affixRoll");
         itemSubtype=Offset("ItemData","subType"); itemRarity=Offset("ItemData","rarity");
         itemType=Offset("ItemData","itemType"); entryData=Offset("ItemContainerEntry","data"); entryQuantity=Offset("ItemContainerEntry","quantity");
+        itemCorrupted=Offset("ItemData","corrupted"); individualId=Offset("ItemData","individualID");
         const auto* cls=game::FindClass("LE.dll","","ItemData");void* iter=nullptr;
         while(const auto* m=il2cpp::api().class_get_methods(cls,&iter)) {
             if(std::strcmp(il2cpp::api().method_get_name(m),".ctor")||il2cpp::api().method_get_param_count(m)!=1)continue;
@@ -454,12 +502,12 @@ std::string Set(const std::string& key,double value) {
     return Run([=] {
         if(!ready) throw std::runtime_error("crafting metadata unavailable");
         const double oldFP=fpFactor.load(),oldHope=hope.load(),oldDespair=despair.load(); const bool oldShards=preserveShards.load();
-        const bool oldRunes=preserveRunes.load(),oldGlyphs=preserveGlyphs.load(),oldLevel=bypassLevel.load(),oldT7=allowT7.load();
-        if(key=="reset") { fpFactor=1; hope=-1; despair=-1; preserveShards=false; preserveRunes=false; preserveGlyphs=false; bypassLevel=false; allowT7=false; }
+        const bool oldRunes=preserveRunes.load(),oldGlyphs=preserveGlyphs.load(),oldLevel=bypassLevel.load(),oldT7=allowT7.load(),oldCorrupted=allowCorrupted.load();
+        if(key=="reset") { fpFactor=1; hope=-1; despair=-1; preserveShards=false; preserveRunes=false; preserveGlyphs=false; bypassLevel=false; allowT7=false; allowCorrupted=false; }
         else {
             if(key=="fp" && !Factor(value)) throw std::runtime_error("FP cost factor 0..1");
             if((key=="hope"||key=="despair") && !Chance(value)) throw std::runtime_error("glyph chance 0..100/reset");
-            const bool toggle=key=="shards"||key=="runes"||key=="glyphs"||key=="level"||key=="t7";
+            const bool toggle=key=="shards"||key=="runes"||key=="glyphs"||key=="level"||key=="t7"||key=="corrupted";
             if(toggle && value!=0 && value!=1) throw std::runtime_error("crafting toggles use 0 or 1");
             if(key!="fp"&&key!="hope"&&key!="despair"&&!toggle) throw std::runtime_error("unknown crafting setting");
             if((key=="fp"&&value!=1)||((key=="hope"||key=="despair")&&value>=0)||(toggle&&value==1)) (void)Current();
@@ -473,13 +521,13 @@ std::string Set(const std::string& key,double value) {
             }
             if(key=="fp") fpFactor=value; else if(key=="hope") hope=value; else if(key=="despair") despair=value;
             else if(key=="shards") preserveShards=value!=0; else if(key=="runes") preserveRunes=value!=0;
-            else if(key=="glyphs") preserveGlyphs=value!=0; else if(key=="t7")allowT7=value!=0;else bypassLevel=value!=0;
+            else if(key=="glyphs") preserveGlyphs=value!=0; else if(key=="t7")allowT7=value!=0;else if(key=="corrupted")allowCorrupted=value!=0;else bypassLevel=value!=0;
         }
         try { Reconcile(); } catch(...) { fpFactor=oldFP; hope=oldHope; despair=oldDespair; preserveShards=oldShards;
-            preserveRunes=oldRunes; preserveGlyphs=oldGlyphs; bypassLevel=oldLevel;allowT7=oldT7;
+            preserveRunes=oldRunes; preserveGlyphs=oldGlyphs; bypassLevel=oldLevel;allowT7=oldT7;allowCorrupted=oldCorrupted;
             try {Reconcile();} catch(...) {Log("crafting rollback failed");} throw; }
         // an open forge window redraws its rows with or without the T5/T6 upgrade buttons
-        if(allowT7.load()!=oldT7) game::Guarded([]{const auto c=Current();Invoke(Method(c.manager,"UpdateCraftingSlotManagerItemInfo",0),c.manager);},nullptr);
+        if(allowT7.load()!=oldT7 || allowCorrupted.load()!=oldCorrupted) game::Guarded([]{const auto c=Current();Invoke(Method(c.manager,"UpdateCraftingSlotManagerItemInfo",0),c.manager);},nullptr);
         return Settings();
     });
 }
@@ -906,6 +954,16 @@ std::string Test(const std::string& id,const std::string& action) {
                 return "{\"ok\":true,\"fixture\":"+Json(action)+",\"attempts\":"+std::to_string(attempt+1)+"}";
             }
             throw std::runtime_error("native generation did not produce a T7 fixture in bounded attempts");
+        }
+        if(action=="corruptstate"){
+            // the forge item and its saved form (a copy read back from its bytes)
+            if(!c.main)throw std::runtime_error("test forge item required");Root copy(CloneItem(c.main));
+            const auto state=[](void* i){return "{\"corrupted\":"+std::string(Boolean(Get<bool>(i,itemCorrupted)))+",\"fp\":"+std::to_string(Get<uint8_t>(i,forgingPotential))+",\"affixes\":"+std::to_string(Entries(Get<void*>(i,affixList)).size())+'}';};
+            return "{\"ok\":true,\"item\":"+state(c.main)+",\"saved\":"+state(copy.Get())+",\"preview\":"+Preview()+"}";
+        }
+        if(action=="corrupt" || action=="uncorrupt"){
+            // the forge item's ItemData.corrupted flag, as a corruption leaves it
+            if(!c.main)throw std::runtime_error("test forge item required");*reinterpret_cast<bool*>(static_cast<char*>(c.main)+Offset("ItemData","corrupted"))=action=="corrupt";Invoke(rebuild,c.main);return "{\"ok\":true,\"preview\":"+Preview()+"}";
         }
         if(action=="zerofp"){
             if(!c.main)throw std::runtime_error("test forge item required");int fp=0;void* args[]{&fp};Invoke(setFP,c.main,args);Invoke(rebuild,c.main);return "{\"ok\":true,\"preview\":"+Preview()+"}";

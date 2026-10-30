@@ -80,7 +80,7 @@ bool Matches(const std::string& lower, const std::vector<std::string>& words) {
 }
 
 struct Item { std::string id, name, label, lower; bool set = false; };
-struct Affix { std::string id, name, lower; int tiers = 7; };
+struct Affix { std::string id, name, lower; std::vector<std::string> classes; int tiers = 7; };  // classes: of a class-specific affix
 struct Modifier { std::string id, names[2], lowers[2]; };  // its name with maximum (0) and midpoint (1) rolls
 struct Catalog {
     std::string playerId, playerName;
@@ -298,6 +298,7 @@ void ParseCatalog(std::vector<std::string> replies) {
             a.lower = Lower(a.name);
             const double n = x["tiers"].Num(0);
             a.tiers = std::floor(n) == n && n > 0 ? static_cast<int>(n) : 7;
+            for (const auto& k : x["classes"].items) a.classes.push_back(k.Str());
             data->affixAt[a.id] = data->affixes.size();
             data->affixes.push_back(std::move(a));
         }
@@ -459,7 +460,7 @@ float SearchInput(const Ctx& in, float y, float w, const std::string& value, con
 // ------------------------------------------------------------------------------ the lists
 // workshopPicker(kind): "{n} matches · {m} selected", the list (40 rows, Show more adds 40), each
 // row a checkbox and the name; a checked row has the soft colour.
-struct PickRow { std::string id, name; bool checked = false, made = false; float top = 0, h = 43.8f; Pin node; int hit = -1; };
+struct PickRow { std::string id, name, tag; bool checked = false, made = false; float top = 0, h = 43.8f; Pin node; int hit = -1; };
 struct Picker {
     int kind = 0;  // 0 affixes, 1 extra effects
     int section = -1;
@@ -537,7 +538,19 @@ void MakeRow(Picker& v, size_t i) {
     void* fill = Fill(node.rt, "Checked", 0, 0, v.rowW, 10, r.checked ? C("soft") : Alpha(C("soft"), 0));
     // label: padding 11px 14px, gap 12; the 16px checkbox 2px down; 13px text, line-height 1.6
     const float textX = 14 + 16 + 12;
-    const float textH = Paragraph(node.rt, "Name", textX, 11, v.rowW - textX - 14, Text(13, "ink", 1.6f), Tr(r.name));
+    // a class-specific affix: its classes in a gold tag at the right
+    float tagW = 0;
+    if (!r.tag.empty()) {
+        Style ts{Face::BodySemi, 11, C("gold")};
+        ts.align = kCenter;
+        tagW = TextAdvance(Face::BodySemi, 11, r.tag) + 14;
+        const float tx = v.rowW - 14 - tagW;
+        Fill(node.rt, "Class tag", tx, 13, tagW, 18, Alpha(C("gold"), .1f), 3);
+        Outline(node.rt, "Class tag border", tx, 13, tagW, 18, Alpha(C("gold"), .55f), 3);
+        TextBox(node.rt, "Class tag text", tx, 13, tagW, 18, ts, r.tag);
+        tagW += 10;
+    }
+    const float textH = Paragraph(node.rt, "Name", textX, 11, v.rowW - textX - 14 - tagW, Text(13, "ink", 1.6f), Tr(r.name));
     CheckBox(node.rt, 14, 13, 16, r.checked);
     r.h = 11 + textH + 11 + 1;
     Solid(node.rt, "Row border", 0, r.h - 1, v.rowW, 1, Hex("#92734025"));
@@ -598,18 +611,24 @@ float BuildPicker(Section& sec, const Ctx& c, int kind) {
     const int midpoint = W().draft.perfect == "0" ? 1 : 0;
     size_t limit = static_cast<size_t>(W().limits[kind]);
     if (data) {
-        const auto add = [&](const std::string& id, const std::string& name, const std::string& lower) {
+        const auto add = [&](const std::string& id, const std::string& name, const std::string& lower, const std::string& tag) {
             if (!Matches(lower, words)) return;
             ++v->matches;
             if (v->rows.size() >= limit) return;
             PickRow r;
             r.id = id;
             r.name = name;
+            r.tag = tag;
             r.checked = std::find(chosen.begin(), chosen.end(), id) != chosen.end();
             v->rows.push_back(std::move(r));
         };
-        if (kind == 0) for (const auto& a : data->affixes) add(a.id, a.name, a.lower);
-        else for (const auto& m : data->modifiers) add(m.id, m.names[midpoint], m.lowers[midpoint]);
+        const auto tag = [](const std::vector<std::string>& classes) {
+            std::string out;
+            for (const auto& k : classes) out += (out.empty() ? "" : ", ") + Tr(k);
+            return out;
+        };
+        if (kind == 0) for (const auto& a : data->affixes) add(a.id, a.name, a.lower, tag(a.classes));
+        else for (const auto& m : data->modifiers) add(m.id, m.names[midpoint], m.lowers[midpoint], "");
     }
     // .craft-pick-count: margin 14px 0 10px
     float y = 14;

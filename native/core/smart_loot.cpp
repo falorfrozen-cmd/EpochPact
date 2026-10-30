@@ -79,16 +79,25 @@ int Integer(const std::string& s) {
     if (error!=std::errc{} || end!=s.data()+s.size()) throw std::runtime_error("expected integer");
     return v;
 }
-struct CatalogAffix { int id; std::string name; size_t tiers; };
+struct CatalogAffix { int id; std::string name; size_t tiers; int classes; };
 // With the tier count: Craft from EpochPact offers T8 only where the game has it.
 std::vector<CatalogAffix> AffixCatalog() {
     Root data(Invoke(getAffixes));
     Root list(Invoke(Method(data.Get(), "get_AllAffixes", 0), data.Get()));
     std::vector<CatalogAffix> result;
-    const auto id=Offset("AffixList.Affix","affixId"), tiers=Offset("AffixList.Affix","tiers");
+    const auto id=Offset("AffixList.Affix","affixId"), tiers=Offset("AffixList.Affix","tiers"), classes=Offset("AffixList.Affix","classSpecificity");
     for (void* a : Entries(list.Get())) if (a && !workshop::Owns(Get<int>(a,id)))
-        result.push_back({Get<int>(a,id), Text(Invoke(Method(a,"getAffixDisplayName",0),a)), Entries(Get<void*>(a,tiers)).size()});
+        result.push_back({Get<int>(a,id), Text(Invoke(Method(a,"getAffixDisplayName",0),a)), Entries(Get<void*>(a,tiers)).size(), Get<int>(a,classes)});
     return result;
+}
+// The classes a class-specific affix belongs to (AffixList.ClassSpecificity: NonSpecific 1, Primalist 2, Mage 4,
+// Sentinel 8, Acolyte 16, Rogue 32); none for an affix every class gets.
+std::string ClassNames(int flags) {
+    static const char* const names[]{"Primalist", "Mage", "Sentinel", "Acolyte", "Rogue"};
+    std::string out;
+    if ((flags & 1) || (flags & 62) == 62) return "[]";
+    for (int i=0;i<5;++i) if (flags & (2<<i)) out += std::string(out.empty() ? "" : ",") + Json(names[i]);
+    return "[" + out + "]";
 }
 }
 bool Init() {
@@ -181,7 +190,7 @@ std::string Read() {
         std::string state=State(); state.pop_back(); state+=" ,\"affixes\":[";
         bool first=true;
         if (ready) for (const auto& a:AffixCatalog()) { if(!first) state+=','; first=false;
-            state+="{\"id\":"+std::to_string(a.id)+",\"name\":"+Json(a.name)+",\"tiers\":"+std::to_string(a.tiers)+"}"; }
+            state+="{\"id\":"+std::to_string(a.id)+",\"name\":"+Json(a.name)+",\"tiers\":"+std::to_string(a.tiers)+",\"classes\":"+ClassNames(a.classes)+"}"; }
         return state+"]}";
     });
 }

@@ -18,7 +18,8 @@
   else state.selected=state.selected.filter(x=>!incoming.includes(x));
   state.dirty=!equal(state.selected,state.applied);return true;
  }
- function entries(source){return (source||[]).filter(x=>id(x.id)!==null).map(x=>({id:String(x.id),name:String(x.uiLabel||x.name||'Affix '+x.id).replace(/<[^>]*>/g,'')}));}
+ function classes(x){const t=globalThis.EpochI18n?.t;return Array.isArray(x.classes)&&x.classes.length?' · '+x.classes.map(k=>t?.(k)??k).join(', '):'';}
+ function entries(source){return (source||[]).filter(x=>id(x.id)!==null).map(x=>({id:String(x.id),name:String(x.uiLabel||x.name||'Affix '+x.id).replace(/<[^>]*>/g,'')+classes(x)}));}
  function lists(state,source){
   const all=entries(source),chosen=new Set(state.selected),q=state.query.trim().toLocaleLowerCase('en');
   const compare=(a,b)=>a.name.localeCompare(b.name,'en',{numeric:true,sensitivity:'base'})||Number(a.id)-Number(b.id);

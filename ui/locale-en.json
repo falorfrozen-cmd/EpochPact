@@ -453,6 +453,10 @@
       "Wear any number of primordial items",
       "Wear more than one primordial item (Primordial Unique or Exalted) and get the bonuses of all of them. Switched off, the game's limit of one returns: while you wear more, their bonuses stop until you take the extra items off."
     ],
+    "build_anylevel": [
+      "Wear gear above your level",
+      "Equip items whose level requirement is above your character's level. Class, faction and the other requirements stay. Switched off, what you already wear stays on; new items need the level again."
+    ],
     "transmog_read": [
       "Item looks",
       "Read the looks of the equipped items: each visible slot's item, the look it shows and the looks that fit."
@@ -664,6 +668,10 @@
     "craft_t7": [
       "Craft affixes up to T7",
       "Upgrade existing T5 and T6 affixes with shards, one tier at a time. Stops at T7. Use plain shards or Basic Glyph of Hope for T6/T7. Material, Forging Potential and level requirements remain."
+    ],
+    "craft_corrupted": [
+      "Craft corrupted items",
+      "Craft a corrupted item in the forge as before it was corrupted. It has no Forging Potential left, so a craft costs none (the forge shows 1), and the item stays corrupted."
     ],
     "pickup_interval": [
       "Auto pickup interval",

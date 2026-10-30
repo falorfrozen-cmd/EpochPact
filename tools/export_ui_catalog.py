@@ -83,6 +83,7 @@ def controls():
         ("masteryskills", "skills", "Skills of your other masteries", 0, 1, 0, True, "The skills of your class's other masteries unlock as they do for your own mastery: with the points you put in their passive tree (for a Forge Guard, Paladin's Judgement at 30 and Symbols of Hope at 35 Paladin points). The skill each mastery gives when it is chosen (such as Holy Aura) stays with it. Switched off, those skills leave your skill bar."),
         ("offhand", "equipment", "Unrestricted offhand equipment", 0, 1, 0, True, "Allow weapons in the offhand and remove linked two-handed equipment conflicts. Normal level and class requirements still apply."),
         ("fullsets", "equipment", "Full set bonuses from one piece", 0, 1, 0, True, "Activate the missing bonuses of each equipped set. Removing its last piece removes the bonuses."),
+        ("anylevel", "equipment", "Wear gear above your level", 0, 1, 0, True, "Equip items whose level requirement is above your character's level. Class, faction and the other requirements stay. Switched off, what you already wear stays on; new items need the level again."),
         ("primordials", "equipment", "Wear any number of primordial items", 0, 1, 0, True, "Wear more than one primordial item (Primordial Unique or Exalted) and get the bonuses of all of them. Switched off, the game's limit of one returns: while you wear more, their bonuses stop until you take the extra items off."),
         ("zoom", "display", "Camera distance", 1, 2, 1, False, "Move the overhead camera farther away. This changes distance, not field of view; 1× restores the normal distance."),
         ("cameraangle", "display", "Camera angle", 0, 85, 0, False, "Set the overhead camera pitch in degrees. Zero uses the game's normal angle. Your saved camera preferences are kept."),
@@ -342,6 +343,10 @@ def controls():
         "Upgrade existing unsealed T5 and T6 affixes one tier at a time with their shards. Stops at T7. T6/T7 upgrades use plain shards or Basic Glyph of Hope; other glyphs retain normal limits. Material, FP and level requirements remain.",
         params=[value(0,1)], default=0, reset="craftt7 0", api="tools.loot_crafting_backend.allow_t7(value)",
         current="liveState.craftread.allowT7", requires=("loaded_actor",), doc="docs/loot-crafting.md")
+    add("craft_corrupted", "crafting", "Craft corrupted items", "toggle", "craftcorrupted {value}", "session",
+        "Craft a corrupted item in the forge as before it was corrupted. It has no Forging Potential left, so a craft costs none (the forge shows 1), and the item stays corrupted.",
+        params=[value(0,1)], default=0, reset="craftcorrupted 0", api="tools.loot_crafting_backend.allow_corrupted(value)",
+        current="liveState.craftread.allowCorrupted", requires=("loaded_actor",), doc="docs/loot-crafting.md")
     for glyph, label in (("hope", "Glyph of Hope FP koruma ihtimali"), ("despair", "Glyph of Despair seal ihtimali")):
         add("craft_"+glyph, "crafting", label, "selector", "craft"+glyph+" {value}", "session",
             "Yüzde 0–100 veya reset; native glyph/affix uygunluğu gerekir. Despair T1–T4; Greater Hope ayrı desteklenmez.",

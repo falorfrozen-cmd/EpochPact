@@ -1894,5 +1894,11 @@
 "Always the most idol affixes": "Всегда максимум аффиксов идолов",
 "Every new idol gets exactly the number of prefixes and suffixes set in Idol prefixes and Idol suffixes, instead of 1 to that many; every new idol altar one more than that. Works with Idol prefixes or Idol suffixes above 1.": "Каждый новый идол получает ровно столько префиксов и суффиксов, сколько задано в настройках префиксов и суффиксов идолов, а не от 1 до этого числа; каждый новый алтарь идолов — на один больше. Работает, когда префиксы или суффиксы идолов больше 1.",
 "Every look that fits your equipped items, with the game's own art. Click one and your character wears it at once, and keeps it: through zone changes and restarts, until you click the item's own look or Own look. A look must be an item of the same type. Display only: your items and their stats do not change.": "Все облики, подходящие к надетым предметам, с изображениями самой игры. Нажмите на облик — персонаж сразу наденет его и сохранит: при смене зоны и после перезапуска, пока вы не выберете собственный облик предмета или Own look. Облик должен быть предметом того же типа. Только внешний вид: предметы и их характеристики не меняются.",
-"Click a look to wear it.": "Нажмите на облик, чтобы надеть его."
+"Click a look to wear it.": "Нажмите на облик, чтобы надеть его.",
+"Wear gear above your level": "Носить предметы выше вашего уровня",
+"Equip items whose level requirement is above your character's level. Class, faction and the other requirements stay. Switched off, what you already wear stays on; new items need the level again.": "Позволяет надевать предметы, требуемый уровень которых выше уровня персонажа. Требования класса, фракции и прочие остаются. При выключении надетое остаётся на вас; для новых предметов снова нужен уровень.",
+"Craft corrupted items": "Создание на осквернённых предметах",
+"Craft a corrupted item in the forge as before it was corrupted. It has no Forging Potential left, so a craft costs none (the forge shows 1), and the item stays corrupted.": "Осквернённый предмет в кузнице можно улучшать, как до осквернения. Потенциала ковки у него не осталось, поэтому улучшение его не тратит (кузница показывает 1), а предмет остаётся осквернённым.",
+"Corrupted items": "Осквернённые предметы",
+"Offhand combinations, set bonuses, primordial items and level requirements.": "Сочетания для второй руки, бонусы комплектов, первородные предметы и требования к уровню."
 }

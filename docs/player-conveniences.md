@@ -1010,6 +1010,26 @@ than changing an already-created ally, and the table reflects that distinction.
 No active summons produces an empty table. Failed reads or a character change
 hide the previous sample; historical snapshots are never shown as live values.
 
+### Class-specific affixes, gear above your level, corrupted items (2026-10-30)
+
+Three player requests:
+
+- **Class tags on affixes.** `lootread` gives each affix its classes (`AffixList.Affix.classSpecificity`:
+  NonSpecific 1, Primalist 2, Mage 4, Sentinel 8, Acolyte 16, Rogue 32; none for an affix every class
+  gets). 629 of the 1156 affixes in 1.5.3 belong to one class or more. The Custom Items affix list (F6 and
+  the app) shows them in a gold tag at the right ("Primalist"); the wanted-affix lists (Loot & Pickup,
+  Weaver's Will) add " · Mage" to the name.
+- **Wear gear above your level** (`buildset anylevel 0|1`, Equipment rules): see
+  `docs/build-controls.md`.
+- **Craft corrupted items** (`craftcorrupted 0|1`, Crafting → Forge Settings). Corruption is the
+  forge's last step: an item with no Forging Potential left can be corrupted, and the forge refuses a
+  corrupted one ("Corrupted items can't be modified in the Forge"). With the setting on, the forge's
+  corrupted item is shown, checked and crafted as before it was corrupted, with 1 Forging Potential lent
+  when it has none (the forge shows 1); after the craft it is corrupted again with 0 Forging Potential and
+  its saved form rebuilt. Live (EpCraftTest clone): a corrupted item with 0 FP refused, then crafted twice
+  with the setting on (affix T1 → T3), corrupted with 0 FP in memory, in its saved form and after a
+  restart; switched off, the forge refuses it again.
+
 ## MelonLoader installation
 
 EpochPact can recognize Windows x64 MelonLoader 0.7 installations. It preserves

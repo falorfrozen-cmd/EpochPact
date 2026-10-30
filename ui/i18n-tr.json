@@ -1894,5 +1894,11 @@
 "Always the most idol affixes": "İdollerde her zaman en fazla affix",
 "Every new idol gets exactly the number of prefixes and suffixes set in Idol prefixes and Idol suffixes, instead of 1 to that many; every new idol altar one more than that. Works with Idol prefixes or Idol suffixes above 1.": "Her yeni idol, İdol prefix ve İdol suffix ayarındaki sayının tam kendisi kadar prefix ve suffix alır (1 ile o sayı arasında rastgele değil); her yeni idol altarı bunun bir fazlasını. İdol prefix ya da suffix ayarı 1'den büyükken çalışır.",
 "Every look that fits your equipped items, with the game's own art. Click one and your character wears it at once, and keeps it: through zone changes and restarts, until you click the item's own look or Own look. A look must be an item of the same type. Display only: your items and their stats do not change.": "Kuşandığınız eşyalara uyan her görünüş, oyunun kendi çizimiyle. Birine tıklayınca karakteriniz onu hemen giyer ve öyle kalır: bölge değişse de oyun yeniden açılsa da, eşyanın kendi görünüşüne ya da Own look'a tıklayana kadar. Görünüş aynı türden bir eşyanın olmalı. Yalnızca görünüş: eşyalarınız ve statları değişmez.",
-"Click a look to wear it.": "Giymek için bir görünüşe tıklayın."
+"Click a look to wear it.": "Giymek için bir görünüşe tıklayın.",
+"Wear gear above your level": "Seviyenin üstündeki eşyaları giy",
+"Equip items whose level requirement is above your character's level. Class, faction and the other requirements stay. Switched off, what you already wear stays on; new items need the level again.": "Seviye şartı karakterinin seviyesinden yüksek eşyaları da kuşan. Sınıf, faction ve diğer şartlar geçerli kalır. Kapatınca giydiklerin üstünde kalır; yeni eşyalar için seviye yine gerekir.",
+"Craft corrupted items": "Corrupted eşyaları craft et",
+"Craft a corrupted item in the forge as before it was corrupted. It has no Forging Potential left, so a craft costs none (the forge shows 1), and the item stays corrupted.": "Forge'daki corrupted eşyayı, corrupted olmadan önceki gibi craft et. Forging Potential'ı kalmadığı için craft hiç harcamaz (Forge 1 gösterir) ve eşya corrupted kalır.",
+"Corrupted items": "Corrupted eşyalar",
+"Offhand combinations, set bonuses, primordial items and level requirements.": "İkincil el kombinasyonları, Set bonusları, primordial eşyalar ve seviye şartları."
 }

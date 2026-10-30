@@ -3691,7 +3691,7 @@ std::string Panel(const std::string& action) {
             const auto field = name.substr(6, eq-6);
             std::string value = name.substr(eq+1);  // %20: a space (the command line splits at spaces)
             for (size_t at; (at = value.find("%20")) != std::string::npos;) value.replace(at, 3, " ");
-            if (field != "craft_materials-value" && field != "spawn-search" && field != "spawn-level" && field != "wardrobe-search") throw std::runtime_error("Field not in QA allowlist");
+            if (field != "craft_materials-value" && field != "spawn-search" && field != "spawn-level" && field != "wardrobe-search" && field != "workshop-affix-search") throw std::runtime_error("Field not in QA allowlist");
             for (auto& input : win.inputs) if (input.name == field) {
                 managed::Root text(il2cpp::api().string_new(value.c_str())); void* args[]{text.Get()};
                 Invoke(Find("Unity.TextMeshPro.dll", "TMPro", "TMP_InputField", "set_text", 1), input.field.Get(), args);

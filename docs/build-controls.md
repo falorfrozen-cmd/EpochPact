@@ -167,6 +167,17 @@ player DLL. See [the remaining-three validation record](remaining-three-validati
 and [the earlier gameplay record](feature-validation-2026-10-10.md) for measured
 results and untested gameplay paths. A successful build alone is not gameplay proof.
 
+## Gear above your level (`buildset anylevel 0|1`)
+
+Player request 2026-10-30. Every equipment slot is a `OneSlotItemContainerWithCharacterRequirements`;
+its `CanReceiveItem` checks ruin, class, faction, the primordial limit and cocoons first and the level
+last, and a refusal for the level alone leaves `lastReason` = `FailedEquipReason.LEVEL` (0). With the
+setting on, that refusal becomes an acceptance; every other reason stays. Loading a character skips
+these checks (`IgnoreCanReceiveItemChecksWhenLoading`), so items worn above the level stay on after a
+restart, with their stats, also when the setting is off. Live (EpCraftTest clone, level 55): a level 65
+helmet, a level 85 pair of gloves and a level 87 body armour refused off, worn on (the game's right-click
+quick equip), stats applied, still worn and applied after a restart. Offline only.
+
 ## Skills of your other masteries (`buildset masteryskills 0|1`)
 
 Player request 2026-10-29: a Forge Guard wants Paladin's Judgement and Symbols of Hope. The game lets

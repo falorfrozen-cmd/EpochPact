@@ -222,7 +222,7 @@ std::string Execute(const std::string& line) {
         return collection::Items(offset);
     }
     if (cmd == "lootread" || cmd == "lootmode" || cmd == "lootlp" || cmd == "lootww" || cmd == "loott7" || cmd == "lootfilter" || cmd == "lootaffixes" || cmd == "lootcategory" || cmd == "lootreset" ||
-        cmd == "craftread" || cmd == "craftfp" || cmd == "crafthope" || cmd == "craftdespair" || cmd == "craftshards" || cmd == "craftrunes" || cmd == "craftglyphs" || cmd == "craftlevel" || cmd == "craftt7" || cmd == "craftreset") {
+        cmd == "craftread" || cmd == "craftfp" || cmd == "crafthope" || cmd == "craftdespair" || cmd == "craftshards" || cmd == "craftrunes" || cmd == "craftglyphs" || cmd == "craftlevel" || cmd == "craftt7" || cmd == "craftcorrupted" || cmd == "craftreset") {
         const auto error=[](const char* message){return "{\"ok\":false,\"error\":"+managed::Json(message)+"}";};
         if(cmd=="lootread" || cmd=="craftread") {
             if(!args.empty()) return error("read expects no arguments");

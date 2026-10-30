@@ -445,7 +445,10 @@ AffixLists ListsOf(const AffixState& st) {
         for (const auto& x : (*r)["affixes"].items) {
             const std::string id = AffixId(x["id"]);
             if (id.empty()) continue;
-            all.push_back({id, NoTags(x["uiLabel"].Str(x["name"].Str("Affix " + id)))});
+            // a class-specific affix: " · Mage"
+            std::string classes;
+            for (const auto& k : x["classes"].items) classes += (classes.empty() ? "" : ", ") + Tr(k.Str());
+            all.push_back({id, NoTags(x["uiLabel"].Str(x["name"].Str("Affix " + id))) + (classes.empty() ? "" : " \xC2\xB7 " + classes)});
         }
     std::string q = Trim(st.query);
     std::transform(q.begin(), q.end(), q.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });

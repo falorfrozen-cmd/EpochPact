@@ -15,7 +15,7 @@ PAGES = [
     ("crafting", "Crafting", "⚒", "Make every craft count.", "Forge your selected item, preserve materials and customize crafting costs."),
     ("stats", "Character", "♜", "Refine your character.", "Find a stat and customize its bonus."),
     ("skills", "Skills & Trees", "✧", "Build beyond the branches.", "Skill experience, point budgets, tree connections and projectiles."),
-    ("equipment", "Equipment", "⚔", "Equip your imagination.", "Offhand combinations, full set bonuses and primordial items."),
+    ("equipment", "Equipment", "⚔", "Equip your imagination.", "Offhand combinations, set bonuses, primordial items and level requirements."),
     ("wardrobe", "Wardrobe", "♛", "Dress the legend.", "Try every look on your character before you wear it."),
     ("summons", "Summons", "♧", "Command your companions.", "Minion bonuses and temporary summon duration."),
     ("display", "Display & Camera", "◉", "See Eterra your way.", "Camera pitch, zoom and temporary graphics overrides."),
@@ -184,7 +184,7 @@ def sections(page, controls, counts):
                 settings("Projectiles", ["build_projectiles", "build_projectileflat"]),
                 native("free_respec", controls=["respec_skills", "respec_passives", "respec_weaver"])]
     if page == "equipment":
-        return [native("cached_summary", read="buildread"), settings("Equipment rules", ["build_offhand", "build_fullsets", "build_primordials"])]
+        return [native("cached_summary", read="buildread"), settings("Equipment rules", ["build_offhand", "build_fullsets", "build_primordials", "build_anylevel"])]
     if page == "wardrobe":
         return [native("wardrobe", controls=["transmog_read", "transmog_set"])]
     if page == "summons":
@@ -224,6 +224,7 @@ def sections(page, controls, counts):
         return [native("craft_tabs"),
                 native("craft_note", tab="forge"),
                 settings("Affix upgrade limit", ["craft_t7"], **forge),
+                settings("Corrupted items", ["craft_corrupted"], **forge),
                 settings("Preserve materials", ["craft_shards", "craft_runes", "craft_glyphs"], overrides=over("craft_shards", "craft_runes", "craft_glyphs"), **forge),
                 settings("Forging Potential cost", ["craft_fp"], overrides=over("craft_fp"), **forge),
                 native("glyph_chances", tab="forge", controls=["craft_hope", "craft_despair"]),

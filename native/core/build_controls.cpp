@@ -25,13 +25,13 @@ Setting skillXp{"skillxp",1,100,1}, passive{"passivepoints",1,10,1}, skills{"ski
     freeSkills{"skillnodes",0,1,0,true}, freePassives{"passivenodes",0,1,0,true}, freeWeaver{"weavernodes",0,1,0,true},
     minionExtra{"minionextra",0,20,0,true}, companionExtra{"companionextra",0,10,0,true}, totemExtra{"totemextra",0,10,0,true},
     ballistaExtra{"ballistaextra",0,10,0,true}, forgedExtra{"forgedextra",0,20,0,true}, immortal{"immortalminions",0,1,0,true},
-    masterySkills{"masteryskills",0,1,0,true};
-std::array<Setting*,25> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&primordials,&freeSkills,&freePassives,&freeWeaver,
-    &minionExtra,&companionExtra,&totemExtra,&ballistaExtra,&forgedExtra,&immortal,&masterySkills};
+    masterySkills{"masteryskills",0,1,0,true}, anyLevel{"anylevel",0,1,0,true};
+std::array<Setting*,26> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&primordials,&freeSkills,&freePassives,&freeWeaver,
+    &minionExtra,&companionExtra,&totemExtra,&ballistaExtra,&forgedExtra,&immortal,&masterySkills,&anyLevel};
 game::MethodRef getActor, offline, xpRef, skillRef, passiveRef, weaverRef, zoomRef, projectileRef, blessingRef, populateRef, optionsRef;
 game::MethodRef summonRef, slotRef, alternateSlotRef, linkedRef, invalidRef, enforceRef, mainRestrictionRef, offRestrictionRef, equipRef;
 game::MethodRef constructionRef, drainRef, summonedTickRef;
-game::MethodRef sedSummonRef, maxCompanionsRef, summonedInitRef, maxPrimordialsRef;
+game::MethodRef sedSummonRef, maxCompanionsRef, summonedInitRef, maxPrimordialsRef, receiveRef;
 game::MethodRef skillUnspentRef, passiveUnspentRef, weaverUnspentRef;
 game::MethodRef requirementRef, requirementPreviewRef, passiveRequirementRef, uiRequirementRef, reachableRef,
     globalNodeRef, passiveSpendRef, passiveBulkRef, masteryRef, masteryUpdateRef, respecCostRef;
@@ -572,6 +572,23 @@ int PrimordialsDetour(void* self,M method){
     if(result!=native)++raisedPrimordialReads;
     return result;
 }
+// ---- Gear above the character's level. OneSlotItemContainerWithCharacterRequirements.CanReceiveItem (every
+// equipment slot) checks ruin, class, faction, the primordial limit and cocoons first and the level last; a refusal
+// for the level alone leaves lastReason = FailedEquipReason.LEVEL (0), and that one becomes an acceptance. Loading
+// a character skips these checks (IgnoreCanReceiveItemChecksWhenLoading), so worn items stay worn.
+using ReceiveFn=bool(*)(void*,void*,int,M);ReceiveFn originalReceive=nullptr;
+std::atomic<uint64_t> levelAllowed{0};
+size_t lastReason=0;
+bool ReceiveDetour(void* self,void* item,int amount,M method){
+    const bool native=originalReceive(self,item,amount,method);
+    if(native||anyLevel.value!=1||!self||!lastReason)return native;
+    // Nullable<FailedEquipReason>: hasValue, then the value
+    auto* reason=static_cast<unsigned char*>(self)+lastReason;
+    int value=-1;std::memcpy(&value,reason+4,sizeof value);
+    if(!reason[0]||value!=0)return native;
+    std::memset(reason,0,8);++levelAllowed;
+    return true;
+}
 void* EquipManager(){
     void* containers=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));
     void* manager=containers?Get<void*>(containers,Offset("ItemContainersManager","itemEquipManager")):nullptr;
@@ -694,7 +711,8 @@ Hook xpHook{&xpRef,reinterpret_cast<void*>(&XpDetour),reinterpret_cast<void**>(&
     mainRestrictionHook{&mainRestrictionRef,reinterpret_cast<void*>(&MainRestrictionDetour),reinterpret_cast<void**>(&originalMainRestriction)},
     offRestrictionHook{&offRestrictionRef,reinterpret_cast<void*>(&OffRestrictionDetour),reinterpret_cast<void**>(&originalOffRestriction)},
     equipHook{&equipRef,reinterpret_cast<void*>(&EquipDetour),reinterpret_cast<void**>(&originalEquip)},
-    primordialsHook{&maxPrimordialsRef,reinterpret_cast<void*>(&PrimordialsDetour),reinterpret_cast<void**>(&originalPrimordials)};
+    primordialsHook{&maxPrimordialsRef,reinterpret_cast<void*>(&PrimordialsDetour),reinterpret_cast<void**>(&originalPrimordials)},
+    receiveHook{&receiveRef,reinterpret_cast<void*>(&ReceiveDetour),reinterpret_cast<void**>(&originalReceive)};
 Hook passiveUnspentHook{&passiveUnspentRef,reinterpret_cast<void*>(&PassiveUnspentDetour),reinterpret_cast<void**>(&originalPassiveUnspent)},
     weaverUnspentHook{&weaverUnspentRef,reinterpret_cast<void*>(&WeaverUnspentDetour),reinterpret_cast<void**>(&originalWeaverUnspent)};
 Hook requirementHook{&requirementRef,reinterpret_cast<void*>(&RequirementDetour),reinterpret_cast<void**>(&originalRequirement)},
@@ -725,6 +743,7 @@ Hook* For(const Setting& s) {
     if(&s==&offhand)return &slotHook;
     if(&s==&fullSets)return &equipHook;
     if(&s==&primordials)return &primordialsHook;
+    if(&s==&anyLevel)return &receiveHook;
     if(&s==&masterySkills)return &unlockedHook;
     if(&s==&freeSkills||&s==&freePassives||&s==&freeWeaver)return &requirementHook;
     return &blessingHook;
@@ -765,7 +784,7 @@ void RefreshBudgets() {
 std::string State() {
     std::ostringstream out; out<<"{\"ok\":true,\"settings\":{"; bool comma=false;
     for(auto* s:settings){bool available=true;for(auto* h:Hooks(*s))available=available && static_cast<bool>(*h->ref);if(comma)out<<',';comma=true;out<<Json(s->key)<<":{\"value\":"<<s->value<<",\"available\":"<<Boolean(available)<<'}';}
-    out<<"},\"counters\":{\"masterySkillsAdded\":"<<masterySkillsAdded<<",\"skillXp\":"<<xpCalls<<",\"projectiles\":"<<projectileCalls<<",\"projectileRetrofits\":"<<retrofits<<",\"summonDecayTicks\":"<<drainCalls<<",\"lastProjectileNative\":"<<lastProjectileNative<<",\"lastProjectileTotal\":"<<lastProjectileTotal<<",\"blessings\":"<<blessingCalls<<",\"faults\":"<<faults<<'}';
+    out<<"},\"counters\":{\"masterySkillsAdded\":"<<masterySkillsAdded<<",\"levelAllowed\":"<<levelAllowed<<",\"skillXp\":"<<xpCalls<<",\"projectiles\":"<<projectileCalls<<",\"projectileRetrofits\":"<<retrofits<<",\"summonDecayTicks\":"<<drainCalls<<",\"lastProjectileNative\":"<<lastProjectileNative<<",\"lastProjectileTotal\":"<<lastProjectileTotal<<",\"blessings\":"<<blessingCalls<<",\"faults\":"<<faults<<'}';
     out<<",\"summons\":{\"limitsRaised\":"<<raisedSummons<<",\"companionLimitReads\":"<<raisedCompanionReads<<",\"immortal\":"<<immortalHealth.size()<<",\"immortalAdded\":"<<immortalAdded
        <<",\"lastAbility\":"<<Json(lastSummonAbility)<<",\"lastKind\":"<<Json(lastSummonKind)<<",\"lastNative\":"<<lastSummonNative<<",\"lastLimit\":"<<lastSummonLimit<<'}';
     std::string worn;  // built whole: a failed read must not leave half an object in the reply
@@ -809,6 +828,8 @@ bool Init() {
         sedSummonRef=game::FindMethod("LE.dll","","SummonEntityOnDeath","Summon",0);
         maxCompanionsRef=game::FindMethod("LE.dll","","Stats","getMaximumCompanions",0);
         maxPrimordialsRef=game::FindMethod("LE.dll","","CharacterMutator","GetMaxPrimordialItems",0);
+        receiveRef=game::FindMethod("LE.dll","","OneSlotItemContainerWithCharacterRequirements","CanReceiveItem",2);
+        lastReason=Offset("OneSlotItemContainerWithCharacterRequirements","lastReason");
         summonedInitRef=game::FindMethod("LE.dll","","Summoned","initialise",0);
         constructionRef=game::FindMethod("LE.dll","","AbilityObjectConstructor","constructAbilityObject",14);
         durationOffset=Offset("DestroyAfterDuration","duration");
@@ -927,7 +948,7 @@ std::string Test(const std::string& id,const std::string& action) {
         RequireSession(4);void* actor=Actor();if(!actor)throw std::runtime_error("offline test actor required");
         void* character=Get<void*>(Get<void*>(actor,actorTracker),trackerData);
         const auto name=Text(Get<void*>(character,Offset("CharacterData","<CharacterName>k__BackingField","LE.Data")));
-        if(Text(Invoke(Method(character,"get_Id",0),character))!=id || (name!="EpFeatureTest"&&name!="EpFeedbackTest"))throw std::runtime_error("feature tests require an isolated feature test clone");
+        if(Text(Invoke(Method(character,"get_Id",0),character))!=id || (name!="EpFeatureTest"&&name!="EpFeedbackTest"&&name!="EpCraftTest"))throw std::runtime_error("feature tests require an isolated feature test clone");
         void* tree=Tree(actor);
         if(action.rfind("primordial-",0)==0){
             // Primordial items through the game's own methods: seal an inventory item's
@@ -966,6 +987,52 @@ std::string Test(const std::string& id,const std::string& action) {
                 return out+"]}";
             }
             throw std::runtime_error("unknown primordial test action");
+        }
+        if(action.rfind("level-",0)==0){
+            // Gear above the character's level: make a Rare of a type at item level 100 (its base the type's
+            // highest level requirement) into the inventory, quick-equip the ones above the character's level
+            // (the game's own right click), and read the worn ones and whether their stats are applied.
+            void* containers=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));
+            if(!containers||Get<void*>(containers,managerActor)!=actor)throw std::runtime_error("item containers unavailable");
+            void* inventory=Get<void*>(containers,F("ItemContainersManager","inventory"));
+            const int level=Get<int>(character,Offset("CharacterData","<Level>k__BackingField","LE.Data"));
+            auto required=[](void* data){return Value<int>(Method(data,"getLevelRequirement",0),data);};
+            if(action.rfind("level-make-",0)==0){
+                int type=std::stoi(action.substr(11)),best=-1,bestLevel=-1;
+                Root list(Invoke(game::FindMethod("LE.dll","","ItemList","get",0)));
+                // a base every class wears (ItemList.EquipmentItem.classRequirement None or Any)
+                for(int sub=0;sub<64;++sub){int at=-1;Checked([&]{int t=type,s=sub;void* a[]{&t,&s};void* base=Invoke(Method(list.Get(),"GetEquipmentSubItem",2),list.Get(),a);
+                    const int cls=base?Get<int>(base,F("ItemList.EquipmentItem","classRequirement")):-1;if(cls==0||cls==31)at=Value<int>(Method(list.Get(),"GetItemLevelRequirement",2),list.Get(),a);});if(at>bestLevel){bestLevel=at;best=sub;}}
+                if(best<0)throw std::runtime_error("no base of this type");
+                void* generator=Get<void*>(actor,F("Actor","generateItems"));
+                bool no=false;int ilvl=100,location=0,rarity=4,sockets=0,unique=-1,lp=0,rank=0,legendaryType=0,corrupt=0,sub=best;
+                alignas(8) unsigned char faction[8]{},replacement[8]{},corruption[8]{},effectiveness[8]{},special[8]{},minSpecial[8]{},overrideLP[8]{};
+                void* g[]{&no,&ilvl,&no,&location,&type,&sub,&rarity,&sockets,&unique,&no,&lp,faction,&rank,&no,&legendaryType,&no,
+                    replacement,corruption,&corrupt,effectiveness,nullptr,nullptr,special,&no,minSpecial,overrideLP};
+                Root item(Invoke(game::FindMethod("LE.dll","","GenerateItems","initialiseRandomItemData",26),generator,g));
+                int amount=1,context=0;void* add[]{item.Get(),&amount,&context};
+                const bool added=Value<bool>(Method(inventory,"TryAddItem",3),inventory,add);
+                return "{\"ok\":true,\"added\":"+std::string(Boolean(added))+",\"subType\":"+std::to_string(best)+",\"baseLevel\":"+std::to_string(bestLevel)+",\"required\":"+std::to_string(required(item.Get()))+",\"characterLevel\":"+std::to_string(level)+"}";
+            }
+            if(action=="level-equip"){
+                Root content(Invoke(Method(inventory,"GetContent",0),inventory));
+                std::vector<std::unique_ptr<Root>> entries;for(void* e:Entries(content.Get()))if(e)entries.push_back(std::make_unique<Root>(e));
+                std::string out="{\"ok\":true,\"characterLevel\":"+std::to_string(level)+",\"tried\":[";
+                for(auto& e:entries){void* data=Get<void*>(e->Get(),F("ItemContainerEntry","data"));if(!data||!Value<bool>(Method(data,"isEquipment",0),data)||required(data)<=level)continue;
+                    struct Cell{int x,y;} at=Get<Cell>(e->Get(),F("ItemContainerEntry","<Position>k__BackingField"));int inventoryId=1;bool alternative=false;
+                    void* a[]{&inventoryId,&at,&alternative};const bool equipped=Value<bool>(Method(containers,"TryQuickEquip",3),containers,a);
+                    if(out.back()!='[')out+=',';out+="{\"type\":"+std::to_string(Get<uint8_t>(data,F("ItemData","itemType")))+",\"required\":"+std::to_string(required(data))+",\"equipped\":"+Boolean(equipped)+"}";}
+                return out+"],\"levelAllowed\":"+std::to_string(levelAllowed.load())+"}";
+            }
+            if(action=="level-worn"){
+                void* manager=EquipManager();if(!manager)throw std::runtime_error("equip manager unavailable");
+                std::string out="{\"ok\":true,\"characterLevel\":"+std::to_string(level)+",\"worn\":[";
+                for(void* item:Entries(Get<void*>(manager,F("ItemEquipManager","equippedItems")))){if(!item)continue;
+                    void* unpacked=Get<void*>(item,F("ItemEquipManager.EquippedItem","Item"));if(!unpacked)continue;
+                    if(out.back()!='[')out+=',';out+="{\"type\":"+std::to_string(Get<uint8_t>(unpacked,F("ItemData","itemType")))+",\"required\":"+std::to_string(required(unpacked))+",\"statsApplied\":"+Boolean(Get<bool>(item,F("ItemEquipManager.EquippedItem","StatsApplied")))+"}";}
+                return out+"]}";
+            }
+            throw std::runtime_error("unknown level test action");
         }
         if(action=="creation-probe"){
             std::string why;if(!hook::Install(constructionRef.code,reinterpret_cast<void*>(&ConstructionDetour),reinterpret_cast<void**>(&originalConstruction),&why))throw std::runtime_error(why);

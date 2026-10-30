@@ -219,6 +219,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `craft_materials` — Maximize crafting materials | `craftmaterials {save_id} {value}` | value: 1…1000000 | 10000 | Oyun kaydı |
 | `craft_fp` — FP maliyet katsayısı | `craftfp {value}` | value: 0…1 | 1 | Oturum |
 | `craft_t7` — Craft affixes up to T7 | `craftt7 {value}` | value: 0…1 | 0 | Oturum |
+| `craft_corrupted` — Craft corrupted items | `craftcorrupted {value}` | value: 0…1 | 0 | Oturum |
 | `craft_hope` — Glyph of Hope FP koruma ihtimali | `crafthope {value}` | value: 0…100/reset | — | Oturum |
 | `craft_despair` — Glyph of Despair seal ihtimali | `craftdespair {value}` | value: 0…100/reset | — | Oturum |
 | `craft_shards` — Craft sırasında affix shard koru | `craftshards {value}` | value: 0…1 | 0 | Oturum |
@@ -237,6 +238,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Maximize crafting materials:** Raise each current crafting shard, rune and glyph to at least the chosen quantity. Existing higher quantities are kept. Creates a recovery backup; the normal offline stash save retains these quantities without the mod. Shared stash characters share this stock. API: `tools.loot_crafting_backend.maximize_materials(save_id, value)`.
 - **FP maliyet katsayısı:** 0 ücretsiz, 1 normal; örnek 0.5 yarı maliyet, yukarı yuvarlanır. FP üretmez, native eligibility korunur. API: `tools.loot_crafting_backend.fp_factor(value)`. Reset: `craftfp 1`.
 - **Craft affixes up to T7:** Upgrade existing unsealed T5 and T6 affixes one tier at a time with their shards. Stops at T7. T6/T7 upgrades use plain shards or Basic Glyph of Hope; other glyphs retain normal limits. Material, FP and level requirements remain. API: `tools.loot_crafting_backend.allow_t7(value)`. Reset: `craftt7 0`.
+- **Craft corrupted items:** Craft a corrupted item in the forge as before it was corrupted. It has no Forging Potential left, so a craft costs none (the forge shows 1), and the item stays corrupted. API: `tools.loot_crafting_backend.allow_corrupted(value)`. Reset: `craftcorrupted 0`.
 - **Glyph of Hope FP koruma ihtimali:** Yüzde 0–100 veya reset; native glyph/affix uygunluğu gerekir. Despair T1–T4; Greater Hope ayrı desteklenmez. API: `tools.loot_crafting_backend.glyph_chance("hope", value)`. Reset: `crafthope reset`.
 - **Glyph of Despair seal ihtimali:** Yüzde 0–100 veya reset; native glyph/affix uygunluğu gerekir. Despair T1–T4; Greater Hope ayrı desteklenmez. API: `tools.loot_crafting_backend.glyph_chance("despair", value)`. Reset: `craftdespair reset`.
 - **Craft sırasında affix shard koru:** Gerçekten tüketilen bir shardı normal AddShard API ile geri verir. API: `tools.loot_crafting_backend.preserve_shards(value)`. Reset: `craftshards 0`.
@@ -437,6 +439,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `build_offhand` — Unrestricted offhand equipment | `buildset offhand {value}` | value: 0…1 | 0 | Oturum |
 | `build_fullsets` — Full set bonuses from one piece | `buildset fullsets {value}` | value: 0…1 | 0 | Oturum |
 | `build_primordials` — Wear any number of primordial items | `buildset primordials {value}` | value: 0…1 | 0 | Oturum |
+| `build_anylevel` — Wear gear above your level | `buildset anylevel {value}` | value: 0…1 | 0 | Oturum |
 | `transmog_read` — Item looks | `transmogread` | — | — | Okuma |
 | `transmog_mirror` — Character mirror | `transmogshot {yaw}` | yaw: -360…360 | — | Okuma |
 | `transmog_set` — Change an item's look | `transmog {slot} {look}` | slot: helmet/body/gloves/boots/belt/weapon/offhand/all; look: single_token | — | Yüklü aktör |
@@ -444,6 +447,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Unrestricted offhand equipment:** Allow weapons in the offhand and remove linked two-handed equipment conflicts. Normal level and class requirements still apply. Reset: `buildset offhand 0`.
 - **Full set bonuses from one piece:** Activate the missing bonuses of each equipped set. Removing its last piece removes the bonuses. Reset: `buildset fullsets 0`.
 - **Wear any number of primordial items:** Wear more than one primordial item (Primordial Unique or Exalted) and get the bonuses of all of them. Switched off, the game's limit of one returns: while you wear more, their bonuses stop until you take the extra items off. Reset: `buildset primordials 0`.
+- **Wear gear above your level:** Equip items whose level requirement is above your character's level. Class, faction and the other requirements stay. Switched off, what you already wear stays on; new items need the level again. Reset: `buildset anylevel 0`.
 - **Item looks:** Read the looks of the equipped items: each visible slot's item, the look it shows and the looks that fit.
 - **Character mirror:** A picture of the loaded character, from the front or turned, with the looks it wears.
 - **Change an item's look:** Make an equipped item look like another item of the same type: any base item or Unique of that type, with the game's own art. The look stays when you change zone or equip another item of that type, until you set it back to the item's own look. Shop cosmetics are not touched. Remembered per character by EpochPact. Slot all with none takes every look off.

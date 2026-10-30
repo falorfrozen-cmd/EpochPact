@@ -65,6 +65,7 @@ sayısının garantisi değildir.
 | `craftshards 0` | Normal shard tüketimi |
 | `craftrunes 0\|1` | Normal tüketim / gerçekten tüketilen bir rune'u geri ver |
 | `craftglyphs 0\|1` | Normal tüketim / gerçekten tüketilen bir glyph'i geri ver |
+| `craftcorrupted 0\|1` | Normal / bozulmuş (corrupted) eşya Forge'da corrupted olmadan önceki gibi craft edilir; FP harcamaz, corrupted kalır |
 | `craftt7 0\|1` | Normal T5 cap / opt-in shard upgrades of existing T5/T6 affixes to T6/T7; plain shards or Basic Hope, other glyphs retain native limits |
 | `craftlevel 0\|1` | Normal affix yükseltme seviye sınırı / sadece yerel Forge uygunluk kontrolünde sınırı kaldır |
 | `craftforge <offline save id>` | Seçili eşya ve materyalle bir normal Forge işlemi; öncesinde canlı eşya/kayıt yedeği |

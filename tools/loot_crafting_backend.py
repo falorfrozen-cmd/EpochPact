@@ -120,6 +120,10 @@ def allow_t7(value: bool) -> dict:
     return ipc.request(f"craftt7 {_toggle(value)}")
 
 
+def allow_corrupted(value: bool) -> dict:
+    return ipc.request(f"craftcorrupted {_toggle(value)}")
+
+
 def reveal_map(value: bool) -> dict:
     return ipc.request(f"mapreveal {_toggle(value)}")
 

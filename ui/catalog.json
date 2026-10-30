@@ -502,6 +502,33 @@
       "documentation": "docs/build-controls.md"
     },
     {
+      "id": "build_anylevel",
+      "group": "equipment",
+      "label": "Wear gear above your level",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "buildset anylevel {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "buildset anylevel 0",
+      "lifetime": "session",
+      "description": "Equip items whose level requirement is above your character's level. Class, faction and the other requirements stay. Switched off, what you already wear stays on; new items need the level again.",
+      "currentSource": "liveState.buildread.settings.anylevel.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
       "id": "transmog_read",
       "group": "equipment",
       "label": "Item looks",
@@ -3393,6 +3420,34 @@
       "lifetime": "session",
       "description": "Upgrade existing unsealed T5 and T6 affixes one tier at a time with their shards. Stops at T7. T6/T7 upgrades use plain shards or Basic Glyph of Hope; other glyphs retain normal limits. Material, FP and level requirements remain.",
       "currentSource": "liveState.craftread.allowT7",
+      "requirements": [
+        "offline",
+        "loaded_actor"
+      ],
+      "documentation": "docs/loot-crafting.md"
+    },
+    {
+      "id": "craft_corrupted",
+      "group": "crafting",
+      "label": "Craft corrupted items",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "craftcorrupted {value}",
+      "pythonApi": "tools.loot_crafting_backend.allow_corrupted(value)",
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "craftcorrupted 0",
+      "lifetime": "session",
+      "description": "Craft a corrupted item in the forge as before it was corrupted. It has no Forging Potential left, so a craft costs none (the forge shows 1), and the item stays corrupted.",
+      "currentSource": "liveState.craftread.allowCorrupted",
       "requirements": [
         "offline",
         "loaded_actor"
@@ -34808,7 +34863,7 @@
     ]
   },
   "counts": {
-    "controls": 216,
+    "controls": 218,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,
