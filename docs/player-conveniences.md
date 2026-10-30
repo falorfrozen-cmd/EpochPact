@@ -1019,6 +1019,13 @@ Three player requests:
   gets). 629 of the 1156 affixes in 1.5.3 belong to one class or more. The Custom Items affix list (F6 and
   the app) shows them in a gold tag at the right ("Primalist"); the wanted-affix lists (Loot & Pickup,
   Weaver's Will) add " · Mage" to the name.
+- **Custom Items lists equipment affixes only.** A player chose "Ward Per Second" for a dagger and it
+  stopped at T1: that one is an idol affix (id 178, Grand and Ornate Idols, one tier), beside the
+  equipment's "Ward per Second" (id 382, Helmet, Body Armor, Off-Hand Catalyst, eight tiers). In 1.5.3
+  all 664 affixes that roll on equipment have eight tiers and all 423 one-tier affixes are idol-only.
+  `lootread` marks an affix whose `canRollOn` holds only idols and idol altars (EquipmentType 25-33, 41)
+  `"idol": true`; Custom Items leaves those out (the forge item is always equipment). The other affix
+  lists keep them (idol altars roll affixes with eight tiers).
 - **Wear gear above your level** (`buildset anylevel 0|1`, Equipment rules): see
   `docs/build-controls.md`.
 - **Craft corrupted items** (`craftcorrupted 0|1`, Crafting → Forge Settings). Corruption is the

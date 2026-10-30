@@ -292,6 +292,8 @@ void ParseCatalog(std::vector<std::string> replies) {
             data->items.push_back(std::move(it));
         }
         for (const auto& x : v[1]["affixes"].items) {
+            // an idol's affix never rolls on equipment (and has one tier): left out
+            if (x["idol"].IsBool() && x["idol"].boolean) continue;
             Affix a;
             a.id = IdOf(x.Find("id"));
             a.name = Clean(x["name"].Str());
