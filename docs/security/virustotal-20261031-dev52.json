@@ -1,0 +1,51 @@
+{
+  "version": "0.1.2-dev.52",
+  "observed": "2026-10-31 (UTC+03:00), fresh uploads through the VirusTotal web interface",
+  "build": "fix52 commit ed823bd (player flavor; build-info loaderSha256 = version.dll below); the desktop edition from the same player files",
+  "files": {
+    "version.dll": {
+      "sha256": "4f7f2ca55c8f306e91536ba6fa09135b89ca387ba1461bc588eb7fb5b4ae0c1f",
+      "bytes": 8506368,
+      "in": [
+        "EpochPact-0.1.2-dev.52-InGame.zip",
+        "EpochPact-0.1.2-dev.52.zip (Manual Installation and the app's player files)"
+      ],
+      "virusTotal": "0/70 (Kaspersky undetected)",
+      "report": "https://www.virustotal.com/gui/file/4f7f2ca55c8f306e91536ba6fa09135b89ca387ba1461bc588eb7fb5b4ae0c1f"
+    },
+    "EpochPact.Core.dll": {
+      "sha256": "71f5711965348bf82a1864c90c8396462f2342ad29edfabe6cbd747aca050f92",
+      "bytes": 8497152,
+      "in": [
+        "EpochPact-0.1.2-dev.52.zip (MelonLoader path)"
+      ],
+      "virusTotal": "not uploaded (desktop edition only; not on Nexus)"
+    },
+    "EpochPact.exe": {
+      "sha256": "82ad612f609d73308d9462ee4ed27618ca3d08abb50ae6f2bbe6570efc8df428",
+      "bytes": 372347,
+      "in": [
+        "EpochPact-0.1.2-dev.52.zip"
+      ],
+      "virusTotal": "not uploaded (desktop edition only; not on Nexus)"
+    }
+  },
+  "packages": {
+    "EpochPact-0.1.2-dev.52-InGame.zip": {
+      "sha256": "8cf1a38c6cd98a5d439ba1f06615a118a0ba0f78989c69eb28f6074b6c516ed7",
+      "bytes": 3672787,
+      "virusTotal": "0/67 (Kaspersky undetected)",
+      "report": "https://www.virustotal.com/gui/file/8cf1a38c6cd98a5d439ba1f06615a118a0ba0f78989c69eb28f6074b6c516ed7",
+      "localDefender": "No threats found"
+    },
+    "EpochPact-0.1.2-dev.52.zip": {
+      "sha256": "421f29f43c71fbe55bce27eb66158ff8a241a42d366058d8ffbf188b1c0b9514",
+      "bytes": 36661373,
+      "virusTotal": "not uploaded (over the 10 MB browser upload limit)",
+      "localDefender": "No threats found (folder and ZIP)"
+    }
+  },
+  "localDefender": "signatures 1.463.34.0: the InGame package folder, the desktop folder and the desktop ZIP found no threats",
+  "checks": "package_ingame_player and package_player_folder verified; verify_player_package and verify_connection_package passed; Python 396, JavaScript 245, native 26 tests; shipping check builds\\dev52-final-live; feature checks builds\\convert-live1 (Throwing Damage refused on a body armor, kept on a belt, restart), builds\\convert-ui1 (F6 Custom Items list)",
+  "note": "Scan counts describe these exact bytes on this date only; they are not a safety certification."
+}
