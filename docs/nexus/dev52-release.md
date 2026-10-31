@@ -65,3 +65,13 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 > **Desktop app (EXE):** in EpochPact open *What's new → Install update*, or download it here:
 > https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.52
 > **Manual install, no EXE:** download the main file from Nexus (https://www.nexusmods.com/lastepoch/mods/44?tab=files) or `EpochPact-0.1.2-dev.52-InGame.zip` from the GitHub link above, and copy the new `version.dll` over the old one.
+
+## Published 2026-10-31 (owner: "yayınla, nexus'a da yükle")
+
+- GitHub: release `v0.1.2-dev.52` (Latest, not a prerelease) with both ZIPs; the asset digests are the SHA-256 values
+  above; target and `main` = 20b4451 (fast-forward from 33a14d0). `/releases/latest` lists
+  `EpochPact-0.1.2-dev.52.zip`, so the app's updater offers it.
+- Nexus mod 44: main file "EpochPact - in-game edition (manual install)" updated to 0.1.2-dev.52 with the InGame ZIP
+  (dev.51 archived), mod version 0.1.2-dev.52, the two changelog lines above; description lines changed (version,
+  Safety with VirusTotal 0/70 and 0/67). The public page shows the new version and description.
+- Discord: the owner sends the announcement (draft above).
