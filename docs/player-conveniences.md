@@ -1085,6 +1085,12 @@ Four player requests:
   same after a restart; tiers changed in place, back to T8; level 55 -> 58 (lower refused), kept after a
   restart; a Small Eterran Idol with four chosen affixes, a Twisted Altar with four T8 and a helmet with
   seven T8 spawned, picked up and kept after a restart; a Unique refused for chosen affixes.
+- **Omen idols** (0.1.2-dev.54, player report: "Increased Lightning Damage (Doubled If You Have Over 300 Max Mana)" missing
+  for a Large Arcane Omen Idol): the game's `Affix.CanRollOnItemType` also asks
+  `SubTypeGroupExtensionMethods.CanRollOn` when `canRollOn` lacks the item type. A Large Omen Idol (type 30, subtypes 10-14
+  and 17, group 2) also rolls the Huge and Adorned Idols' affixes, a Grand Omen Idol (type 29, group 1) the Ornate and
+  Adorned Idols'. `lootread` gives each affix its `groups`, `spawnlist` each Omen base its `group`
+  (`GetSubTypeGroup`), and the affix list offers an affix when `rollsOn` has the type or `groups` has the base's group.
 
 ## MelonLoader installation
 

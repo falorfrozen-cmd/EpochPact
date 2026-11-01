@@ -36,11 +36,12 @@ READ_COMMANDS = (
 FLOAT_MAX = 3.4028234663852886e38
 
 
-def parameter(name, kind, minimum=None, maximum=None, *, choices=None, source=None):
+def parameter(name, kind, minimum=None, maximum=None, *, choices=None, source=None, default=None):
     result = {"name": name, "type": kind}
     if minimum is not None: result["minimum"] = minimum
     if maximum is not None: result["maximum"] = maximum
     if choices is not None: result["choices"] = choices
+    if default is not None: result["default"] = default  # sent when the caller leaves the parameter out
     if source: result["optionsSource"] = source
     return result
 
@@ -513,15 +514,15 @@ def controls():
         "Open the game's first mastery selection screen after the mastery quest is completed. Choose and confirm in the game. Existing masteries, passive allocations and rewards are unchanged by opening the screen.",
         params=[save_id], api="tools.progression_backend.open_mastery(save_id)",
         requires=("loaded_id_matches", "progressread.mastery.available=true"), doc="docs/progression.md")
-    for id, label, cmd, description in (
-        ("campaign_complete", "Ana + yan kampanyayı tamamla, en az seviye 55", "questscomplete",
-         "Henüz bitmemiş eligible kampanya görevleri ve normal ödülleri; minimum 55; End of Time, MonolithHub, M_Rest waypointleri. Tekrar ödül vermez."),
-        ("waypoints_unlock", "Tüm gerçek waypointleri aç", "waypointsunlock",
-         "Gerçek waypoint sahnelerini açar; Monolith timeline difficulty unlock ayrı işlemdir."),
-    ):
-        add(id, "campaign", label, "button", cmd + " {save_id}", "game_save", description,
-            params=[save_id], api=f'tools.progression_backend.apply("{cmd}", save_id)',
-            requires=("loaded_id_matches", "snapshot_before_write"), doc="docs/progression.md")
+    add("campaign_complete", "campaign", "Ana + yan kampanyayı tamamla", "button", "questscomplete {save_id} {level_mode}", "game_save",
+        "Henüz bitmemiş eligible kampanya görevleri ve normal ödülleri; level_mode raise: en az seviye 55, keep: görev XP'si yok, seviye aynı kalır; End of Time, MonolithHub, M_Rest waypointleri. Tekrar ödül vermez.",
+        params=[save_id, parameter("level_mode", "enum", choices=["raise", "keep"], default="raise")],
+        api='tools.progression_backend.apply("questscomplete", save_id, level_mode)',
+        requires=("loaded_id_matches", "snapshot_before_write"), doc="docs/progression.md")
+    add("waypoints_unlock", "campaign", "Tüm gerçek waypointleri aç", "button", "waypointsunlock {save_id}", "game_save",
+        "Gerçek waypoint sahnelerini açar; Monolith timeline difficulty unlock ayrı işlemdir.",
+        params=[save_id], api='tools.progression_backend.apply("waypointsunlock", save_id)',
+        requires=("loaded_id_matches", "snapshot_before_write"), doc="docs/progression.md")
     add("character_level", "campaign", "Set character level", "button", "setlevel {save_id} {level}", "game_save",
         "Raise the loaded character to a level from 2 to 100 with the game's own level-ups: the passive and attribute points of each level come with them. A lower level is not offered. Creates a recovery backup.",
         params=[save_id, parameter("level", "integer", 2, 100)], api="tools.progression_backend.set_level(save_id, level)",
@@ -924,7 +925,7 @@ def guide(catalog):
         "import json", "from pathlib import Path", "from tools import cof_backend, monolith_backend, progression_backend, le_session", "",
         'catalog = json.loads(Path("ui/catalog.json").read_text(encoding="utf-8"))',
         "", "def on_complete_campaign_click():", '    save_id = progression_backend.read()["player"]["id"]',
-        '    return progression_backend.apply("questscomplete", save_id)', "",
+        '    return progression_backend.apply("questscomplete", save_id, "raise")', "",
         "def on_unlock_waypoints_click():", '    save_id = progression_backend.read()["player"]["id"]',
         '    return progression_backend.apply("waypointsunlock", save_id)', "",
         "def on_reward_multiplier_change(value):", '    return cof_backend.reward_multiplier(value)', "",

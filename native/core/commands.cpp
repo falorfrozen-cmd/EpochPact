@@ -343,7 +343,12 @@ std::string Execute(const std::string& line) {
     if (cmd == "densityread") return args.empty() ? density::Read() : "densityread: refused: no arguments expected";
     if (cmd == "progressread") return args.empty() ? progression::Read() : "progressread: refused: no arguments expected";
     if (cmd == "identityread") return args.empty() ? progression::Identity() : "identityread: refused: no arguments expected";
-    if (cmd == "questscomplete") return args.size() == 1 ? progression::Complete(args[0]) : "questscomplete: refused: use questscomplete <offline save id from progressread>";
+    if (cmd == "questscomplete") {
+        // raise (the default): at least level 55; keep: the current level, no quest experience
+        if (args.size() == 1 || (args.size() == 2 && (args[1] == "raise" || args[1] == "keep")))
+            return progression::Complete(args[0], args.size() == 2 && args[1] == "keep");
+        return "questscomplete: refused: use questscomplete <offline save id from progressread> [raise|keep]";
+    }
     if (cmd == "masteryopen") return args.size() == 1 ? progression::OpenMastery(args[0]) : "{\"ok\":false,\"error\":\"use masteryopen <offline save id from progressread>\"}";
     if (cmd == "waypointsunlock") return args.size() == 1 ? progression::UnlockWaypoints(args[0]) : "waypointsunlock: refused: use waypointsunlock <offline save id from progressread>";
     if (cmd == "setlevel") {

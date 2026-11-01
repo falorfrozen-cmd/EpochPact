@@ -234,8 +234,8 @@
       "Reads the loaded character's identity, level, XP, quest rewards, eligibility and actual waypoint scenes."
     ],
     "campaign_complete": [
-      "Complete main + side campaign · level 55 minimum",
-      "Completes unfinished eligible campaign quests with their normal rewards and raises the character to at least level 55. Unlocks End of Time, MonolithHub and M_Rest waypoints. Completed quests do not grant rewards again. If you have no mastery, use Choose Mastery afterward."
+      "Complete main + side campaign",
+      "Completes unfinished eligible campaign quests with their normal rewards and unlocks End of Time, MonolithHub and M_Rest waypoints. Character level: Raise to at least level 55 (the default) also raises the character to at least level 55; Keep my current level finishes the campaign without quest experience, so the level stays (passive points, idol slots, gold and attributes still come). Completed quests do not grant rewards again. If you have no mastery, use Choose Mastery afterward."
     ],
     "character_level": [
       "Set character level",

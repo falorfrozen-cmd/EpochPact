@@ -13,6 +13,14 @@ Genel mod arayüzünün tasarımı ayrı bir sonraki çalışma olarak kalıyor.
   kurallarıyla verilir. Ardından karakter, kullanıcının seçimi doğrultusunda en az
   **55. seviyeye** çıkarılır. 55 veya üzerindeki karakterin seviyesi düşürülmez.
   End of Time, MonolithHub ve Council Chambers (`M_Rest`) waypointleri de açılır.
+  **Character level** seçimi (0.1.2-dev.54, oyuncu isteği "kampanyayı seviye 1'de
+  bitirmek"): *Raise to at least level 55* (varsayılan) yukarıdaki gibidir; *Keep my
+  current level (no quest XP)* görev XP'sini vermez ve 55 desteğini atlar, seviye ve XP
+  aynı kalır. Oyun görev XP'sini `StatefulQuestList.onQuestCompletion` içinde yalnız
+  `Quest.experienceReward` 0'dan büyükse verir; bu alan her görevin `completeQuest`
+  çağrısı süresince 0 yapılıp hemen geri konur. Pasif puan, idol yuvası, altın ve
+  attribute ödülleri ayrı alanlardır ve normal gelir. Her görevden sonra XP'nin
+  değişmediği kontrol edilir; değişirse işlem durur (o ana kadarki ilerleme kaydedilir).
 - **Tüm waypointleri aç:** çalışma anındaki dünya haritasından gerçek sahnesi ve
   waypointi olan hedefleri bulup `CharacterData.AddUnlockedWaypointScene` ile açar.
   `UIWaypoint.CheckWaypoint` simgeleri anında yeniler. Sadece geçiş/sahne simgesi
@@ -69,7 +77,7 @@ MonolithHub'a taşıyarak doğrulandı.
 ```text
 progressread
 masteryopen <loaded offline save id from progressread>
-questscomplete <progressread içindeki çevrimdışı kayıt id'si>
+questscomplete <progressread içindeki çevrimdışı kayıt id'si> [raise|keep]
 waypointsunlock <progressread içindeki çevrimdışı kayıt id'si>
 setlevel <progressread içindeki çevrimdışı kayıt id'si> <2-100>
 ```

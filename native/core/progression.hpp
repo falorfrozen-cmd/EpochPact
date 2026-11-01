@@ -5,7 +5,8 @@ namespace ep::progression {
 bool Init();
 std::string Read();
 std::string Identity();
-std::string Complete(const std::string& expectedId);
+// The campaign with its normal rewards; keepLevel: no quest experience and no level-55 top-up.
+std::string Complete(const std::string& expectedId, bool keepLevel = false);
 std::string UnlockWaypoints(const std::string& expectedId);
 // Raise the character to a level (2-100) after a recovery backup; a lower level is refused.
 std::string SetLevel(const std::string& expectedId, int target);

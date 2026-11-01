@@ -3735,8 +3735,8 @@ std::string Panel(const std::string& action) {
         }
         if (name.rfind("click:", 0) == 0) {
             const auto control=name.substr(6);
-            const bool save=control=="craft_materials" || control=="craft_forge" || control=="craft_custom" || control=="craft_tiers";
-            const bool view=control=="craft_custom_catalog" || control=="spawn_list" || control=="spawn_item" || control.rfind("spawn-",0)==0 || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0 || control.rfind("tiers-",0)==0
+            const bool save=control=="craft_materials" || control=="craft_forge" || control=="craft_custom" || control=="craft_tiers" || control=="campaign_complete";
+            const bool view=control=="craft_custom_catalog" || control=="spawn_list" || control=="spawn_item" || control.rfind("spawn-",0)==0 || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0 || control.rfind("tiers-",0)==0 || control=="campaign_complete-level_mode"
                 || control=="transmog_read" || control.rfind("transmog-",0)==0 || control.rfind("mirror-",0)==0 || control.rfind("wardrobe-",0)==0;
             if (!save && !view) throw std::runtime_error("Control not in QA allowlist");
             if (win.dialogOpen || win.listOpen) throw std::runtime_error("Dismiss the current dialog first");

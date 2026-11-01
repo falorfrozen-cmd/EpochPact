@@ -1081,8 +1081,13 @@ test('dev.53 panels: affix tiers in place, Spawn with chosen affixes and Set cha
  assert.match(html,/data-spawn-affix value="5"/);assert.doesNotMatch(html,/data-spawn-affix value="6"/,'only the affixes the base rolls');
  h.run(`spawnDraft.affixes=[{id:5,tier:8}];spawnDraft.roll='r'`);assert.equal(h.run('spawnAffixToken()'),'5:8:r');
  h.run(`spawnDraft.item='u5';spawnAffixType=0;updateSpawnUi()`);assert.equal(h.run('spawnBaseType()'),null);
+ // an Omen idol also rolls its subtype group's affixes (Large Omen: the Huge and Adorned Idols')
+ h.run(`cache.spawn_list={player:{id:'0'},bases:[{type:30,sub:11,name:'Large Arcane Omen Idol',baseType:'Large Idol',level:0,maxAffixes:2,group:2},{type:30,sub:0,name:'Large Idol',baseType:'Large Idol',level:0,maxAffixes:2}],uniques:[],affixes:[{id:254,name:'Lightning',tiers:1,rollsOn:[29,31,33],groups:[1,2]},{id:255,name:'Cold',tiers:1,rollsOn:[30,32],groups:[2]},{id:7,name:'Grand only',tiers:1,rollsOn:[29,31],groups:[1]}]};spawnDraft.item='b30.11'`);
+ assert.deepEqual(JSON.parse(h.run('JSON.stringify(spawnAffixEntries().map(a=>a.id))')),[254,255]);
+ h.run(`spawnDraft.item='b30.0'`);assert.deepEqual(JSON.parse(h.run('JSON.stringify(spawnAffixEntries().map(a=>a.id))')),[255],'a plain Large Idol keeps its own list');
  h.run(`cache.progress_read={player:{id:'0',level:58}};page='campaign';shippingRenderPage()`);
  html=h.element('#page-content').innerHTML;
  assert.match(html,/data-id="character_level"/);assert.match(html,/name="level"[^>]*value="59"/);
+ assert.match(html,/<select name="level_mode"><option value="raise" >Raise to at least level 55<\/option><option value="keep" >Keep my current level \(no quest XP\)<\/option>/);
  assert.equal(h.calls.length,0,'rendering sends nothing');
 });

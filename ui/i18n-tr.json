@@ -1932,5 +1932,13 @@
 "Changes only the tiers of the item in the game’s forge. A recovery backup is created.": "Yalnızca oyunun forge'undaki eşyanın tier'larını değiştirir. Bir kurtarma yedeği oluşturulur.",
 "Raise the character level?": "Karakter seviyesi yükseltilsin mi?",
 "Level {0} → {1}": "Seviye {0} → {1}",
-"The passive and attribute points of each level come with it. A recovery backup is created.": "Her seviyenin pasif ve attribute puanları da gelir. Bir kurtarma yedeği oluşturulur."
+"The passive and attribute points of each level come with it. A recovery backup is created.": "Her seviyenin pasif ve attribute puanları da gelir. Bir kurtarma yedeği oluşturulur.",
+"Complete main + side campaign": "Ana + yan kampanyayı tamamla",
+"Completes unfinished eligible campaign quests with their normal rewards and unlocks End of Time, MonolithHub and M_Rest waypoints. Character level: Raise to at least level 55 (the default) also raises the character to at least level 55; Keep my current level finishes the campaign without quest experience, so the level stays (passive points, idol slots, gold and attributes still come). Completed quests do not grant rewards again. If you have no mastery, use Choose Mastery afterward.": "Bitmemiş uygun kampanya görevlerini normal ödülleriyle tamamlar ve End of Time, MonolithHub ve M_Rest ışınlanma noktalarının kilidini açar. Karakter seviyesi: En az 55. seviyeye çıkar (varsayılan) karakteri en az 55. seviyeye de çıkarır; Mevcut seviyemi koru kampanyayı görev XP'si almadan bitirir, böylece seviye aynı kalır (pasif puanlar, idol yuvaları, altın ve nitelikler yine gelir). Tamamlanmış görevler tekrar ödül vermez. Mastery'niz yoksa ardından Mastery seç işlemini kullanın.",
+"Character level": "Karakter seviyesi",
+"Raise to at least level 55": "En az 55. seviyeye çıkar",
+"Keep my current level (no quest XP)": "Mevcut seviyemi koru (görev XP'si yok)",
+"Campaign completed with normal rewards. Your level was kept.": "Kampanya normal ödüllerle tamamlandı. Seviyeniz korundu.",
+"Campaign completed with normal rewards. Your level was kept. Use Choose Mastery to finish your character.": "Kampanya normal ödüllerle tamamlandı. Seviyeniz korundu. Karakterinizi tamamlamak için Mastery seç düğmesini kullanın.",
+"Completion grants normal rewards and, unless you choose Keep my current level, raises the character to at least level 55. Completed quests do not grant rewards again. Test, repeatable and endgame quests are excluded.": "Tamamlama normal ödülleri verir ve Mevcut seviyemi koru seçilmedikçe karakteri en az 55. seviyeye çıkarır. Tamamlanmış görevler tekrar ödül vermez. Test, tekrarlanabilir ve oyun sonu görevleri hariçtir."
 }

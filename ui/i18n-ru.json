@@ -1932,5 +1932,13 @@
 "Changes only the tiers of the item in the game’s forge. A recovery backup is created.": "Меняет только тиры предмета в Кузнице игры. Создаётся резервная копия для восстановления.",
 "Raise the character level?": "Повысить уровень персонажа?",
 "Level {0} → {1}": "Уровень {0} → {1}",
-"The passive and attribute points of each level come with it. A recovery backup is created.": "Очки пассивных умений и характеристик каждого уровня тоже начисляются. Создаётся резервная копия для восстановления."
+"The passive and attribute points of each level come with it. A recovery backup is created.": "Очки пассивных умений и характеристик каждого уровня тоже начисляются. Создаётся резервная копия для восстановления.",
+"Complete main + side campaign": "Завершить основную + побочную кампанию",
+"Completes unfinished eligible campaign quests with their normal rewards and unlocks End of Time, MonolithHub and M_Rest waypoints. Character level: Raise to at least level 55 (the default) also raises the character to at least level 55; Keep my current level finishes the campaign without quest experience, so the level stays (passive points, idol slots, gold and attributes still come). Completed quests do not grant rewards again. If you have no mastery, use Choose Mastery afterward.": "Завершает незаконченные доступные задания кампании с обычными наградами и открывает путевые точки Конец времён, MonolithHub и M_Rest. Уровень персонажа: «Поднять минимум до 55 уровня» (по умолчанию) также поднимает персонажа минимум до 55 уровня; «Сохранить текущий уровень» завершает кампанию без опыта за задания, и уровень не меняется (очки пассивок, ячейки идолов, золото и характеристики всё равно выдаются). Выполненные задания повторно наград не дают. Если у вас нет мастерства, затем используйте действие «Выбрать мастерство».",
+"Character level": "Уровень персонажа",
+"Raise to at least level 55": "Поднять минимум до 55 уровня",
+"Keep my current level (no quest XP)": "Сохранить текущий уровень (без опыта за задания)",
+"Campaign completed with normal rewards. Your level was kept.": "Кампания пройдена с обычными наградами. Уровень сохранён.",
+"Campaign completed with normal rewards. Your level was kept. Use Choose Mastery to finish your character.": "Кампания пройдена с обычными наградами. Уровень сохранён. Нажмите «Выбрать мастерство», чтобы завершить развитие персонажа.",
+"Completion grants normal rewards and, unless you choose Keep my current level, raises the character to at least level 55. Completed quests do not grant rewards again. Test, repeatable and endgame quests are excluded.": "Завершение даёт обычные награды и, если не выбрано «Сохранить текущий уровень», поднимает персонажа минимум до 55-го уровня. Уже выполненные задания повторно наград не дают. Тестовые, повторяемые задания и задания эндгейма не учитываются."
 }

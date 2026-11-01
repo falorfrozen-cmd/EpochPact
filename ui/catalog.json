@@ -4915,23 +4915,32 @@
     {
       "id": "campaign_complete",
       "group": "campaign",
-      "label": "Ana + yan kampanyayı tamamla, en az seviye 55",
+      "label": "Ana + yan kampanyayı tamamla",
       "widget": "button",
       "availability": "implemented",
-      "commandTemplate": "questscomplete {save_id}",
-      "pythonApi": "tools.progression_backend.apply(\"questscomplete\", save_id)",
+      "commandTemplate": "questscomplete {save_id} {level_mode}",
+      "pythonApi": "tools.progression_backend.apply(\"questscomplete\", save_id, level_mode)",
       "responseFormat": "json",
       "parameters": [
         {
           "name": "save_id",
           "type": "digit_string",
           "optionsSource": "liveState.progressread.player.id"
+        },
+        {
+          "name": "level_mode",
+          "type": "enum",
+          "choices": [
+            "raise",
+            "keep"
+          ],
+          "default": "raise"
         }
       ],
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "Henüz bitmemiş eligible kampanya görevleri ve normal ödülleri; minimum 55; End of Time, MonolithHub, M_Rest waypointleri. Tekrar ödül vermez.",
+      "description": "Henüz bitmemiş eligible kampanya görevleri ve normal ödülleri; level_mode raise: en az seviye 55, keep: görev XP'si yok, seviye aynı kalır; End of Time, MonolithHub, M_Rest waypointleri. Tekrar ödül vermez.",
       "currentSource": null,
       "requirements": [
         "offline",

@@ -80,7 +80,7 @@ int Integer(const std::string& s) {
     if (error!=std::errc{} || end!=s.data()+s.size()) throw std::runtime_error("expected integer");
     return v;
 }
-struct CatalogAffix { int id; std::string name; size_t tiers; int classes; bool idol; int convertTo; std::vector<int> rollsOn; };
+struct CatalogAffix { int id; std::string name; size_t tiers; int classes; bool idol; int convertTo; std::vector<int> rollsOn, groups; };
 // AffixList.Affix.canRollOn: the EquipmentTypes the affix rolls on.
 std::vector<int> RollsOn(void* affix, size_t rollsOn) {
     void* rolls = Get<void*>(affix, rollsOn);
@@ -109,6 +109,20 @@ std::string Ints(const std::vector<int>& values) {
     for (const int v : values) out += (out.empty() ? "" : ",") + std::to_string(v);
     return "[" + out + "]";
 }
+// The subtype groups an affix also rolls on (SubTypeGroupID: GrandOmenIdols 1, LargeOmenIdols 2). The game's
+// Affix.CanRollOnItemType asks SubTypeGroupExtensionMethods.CanRollOn when canRollOn lacks the item type, so a Large
+// Omen Idol also rolls the Huge and Adorned Idols' affixes and a Grand one the Ornate and Adorned Idols'.
+std::vector<int> Groups(void* affix, size_t rollsOn) {
+    static const auto canRollOn = game::FindMethod("LE.dll", "", "SubTypeGroupExtensionMethods", "CanRollOn", 2);
+    void* rolls = Get<void*>(affix, rollsOn);
+    std::vector<int> groups;
+    if (!canRollOn || !rolls) return groups;
+    for (int group = 1; group <= 2; ++group) {
+        void* args[]{&group, rolls};
+        if (Value<bool>(canRollOn, nullptr, args)) groups.push_back(group);
+    }
+    return groups;
+}
 // With the tier count: Craft from EpochPact offers T8 only where the game has it.
 std::vector<CatalogAffix> AffixCatalog() {
     Root data(Invoke(getAffixes));
@@ -123,7 +137,7 @@ std::vector<CatalogAffix> AffixCatalog() {
         const int target = Get<bool>(a, converts) ? Get<uint16_t>(a, convertTo) : -1;
         const bool idol = IdolOnly(types);
         result.push_back({Get<int>(a,id), Text(Invoke(Method(a,"getAffixDisplayName",0),a)), Entries(Get<void*>(a,tiers)).size(), Get<int>(a,classes), idol, target,
-                          std::move(types)});
+                          std::move(types), Groups(a, rollsOn)});
     }
     return result;
 }
@@ -231,6 +245,7 @@ std::string Read() {
             // the item types it rolls on (Spawn Items lists an idol's or altar's own affixes); for an affix the game
             // converts on the other types, the affix it becomes
             state+=",\"rollsOn\":"+Ints(a.rollsOn);
+            if (!a.groups.empty()) state+=",\"groups\":"+Ints(a.groups);
             if (a.convertTo >= 0) state+=",\"convertTo\":"+std::to_string(a.convertTo);
             state+="}"; }
         return state+"]}";

@@ -36,10 +36,13 @@ def read() -> dict:
     return result
 
 
-def apply(action: str, expected_id: str) -> dict:
+def apply(action: str, expected_id: str, level_mode: str = "raise") -> dict:
+    # level_mode (campaign only): raise = at least level 55, keep = no quest experience, the level stays
     if action not in ("questscomplete", "waypointsunlock") or not re.fullmatch(r"\d+", expected_id):
         raise ValueError("Geçersiz işlem veya karakter kimliği.")
-    return request(f"{action} {expected_id}")
+    if level_mode not in ("raise", "keep") or (action != "questscomplete" and level_mode != "raise"):
+        raise ValueError("Choose Raise to at least level 55 or Keep my current level.")
+    return request(f"{action} {expected_id}" + (" keep" if level_mode == "keep" else ""))
 
 
 def set_level(expected_id: str, level: int) -> dict:
@@ -177,6 +180,8 @@ def main() -> int:
     for name in ("complete", "waypoints"):
         command = sub.add_parser(name)
         command.add_argument("save_id")
+        if name == "complete":
+            command.add_argument("--keep-level", action="store_true", help="no quest experience; the level stays")
     command = sub.add_parser("restore")
     command.add_argument("backup", type=Path)
     args = parser.parse_args()
@@ -185,7 +190,8 @@ def main() -> int:
     elif args.command == "restore":
         result = restore_files(args.backup)
     else:
-        result = apply("questscomplete" if args.command == "complete" else "waypointsunlock", args.save_id)
+        result = apply("questscomplete" if args.command == "complete" else "waypointsunlock", args.save_id,
+                       "keep" if getattr(args, "keep_level", False) else "raise")
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result.get("ok") else 1
 

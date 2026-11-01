@@ -847,6 +847,40 @@ CardMaker LevelCard(int section) {
         }, SaveReason("progressread"), fields);
     };
 }
+// Complete main + side campaign (questscomplete): the card with its Character level select (raise to at least 55, or
+// keep the current level: no quest experience).
+CardMaker CampaignCard(int section) {
+    return [section](const Ctx& cc, float x, float y, float w) {
+        const Control& ctl = Ctl("campaign_complete");
+        const FieldChoices choices = [](const Param& p) {
+            if (p.name != "level_mode") return std::vector<Choice>{};
+            return std::vector<Choice>{{"raise", Tr("Raise to at least level 55")}, {"keep", Tr("Keep my current level (no quest XP)")}};
+        };
+        // the one select takes the card's whole width (ParameterFields lays fields out in two columns), so the longer
+        // choice is not cut short
+        Fields fields = [=](const Ctx& fc, float fx, float fy, float fw) { return ParameterFields(fc, fx, fy, fw * 2 + 14, ctl, choices, {}, section); };
+        return ActionCard(cc, x, y, w, ctl, ActionCaption(ctl), true, [] {
+            const Control& c = Ctl("campaign_complete");
+            std::string line, why;
+            if (!FormCommand(c, &line, &why)) { Toast(why, true); return; }
+            const bool keep = line.size() > 5 && line.compare(line.size() - 5, 5, " keep") == 0;
+            ActionRun run;
+            run.command = line;
+            run.snapshot = "progressread";
+            run.confirmTitle = Tr(c.label);
+            run.confirmMessage = SaveMessage(c) + "\n\n" + Tr("Character level") + ": " + (keep ? Tr("Keep my current level (no quest XP)") : Tr("Raise to at least level 55"));
+            run.success = [keep](const JValue& v) {
+                const JValue* need = v.Path("mastery.needsSelection");
+                const bool mastery = need && need->IsBool() && need->boolean;
+                if (keep) return mastery ? Tr("Campaign completed with normal rewards. Your level was kept. Use Choose Mastery to finish your character.")
+                                         : Tr("Campaign completed with normal rewards. Your level was kept.");
+                return mastery ? Tr("Campaign completed with normal rewards. Use Choose Mastery to finish your character.") : Tr("Campaign completed with normal rewards.");
+            };
+            run.reread = {"progressread"};
+            RunAction(run);
+        }, SaveReason("progressread"), fields);
+    };
+}
 void MakeCampaign(Section& s) {
     s.reads.insert("progressread");
     // the quest table fills over a few frames (85 rows at once would hold one frame for long)
@@ -869,13 +903,7 @@ void MakeCampaign(Section& s) {
             const Control& complete = Ctl("campaign_complete");
             const Control& waypoints = Ctl("waypoints_unlock");
             y += CardGrid(in, kPanelPad, y, kPanelInner,
-                          {SaveCard("campaign_complete", "questscomplete {save_id}", "progressread",
-                                    [](const JValue& v) {
-                                        const JValue* need = v.Path("mastery.needsSelection");
-                                        return need && need->IsBool() && need->boolean ? Tr("Campaign completed with normal rewards. Use Choose Mastery to finish your character.")
-                                                                                       : Tr("Campaign completed with normal rewards.");
-                                    },
-                                    {"progressread"}),
+                          {CampaignCard(self->id),
                            SaveCard("waypoints_unlock", "waypointsunlock {save_id}", "progressread", [](const JValue&) { return Tr("All waypoints unlocked."); },
                                     {"progressread"}),
                            LevelCard(self->id)});
@@ -894,8 +922,8 @@ void MakeCampaign(Section& s) {
                          });
             if (open) {
                 y += 10 + Muted(in.parent, kPanelPad, y + 10, kPanelInner,
-                                Tr("Completion grants normal rewards and raises the character to at least level 55. Completed quests do not grant rewards again. "
-                                   "Test, repeatable and endgame quests are excluded."));
+                                Tr("Completion grants normal rewards and, unless you choose Keep my current level, raises the character to at least level 55. "
+                                   "Completed quests do not grant rewards again. Test, repeatable and endgame quests are excluded."));
                 const JValue* r = Cached("progressread");
                 y += 10 + Muted(in.parent, kPanelPad, y + 10, kPanelInner, Tr(r ? "Live quest data" : "Static coverage catalog")) + 10;
                 std::vector<std::vector<std::string>> rows;

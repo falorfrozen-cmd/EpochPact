@@ -47,7 +47,8 @@ adları ve açıklamaları değiştirir; üretilmiş kataloğun komutları ve s�
   More % Advanced bölümünde bulunur. Teknik anahtarlar ve ham oyun cevabı
   normal oyuncu görünümünde gösterilmez; bütün statlar All stats ile erişilebilir.
 - Kampanya: mevcut backend üzerinden tamamlanmamış görevlerin normal ödülleri,
-  en az seviye 55 ve waypoint açma; iki ayrı işlem butonu.
+  en az seviye 55 (Character level: Keep my current level ile görev XP'si olmadan,
+  seviye aynı kalır) ve waypoint açma; iki ayrı işlem butonu.
 - Monolith: unlock, timeline/zorluk seçimi, runtime Corruption/Stability sınırları,
   stability kazanım çarpanı. Kayıt düzenlemesi uygun hub bölgesinde açılır.
 - Unique Atlas / Stash Assistant: gerçek Unique/Set kataloğu, mevcut depo ve

@@ -172,11 +172,18 @@ std::string List() {
         std::ostringstream out;
         out << "{\"ok\":true,\"player\":" << Player(c) << ",\"bases\":[";
         bool first = true;
+        // An Omen idol's subtype group: it also rolls the affixes of that group (lootread "groups").
+        const auto groupOf = M("SubTypeGroupExtensionMethods", "GetSubTypeGroup", 2);
         for (const auto& b : Bases(types.Get())) {
             if (!first) out << ',';
             first = false;
+            int type = b.type, sub = b.sub;
+            void* args[]{&type, &sub};
+            const int group = Value<int>(groupOf, nullptr, args);
             out << "{\"type\":" << b.type << ",\"sub\":" << b.sub << ",\"name\":" << Json(ItemName(types.Get(), b.type, b.sub))
-                << ",\"baseType\":" << Json(BaseName(types.Get(), b.type)) << ",\"level\":" << b.level << ",\"maxAffixes\":" << b.maxAffixes << '}';
+                << ",\"baseType\":" << Json(BaseName(types.Get(), b.type)) << ",\"level\":" << b.level << ",\"maxAffixes\":" << b.maxAffixes;
+            if (group > 0) out << ",\"group\":" << group;
+            out << '}';
         }
         out << "],\"uniques\":[";
         first = true;

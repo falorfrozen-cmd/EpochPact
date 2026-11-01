@@ -175,7 +175,7 @@ py -3 tools/le_session.py restore-saves <backup folder>
 | `statreset` | removes all current actor's EpochPact stat entries | never edits equipment entries |
 | `playerread`, `characters`, `loadname <name> [level]`, `sheetopen 0/1` | identity check, normal offline tile load, C panel open/close | game APIs over IPC; no desktop automation |
 | `progressread` | JSON: loaded identity/scene/rewards, runtime quest and waypoint catalogs | one-shot main-thread game reads/map refresh |
-| `questscomplete <offline save id>` | finish pending main/side campaign quests and grant normal rewards, then raise to at least 55; open endgame waypoints | normal Quest.completeQuest / GainExpDirect / AddUnlockedWaypointScene; snapshot before change |
+| `questscomplete <offline save id> [raise\|keep]` | finish pending main/side campaign quests and grant normal rewards, then raise to at least 55 (keep: no quest XP, no top-up, the level stays); open endgame waypoints | normal Quest.completeQuest / GainExpDirect / AddUnlockedWaypointScene; keep: Quest.experienceReward 0 during each completeQuest, put back; snapshot before change |
 | `waypointsunlock <offline save id>` | open all actual waypoint scenes and refresh their map buttons | game waypoint API; same snapshot/identity checks |
 | `sessionread` | settled client state and transition status | prevents actions on Login character previews |
 | `monolithread` | JSON timeline catalog, normal/Empowered unlocks, corruption/stability and selection | loaded offline actor; runtime asset limits |

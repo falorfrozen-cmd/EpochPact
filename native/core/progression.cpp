@@ -582,7 +582,26 @@ std::string Identity() {
 }
 
 namespace {
-std::string Perform(const std::string& expectedId, bool campaign) {
+// Quest.experienceReward set to 0 while one quest completes, then put back.
+class ExperienceHeld {
+public:
+    explicit ExperienceHeld(void* quest) : quest_(quest) {
+        if (!quest_) return;
+        at_ = Offset("Quest", "experienceReward");
+        saved_ = Get<int>(quest_, at_);
+        *reinterpret_cast<int*>(static_cast<char*>(quest_) + at_) = 0;
+    }
+    ~ExperienceHeld() {
+        if (quest_) *reinterpret_cast<int*>(static_cast<char*>(quest_) + at_) = saved_;
+    }
+    ExperienceHeld(const ExperienceHeld&) = delete;
+    ExperienceHeld& operator=(const ExperienceHeld&) = delete;
+private:
+    void* quest_;
+    size_t at_ = 0;
+    int saved_ = 0;
+};
+std::string Perform(const std::string& expectedId, bool campaign, bool keepLevel = false) {
     Player player;
     std::unique_ptr<Root> actorRoot, dataRoot, questRoot;
     std::vector<QuestInfo> quests;
@@ -620,7 +639,7 @@ std::string Perform(const std::string& expectedId, bool campaign) {
                     for (const auto& p : points) if (!p.noWaypoint && !p.unlocked &&
                         (!campaign || p.monolith || p.scene == "EoT" || p.scene == "M_Rest")) ++pointPending;
                 } else if (prepare == 3) {
-                    if (pending || pointPending || (campaign && before.level < 55))
+                    if (pending || pointPending || (campaign && !keepLevel && before.level < 55))
                         snapshot = Capture(player, campaign ? "questscomplete" : "waypointsunlock");
                     return true;
                 }
@@ -639,7 +658,7 @@ std::string Perform(const std::string& expectedId, bool campaign) {
     if (pending && (!m_refreshDisplay || (!hook::IsInstalled(m_refreshDisplay.code) && !hook::Install(m_refreshDisplay.code,
             reinterpret_cast<void*>(&DisplayDetour), reinterpret_cast<void**>(&originalDisplay), &why))))
         return "{\"ok\":false,\"error\":" + Json("quest display batching unavailable: " + why) + "}";
-    const bool batch = pending || (campaign && before.level < 55);
+    const bool batch = pending || (campaign && !keepLevel && before.level < 55);
     if (batch && (!m_recordAnalytics || (!hook::IsInstalled(m_recordAnalytics.code) && !hook::Install(m_recordAnalytics.code,
             reinterpret_cast<void*>(&AnalyticsDetour), reinterpret_cast<void**>(&originalAnalytics), &why))))
         return "{\"ok\":false,\"error\":" + Json("offline progression analytics scope unavailable: " + why) + "}";
@@ -657,12 +676,22 @@ std::string Perform(const std::string& expectedId, bool campaign) {
                 while (questIndex < quests.size()) {
                     const auto& q = quests[questIndex++];
                     if (!q.eligible || State(player, q.object) == questStates.at("Completed")) continue;
-                    int level = Rewards(player).level; void* xpArgs[]{&level};
-                    const int xp = Value<int>(m_adjustXp, q.object, xpArgs);
+                    const auto now = Rewards(player);
+                    int level = now.level; void* xpArgs[]{&level};
+                    const int xp = keepLevel ? 0 : Value<int>(m_adjustXp, q.object, xpArgs);
                     bool silent = true; void* args[]{player.actor, &silent};
-                    { DisplayScope scope(player.quests); Invoke(m_complete, q.object, args); }
+                    {
+                        // Keep the level: the game gives a quest's experience in StatefulQuestList.onQuestCompletion
+                        // only while Quest.experienceReward is above 0, so it is 0 for this one call and put back
+                        // (the other rewards are separate fields).
+                        const ExperienceHeld held(keepLevel ? q.object : nullptr);
+                        DisplayScope scope(player.quests);
+                        Invoke(m_complete, q.object, args);
+                    }
                     if (State(player, q.object) != questStates.at("Completed"))
                         throw std::runtime_error("quest " + std::to_string(q.id) + " did not reach Completed");
+                    if (keepLevel && Rewards(player).xp != now.xp)
+                        throw std::runtime_error("quest " + std::to_string(q.id) + " gave experience; stopped to keep the level");
                     expectedXp += xp; ++completed; --remaining;
                     return false; // Exactly one rewarded quest per frame. No disk logging here.
                 }
@@ -670,7 +699,7 @@ std::string Perform(const std::string& expectedId, bool campaign) {
             }
             if (phase == 1) {
                 const auto rewards = Rewards(player);
-                if (campaign && rewards.level < 55) {
+                if (campaign && !keepLevel && rewards.level < 55) {
                     int64_t target = 0;
                     for (int level = 1; level <= rewards.level; ++level) {
                         void* args[]{&level}; const auto xp = Value<int64_t>(m_levelXp, nullptr, args);
@@ -739,6 +768,7 @@ std::string Perform(const std::string& expectedId, bool campaign) {
     return "{\"ok\":" + std::string(Boolean(error.empty() && (!campaign || !remaining))) +
         ",\"completed\":" + std::to_string(completed) + ",\"remaining\":" + std::to_string(remaining) +
         ",\"added\":" + std::to_string(added) + ",\"endgameWaypointsAdded\":" + std::to_string(campaign ? added : 0) +
+        ",\"keepLevel\":" + Boolean(keepLevel) +
         ",\"expectedQuestXp\":" + std::to_string(expectedXp) + ",\"levelTopUpXp\":" + std::to_string(topUpXp) +
         ",\"before\":" + RewardJson(before) + ",\"after\":" + RewardJson(after) +
         ",\"mastery\":" + mastery +
@@ -750,7 +780,7 @@ std::string Perform(const std::string& expectedId, bool campaign) {
         ",\"save\":" + std::to_string(phaseMax[3]) + ",\"display\":" + std::to_string(phaseMax[5]) + "},\"error\":" + Json(error) + "}";
 }
 }
-std::string Complete(const std::string& expectedId) { return Perform(expectedId, true); }
+std::string Complete(const std::string& expectedId, bool keepLevel) { return Perform(expectedId, true, keepLevel); }
 std::string UnlockWaypoints(const std::string& expectedId) { return Perform(expectedId, false); }
 // The character raised to a level (2-100) the way the campaign top-up raises it to 55: the experience for each
 // level through the game's own GainExpDirect, one level a frame (the game's level-up rewards: passive points,

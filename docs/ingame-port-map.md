@@ -1238,7 +1238,7 @@ no data: <div class="empty collection-empty"><span>✦</span><h3>Your collection
 {cachedSummary("progress_read")}   → "Live reading · {name} · Level {level}"
 <section class="panel"><div class="section-head"><h2>Campaign and waypoints</h2><button data-refresh="progress_read" data-control-id="progress_read">Refresh live</button></div>
 <div class="control-grid">{actionCard(campaign_complete)}{actionCard(waypoints_unlock)}</div>
-<details><summary>Quest rewards and coverage (85 quests / 109 waypoints)</summary><p class="muted">Completion grants normal rewards and raises the character to at least level 55. Completed quests do not grant rewards again. Test, repeatable and endgame quests are excluded.</p>
+<details><summary>Quest rewards and coverage (85 quests / 109 waypoints)</summary><p class="muted">Completion grants normal rewards and, unless you choose Keep my current level, raises the character to at least level 55. Completed quests do not grant rewards again. Test, repeatable and endgame quests are excluded.</p>
  <p class="muted">{Live quest data|Static coverage catalog}</p><div class="table-wrap"><table><thead><tr><th>Quest</th><th>Type</th><th>XP</th><th>Gold</th><th>Passive</th><th>Idol</th><th>Attribute</th></tr></thead><tbody>{name | Main|Side | xp | gold | passive | idol | attributes}</tbody></table></div></details></section>
 <section class="panel"><h2>Mastery</h2><p class="note">{masteryStatus}</p>{actionCard(mastery_choose)}</section>
 ```
@@ -1249,7 +1249,8 @@ no data: <div class="empty collection-empty"><span>✦</span><h3>Your collection
 - **Data:** `progressread` returns `{ok, player{name,id,scene,level,xp}, rewards{…}, quests[{id,name,chapter,type,state,main,visible,test,eligible,routeError,xp,gold,passive,idol,attributes}], waypoints[…], mastery{chosen, needsSelection, questCompleted, available, panelOpen, reason}}`.
   - Mastery reasons from native code: "The character's mastery state is not recognized." / "The mastery quest was not found in this game build." / "Complete The Power of Mastery first, or use Complete campaign." / "Wait for the game interface to finish loading."
 - **Cards:**
-  - **campaign_complete:** "Complete main + side campaign · level 55 minimum"; Game save; "Apply action".
+  - **campaign_complete:** "Complete main + side campaign"; Game save; Character level select (Raise to at least level 55 /
+    Keep my current level (no quest XP)); "Apply action".
     - Command `questscomplete {save_id}`.
     - Notify: when `mastery.needsSelection`, "Campaign completed with normal rewards. Use Choose Mastery to finish your character."; otherwise "Campaign completed with normal rewards."
     - Then re-read `progress_read`.

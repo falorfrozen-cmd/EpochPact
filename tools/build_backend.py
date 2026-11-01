@@ -34,7 +34,7 @@ def spawn_list():
             return items
         affixes = ipc.request("lootread")
     if affixes.get("ok") is True:
-        items["affixes"] = [{k: a[k] for k in ("id", "name", "tiers", "classes", "rollsOn") if k in a} for a in affixes.get("affixes", [])]
+        items["affixes"] = [{k: a[k] for k in ("id", "name", "tiers", "classes", "rollsOn", "groups") if k in a} for a in affixes.get("affixes", [])]
     return items
 
 

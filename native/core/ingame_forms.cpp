@@ -21,8 +21,10 @@ std::string FieldLabel(const Control& c, const std::string& name) {
         {"value", "Value"},       {"name", "Character name"},  {"level", "Level (optional)"}, {"slot", "Prophecy slot"},
         {"reward", "Reward"},     {"lens", "Lens"},             {"backup", "Operation backup"}, {"mode", "Selection"},
         {"ids", "Affixes"},       {"category", "Pickup category"}, {"template_id", "Whole Unique / Set template"},
-        {"affixes", "T7 affixes"}, {"perfect", "Roll quality"}, {"modifiers", "Additional modifier lines"}};
+        {"affixes", "T7 affixes"}, {"perfect", "Roll quality"}, {"modifiers", "Additional modifier lines"},
+        {"level_mode", "Character level"}};
     if (c.id == "craft_materials" && name == "value") return "Minimum quantity per material";
+    if (c.id == "character_level" && name == "level") return "Target level";
     auto it = labels.find(name);
     return it == labels.end() ? name : it->second;
 }

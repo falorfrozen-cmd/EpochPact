@@ -262,13 +262,13 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 |---|---|---|---|---|
 | `progress_read` — Görev / waypoint kataloğu | `progressread` | — | — | Okuma |
 | `mastery_choose` — Choose Mastery | `masteryopen {save_id}` | — | — | Görünüm |
-| `campaign_complete` — Ana + yan kampanyayı tamamla, en az seviye 55 | `questscomplete {save_id}` | — | — | Oyun kaydı |
+| `campaign_complete` — Ana + yan kampanyayı tamamla | `questscomplete {save_id} {level_mode}` | level_mode: raise, keep | — | Oyun kaydı |
 | `waypoints_unlock` — Tüm gerçek waypointleri aç | `waypointsunlock {save_id}` | — | — | Oyun kaydı |
 | `character_level` — Set character level | `setlevel {save_id} {level}` | level: 2…100 | — | Oyun kaydı |
 
 - **Görev / waypoint kataloğu:** Yüklü id, seviye/XP/ödüller, eligibility ve gerçek waypoint sahneleri. API: `tools.progression_backend.read()`.
 - **Choose Mastery:** Open the game's first mastery selection screen after the mastery quest is completed. Choose and confirm in the game. Existing masteries, passive allocations and rewards are unchanged by opening the screen. API: `tools.progression_backend.open_mastery(save_id)`.
-- **Ana + yan kampanyayı tamamla, en az seviye 55:** Henüz bitmemiş eligible kampanya görevleri ve normal ödülleri; minimum 55; End of Time, MonolithHub, M_Rest waypointleri. Tekrar ödül vermez. API: `tools.progression_backend.apply("questscomplete", save_id)`.
+- **Ana + yan kampanyayı tamamla:** Henüz bitmemiş eligible kampanya görevleri ve normal ödülleri; level_mode raise: en az seviye 55, keep: görev XP'si yok, seviye aynı kalır; End of Time, MonolithHub, M_Rest waypointleri. Tekrar ödül vermez. API: `tools.progression_backend.apply("questscomplete", save_id, level_mode)`.
 - **Set character level:** Raise the loaded character to a level from 2 to 100 with the game's own level-ups: the passive and attribute points of each level come with them. A lower level is not offered. Creates a recovery backup. API: `tools.progression_backend.set_level(save_id, level)`.
 - **Tüm gerçek waypointleri aç:** Gerçek waypoint sahnelerini açar; Monolith timeline difficulty unlock ayrı işlemdir. API: `tools.progression_backend.apply("waypointsunlock", save_id)`.
 

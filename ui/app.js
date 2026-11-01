@@ -229,7 +229,7 @@ function armAutomatic(){
  autoTimer=setTimeout(()=>void flushAutomatic(),Math.max(0,next-Date.now()));
 }
 // Words shown for text choices; the values sent to the game stay the same.
-const choiceWords={all:"All",filter:"Filter",quality:"Quality",materials:"Materials",gold:"Gold",potions:"Potions",xp:"XP",favor:"Favor",bones:"Bones",amber:"Amber",normal:"Normal",empowered:"Empowered",start:"Start",stop:"Stop",reset:"Reset",added:"Added",increased:"Increased",more:"More"};
+const choiceWords={raise:"Raise to at least level 55",keep:"Keep my current level (no quest XP)",all:"All",filter:"Filter",quality:"Quality",materials:"Materials",gold:"Gold",potions:"Potions",xp:"XP",favor:"Favor",bones:"Bones",amber:"Amber",normal:"Normal",empowered:"Empowered",start:"Start",stop:"Stop",reset:"Reset",added:"Added",increased:"Increased",more:"More"};
 // Whole texts (not nested templates), so the interface language can translate them.
 function defaultText(c,p,unit,isToggle){
  if(isToggle)return c.default?"Default: on":"Default: off";
@@ -341,7 +341,7 @@ function playerResult(payload,result){
  const where=target?` ${clean(target.name||target.label)} (${tr(a.difficulty==="empowered"?"Empowered":"Normal")}).`:"";
  const messages={
   stability:`Stability set to ${a.value}.${where}`,corruption:`Corruption set to ${a.value}.${where}`,
-  campaign_complete:result.mastery?.needsSelection?"Campaign completed with normal rewards. Use Choose Mastery to finish your character.":"Campaign completed with normal rewards.",waypoints_unlock:"All waypoints unlocked.",
+  campaign_complete:a.level_mode==="keep"?(result.mastery?.needsSelection?"Campaign completed with normal rewards. Your level was kept. Use Choose Mastery to finish your character.":"Campaign completed with normal rewards. Your level was kept."):result.mastery?.needsSelection?"Campaign completed with normal rewards. Use Choose Mastery to finish your character.":"Campaign completed with normal rewards.",waypoints_unlock:"All waypoints unlocked.",
   mastery_choose:"Mastery selection opened in the game. Choose and confirm your mastery there.",
   inventory_stash:result.opened===false?"Stash closed in the game.":"Stash opened in the game.",inventory_vendor:result.opened===false?"Vendor closed in the game.":"Vendor opened in the game.",
   loot_log_clear:"Recent pickups cleared. Items and gold are unchanged.",
@@ -624,7 +624,7 @@ function customWorkshop(){
 function spawnEntries(){
  const d=cache.spawn_list;
  return [...(d?.uniques||[]).map(x=>({id:'u'+x.id,kind:x.set?'set':'unique',weaver:x.weaver,set:x.set,lp:x.lp!==false,uiLabel:`${x.set?'Set':'Unique'} · ${x.name} · ${x.baseType} · Level ${x.level}`})),
-  ...(d?.bases||[]).map(x=>({id:`b${x.type}.${x.sub}`,kind:'base',type:x.type,maxAffixes:x.maxAffixes??4,uiLabel:`${x.name} · ${x.baseType} · Level ${x.level}`}))];
+  ...(d?.bases||[]).map(x=>({id:`b${x.type}.${x.sub}`,kind:'base',type:x.type,group:x.group||0,maxAffixes:x.maxAffixes??4,uiLabel:`${x.name} · ${x.baseType} · Level ${x.level}`}))];
 }
 function spawnOptions(){
  const words=spawnFilter.toLowerCase().split(/\s+/).filter(Boolean),all=spawnEntries();
@@ -650,8 +650,10 @@ function spawnOptionFields(){
   `<label>How many<input name="count" type="number" min="1" max="20" step="1" value="${esc(spawnDraft.count)}" required></label>`;
 }
 function spawnBaseType(){const x=spawnChosen();return x&&String(x.id).startsWith('b')?Number(String(x.id).slice(1).split('.')[0]):null;}
-// Spawn with chosen affixes: the affixes the chosen base rolls (lootread rollsOn), up to seven, each with a tier.
-function spawnAffixEntries(){const type=spawnBaseType();return type===null?[]:(cache.spawn_list?.affixes||[]).filter(a=>(a.rollsOn||[]).includes(type)).map(a=>({...a,name:clean(a.name)}));}
+// Spawn with chosen affixes: the affixes the chosen base rolls (lootread rollsOn, and for an Omen idol those of its
+// subtype group, lootread groups), up to seven, each with a tier.
+function spawnAffixEntries(){const type=spawnBaseType(),group=spawnChosen()?.group||0;return type===null?[]:(cache.spawn_list?.affixes||[]).filter(a=>(a.rollsOn||[]).includes(type)||(group>0&&(a.groups||[]).includes(group))).map(a=>({...a,name:clean(a.name)}));}
+function spawnAffixKey(){const type=spawnBaseType();return type===null?null:`${type}.${spawnChosen()?.group||0}`;}
 function spawnAffixToken(){return spawnDraft.affixes.map(a=>`${a.id}:${a.tier}:${spawnDraft.roll}`).join(',');}
 function spawnAffixList(){
  const matches=craftingModel.filtered(spawnAffixEntries(),spawnAffixFilter),chosen=spawnDraft.affixes.map(a=>String(a.id));
@@ -693,7 +695,7 @@ function spawnFields(){
 function updateSpawnUi(){
  const list=spawnOptions(),select=$('[data-spawn-item]');if(select)select.innerHTML=list.html;
  const opts=$('[data-spawn-options]');if(opts&&spawnOptionsOf!==spawnDraft.item){spawnOptionsOf=spawnDraft.item;opts.innerHTML=spawnOptionFields();}
- if(spawnBaseType()!==spawnAffixType){spawnAffixType=spawnBaseType();spawnDraft.affixes=[];const block=$('[data-spawn-affixes]');if(block)block.innerHTML=spawnAffixFields();}
+ if(spawnAffixKey()!==spawnAffixType){spawnAffixType=spawnAffixKey();spawnDraft.affixes=[];const block=$('[data-spawn-affixes]');if(block)block.innerHTML=spawnAffixFields();}
  const count=$('[data-spawn-count]');if(count)count.textContent=list.count===1?'1 match':`${list.count} matches`;
  const note=$('[data-spawn-note]');if(note)note.textContent=spawnNote();updateDisabled();
 }
@@ -744,7 +746,7 @@ function parameterFields(c){
   else if(p.choices){const selected=c.id==="loot_mode"?cache.loot_read?.mode??c.default:null;html=`<select name="${name}">${p.choices.map(x=>`<option value="${x}" ${x===selected?"selected":""}>${esc(choiceWords[x]??String(x))}</option>`).join("")}</select>`;}
   else if(c.id==="loot_affixes")html=`<select name="ids" multiple size="8" aria-label="Wanted T7 affixes">${options(cache.loot_read?.affixes||[],cache.loot_read?.affixIds||[])}</select><span class="note">Refresh pickup rules to load affix names. Hold Ctrl to select several; no selection accepts any T7.</span>`;
  else {const liveDefault=name==="value"?({craft_hope:cache.craft_read?.hopePercent,craft_despair:cache.craft_read?.despairPercent,cof_rank:cache.cof_read?.cof?.rank,cof_favor:cache.cof_read?.cof?.favor,cof_charges:cache.cof_read?.slots?.find(s=>!s.locked)?.charges}[c.id]??c.default):c.default;html=`<input name="${name}" ${p.type==="single_token"?'type="text"':'type="number"'} ${p.minimum!=null?`min="${p.minimum}"`:""} ${p.maximum!=null?`max="${p.maximum}"`:""} step="${p.type.includes("integer")?"1":"any"}" ${liveDefault!=null?`value="${liveDefault}"`:""} ${p.type==="number_or_reset"?'placeholder="Normal chance (blank resets)"':""} ${["optional_integer","number_or_reset"].includes(p.type)?"":"required"}>`;}
-  return field(name,c.id==="craft_materials"&&name==="value"?"Minimum quantity per material":c.id==="character_level"&&name==="level"?"Target level":{value:"Value",name:"Character name",level:"Level (optional)",slot:"Prophecy slot",reward:"Reward",lens:"Lens",backup:"Operation backup",mode:"Selection",ids:"Affixes",category:"Pickup category",template_id:"Whole Unique / Set template",affixes:"T7 affixes",perfect:"Roll quality",modifiers:"Additional modifier lines"}[name]||name,html);
+  return field(name,c.id==="craft_materials"&&name==="value"?"Minimum quantity per material":c.id==="character_level"&&name==="level"?"Target level":{level_mode:"Character level",value:"Value",name:"Character name",level:"Level (optional)",slot:"Prophecy slot",reward:"Reward",lens:"Lens",backup:"Operation backup",mode:"Selection",ids:"Affixes",category:"Pickup category",template_id:"Whole Unique / Set template",affixes:"T7 affixes",perfect:"Roll quality",modifiers:"Additional modifier lines"}[name]||name,html);
  }).join("");
 }
 function cachedSummary(id){
@@ -820,7 +822,7 @@ function renderPage(){
  else if(page==="campaign"){
   const mastery=window.EpochSession.current(cache.progress_read,connected,preview)?cache.progress_read?.mastery:null;
   const masteryStatus=mastery?.available?"Your character has no mastery yet. Open the selection screen, then choose your mastery in the game.":mastery?.reason||"Refresh live to check mastery selection for your character.";
-  content.innerHTML=cachedSummary("progress_read")+`<section class="panel"><div class="section-head"><h2>Campaign and waypoints</h2><button data-refresh="progress_read" data-control-id="progress_read">Refresh live</button></div><div class="control-grid">${["campaign_complete","waypoints_unlock","character_level"].map(id=>actionCard(controlById(id))).join("")}</div><details><summary>Quest rewards and coverage (${catalog.counts.eligibleCampaignQuests} quests / ${catalog.counts.waypoints} waypoints)</summary><p class="muted">Completion grants normal rewards and raises the character to at least level 55. Completed quests do not grant rewards again. Test, repeatable and endgame quests are excluded.</p>${questTable()}</details></section><section class="panel"><h2>Mastery</h2><p class="note">${esc(masteryStatus)}</p>${actionCard(controlById("mastery_choose"))}</section>`;
+  content.innerHTML=cachedSummary("progress_read")+`<section class="panel"><div class="section-head"><h2>Campaign and waypoints</h2><button data-refresh="progress_read" data-control-id="progress_read">Refresh live</button></div><div class="control-grid">${["campaign_complete","waypoints_unlock","character_level"].map(id=>actionCard(controlById(id))).join("")}</div><details><summary>Quest rewards and coverage (${catalog.counts.eligibleCampaignQuests} quests / ${catalog.counts.waypoints} waypoints)</summary><p class="muted">Completion grants normal rewards and, unless you choose Keep my current level, raises the character to at least level 55. Completed quests do not grant rewards again. Test, repeatable and endgame quests are excluded.</p>${questTable()}</details></section><section class="panel"><h2>Mastery</h2><p class="note">${esc(masteryStatus)}</p>${actionCard(controlById("mastery_choose"))}</section>`;
  }else if(page==="atlas"||page==="stash")renderCollection();
  else if(page==="monolith")renderMonolith();
  else if(page==="cof")renderCof();

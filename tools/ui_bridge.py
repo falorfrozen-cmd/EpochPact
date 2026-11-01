@@ -240,6 +240,9 @@ class UiBridge:
                     continue
                 if kind == "optional_integer":
                     continue
+                if "default" in spec:
+                    args[name] = spec["default"]
+                    continue
                 raise ValueError(f"Missing parameter: {name}")
             value = supplied[name]
             if kind in ("number", "integer", "optional_integer"):
@@ -586,7 +589,7 @@ class UiBridge:
             "echo_focus": lambda: mono.focus_echo(save_id, a["timeline"], a["difficulty"] == "empowered", a["index"]),
             "progress_read": progression.read, "monolith_read": mono.read, "cof_read": cof.read,
             "factions_read": lambda: progression.request("factionread"),
-            "campaign_complete": lambda: progression.apply("questscomplete", save_id),
+            "campaign_complete": lambda: progression.apply("questscomplete", save_id, a.get("level_mode", "raise")),
             "mastery_choose": lambda: progression.open_mastery(save_id),
             "waypoints_unlock": lambda: progression.apply("waypointsunlock", save_id),
             "monolith_unlock": lambda: mono.unlock(save_id),

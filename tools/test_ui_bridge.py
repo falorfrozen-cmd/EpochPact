@@ -947,6 +947,18 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(result['phase'],'stopped'); self.assertFalse(result['connected'])
         self.assertEqual(self.commands,[]); self.assertFalse(self.bridge.temporary_resets)
 
+    def test_campaign_keeps_the_level_only_when_asked(self):
+        self.bridge.execute('campaign_complete', {'expected_id':'42','level_mode':'keep'})
+        self.assertIn('questscomplete 42 keep', self.commands)
+        self.commands.clear()
+        self.bridge.execute('campaign_complete', {'expected_id':'42'})
+        self.assertIn('questscomplete 42', self.commands)
+        self.assertNotIn('questscomplete 42 keep', self.commands)
+        self.commands.clear()
+        with self.assertRaises(ValueError):
+            self.bridge.execute('campaign_complete', {'expected_id':'42','level_mode':'lower'})
+        self.assertFalse(any(x.startswith('questscomplete') for x in self.commands))
+
     def test_stale_character_cannot_receive_save_mutation(self):
         with self.assertRaisesRegex(RuntimeError, 'character has changed'):
             self.bridge.execute('campaign_complete', {'expected_id':'0'})

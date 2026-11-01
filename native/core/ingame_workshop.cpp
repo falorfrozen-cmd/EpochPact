@@ -1418,7 +1418,7 @@ void MakeTiers(Section& s) {
 }
 
 // ------------------------------------------------------------------------------- Spawn Items
-struct SpawnEntry { std::string id, name, meta, lower, kind; bool weaver = false, lp = true; int maxAffixes = 4; };
+struct SpawnEntry { std::string id, name, meta, lower, kind; bool weaver = false, lp = true; int maxAffixes = 4, group = 0; };
 struct SpawnState {
     std::string filter, kind = "all", item, level = "100", count = "1", affixFilter;
     int rarity = 2, lp = -1, affixType = -1;
@@ -1461,6 +1461,7 @@ const std::vector<SpawnEntry>& SpawnEntries() {
         SpawnEntry e{"b" + IdOf(b.Find("type")) + "." + IdOf(b.Find("sub")), b["name"].Str(),
                      b["baseType"].Str() + " \xC2\xB7 " + Fmt("Level {0}", {IdOf(b.Find("level"))}), "", "base", false, false,
                      static_cast<int>(b["maxAffixes"].Num(4))};
+        e.group = static_cast<int>(b["group"].Num(0));
         e.lower = Lower(e.name + " " + e.meta);
         st.entries.push_back(std::move(e));
     }
@@ -1769,21 +1770,32 @@ void MakeSpawnList(Section& s) {
 }
 
 // 3. the chosen item and only the options that apply to it, then Spawn
-// Spawn with chosen affixes: for a base item, up to seven of the affixes it rolls (lootread rollsOn), each with its
-// tier; the search and the list in two sections, so typing rebuilds only the list.
+// Spawn with chosen affixes: for a base item, up to seven of the affixes it rolls (lootread rollsOn, and for an Omen
+// idol the affixes of its subtype group, lootread groups), each with its tier; the search and the list in two
+// sections, so typing rebuilds only the list.
 struct SpawnAffix { int id = 0, tiers = 1; std::string name, lower, classes; };
 int SpawnBaseType() {
     const SpawnEntry* x = SpawnChosen();
     return x && x->kind == "base" ? std::atoi(x->id.c_str() + 1) : -1;
 }
+// The item type and subtype group together: the chosen affixes are kept while both stay the same.
+int SpawnAffixKey() {
+    const SpawnEntry* x = SpawnChosen();
+    const int type = SpawnBaseType();
+    return type < 0 ? -1 : type * 16 + (x ? x->group : 0);
+}
 std::vector<SpawnAffix> SpawnAffixes() {
     std::vector<SpawnAffix> out;
     const int type = SpawnBaseType();
+    const SpawnEntry* base = SpawnChosen();
+    const int group = base ? base->group : 0;
     const JValue* d = Cached("lootread");
     if (type < 0 || !d) return out;
     for (const auto& a : (*d)["affixes"].items) {
         bool rolls = false;
         for (const auto& t : a["rollsOn"].items) rolls |= t.IsNumber() && static_cast<int>(t.number) == type;
+        if (group > 0)
+            for (const auto& g : a["groups"].items) rolls |= g.IsNumber() && static_cast<int>(g.number) == group;
         if (!rolls) continue;
         SpawnAffix x;
         x.id = static_cast<int>(a["id"].Num(0));
@@ -1805,12 +1817,12 @@ void MakeSpawnAffixHead(Section& s) {
     s.build = [](Section& sec, const Ctx& c) {
         SP().blocks["spawn_affix_head"] = sec.id;
         sec.after = 0;
-        const int type = SpawnBaseType();
-        if (type != SP().affixType) {
-            SP().affixType = type;
+        const int key = SpawnAffixKey();
+        if (key != SP().affixType) {
+            SP().affixType = key;
             SP().affixes.clear();
         }
-        if (type < 0) return 0.f;
+        if (key < 0) return 0.f;
         const Ctx in = Block(c);
         float y = 22;
         Solid(in.parent, "Divider", kPanelPad, y, kPanelInner, 1, C("line"));
