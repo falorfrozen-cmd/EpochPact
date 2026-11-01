@@ -7,6 +7,8 @@ std::string Read();
 std::string Identity();
 std::string Complete(const std::string& expectedId);
 std::string UnlockWaypoints(const std::string& expectedId);
+// Raise the character to a level (2-100) after a recovery backup; a lower level is refused.
+std::string SetLevel(const std::string& expectedId, int target);
 std::string OpenMastery(const std::string& expectedId);
 // Capture touches game objects and must run on the main thread. Writing the
 // copied strings touches only the filesystem and belongs on the IPC worker.

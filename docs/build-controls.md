@@ -121,14 +121,24 @@ mixed effect recipe, kept affixes are rebuilt at T7 with the chosen roll quality
 Idols and crafting materials are excluded.
 
 **T8 is the game's primordial tier.** It is offered only for affixes whose game
-data has an eighth tier (most regular affixes; 49 stop at T7), and an item can
-have one: the game's own `ItemData.MakeAffixSealedPrimordialAffix` seals it
-(sealed type 2) and marks the item primordial, keeping the chosen roll. The game
-limits how many primordial items a character can wear, and for an item without
-a Unique/Set template it sets the rarity from the regular affixes (at most 4).
+data has an eighth tier (most regular affixes; 49 stop at T7), and any of the
+chosen affixes can be T8 (since 0.1.2-dev.53; the game itself rolls one). The
+game's own `ItemData.MakeAffixSealedPrimordialAffix` seals the first one (sealed
+type 2) and marks the item primordial, keeping the chosen roll; the game saves and
+loads every affix at the eighth tier (tier index 7) as such a sealed primordial
+affix. Seven T8 affixes on a belt doubled the item's stat values against T7 and
+were kept in the saved form and after a restart. The game limits how many
+primordial items a character can wear, and for an item without a Unique/Set
+template it sets the rarity from the regular affixes (at most 4).
 The command format is `craftcustom <save> <template|-1> <affixes> <0|1>` where each
 affix is an ID (T7, item-wide roll, as before) or `ID:tier:roll` with tier 1–8 and
 roll 1–100 or `r`, for example `12:8:100,345:5:50,6:7:r`.
+
+**Change affix tiers** (`crafttiers <save> <id:tier,...>`, Crafting → Custom Items, below
+the workshop): the tiers of the affixes already on the forge item, without a new item.
+Rolls, the template, Legendary Potential and the rest stay; a T8 is sealed as a primordial
+affix, an affix taken below T8 is unsealed, and a sealed regular or corruption affix keeps
+its tier. The same backup, round trip and replace path as Custom Items.
 
 The native v6 format stores at most seven affixes. Eight are rejected before mutation;
 otherwise the native three-bit affix count would become zero on reload. Mixed recipes

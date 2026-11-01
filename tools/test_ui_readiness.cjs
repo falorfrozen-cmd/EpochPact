@@ -439,7 +439,8 @@ test('player pages retain all usable controls and developer pages retain diagnos
   const html=htmls.join('');
   const displayed=[...html.matchAll(/(?:data-setting|data-id)="([^"]+)"/g)].map(x=>x[1]);
   const refreshes=[...html.matchAll(/data-refresh="([^"]+)"/g)].map(x=>x[1]);
-  const expected=h.context.fullCatalog.controls.filter(c=>c.group===group&&!['map_reveal','map_read','density_read',...(!mode?['pickup_radius_read']:[])].includes(c.id)).map(c=>c.id);
+  // spawn_custom is the Spawn item form's submit when affixes are chosen, not a card of its own
+  const expected=h.context.fullCatalog.controls.filter(c=>c.group===group&&!['map_reveal','map_read','density_read','spawn_custom',...(!mode?['pickup_radius_read']:[])].includes(c.id)).map(c=>c.id);
   assert.deepEqual([...new Set([...displayed,...refreshes])].sort(),expected.slice().sort(),group+' developer='+mode);
   assert.equal(new Set(displayed).size,displayed.length,'every control appears once');
  }
@@ -1066,4 +1067,22 @@ test('interface font panel lists Windows fonts and encodes spaces for the font c
  await h.element('#page-content').listeners.change[0]({target:{dataset:{fontFamily:''},value:'Segoe UI'}});
  await new Promise(setImmediate);
  assert.deepEqual([h.calls[0].id,h.calls[0].args.family],['font_family','Segoe%20UI']);
+});
+
+test('dev.53 panels: affix tiers in place, Spawn with chosen affixes and Set character level render from live data without sending',()=>{
+ const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
+ h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};cache={craft_read:{forgePreview:{player:{id:'0'},canCustom:true,affixes:[{id:7,tier:8,sealed:2,tiers:8,name:'Void Resistance'},{id:9,tier:3,sealed:1,tiers:8,name:'Sealed Thing'},{id:12,tier:5,sealed:0,tiers:8,name:'Fire Damage'}]}}};page='crafting';craftingSection='custom';shippingRenderPage()`);
+ let html=h.element('#page-content').innerHTML;
+ assert.match(html,/Change affix tiers/);assert.match(html,/data-tier-edit="7"/);assert.match(html,/data-tier-edit="12"/);
+ assert.doesNotMatch(html,/data-tier-edit="9"/,'a sealed regular affix keeps its tier');assert.match(html,/Sealed · T3/);
+ h.run(`tierDraft={12:'8',7:'8'}`);assert.equal(h.run('tierChanges().join(",")'),'12:8','only changed tiers are sent');
+ h.run(`cache.spawn_list={player:{id:'0'},bases:[{type:0,sub:1,name:'Helm',baseType:'Helmet',level:50,maxAffixes:4}],uniques:[{id:5,name:'Uniq',baseType:'Helmet',set:false,level:10}],affixes:[{id:5,name:'Health',tiers:8,rollsOn:[0]},{id:6,name:'Mana',tiers:8,rollsOn:[1]}]};spawnDraft.item='b0.1';craftingSection='spawn';shippingRenderPage()`);
+ html=h.element('#page-content').innerHTML;
+ assert.match(html,/data-spawn-affix value="5"/);assert.doesNotMatch(html,/data-spawn-affix value="6"/,'only the affixes the base rolls');
+ h.run(`spawnDraft.affixes=[{id:5,tier:8}];spawnDraft.roll='r'`);assert.equal(h.run('spawnAffixToken()'),'5:8:r');
+ h.run(`spawnDraft.item='u5';spawnAffixType=0;updateSpawnUi()`);assert.equal(h.run('spawnBaseType()'),null);
+ h.run(`cache.progress_read={player:{id:'0',level:58}};page='campaign';shippingRenderPage()`);
+ html=h.element('#page-content').innerHTML;
+ assert.match(html,/data-id="character_level"/);assert.match(html,/name="level"[^>]*value="59"/);
+ assert.equal(h.calls.length,0,'rendering sends nothing');
 });

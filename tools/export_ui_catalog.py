@@ -367,9 +367,12 @@ def controls():
         "Read the game's public Unique/Set templates and affix names. Does not create or modify items.",
         api="tools.build_backend.workshop_catalog()", requires=("loaded_actor",), doc="docs/build-controls.md")
     add("craft_custom", "crafting", "Create custom gear", "button", "craftmix {save_id} {template_id} {affixes} {perfect} {modifiers}", "game_save",
-        "Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8 with a chosen or random roll; T8 is primordial, one per item) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling.",
+        "Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8, any of them T8, with a chosen or random roll) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling.",
         params=[save_id, parameter("template_id", "integer", -1, 65535), parameter("affixes", "single_token"), parameter("perfect", "integer", 0, 1),parameter("modifiers","optional_single_token")],
         api="tools.build_backend.custom(save_id, template_id, affixes, perfect, modifiers='none')", requires=("loaded_actor",), doc="docs/build-controls.md")
+    add("craft_tiers", "crafting", "Change affix tiers", "button", "crafttiers {save_id} {tiers}", "game_save",
+        "Change the tiers of the affixes already on the item in the game's forge (T1-T8; any of them can be T8), without making a new item. Rolls and the rest of the item stay. Creates a recovery backup.",
+        params=[save_id, parameter("tiers", "single_token")], api="tools.build_backend.tiers(save_id, tiers)", requires=("loaded_actor",), doc="docs/build-controls.md")
     items[-1]["parameters"][2]["maximumLength"] = 160
     items[-1]["parameters"][4]["maximumLength"] = 2048
     add("spawn_list", "crafting", "Load spawnable items", "read", "spawnlist", "read_only",
@@ -386,6 +389,11 @@ def controls():
         "Base items: Normal, Magic, Rare or Exalted. Uniques: the game's Legendary Potential roll or a chosen 0-4 (Weaver's Will Uniques and Sets roll their own). "
         "Item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up.",
         params=[save_id, parameter("item", "single_token"), parameter("rarity", "integer", 0, 3), parameter("lp", "integer", -1, 4),
+                parameter("item_level", "integer", 1, 100), parameter("count", "integer", 1, 20)],
+        requires=("loaded_actor",), doc="docs/player-conveniences.md")
+    add("spawn_custom", "crafting", "Spawn with chosen affixes", "button", "spawncustom {save_id} {item} {affixes} {item_level} {count}", "actor",
+        "The game makes the chosen base item (gear, idol or idol altar) with the affixes you choose, each with its tier (any of them can be T8), and drops it next to your character. Up to seven affixes, item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up.",
+        params=[save_id, parameter("item", "single_token"), parameter("affixes", "single_token"),
                 parameter("item_level", "integer", 1, 100), parameter("count", "integer", 1, 20)],
         requires=("loaded_actor",), doc="docs/player-conveniences.md")
     items[-1]["parameters"][1]["maximumLength"] = 16
@@ -514,6 +522,10 @@ def controls():
         add(id, "campaign", label, "button", cmd + " {save_id}", "game_save", description,
             params=[save_id], api=f'tools.progression_backend.apply("{cmd}", save_id)',
             requires=("loaded_id_matches", "snapshot_before_write"), doc="docs/progression.md")
+    add("character_level", "campaign", "Set character level", "button", "setlevel {save_id} {level}", "game_save",
+        "Raise the loaded character to a level from 2 to 100 with the game's own level-ups: the passive and attribute points of each level come with them. A lower level is not offered. Creates a recovery backup.",
+        params=[save_id, parameter("level", "integer", 2, 100)], api="tools.progression_backend.set_level(save_id, level)",
+        requires=("loaded_id_matches", "snapshot_before_write"), doc="docs/progression.md")
     add("monolith_read", "monolith", "Monolith kataloğu / güncel run", "read", "monolithread", "read_only",
         "10 timeline / 20 difficulty; sınırlar, unlock/run, editable ve seçim.", api="tools.monolith_backend.read()", doc="docs/monolith.md")
     hub = ("loaded_id_matches", "monolithread.editable=true", "snapshot_before_write")

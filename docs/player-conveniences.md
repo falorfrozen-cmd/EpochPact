@@ -1062,6 +1062,30 @@ Relic) became Physical Damage (id 30) on every base. Now:
   forge item unchanged; on a belt both kept, the same in the saved form and after a restart; a helmet with
   Dexterity T7 as before.
 
+### T8 on every affix, tiers in place, character level, Spawn with chosen affixes (2026-11-01)
+
+Four player requests:
+
+- **T8 on any number of affixes.** Custom Items no longer refuses a second T8. The first T8 is sealed as the
+  item's primordial affix as before; the game saves and loads every affix at the eighth tier as a sealed
+  primordial affix (sealed type 2), so all of them stay T8. More than seven affixes is not possible: the
+  native item format stores the affix count in three bits (a player's 10-affix item made with Cheat Engine
+  lives only in memory).
+- **Change affix tiers in place** (`crafttiers`, Crafting → Custom Items, its own panel): each affix of the
+  forge item with a tier select; Apply changes only those tiers (see `docs/build-controls.md`).
+- **Set character level** (`setlevel <save> <2-100>`, Campaign): raises the character with the campaign
+  top-up's path, one level a frame through `ExperienceTracker.GainExpDirect` (passive and attribute points
+  of each level come with it), a recovery backup first, the save at the end. A lower level is refused.
+- **Spawn with chosen affixes** (`spawncustom <save> b<type>.<sub> <affixes> <level> <count>`, Crafting →
+  Spawn Items): for a base item (gear, idol, idol altar) up to seven of the affixes it rolls (`lootread`
+  now gives every affix `rollsOn`), each with its tier and a maximum or random roll. The game makes the
+  item, the affixes are replaced as Custom Items builds them (the item's own type, the first T8 sealed),
+  its saved form is rebuilt and read back and must hold the chosen affixes, then it is dropped.
+- Live (EpCraftTest clone, test build): seven T8 on a belt (stats 205.85 -> 411.7 against seven T7), the
+  same after a restart; tiers changed in place, back to T8; level 55 -> 58 (lower refused), kept after a
+  restart; a Small Eterran Idol with four chosen affixes, a Twisted Altar with four T8 and a helmet with
+  seven T8 spawned, picked up and kept after a restart; a Unique refused for chosen affixes.
+
 ## MelonLoader installation
 
 EpochPact can recognize Windows x64 MelonLoader 0.7 installations. It preserves

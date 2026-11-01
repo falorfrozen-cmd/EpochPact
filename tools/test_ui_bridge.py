@@ -126,11 +126,11 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(self.commands, [])
 
     def test_custom_crafting_tiers_and_rolls_are_checked_before_ipc(self):
-        for csv in ('1:9:50', '1:0:50', '1:7:0', '1:7:101', '1:7', '1:7:x', '1:8:100,2:8:r', '1:7:50,1:5:50', '70000:7:50'):
+        for csv in ('1:9:50', '1:0:50', '1:7:0', '1:7:101', '1:7', '1:7:x', '1:7:50,1:5:50', '70000:7:50'):
             with self.subTest(csv=csv), self.assertRaises(ValueError):
                 self.bridge.execute('craft_custom', {'template_id':-1,'affixes':csv,'perfect':1,'expected_id':'42'})
         self.assertEqual(self.commands, [])
-        chosen = '0:1:1,1:5:50,2:8:100,3:7:r,4,5:2:99,6:6:100'
+        chosen = '0:1:1,1:5:50,2:8:100,3:8:r,4,5:2:99,6:8:100'
         self.live[f'craftcustom 42 -1 {chosen} 1'] = {'ok':True,'backup':'test-only-snapshot'}
         self.bridge.execute('craft_custom', {'template_id':-1,'affixes':chosen,'perfect':1,'expected_id':'42'})
         self.assertEqual(self.commands.count(f'craftcustom 42 -1 {chosen} 1'), 1, 'seven affixes with tiers and rolls fit the limit')
@@ -216,6 +216,9 @@ class BridgeTests(unittest.TestCase):
         self.live['craftmods'] = {'ok':True,'modifiers':[]}
         self.live['spawnlist'] = {'ok':True,'player':dict(self.player),'bases':[{'type':0,'sub':13,'name':'Burial Mask','baseType':'Helmet','level':30,'maxAffixes':4}],'uniques':[{'id':5,'name':"Isadora's Revenge",'baseType':'Helmet','set':True,'weaver':False,'level':39}]}
         self.live['spawnitem 42 u5 0 0 1 1'] = {'ok':True,'name':"Isadora's Revenge",'spawned':1,'items':[]}
+        self.live['spawncustom 42 b0.13 1:8:100 1 1'] = {'ok':True,'name':'Burial Mask','spawned':1,'items':[]}
+        self.live['crafttiers 42 1:8'] = {'ok':True,'backup':'test-only-snapshot','preview':{'hasItem':True}}
+        self.live['setlevel 42 2'] = {'ok':True,'backup':'test-only-snapshot','levels':1}
         for t in self.live['monolithread']['timelines']:
             for d in t['difficulties']:
                 d['unlocked'] = True
@@ -360,11 +363,13 @@ class BridgeTests(unittest.TestCase):
                     elif name == 'ids':
                         args[name] = 'none'
                     elif name == 'item':
-                        args[name] = 'u5'
+                        args[name] = 'b0.13' if cid == 'spawn_custom' else 'u5'
+                    elif name == 'tiers':
+                        args[name] = '1:8'
                     elif name == 'look':
                         args[name] = 'u5'
                     elif name == 'affixes':
-                        args[name] = 'keep'
+                        args[name] = '1:8:100' if cid == 'spawn_custom' else 'keep'
                     elif name == 'color':
                         args[name] = 'E0315A'
                     elif name == 'family':

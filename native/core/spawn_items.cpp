@@ -1,5 +1,6 @@
 #include "spawn_items.hpp"
 #include "managed.hpp"
+#include "crafting.hpp"
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -199,7 +200,7 @@ std::string List() {
     });
 }
 
-std::string Spawn(const std::string& saveId, const std::string& item, int rarity, int lp, int level, int count) {
+std::string Spawn(const std::string& saveId, const std::string& item, int rarity, int lp, int level, int count, const std::string& affixes) {
     return Run([=] {
         if (rarity < 0 || rarity > 3) throw std::runtime_error("Rarity must be 0 (Normal), 1 (Magic), 2 (Rare) or 3 (Exalted).");
         if (lp < -1 || lp > 4) throw std::runtime_error("Legendary Potential must be -1 (the game's roll) or 0 to 4.");
@@ -209,6 +210,7 @@ std::string Spawn(const std::string& saveId, const std::string& item, int rarity
         if (c.id != saveId) throw std::runtime_error("The loaded character changed. Load the item list again.");
         Root types(Invoke(M("ItemList", "get", 0)));
         const Request request = Resolve(types.Get(), item, rarity);
+        if (!affixes.empty() && request.entry) throw std::runtime_error("Choose a base item to give it affixes.");
         void* generator = Get<void*>(c.actor, F("Actor", "generateItems"));
         void* manager = game::StaticObject(game::FindStaticField("LE.dll", "", "GroundItemManager", "instance"));
         if (!generator || !manager) throw std::runtime_error("The game's item generator is not ready.");
@@ -222,6 +224,19 @@ std::string Spawn(const std::string& saveId, const std::string& item, int rarity
         for (int i = 0; i < count; ++i) {
             const auto made = Make(generator, generate, request, level, lp);
             if (!made) break;
+            if (!affixes.empty()) {
+                // the chosen affixes instead of the rolled ones, then the saved form rebuilt and read back: what the
+                // game reads back must be what was chosen
+                crafting::SetAffixes(made->Get(), affixes, true);
+                std::vector<std::pair<int, int>> chosen;
+                for (void* a : Entries(Get<void*>(made->Get(), F("ItemData", "affixes"))))
+                    chosen.push_back({Get<uint16_t>(a, F("ItemAffix", "affixId")), Get<uint8_t>(a, F("ItemAffix", "affixTier"))});
+                Finish(made->Get(), request, -1);
+                std::vector<std::pair<int, int>> loaded;
+                for (void* a : Entries(Get<void*>(made->Get(), F("ItemData", "affixes"))))
+                    loaded.push_back({Get<uint16_t>(a, F("ItemAffix", "affixId")), Get<uint8_t>(a, F("ItemAffix", "affixTier"))});
+                if (loaded != chosen) throw std::runtime_error("The game changed the chosen affixes on this item; nothing was spawned.");
+            }
             // around the character, one step apart
             const double angle = count == 1 ? 0.0 : 6.283185307179586 * i / count;
             Vec3 p{at.x + static_cast<float>(1.5 * std::cos(angle)), at.y, at.z + static_cast<float>(1.5 * std::sin(angle))};

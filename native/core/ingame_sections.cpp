@@ -810,6 +810,38 @@ void MakePickupSelections(Section& s) {
 }
 
 // --------------------------------------------------------------------------------- Campaign
+// Set character level (setlevel): the card with its Target level field, raised only.
+CardMaker LevelCard(int section) {
+    return [section](const Ctx& cc, float x, float y, float w) {
+        const Control& ctl = Ctl("character_level");
+        const FieldValue initial = [](const Param& p) -> std::string {
+            if (p.name != "level") return "";
+            const JValue* r = Cached("progressread");
+            const JValue* level = r ? r->Path("player.level") : nullptr;
+            if (!level || !level->IsNumber()) level = r ? r->Path("rewards.level") : nullptr;
+            const int now = level && level->IsNumber() ? static_cast<int>(level->number) : 1;
+            return std::to_string(std::clamp(now + 1, 2, 100));
+        };
+        Fields fields = [=](const Ctx& fc, float fx, float fy, float fw) { return ParameterFields(fc, fx, fy, fw, ctl, {}, initial, section); };
+        return ActionCard(cc, x, y, w, ctl, ActionCaption(ctl), true, [] {
+            const Control& c = Ctl("character_level");
+            std::string line, why;
+            if (!FormCommand(c, &line, &why)) { Toast(why, true); return; }
+            ActionRun run;
+            run.command = line;
+            run.snapshot = "progressread";
+            run.confirmTitle = Tr(c.label);
+            run.confirmMessage = SaveMessage(c);
+            run.success = [](const JValue& v) {
+                const JValue* l = v.Path("after.level");
+                return Fmt("Character raised to level {0}.", {l && l->IsNumber() ? Num(l->number) : std::string("?")});
+            };
+            run.reread = {"progressread"};
+            run.done = [](const JValue&) { ForgetForm("character_level"); };
+            RunAction(run);
+        }, SaveReason("progressread"), fields);
+    };
+}
 void MakeCampaign(Section& s) {
     s.reads.insert("progressread");
     // the quest table fills over a few frames (85 rows at once would hold one frame for long)
@@ -840,7 +872,8 @@ void MakeCampaign(Section& s) {
                                     },
                                     {"progressread"}),
                            SaveCard("waypoints_unlock", "waypointsunlock {save_id}", "progressread", [](const JValue&) { return Tr("All waypoints unlocked."); },
-                                    {"progressread"})});
+                                    {"progressread"}),
+                           LevelCard(self->id)});
             (void)complete;
             (void)waypoints;
             // <details><summary>Quest rewards and coverage (85 quests / 109 waypoints)</summary>

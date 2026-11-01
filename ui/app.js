@@ -53,7 +53,7 @@ const affixKinds={
 function affixKind(el){return el?.closest?.('[data-affix-kind]')?.dataset?.affixKind||"loot_affixes";}
 function affixSelector(kind,s){return kind==="loot_affixes"?s:`[data-affix-kind="${kind}"] ${s}`;}
 let craftingSection='forge',workshopAdvanced=false;
-let spawnOptionsOf=null,spawnFilter='',spawnKind='all',spawnDraft={item:'',rarity:'2',lp:'-1',item_level:'100',count:'1'};
+let spawnOptionsOf=null,spawnFilter='',spawnKind='all',spawnDraft={item:'',rarity:'2',lp:'-1',item_level:'100',count:'1',affixes:[],roll:'100'},spawnAffixFilter='',spawnAffixType=null,tierDraft={};
 const craftDisclosure={advanced:false,defaults:false};
 let workshopDraft=craftingModel.defaults(),workshopOwner=null;
 let workshopModifierFilter="";
@@ -352,6 +352,8 @@ function playerResult(payload,result){
   cof_rank:`Circle of Fortune rank set to ${a.value}.`,cof_favor:`Favor set to ${a.value}.`,
   cof_reputation_grant:`Added ${a.value} Reputation.`,cof_join:"Joined Circle of Fortune.",cof_lenses_unlock:"Available lenses unlocked.",
   cofprophecy:`Prophecy slot ${Number(a.slot)+1} updated.`,cof_charges:`Prophecy slot ${Number(a.slot)+1} charges set to ${a.value}.`,
+  character_level:`Character raised to level ${result.after?.level??a.level}.`,craft_tiers:"Affix tiers changed.",
+  spawn_custom:(result.spawned??0)===1?`${result.name} dropped next to your character.`:`${result.spawned??0} × ${result.name} dropped next to your character.`,
   spawn_item:(result.spawned??0)===1?`${result.name} dropped next to your character.`:`${result.spawned??0} × ${result.name} dropped next to your character.`,
   craft_forge:"Item forged once.",craft_materials:`${result.updatedKinds??0} material types stocked to at least ${result.target??a.value}. Saved in your crafting stash.`,craft_reset:"Normal crafting restored.",loot_reset:"Pickup rules reset.",stat_reset:"All character bonuses reset.",
   undo:"Selected backup restored. You can reopen the game."
@@ -379,7 +381,7 @@ function confirmAction(title,message) {
 }
 function finishConfirm(value) {$("#confirm-dialog").close();if(confirmationResolve){confirmationResolve(value);confirmationResolve=null;}}
 function controlById(id){return catalog.controls.find(x=>x.id===id);}
-function saveSnapshot(c){return c.id==="spawn_item"?cache.spawn_list:c.group==="inventory"?cache.inventory_read:c.group==="skills"?cache.build_read:c.id==="craft_materials"?cache.craft_materials_read:["craft_forge","craft_custom"].includes(c.id)?cache.craft_read?.forgePreview:cache[c.group==="campaign"?"progress_read":c.group==="monolith"?"monolith_read":"cof_read"];}
+function saveSnapshot(c){return ["spawn_item","spawn_custom"].includes(c.id)?cache.spawn_list:c.group==="inventory"?cache.inventory_read:c.group==="skills"?cache.build_read:c.id==="craft_materials"?cache.craft_materials_read:["craft_forge","craft_custom","craft_tiers"].includes(c.id)?cache.craft_read?.forgePreview:cache[c.group==="campaign"?"progress_read":c.group==="monolith"?"monolith_read":"cof_read"];}
 function eligible(control) {
  if(preview)return true;
  if(!connected.connected)return false;
@@ -412,6 +414,7 @@ function updateDisabled() {
    reason ||= cache.craft_read?.forgePreview?.canCustom!==true?"Put an equipment item in the game's forge, then refresh the selected item.":craftingModel.problem(workshopDraft,cache.craft_custom_catalog,cache.craft_read?.forgePreview);
    if(!preview&&cache.craft_custom_catalog?.player&&String(cache.craft_custom_catalog.player.id)!==String(connected.player?.id))reason ||= "Load item choices for the current character.";
   }
+  if(c.id==="craft_tiers")reason ||= cache.craft_read?.forgePreview?.canCustom!==true?"Put an equipment item in the game's forge, then refresh the selected item.":!tierChanges().length?"Choose a new tier for an affix.":"";
   if(preview&&["craft_materials","craft_materials_read"].includes(c.id))reason ||= "Load an offline character to read or stock real crafting materials.";
   if(c.id==="spawn_item"){
    if(preview)reason ||= "Load an offline character to spawn items.";
@@ -584,7 +587,7 @@ function workshopAffixRows(){
  const data=cache.craft_custom_catalog,entries=data?.affixes||[];
  return workshopDraft.affixes.map(id=>{
   const name=clean(entries.find(x=>String(x.id)===id)?.name||id),s=craftingModel.setting(workshopDraft,id),top=craftingModel.tiersOf(data,id),random=s.roll==='random';
-  const tiers=Array.from({length:top},(_,i)=>i+1).map(t=>`<option value="${t}" ${s.tier===t?'selected':''}>${t===craftingModel.PRIMORDIAL?'T8 · primordial':'T'+t}</option>`).join('');
+  const tiers=Array.from({length:top},(_,i)=>i+1).map(t=>`<option value="${t}" ${s.tier===t?'selected':''}>${'T'+t}</option>`).join('');
   return `<div class="craft-affix-row"><span class="craft-affix-name">${esc(name)}</span><label>Tier<select data-workshop-tier="${esc(id)}">${tiers}</select></label><label>Roll<span class="craft-roll"><input type="number" min="1" max="100" step="1" data-workshop-roll="${esc(id)}" value="${random?'':s.roll}" ${random?'disabled':''} aria-label="${esc(`Roll of ${name} in percent`)}">%</span></label><label class="inline-check"><input type="checkbox" data-workshop-random="${esc(id)}" ${random?'checked':''}> Random</label><button type="button" class="craft-chip" data-workshop-remove="affixes" data-choice="${esc(id)}" aria-label="${esc(`Remove ${name} from the item`)}">×</button></div>`;
  }).join('')||'<span class="muted">No replacements selected. Current affixes are kept.</span>';
 }
@@ -616,7 +619,7 @@ function updateWorkshopUi(){
 }
 function customWorkshop(){
  const forge=cache.craft_read?.forgePreview,loaded=!!cache.craft_custom_catalog?.items?.length;
- return `<section class="panel craft-workshop"><div class="section-head"><h2>Custom Items</h2><button data-refresh="craft_custom_catalog" data-control-id="craft_custom_catalog">${loaded?'Refresh item choices':'Load item choices'}</button></div><p class="muted">Keep your item’s equipment base. Choose its template and affixes, then review the result before creating it.</p><form class="control-form" data-id="craft_custom"><section class="craft-step"><h3><span>1</span>Select the item in the game</h3><p>Open the game’s forge and place the equipment item you want to change.</p><div class="craft-item-state"><span>${forge?.canCustom?`Equipment selected · ${forge.forgingPotential??'—'} Forging Potential · ${forge.affixes?.length??0} affixes`:'Waiting for an equipment item in the game’s forge.'}</span><button type="button" data-refresh="craft_read" data-control-id="craft_read">Refresh selected item</button></div></section><section class="craft-step"><h3><span>2</span>Choose a template</h3><p>Use Exalted for affixes only, or copy one Unique / Set template onto this base.</p><div class="craft-template-search"><label>Find a template<input type="search" data-workshop-search="template" value="${esc(workshopFilters.template)}" placeholder="Search item names..."></label><label>Type<select data-workshop-kind><option value="all" ${workshopTemplateKind==='all'?'selected':''}>All templates</option><option value="unique" ${workshopTemplateKind==='unique'?'selected':''}>Unique</option><option value="set" ${workshopTemplateKind==='set'?'selected':''}>Set</option></select></label></div><label>Template<select name="template_id" data-workshop-template>${workshopTemplateOptions()}</select></label></section><section class="craft-step"><h3><span>3</span>Choose T7 affixes</h3><p>Click to add or remove an affix. Choose up to ${workshopDraft.modifiers.length?6:7}; leave all unchecked to keep the item’s current affixes.</p><label>Find an affix<input type="search" data-workshop-search="affixes" value="${esc(workshopFilters.affixes)}" placeholder="Search health, damage, resistance..."></label><div data-workshop-list="affixes">${workshopPicker('affixes')}</div><div class="craft-chips" data-workshop-chips="affixes">${workshopChips('affixes')}</div></section><details class="craft-step craft-extra" data-workshop-advanced ${workshopAdvanced?'open':''}><summary>Add extra Unique / Set effects <span>Advanced · optional</span></summary><p>Mix individual effects from different items. Choose up to 64 lines. They share one affix slot, so only six regular affixes can be selected.</p><label>Find an effect<input type="search" data-workshop-search="modifiers" value="${esc(workshopFilters.modifiers)}" placeholder="Search a source item or effect..."></label><div data-workshop-list="modifiers">${workshopPicker('modifiers')}</div><div class="craft-chips" data-workshop-chips="modifiers">${workshopChips('modifiers')}</div></details><section class="craft-step"><h3><span>4</span>Review and create</h3><label>Roll quality<select name="perfect"><option value="1" ${workshopDraft.perfect==='1'?'selected':''}>Maximum rolls</option><option value="0" ${workshopDraft.perfect==='0'?'selected':''}>Midpoint rolls</option></select></label><p class="muted">Each chosen affix has its own tier (T1–T8) and roll (1–100% of its tier's range, or Random). T8 is the game's primordial tier: one per item, shown for affixes that have it; the game limits how many primordial items you can wear. Roll quality applies to the template, implicits and extra effects, and is the starting roll for newly chosen affixes. Without extra effects, keeping current affixes preserves their tiers and midpoint mode keeps their existing rolls. Adding extra effects rebuilds kept affixes at T7 with the chosen rolls.</p><div id="workshop-summary">${workshopSummary()}</div><p class="muted">Replaces the selected item once and saves a recovery backup. This custom action does not consume crafting materials.</p><p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" class="primary" data-control-id="craft_custom">Create custom item</button></div></section></form></section>`;
+ return `<section class="panel craft-workshop"><div class="section-head"><h2>Custom Items</h2><button data-refresh="craft_custom_catalog" data-control-id="craft_custom_catalog">${loaded?'Refresh item choices':'Load item choices'}</button></div><p class="muted">Keep your item’s equipment base. Choose its template and affixes, then review the result before creating it.</p><form class="control-form" data-id="craft_custom"><section class="craft-step"><h3><span>1</span>Select the item in the game</h3><p>Open the game’s forge and place the equipment item you want to change.</p><div class="craft-item-state"><span>${forge?.canCustom?`Equipment selected · ${forge.forgingPotential??'—'} Forging Potential · ${forge.affixes?.length??0} affixes`:'Waiting for an equipment item in the game’s forge.'}</span><button type="button" data-refresh="craft_read" data-control-id="craft_read">Refresh selected item</button></div></section><section class="craft-step"><h3><span>2</span>Choose a template</h3><p>Use Exalted for affixes only, or copy one Unique / Set template onto this base.</p><div class="craft-template-search"><label>Find a template<input type="search" data-workshop-search="template" value="${esc(workshopFilters.template)}" placeholder="Search item names..."></label><label>Type<select data-workshop-kind><option value="all" ${workshopTemplateKind==='all'?'selected':''}>All templates</option><option value="unique" ${workshopTemplateKind==='unique'?'selected':''}>Unique</option><option value="set" ${workshopTemplateKind==='set'?'selected':''}>Set</option></select></label></div><label>Template<select name="template_id" data-workshop-template>${workshopTemplateOptions()}</select></label></section><section class="craft-step"><h3><span>3</span>Choose T7 affixes</h3><p>Click to add or remove an affix. Choose up to ${workshopDraft.modifiers.length?6:7}; leave all unchecked to keep the item’s current affixes.</p><label>Find an affix<input type="search" data-workshop-search="affixes" value="${esc(workshopFilters.affixes)}" placeholder="Search health, damage, resistance..."></label><div data-workshop-list="affixes">${workshopPicker('affixes')}</div><div class="craft-chips" data-workshop-chips="affixes">${workshopChips('affixes')}</div></section><details class="craft-step craft-extra" data-workshop-advanced ${workshopAdvanced?'open':''}><summary>Add extra Unique / Set effects <span>Advanced · optional</span></summary><p>Mix individual effects from different items. Choose up to 64 lines. They share one affix slot, so only six regular affixes can be selected.</p><label>Find an effect<input type="search" data-workshop-search="modifiers" value="${esc(workshopFilters.modifiers)}" placeholder="Search a source item or effect..."></label><div data-workshop-list="modifiers">${workshopPicker('modifiers')}</div><div class="craft-chips" data-workshop-chips="modifiers">${workshopChips('modifiers')}</div></details><section class="craft-step"><h3><span>4</span>Review and create</h3><label>Roll quality<select name="perfect"><option value="1" ${workshopDraft.perfect==='1'?'selected':''}>Maximum rolls</option><option value="0" ${workshopDraft.perfect==='0'?'selected':''}>Midpoint rolls</option></select></label><p class="muted">Each chosen affix has its own tier (T1–T8) and roll (1–100% of its tier's range, or Random). T8 is the game's top tier, shown for affixes that have it, and any affix can be T8. The first T8 affix is sealed as the item's primordial affix; the game limits how many primordial items you can wear. Roll quality applies to the template, implicits and extra effects, and is the starting roll for newly chosen affixes. Without extra effects, keeping current affixes preserves their tiers and midpoint mode keeps their existing rolls. Adding extra effects rebuilds kept affixes at T7 with the chosen rolls.</p><div id="workshop-summary">${workshopSummary()}</div><p class="muted">Replaces the selected item once and saves a recovery backup. This custom action does not consume crafting materials.</p><p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" class="primary" data-control-id="craft_custom">Create custom item</button></div></section></form></section>`+tiersPanel();
 }
 function spawnEntries(){
  const d=cache.spawn_list;
@@ -646,17 +649,51 @@ function spawnOptionFields(){
   `<label>Item level<input name="item_level" type="number" min="1" max="100" step="1" value="${esc(spawnDraft.item_level)}" required></label>`+
   `<label>How many<input name="count" type="number" min="1" max="20" step="1" value="${esc(spawnDraft.count)}" required></label>`;
 }
+function spawnBaseType(){const x=spawnChosen();return x&&String(x.id).startsWith('b')?Number(String(x.id).slice(1).split('.')[0]):null;}
+// Spawn with chosen affixes: the affixes the chosen base rolls (lootread rollsOn), up to seven, each with a tier.
+function spawnAffixEntries(){const type=spawnBaseType();return type===null?[]:(cache.spawn_list?.affixes||[]).filter(a=>(a.rollsOn||[]).includes(type)).map(a=>({...a,name:clean(a.name)}));}
+function spawnAffixToken(){return spawnDraft.affixes.map(a=>`${a.id}:${a.tier}:${spawnDraft.roll}`).join(',');}
+function spawnAffixList(){
+ const matches=craftingModel.filtered(spawnAffixEntries(),spawnAffixFilter),chosen=spawnDraft.affixes.map(a=>String(a.id));
+ return `<div class="craft-pick-count">${matches.length} matches · ${chosen.length} selected</div><div class="craft-pick-list">${matches.slice(0,40).map(x=>`<label><input type="checkbox" data-spawn-affix value="${esc(x.id)}" ${chosen.includes(String(x.id))?'checked':''}><span>${esc(x.name)}</span>${x.classes?.length?`<em class="craft-class">${esc(x.classes.map(tr).join(', '))}</em>`:''}</label>`).join('')||'<p class="muted">No matches. Try another search.</p>'}</div>`;
+}
+function spawnAffixRows(){
+ const all=cache.spawn_list?.affixes||[];
+ return spawnDraft.affixes.map(a=>{const x=all.find(y=>y.id===a.id),name=clean(x?.name||String(a.id)),top=Math.min(8,Math.max(1,x?.tiers||1));return `<div class="craft-affix-row"><span class="craft-affix-name">${esc(name)}</span><label>Tier<select data-spawn-affix-tier="${esc(a.id)}">${Array.from({length:top},(_,i)=>i+1).map(t=>`<option value="${t}" ${a.tier===t?'selected':''}>T${t}</option>`).join('')}</select></label><button type="button" class="craft-chip" data-spawn-affix-remove="${esc(a.id)}" aria-label="${esc(`Remove ${name}`)}">×</button></div>`;}).join('');
+}
+function spawnAffixFields(){
+ if(spawnBaseType()===null)return '';
+ if(!cache.spawn_list?.affixes)return '<p class="muted">Refresh the item list to choose affixes.</p>';
+ return `<fieldset class="spawn-affixes"><legend>Affixes (optional)</legend><p class="muted">Leave empty for the game's own roll. Choose up to seven of the affixes this item rolls; each has its own tier, and any of them can be T8.</p><label>Find an affix<input type="search" data-spawn-affix-search value="${esc(spawnAffixFilter)}" placeholder="Search health, damage, resistance..."></label><div data-spawn-affix-list>${spawnAffixList()}</div><div class="craft-chips" data-spawn-affix-rows>${spawnAffixRows()}</div><label>Rolls<select data-spawn-affix-roll><option value="100" ${spawnDraft.roll==='100'?'selected':''}>Maximum</option><option value="r" ${spawnDraft.roll==='r'?'selected':''}>Random</option></select></label><input type="hidden" name="affixes" value="${esc(spawnAffixToken())}"></fieldset>`;
+}
+function updateSpawnAffixes(){
+ const list=$('[data-spawn-affix-list]');if(list)list.innerHTML=spawnAffixList();
+ const rows=$('[data-spawn-affix-rows]');if(rows)rows.innerHTML=spawnAffixRows();
+ const hidden=$('form[data-id="spawn_item"] input[name=affixes]');if(hidden)hidden.value=spawnAffixToken();
+ updateDisabled();
+}
+// Change affix tiers: the forge item's affixes (forge preview), a tier for each; a sealed regular or corruption
+// affix keeps its tier (sealed 2 is the game's T8).
+function tierRows(){const f=cache.craft_read?.forgePreview;return f?.canCustom?(f.affixes||[]):[];}
+function tierEditable(a){return !a.sealed||a.sealed===2;}
+function tierChanges(){return tierRows().filter(a=>tierEditable(a)&&tierDraft[a.id]!==undefined&&Number(tierDraft[a.id])!==a.tier).map(a=>`${a.id}:${tierDraft[a.id]}`);}
+function tiersPanel(){
+ const rows=tierRows();
+ const body=rows.length?`<div class="craft-tier-rows">${rows.map(a=>{const name=clean(a.name||`Affix ${a.id}`),cur=Number(tierDraft[a.id]??a.tier),top=Math.max(a.tier,Math.min(8,a.tiers||7));return `<div class="craft-affix-row"><span class="craft-affix-name">${esc(name)}</span>${tierEditable(a)?`<label>Tier<select data-tier-edit="${esc(a.id)}">${Array.from({length:top},(_,i)=>i+1).map(t=>`<option value="${t}" ${t===cur?'selected':''}>T${t}</option>`).join('')}</select></label>`:`<span class="muted">Sealed · T${a.tier}</span>`}</div>`;}).join('')}</div>`:'<p class="muted">Waiting for an equipment item in the game’s forge.</p>';
+ return `<section class="panel craft-tiers"><div class="section-head"><h2>Change affix tiers</h2><button data-refresh="craft_read" data-control-id="craft_read">Refresh selected item</button></div><p class="muted">Change the tiers of the affixes already on the item in the game’s forge, without making a new item. Rolls and the rest of the item stay, and any affix can be T8. A recovery backup is created.</p><form class="control-form" data-id="craft_tiers">${body}<input type="hidden" name="tiers" value="${esc(tierChanges().join(',')||'none')}"><p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" class="primary" data-control-id="craft_tiers">Apply tiers</button></div></form></section>`;
+}
 function spawnFields(){
  const list=spawnOptions(),loaded=!!cache.spawn_list?.bases?.length;
  const kinds=[['all','All items'],['base','Base items'],['unique','Uniques'],['set','Set items']];
  spawnOptionsOf=spawnDraft.item;
  return `<div class="craft-template-search"><label>Find an item<input type="search" data-spawn-search value="${esc(spawnFilter)}" placeholder="Type a name or a type, for example Calamity, helmet or set boots" ${loaded?'':'disabled'}></label><label>Type<select data-spawn-kind ${loaded?'':'disabled'}>${kinds.map(([v,l])=>`<option value="${v}" ${spawnKind===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label></div>`+
   `<label>Item <small class="muted" data-spawn-count>${loaded?(list.count===1?'1 match':`${list.count} matches`):''}</small><select name="item" data-spawn-item size="10" ${loaded?'':'disabled'}>${list.html}</select></label><p class="note" data-spawn-note>${esc(spawnNote())}</p>`+
-  `<div class="form-grid" data-spawn-options>${spawnOptionFields()}</div>`;
+  `<div class="form-grid" data-spawn-options>${spawnOptionFields()}</div><div data-spawn-affixes>${spawnAffixFields()}</div>`;
 }
 function updateSpawnUi(){
  const list=spawnOptions(),select=$('[data-spawn-item]');if(select)select.innerHTML=list.html;
  const opts=$('[data-spawn-options]');if(opts&&spawnOptionsOf!==spawnDraft.item){spawnOptionsOf=spawnDraft.item;opts.innerHTML=spawnOptionFields();}
+ if(spawnBaseType()!==spawnAffixType){spawnAffixType=spawnBaseType();spawnDraft.affixes=[];const block=$('[data-spawn-affixes]');if(block)block.innerHTML=spawnAffixFields();}
  const count=$('[data-spawn-count]');if(count)count.textContent=list.count===1?'1 match':`${list.count} matches`;
  const note=$('[data-spawn-note]');if(note)note.textContent=spawnNote();updateDisabled();
 }
@@ -703,10 +740,11 @@ function parameterFields(c){
   else if(c.id==="craft_custom"&&name==="perfect")html=`<select name="perfect"><option value="1" ${workshopDraft.perfect==="1"?"selected":""}>Maximum rolls</option><option value="0" ${workshopDraft.perfect==="0"?"selected":""}>Midpoint rolls</option></select>`;
   else if(c.id==="craft_custom"&&name==="modifiers")html=`<input type="search" data-workshop-filter placeholder="Search item names or modifier effects..." value="${esc(workshopModifierFilter)}"><select name="modifiers" multiple size="10">${workshopModifierOptions()}</select><span class="note">Mix up to 64 individual Unique and Set modifier lines. Uses one affix slot: select at most six regular affixes. Mixed items require EpochPact and its workshop-recipes.txt file after restarting or moving to another PC.</span>`;
   else if(c.id==="craft_materials"&&name==="value")html=`<input name="value" type="number" min="${p.minimum}" max="${p.maximum}" step="1" value="${esc(materialTarget)}" required><span class="note">Higher existing quantities are kept. Range: 1–1,000,000 per material.</span>`;
+  else if(c.id==="character_level"&&name==="level"){const now=Number(cache.progress_read?.player?.level??cache.progress_read?.rewards?.level)||1;html=`<input name="level" type="number" min="2" max="100" step="1" value="${Math.min(100,Math.max(2,now+1))}" required><span class="note">Only raising the level is offered.</span>`;}
   else if(p.choices){const selected=c.id==="loot_mode"?cache.loot_read?.mode??c.default:null;html=`<select name="${name}">${p.choices.map(x=>`<option value="${x}" ${x===selected?"selected":""}>${esc(choiceWords[x]??String(x))}</option>`).join("")}</select>`;}
   else if(c.id==="loot_affixes")html=`<select name="ids" multiple size="8" aria-label="Wanted T7 affixes">${options(cache.loot_read?.affixes||[],cache.loot_read?.affixIds||[])}</select><span class="note">Refresh pickup rules to load affix names. Hold Ctrl to select several; no selection accepts any T7.</span>`;
  else {const liveDefault=name==="value"?({craft_hope:cache.craft_read?.hopePercent,craft_despair:cache.craft_read?.despairPercent,cof_rank:cache.cof_read?.cof?.rank,cof_favor:cache.cof_read?.cof?.favor,cof_charges:cache.cof_read?.slots?.find(s=>!s.locked)?.charges}[c.id]??c.default):c.default;html=`<input name="${name}" ${p.type==="single_token"?'type="text"':'type="number"'} ${p.minimum!=null?`min="${p.minimum}"`:""} ${p.maximum!=null?`max="${p.maximum}"`:""} step="${p.type.includes("integer")?"1":"any"}" ${liveDefault!=null?`value="${liveDefault}"`:""} ${p.type==="number_or_reset"?'placeholder="Normal chance (blank resets)"':""} ${["optional_integer","number_or_reset"].includes(p.type)?"":"required"}>`;}
-  return field(name,c.id==="craft_materials"&&name==="value"?"Minimum quantity per material":{value:"Value",name:"Character name",level:"Level (optional)",slot:"Prophecy slot",reward:"Reward",lens:"Lens",backup:"Operation backup",mode:"Selection",ids:"Affixes",category:"Pickup category",template_id:"Whole Unique / Set template",affixes:"T7 affixes",perfect:"Roll quality",modifiers:"Additional modifier lines"}[name]||name,html);
+  return field(name,c.id==="craft_materials"&&name==="value"?"Minimum quantity per material":c.id==="character_level"&&name==="level"?"Target level":{value:"Value",name:"Character name",level:"Level (optional)",slot:"Prophecy slot",reward:"Reward",lens:"Lens",backup:"Operation backup",mode:"Selection",ids:"Affixes",category:"Pickup category",template_id:"Whole Unique / Set template",affixes:"T7 affixes",perfect:"Roll quality",modifiers:"Additional modifier lines"}[name]||name,html);
  }).join("");
 }
 function cachedSummary(id){
@@ -782,7 +820,7 @@ function renderPage(){
  else if(page==="campaign"){
   const mastery=window.EpochSession.current(cache.progress_read,connected,preview)?cache.progress_read?.mastery:null;
   const masteryStatus=mastery?.available?"Your character has no mastery yet. Open the selection screen, then choose your mastery in the game.":mastery?.reason||"Refresh live to check mastery selection for your character.";
-  content.innerHTML=cachedSummary("progress_read")+`<section class="panel"><div class="section-head"><h2>Campaign and waypoints</h2><button data-refresh="progress_read" data-control-id="progress_read">Refresh live</button></div><div class="control-grid">${["campaign_complete","waypoints_unlock"].map(id=>actionCard(controlById(id))).join("")}</div><details><summary>Quest rewards and coverage (${catalog.counts.eligibleCampaignQuests} quests / ${catalog.counts.waypoints} waypoints)</summary><p class="muted">Completion grants normal rewards and raises the character to at least level 55. Completed quests do not grant rewards again. Test, repeatable and endgame quests are excluded.</p>${questTable()}</details></section><section class="panel"><h2>Mastery</h2><p class="note">${esc(masteryStatus)}</p>${actionCard(controlById("mastery_choose"))}</section>`;
+  content.innerHTML=cachedSummary("progress_read")+`<section class="panel"><div class="section-head"><h2>Campaign and waypoints</h2><button data-refresh="progress_read" data-control-id="progress_read">Refresh live</button></div><div class="control-grid">${["campaign_complete","waypoints_unlock","character_level"].map(id=>actionCard(controlById(id))).join("")}</div><details><summary>Quest rewards and coverage (${catalog.counts.eligibleCampaignQuests} quests / ${catalog.counts.waypoints} waypoints)</summary><p class="muted">Completion grants normal rewards and raises the character to at least level 55. Completed quests do not grant rewards again. Test, repeatable and endgame quests are excluded.</p>${questTable()}</details></section><section class="panel"><h2>Mastery</h2><p class="note">${esc(masteryStatus)}</p>${actionCard(controlById("mastery_choose"))}</section>`;
  }else if(page==="atlas"||page==="stash")renderCollection();
  else if(page==="monolith")renderMonolith();
  else if(page==="cof")renderCof();
@@ -1531,7 +1569,7 @@ function setTheme(theme){
  try{localStorage.setItem("epochpact.theme",theme);}catch{}
  if(catalog)renderPage();
 }
-content.addEventListener("submit",e=>{if(e.target.matches(".control-form")){e.preventDefault();void formAction(e.target);}});
+content.addEventListener("submit",e=>{if(e.target.matches(".control-form")){e.preventDefault();void formAction(e.target,e.target.dataset.id==="spawn_item"&&spawnDraft.affixes.length&&spawnBaseType()!==null?"spawn_custom":undefined);}});
 content.addEventListener('toggle',e=>{if(e.target.hasAttribute?.('data-workshop-advanced'))workshopAdvanced=e.target.open;if(e.target.dataset?.craftDisclosure)craftDisclosure[e.target.dataset.craftDisclosure]=e.target.open;},true);
 content.addEventListener("click",async e=>{
  const b=e.target.closest("button");if(!b||b.disabled)return;
@@ -1552,6 +1590,7 @@ content.addEventListener("click",async e=>{
  else if(b.dataset.craftSection){craftingSection=b.dataset.craftSection;renderPage();}
  else if(b.dataset.workshopMore){workshopListLimits[b.dataset.workshopMore]+=40;updateWorkshopUi();}
  else if(b.dataset.workshopRemove){workshopDraft[b.dataset.workshopRemove]=workshopDraft[b.dataset.workshopRemove].filter(x=>x!==b.dataset.choice);updateWorkshopUi();}
+ else if(b.dataset.spawnAffixRemove){spawnDraft.affixes=spawnDraft.affixes.filter(a=>String(a.id)!==b.dataset.spawnAffixRemove);updateSpawnAffixes();}
  else if(b.id==="summon-baseline"){
   const data=cache.summons_read;if(!window.EpochSession.current(data,connected)||!data.summons?.length){notify("Refresh live summons before saving a damage baseline.",true);return;}
   summonBaselineOwner=automaticOwner();summonBaseline=Object.fromEntries(data.summons.map(s=>[s.instance,s.measuredDps]));$("#summon-live").innerHTML=summonTable();notify("Damage baseline saved for these active allies. Compare against the same target.");
@@ -1673,6 +1712,7 @@ content.addEventListener("input",e=>{
   else{workshopListLimits[kind]=40;updateWorkshopUi();}return;
  }
  if(t.hasAttribute?.('data-spawn-search')){spawnFilter=t.value;updateSpawnUi();return;}
+ if(t.hasAttribute?.('data-spawn-affix-search')){spawnAffixFilter=t.value;const list=$('[data-spawn-affix-list]');if(list)list.innerHTML=spawnAffixList();return;}
  if(t.name&&t.closest('form')?.dataset.id==="spawn_item"&&t.name!=='item'){spawnDraft[t.name]=t.value;return;}
  if(t.hasAttribute?.("data-workshop-filter")){workshopModifierFilter=t.value;const select=t.closest('form')?.querySelector('[name=modifiers]');if(select)select.innerHTML=workshopModifierOptions();return;}
  if(t.name==="value"&&t.closest('form')?.dataset.id==="craft_materials")materialTarget=t.value;
@@ -1752,6 +1792,10 @@ content.addEventListener("change",e=>{
  if(t.hasAttribute?.('data-affix-sort')){const kind=affixKind(t);affixKinds[kind].state().order=t.value==='za'?'za':'az';updateWantedAffixLists(kind);return;}
  if(t.dataset.craftGlyphMode){settingChanged(t.dataset.craftGlyphMode,t.value==='default'?null:50);return;}
  if(t.hasAttribute?.('data-spawn-kind')){spawnKind=t.value;updateSpawnUi();return;}
+ if(t.hasAttribute?.('data-spawn-affix')){const id=Number(t.value);if(t.checked){if(spawnDraft.affixes.length>=7){t.checked=false;notify('Choose up to seven affixes.',true);return;}const x=(cache.spawn_list?.affixes||[]).find(a=>a.id===id);spawnDraft.affixes.push({id,tier:Math.min(8,Math.max(1,x?.tiers||1))});}else spawnDraft.affixes=spawnDraft.affixes.filter(a=>a.id!==id);updateSpawnAffixes();return;}
+ if(t.dataset.spawnAffixTier){const a=spawnDraft.affixes.find(x=>String(x.id)===t.dataset.spawnAffixTier);if(a)a.tier=Number(t.value);updateSpawnAffixes();return;}
+ if(t.hasAttribute?.('data-spawn-affix-roll')){spawnDraft.roll=t.value;updateSpawnAffixes();return;}
+ if(t.dataset.tierEdit){tierDraft[t.dataset.tierEdit]=t.value;const hidden=$('form[data-id="craft_tiers"] input[name=tiers]');if(hidden)hidden.value=tierChanges().join(',')||'none';updateDisabled();return;}
  if(t.name&&t.closest('form')?.dataset.id==="spawn_item"){spawnDraft[t.name]=t.value;if(t.name==='item')updateSpawnUi();return;}
  if(t.hasAttribute?.('data-workshop-kind')){workshopTemplateKind=t.value;const select=$('[data-workshop-template]');if(select)select.innerHTML=workshopTemplateOptions();return;}
  if(t.dataset.workshopPick){const selected=workshopDraft[t.dataset.workshopPick],id=String(t.value);workshopDraft[t.dataset.workshopPick]=t.checked?[...new Set([...selected,id])]:selected.filter(x=>x!==id);updateWorkshopUi();return;}

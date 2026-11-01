@@ -237,6 +237,10 @@
       "Complete main + side campaign · level 55 minimum",
       "Completes unfinished eligible campaign quests with their normal rewards and raises the character to at least level 55. Unlocks End of Time, MonolithHub and M_Rest waypoints. Completed quests do not grant rewards again. If you have no mastery, use Choose Mastery afterward."
     ],
+    "character_level": [
+      "Set character level",
+      "Raise the loaded character to a level from 2 to 100 with the game's own level-ups: the passive and attribute points of each level come with them. A lower level is not offered. Creates a recovery backup."
+    ],
     "mastery_choose": [
       "Choose Mastery",
       "Open the game's mastery selection screen, then choose and confirm in the game. Available after The Power of Mastery is completed. An existing mastery is never replaced by this action."
@@ -523,7 +527,11 @@
     ],
     "craft_custom": [
       "Create custom gear",
-      "Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8 with a chosen or random roll; T8 is primordial, one per item) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling."
+      "Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8, any of them T8, with a chosen or random roll) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling."
+    ],
+    "craft_tiers": [
+      "Change affix tiers",
+      "Change the tiers of the affixes already on the item in the game's forge (T1-T8; any of them can be T8), without making a new item. Rolls and the rest of the item stay. Creates a recovery backup."
     ],
     "spawn_list": [
       "Load spawnable items",
@@ -532,6 +540,10 @@
     "spawn_item": [
       "Spawn item",
       "The game makes the chosen base item, Unique or Set with its own rules and drops it next to your character, like a monster drop. Base items: Normal, Magic, Rare or Exalted. Uniques: the game's Legendary Potential roll or a chosen 0-4 (Weaver's Will Uniques and Sets roll their own). Item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up."
+    ],
+    "spawn_custom": [
+      "Spawn with chosen affixes",
+      "The game makes the chosen base item (gear, idol or idol altar) with the affixes you choose, each with its tier (any of them can be T8), and drops it next to your character. Up to seven affixes, item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up."
     ],
     "craft_materials_read": [
       "Crafting material stock",

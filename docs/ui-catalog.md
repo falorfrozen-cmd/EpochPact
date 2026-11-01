@@ -229,8 +229,10 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `craft_forge` — Forge selected item | `craftforge {save_id}` | — | — | Oyun kaydı |
 | `craft_custom_catalog` — Load workshop templates | `craftmods` | — | — | Okuma |
 | `craft_custom` — Create custom gear | `craftmix {save_id} {template_id} {affixes} {perfect} {modifiers}` | template_id: -1…65535; affixes: single_token; perfect: 0…1; modifiers: optional_single_token | — | Oyun kaydı |
+| `craft_tiers` — Change affix tiers | `crafttiers {save_id} {tiers}` | tiers: single_token | — | Oyun kaydı |
 | `spawn_list` — Load spawnable items | `spawnlist` | — | — | Okuma |
 | `spawn_item` — Spawn item | `spawnitem {save_id} {item} {rarity} {lp} {item_level} {count}` | item: single_token; rarity: 0…3; lp: -1…4; item_level: 1…100; count: 1…20 | — | Yüklü aktör |
+| `spawn_custom` — Spawn with chosen affixes | `spawncustom {save_id} {item} {affixes} {item_level} {count}` | item: single_token; affixes: single_token; item_level: 1…100; count: 1…20 | — | Yüklü aktör |
 | `craft_reset` — Crafting ayarlarını normale döndür | `craftreset` | — | — | Oturum |
 
 - **Crafting önizleme / durum:** Normal forge eligibility, eşya/affix/FP, shard craft maliyet aralığı ve glyph ihtimalleri; kesin RNG sonucu vermez. Rune/Insight maliyet aralığı gösterilmez. API: `tools.loot_crafting_backend.craft_read()`.
@@ -247,9 +249,11 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Craft level:** Local normal forge only; other item and equipment rules remain. API: `tools.loot_crafting_backend.bypass_level(value)`. Reset: `craftlevel 0`.
 - **Forge selected item:** Perform exactly one normal craft on the current game forge selection. Requires an eligible item/material and matching offline character; snapshot before craft. API: `tools.loot_crafting_backend.forge(save_id)`.
 - **Load workshop templates:** Read the game's public Unique/Set templates and affix names. Does not create or modify items. API: `tools.build_backend.workshop_catalog()`.
-- **Create custom gear:** Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8 with a chosen or random roll; T8 is primordial, one per item) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling. API: `tools.build_backend.custom(save_id, template_id, affixes, perfect, modifiers='none')`.
+- **Create custom gear:** Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8, any of them T8, with a chosen or random roll) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling. API: `tools.build_backend.custom(save_id, template_id, affixes, perfect, modifiers='none')`.
+- **Change affix tiers:** Change the tiers of the affixes already on the item in the game's forge (T1-T8; any of them can be T8), without making a new item. Rolls and the rest of the item stay. Creates a recovery backup. API: `tools.build_backend.tiers(save_id, tiers)`.
 - **Load spawnable items:** Read the base items, Uniques and Sets the game can make. Does not create items.
 - **Spawn item:** The game makes the chosen base item, Unique or Set with its own rules and drops it next to your character, like a monster drop. Base items: Normal, Magic, Rare or Exalted. Uniques: the game's Legendary Potential roll or a chosen 0-4 (Weaver's Will Uniques and Sets roll their own). Item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up.
+- **Spawn with chosen affixes:** The game makes the chosen base item (gear, idol or idol altar) with the affixes you choose, each with its tier (any of them can be T8), and drops it next to your character. Up to seven affixes, item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up.
 - **Crafting ayarlarını normale döndür:** FP=1, doğal glyph şansları, normal shard tüketimi; tüm crafting hook'ları kaldırılır. API: `tools.loot_crafting_backend.reset_craft()`.
 
 ## Kampanya ve waypoint
@@ -260,10 +264,12 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `mastery_choose` — Choose Mastery | `masteryopen {save_id}` | — | — | Görünüm |
 | `campaign_complete` — Ana + yan kampanyayı tamamla, en az seviye 55 | `questscomplete {save_id}` | — | — | Oyun kaydı |
 | `waypoints_unlock` — Tüm gerçek waypointleri aç | `waypointsunlock {save_id}` | — | — | Oyun kaydı |
+| `character_level` — Set character level | `setlevel {save_id} {level}` | level: 2…100 | — | Oyun kaydı |
 
 - **Görev / waypoint kataloğu:** Yüklü id, seviye/XP/ödüller, eligibility ve gerçek waypoint sahneleri. API: `tools.progression_backend.read()`.
 - **Choose Mastery:** Open the game's first mastery selection screen after the mastery quest is completed. Choose and confirm in the game. Existing masteries, passive allocations and rewards are unchanged by opening the screen. API: `tools.progression_backend.open_mastery(save_id)`.
 - **Ana + yan kampanyayı tamamla, en az seviye 55:** Henüz bitmemiş eligible kampanya görevleri ve normal ödülleri; minimum 55; End of Time, MonolithHub, M_Rest waypointleri. Tekrar ödül vermez. API: `tools.progression_backend.apply("questscomplete", save_id)`.
+- **Set character level:** Raise the loaded character to a level from 2 to 100 with the game's own level-ups: the passive and attribute points of each level come with them. A lower level is not offered. Creates a recovery backup. API: `tools.progression_backend.set_level(save_id, level)`.
 - **Tüm gerçek waypointleri aç:** Gerçek waypoint sahnelerini açar; Monolith timeline difficulty unlock ayrı işlemdir. API: `tools.progression_backend.apply("waypointsunlock", save_id)`.
 
 ## Monolith / endgame

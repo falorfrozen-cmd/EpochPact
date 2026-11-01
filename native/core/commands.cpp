@@ -191,12 +191,19 @@ std::string Execute(const std::string& line) {
             return spawn::Spawn(args[0],args[1],static_cast<int>(rarity),static_cast<int>(lp),static_cast<int>(level),static_cast<int>(count));
         return "{\"ok\":false,\"error\":\"use spawnitem save-id b<type>.<subtype>|u<unique id> rarity-0-3 lp-(-1)-4 level-1-100 count-1-20\"}";
     }
+    if(cmd=="spawncustom") {
+        long long level=0,count=0;
+        if(args.size()==5&&args[1].size()<=16&&args[2].size()<=200&&statedit::Integer(args[3],1,100,&level)&&statedit::Integer(args[4],1,spawn::kMaximumCount,&count))
+            return spawn::Spawn(args[0],args[1],2,-1,static_cast<int>(level),static_cast<int>(count),args[2]);
+        return "{\"ok\":false,\"error\":\"use spawncustom save-id b<type>.<subtype> affix:tier:roll,... level-1-100 count-1-20\"}";
+    }
     if(cmd=="craftmods")return args.empty()?workshop::Catalog():"{\"ok\":false,\"error\":\"craftmods expects no arguments\"}";
     if(cmd=="craftmix") {
         int templateId=0,perfect=0;
         try{if(args.size()==5){size_t a=0,b=0;templateId=std::stoi(args[1],&a);perfect=std::stoi(args[3],&b);if(a==args[1].size()&&b==args[3].size()&&(perfect==0||perfect==1))return crafting::Custom(args[0],templateId,args[2],perfect,args[4]=="none"?"":args[4]);}}catch(const std::exception&){}
         return "{\"ok\":false,\"error\":\"use craftmix save-id template-id affixes perfect modifier-lines\"}";
     }
+    if(cmd=="crafttiers")return args.size()==2?crafting::Tiers(args[0],args[1]):"{\"ok\":false,\"error\":\"use crafttiers save-id affix:tier,...\"}";
     if(cmd=="craftcustom") {
         int id=-2,perfect=-1;
         if(args.size()==4){const auto a=std::from_chars(args[1].data(),args[1].data()+args[1].size(),id),b=std::from_chars(args[3].data(),args[3].data()+args[3].size(),perfect);if(a.ec==std::errc{}&&a.ptr==args[1].data()+args[1].size()&&b.ec==std::errc{}&&b.ptr==args[3].data()+args[3].size()&&(perfect==0||perfect==1))return crafting::Custom(args[0],id,args[2],perfect!=0);}
@@ -339,6 +346,11 @@ std::string Execute(const std::string& line) {
     if (cmd == "questscomplete") return args.size() == 1 ? progression::Complete(args[0]) : "questscomplete: refused: use questscomplete <offline save id from progressread>";
     if (cmd == "masteryopen") return args.size() == 1 ? progression::OpenMastery(args[0]) : "{\"ok\":false,\"error\":\"use masteryopen <offline save id from progressread>\"}";
     if (cmd == "waypointsunlock") return args.size() == 1 ? progression::UnlockWaypoints(args[0]) : "waypointsunlock: refused: use waypointsunlock <offline save id from progressread>";
+    if (cmd == "setlevel") {
+        long long level = 0;
+        if (args.size() == 2 && statedit::Integer(args[1], 2, 100, &level)) return progression::SetLevel(args[0], static_cast<int>(level));
+        return "{\"ok\":false,\"error\":\"use setlevel save-id level-2-100\"}";
+    }
     if (cmd == "cofchargemult" || cmd == "cofrewardmult" || cmd == "cofexaltedmult" || cmd == "coft7mult" || cmd == "coflpmult" || cmd == "cofdouble" || cmd == "coflensmult") {
         const auto error = [](const char* text) { return "{\"ok\":false,\"error\":" + managed::Json(text) + "}"; };
         const bool named = cmd == "cofdouble" || cmd == "coflensmult";

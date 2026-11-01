@@ -752,6 +752,82 @@ std::string Perform(const std::string& expectedId, bool campaign) {
 }
 std::string Complete(const std::string& expectedId) { return Perform(expectedId, true); }
 std::string UnlockWaypoints(const std::string& expectedId) { return Perform(expectedId, false); }
+// The character raised to a level (2-100) the way the campaign top-up raises it to 55: the experience for each
+// level through the game's own GainExpDirect, one level a frame (the game's level-up rewards: passive points,
+// attribute points), a recovery backup first and the save at the end. A lower level is refused.
+std::string SetLevel(const std::string& expectedId, int target) {
+    if (target < 2 || target > 100) return "{\"ok\":false,\"error\":\"choose a level from 2 to 100\"}";
+    Player player;
+    std::unique_ptr<Root> actorRoot, dataRoot, questRoot;
+    SnapshotData snapshot;
+    RewardState before, after;
+    std::string why, error, backup;
+    const auto check = [&] {
+        const auto current = Current(); CheckId(current, expectedId);
+        if (current.actor != player.actor || current.data != player.data)
+            throw std::runtime_error("loaded actor changed; operation stopped");
+    };
+    const bool prepared = mainthread::RunSteps([&] {
+        try {
+            player = Current(); CheckId(player, expectedId);
+            actorRoot = std::make_unique<Root>(player.actor); dataRoot = std::make_unique<Root>(player.data);
+            questRoot = std::make_unique<Root>(player.quests);
+            before = Rewards(player);
+            if (before.level == target) throw std::runtime_error("the character is already at this level");
+            if (before.level > target) throw std::runtime_error("the level can only be raised");
+            snapshot = Capture(player, "setlevel");
+        } catch (const std::exception& e) { error = e.what(); }
+        return true;
+    }, 5000, &why);
+    if (!prepared || !error.empty()) return "{\"ok\":false,\"error\":" + Json(error.empty() ? why : error) + "}";
+    try { backup = WriteSnapshot(snapshot); }
+    catch (const std::exception& e) { return "{\"ok\":false,\"error\":" + Json(e.what()) + "}"; }
+    if (!m_recordAnalytics || (!hook::IsInstalled(m_recordAnalytics.code) && !hook::Install(m_recordAnalytics.code,
+            reinterpret_cast<void*>(&AnalyticsDetour), reinterpret_cast<void**>(&originalAnalytics), &why)))
+        return "{\"ok\":false,\"error\":" + Json("offline progression analytics scope unavailable: " + why) + "}";
+    int levels = 0;
+    bool saved = false;
+    const bool ran = mainthread::RunSteps([&] {
+        try {
+            check();
+            const auto rewards = Rewards(player);
+            if (rewards.level < target) {
+                int64_t total = 0;
+                for (int level = 1; level <= rewards.level; ++level) {
+                    void* args[]{&level}; const auto xp = Value<int64_t>(m_levelXp, nullptr, args);
+                    if (xp <= 0 || xp > INT64_MAX - total) throw std::runtime_error("invalid experience table");
+                    total += xp;
+                }
+                int64_t amount = total - rewards.xp;
+                if (amount <= 0) throw std::runtime_error("experience and level disagree");
+                void* experience = Get<void*>(player.quests, Offset("StatefulQuestList", "experienceTracker"));
+                bool noFavour = true; void* args[]{&amount, &noFavour};
+                { DisplayScope scope(player.quests); Invoke(m_gainDirect, experience, args); }
+                if (Rewards(player).level != rewards.level + 1) throw std::runtime_error("level verification failed");
+                ++levels; return false;  // one level a frame, like the campaign top-up
+            }
+            Save(player); saved = true;
+            after = Rewards(player); return true;
+        } catch (const std::exception& e) { error = e.what(); return true; }
+    }, 20000, &why);
+    if (!ran && error.empty()) error = why;
+    if (!saved && levels) {
+        // Keep the levels already gained after a partial error.
+        std::string cleanupWhy;
+        mainthread::Run([&] {
+            try { check(); Save(player); after = Rewards(player); }
+            catch (const std::exception& e) { error += "; finalization: "; error += e.what(); }
+        }, 5000, &cleanupWhy);
+    }
+    {
+        std::string cleanupWhy;
+        mainthread::Run([&] { batchedQuestList = nullptr; syntheticProgression = false; skippedAnalytics = 0; }, 5000, &cleanupWhy);
+    }
+    Log("progression: setlevel %d -> %d, levels=%d error=%s", before.level, target, levels, error.c_str());
+    return "{\"ok\":" + std::string(Boolean(error.empty())) + ",\"levels\":" + std::to_string(levels) +
+        ",\"before\":" + RewardJson(before) + ",\"after\":" + RewardJson(after) + ",\"backup\":" + Json(backup) +
+        ",\"error\":" + Json(error) + "}";
+}
 std::string OpenMastery(const std::string& expectedId) {
     std::string error, why, stateJson = "null", name, id;
     std::unique_ptr<Root> uiRoot;

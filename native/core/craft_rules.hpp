@@ -1,8 +1,9 @@
 // Custom item affix choices (Craft from EpochPact). Each comma-separated
 // token is an affix ID, which keeps the earlier behaviour (T7, the item-wide
 // maximum/midpoint roll), or "ID:tier:roll": tier 1-8 and roll 1-100 (% of the
-// tier's range) or "r" for a random roll. T8 is the game's primordial tier:
-// a sealed affix, one per item.
+// tier's range) or "r" for a random roll. T8 is the game's eighth tier: the
+// first T8 becomes the item's sealed primordial affix, any further T8 stays a
+// regular affix at that tier (the game itself rolls one T8 per item).
 #pragma once
 #include <charconv>
 #include <cmath>
@@ -46,12 +47,41 @@ inline AffixChoice ParseChoice(std::string_view token) {
     return choice;
 }
 
+// New tiers for affixes already on an item: "ID:tier,..." with tier 1-8, each affix once.
+struct TierChoice {
+    int id = 0;
+    int tier = 7;
+};
+inline std::vector<TierChoice> ParseTiers(std::string_view input, size_t maximum = 16) {
+    std::vector<TierChoice> out;
+    if (input.empty() || input == "none") throw std::runtime_error("choose a new tier for an affix");
+    for (size_t start = 0;;) {
+        const auto end = input.find(',', start);
+        const auto token = input.substr(start, end == std::string_view::npos ? std::string_view::npos : end - start);
+        const auto colon = token.find(':');
+        TierChoice choice;
+        try {
+            if (colon == std::string_view::npos) throw std::invalid_argument("missing tier");
+            choice.id = Whole(token.substr(0, colon), 0, 65535);
+            choice.tier = Whole(token.substr(colon + 1), 1, kPrimordialTier);
+        } catch (const std::invalid_argument&) {
+            throw std::runtime_error("each change is an affix ID and a tier 1-8, as ID:tier");
+        }
+        for (const auto& known : out)
+            if (known.id == choice.id) throw std::runtime_error("change each affix once");
+        out.push_back(choice);
+        if (out.size() > maximum) throw std::runtime_error("too many tier changes");
+        if (end == std::string_view::npos) break;
+        start = end + 1;
+    }
+    return out;
+}
+
 // "keep" means no new affixes. Throws std::runtime_error with a player-facing message.
 inline std::vector<AffixChoice> ParseAffixes(std::string_view input, size_t maximum = 7) {
     std::vector<AffixChoice> out;
     if (input == "keep") return out;
     if (input.empty()) throw std::runtime_error("select affixes or keep the current affixes");
-    int primordial = 0;
     for (size_t start = 0;;) {
         const auto end = input.find(',', start);
         const auto token = input.substr(start, end == std::string_view::npos ? std::string_view::npos : end - start);
@@ -63,8 +93,6 @@ inline std::vector<AffixChoice> ParseAffixes(std::string_view input, size_t maxi
         }
         for (const auto& known : out)
             if (known.id == choice.id) throw std::runtime_error("choose different affixes");
-        if (choice.tier == kPrimordialTier && ++primordial > 1)
-            throw std::runtime_error("an item can have one T8 (primordial) affix");
         out.push_back(choice);
         if (out.size() > maximum) throw std::runtime_error("choose up to seven different affixes");
         if (end == std::string_view::npos) break;

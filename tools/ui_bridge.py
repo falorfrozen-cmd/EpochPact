@@ -270,18 +270,24 @@ class UiBridge:
                     raise ValueError("Unknown damage window icon.")
                 if control["id"] == "spawn_item" and not re.fullmatch(r"b\d{1,2}\.\d{1,5}|u\d{1,5}", value):
                     raise ValueError("Choose an item from the list.")
+                if control["id"] == "spawn_custom" and name == "item" and not re.fullmatch(r"b\d{1,2}\.\d{1,5}", value):
+                    raise ValueError("Choose a base item to give it affixes.")
+                if control["id"] == "craft_tiers" and name == "tiers":
+                    # Each change: affix ID:tier 1-8, each affix once.
+                    tokens = value.split(",")
+                    ids = [t.split(":")[0] for t in tokens]
+                    if not all(re.fullmatch(r"\d{1,5}:[1-8]", t) for t in tokens) or len(tokens) > 16 or len(set(ids)) != len(ids):
+                        raise ValueError("Choose a new tier for an affix.")
                 if control["id"] in ("loot_affixes", "weaver_affixes") and value != "none":
                     if not re.fullmatch(r"\d+(?:,\d+)*", value) or len(value.split(",")) > 64:
                         raise ValueError("Enter up to 64 comma-separated affix IDs, or none.")
-                if control["id"] == "craft_custom" and name == "affixes" and value != "keep":
-                    # Each affix: ID (T7, item-wide roll) or ID:tier 1-8:roll 1-100 or r (random); one T8 per item.
+                if (control["id"] == "craft_custom" and name == "affixes" and value != "keep") or (control["id"] == "spawn_custom" and name == "affixes"):
+                    # Each affix: ID (T7, item-wide roll) or ID:tier 1-8:roll 1-100 or r (random); T8 on any of them.
                     tokens = value.split(",")
                     ids = [t.split(":")[0] for t in tokens]
                     if (not all(re.fullmatch(r"\d{1,5}(?::[1-8]:(?:r|100|[1-9]\d?))?", t) for t in tokens) or len(tokens) > 7
                             or len(set(ids)) != len(ids) or any(int(i) > 65535 for i in ids)):
                         raise ValueError("Choose up to seven different affixes, or keep the current affixes.")
-                    if sum(1 for t in tokens if t.count(":") == 2 and t.split(":")[1] == "8") > 1:
-                        raise ValueError("An item can have one T8 (primordial) affix.")
                 if control["id"] == "craft_custom" and name == "modifiers" and value != "none":
                     parts=value.split(",")
                     if len(parts)>64 or len(set(parts))!=len(parts) or not all(re.fullmatch(r"[us]\d+:\d+",x) for x in parts):
@@ -498,7 +504,7 @@ class UiBridge:
                 reset = control["resetCommand"].format(**args)
                 self.temporary_resets[(cid, args.get("category"))] = reset
             result = self._dispatch(cid, args, supplied, operation, save_id)
-            if cid in ("craft_read", "craft_forge", "craft_custom") and "preview" in result:
+            if cid in ("craft_read", "craft_forge", "craft_custom", "craft_tiers") and "preview" in result:
                 # Native forge data and the UI's simulation flag are separate.
                 result = dict(result)
                 result["forgePreview"] = result.pop("preview")
@@ -574,6 +580,7 @@ class UiBridge:
             "craft_forge": lambda: progression.request(f"craftforge {save_id}"),
             "craft_custom": lambda: builds.custom(save_id, a["template_id"], a["affixes"], a["perfect"], a.get("modifiers","none")),
             "craft_custom_catalog": builds.workshop_catalog,
+            "spawn_list": builds.spawn_list,
             "atlas_read": collection.atlas, "stash_read": collection.stash,
             "echo_read": lambda: mono.echoes(save_id, a["timeline"], a["difficulty"] == "empowered"),
             "echo_focus": lambda: mono.focus_echo(save_id, a["timeline"], a["difficulty"] == "empowered", a["index"]),
@@ -639,11 +646,11 @@ class UiBridge:
             raise RuntimeError("This feature needs a loaded offline character. Preview does not invent collection or Echo data.")
         if cid in ("sheet_row", "raw_stat", "stat_alias"):
             return {**self._stat(cid, a, supplied, operation), "preview": True}
-        if cid in ("spawn_list", "spawn_item"):
+        if cid in ("spawn_list", "spawn_item", "spawn_custom"):
             raise RuntimeError("Load an offline character to spawn items. Preview does not create items.")
         if cid in ("craft_materials", "craft_materials_read"):
             raise RuntimeError("Load an offline character to read or stock real crafting materials. Preview does not change material quantities.")
-        if cid in ("craft_forge", "craft_custom", "craft_custom_catalog"):
+        if cid in ("craft_forge", "craft_custom", "craft_tiers", "craft_custom_catalog"):
             raise RuntimeError("Preview cannot forge a real item. Load an offline character and select an item in the game forge.")
         if cid in ("map_read", "map_reveal"):
             state = self.demo.setdefault("mapread", {"ok": True, "enabled": False, "revealed": False, "renderOnly": True})

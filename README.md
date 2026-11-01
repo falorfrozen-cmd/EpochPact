@@ -149,6 +149,9 @@ with EpochPact completely removed. This release remains an alpha.
 | `craftfp <0–1>` / `crafthope` / `craftdespair` `<0–100\|reset>` | Normal forge FP cost, Basic Hope preservation chance and eligible Despair sealing chance. |
 | `craftshards <0/1>` / `craftread` / `craftreset` | Preserve the shard actually consumed, read normal forge preview, or reset all crafting controls. Rune/glyph consumption remains normal. |
 | `craftcorrupted <0/1>` | A corrupted item in the forge can be crafted as before it was corrupted; it has no Forging Potential left, so a craft costs none, and it stays corrupted. |
+| `crafttiers <save> <id:tier,...>` | Change the tiers of the forge item's affixes in place (T1-T8, any of them T8); rolls and the rest stay; recovery backup. |
+| `spawncustom <save> b<type>.<sub> <id:tier:roll,...> <level> <count>` | Spawn a base item (gear, idol, idol altar) with up to seven chosen affixes, each with its tier. |
+| `setlevel <save> <2-100>` | Raise the character to a level with the game's own level-ups; recovery backup; a lower level is refused. |
 | `coffavormult <1-100>` | CoF Favor gained times the number; normal prophecy charging and derived Reputation continue. |
 | `cofrepmult <1-100>` | CoF Reputation gained from gaining or spending Favor times the number; normal rank progression and cap remain. Manual grants are excluded. |
 | `cofchargemult` / `cofrewardmult` | Prophecy charge speed (0–100; 0 stops prophecies; the experience and Favor multipliers no longer speed prophecies up) and normal reward item count; preserves wallet and charge consumption. |

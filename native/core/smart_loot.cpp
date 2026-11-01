@@ -123,7 +123,7 @@ std::vector<CatalogAffix> AffixCatalog() {
         const int target = Get<bool>(a, converts) ? Get<uint16_t>(a, convertTo) : -1;
         const bool idol = IdolOnly(types);
         result.push_back({Get<int>(a,id), Text(Invoke(Method(a,"getAffixDisplayName",0),a)), Entries(Get<void*>(a,tiers)).size(), Get<int>(a,classes), idol, target,
-                          target >= 0 ? std::move(types) : std::vector<int>{}});
+                          std::move(types)});
     }
     return result;
 }
@@ -228,8 +228,10 @@ std::string Read() {
         bool first=true;
         if (ready) for (const auto& a:AffixCatalog()) { if(!first) state+=','; first=false;
             state+="{\"id\":"+std::to_string(a.id)+",\"name\":"+Json(a.name)+",\"tiers\":"+std::to_string(a.tiers)+",\"classes\":"+ClassNames(a.classes)+",\"idol\":"+Boolean(a.idol);
-            // only for an affix the game converts: the affix it becomes and the item types it stays on
-            if (a.convertTo >= 0) state+=",\"convertTo\":"+std::to_string(a.convertTo)+",\"rollsOn\":"+Ints(a.rollsOn);
+            // the item types it rolls on (Spawn Items lists an idol's or altar's own affixes); for an affix the game
+            // converts on the other types, the affix it becomes
+            state+=",\"rollsOn\":"+Ints(a.rollsOn);
+            if (a.convertTo >= 0) state+=",\"convertTo\":"+std::to_string(a.convertTo);
             state+="}"; }
         return state+"]}";
     });

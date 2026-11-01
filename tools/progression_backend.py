@@ -42,6 +42,12 @@ def apply(action: str, expected_id: str) -> dict:
     return request(f"{action} {expected_id}")
 
 
+def set_level(expected_id: str, level: int) -> dict:
+    if not re.fullmatch(r"\d+", str(expected_id)) or not isinstance(level, int) or not 2 <= level <= 100:
+        raise ValueError("Choose a level from 2 to 100.")
+    return request(f"setlevel {expected_id} {level}")
+
+
 def open_mastery(expected_id: str) -> dict:
     """Open the native first-choice screen only; selection remains the player's."""
     if not isinstance(expected_id, str) or not re.fullmatch(r"[0-9]+", expected_id):

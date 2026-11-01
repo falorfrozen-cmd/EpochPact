@@ -21,6 +21,23 @@ def workshop_catalog():
         return {"ok": True, "player": templates["player"], "items": templates["items"], "affixes": affixes["affixes"], "modifiers": modifiers["modifiers"]}
 
 
+def tiers(save_id, tiers):
+    # New tiers for affixes already on the forge item: "ID:tier,..." (native code checks them again).
+    return ipc.request(f"crafttiers {save_id} {tiers}")
+
+
+def spawn_list():
+    # The spawnable items and, for Spawn with chosen affixes, the affixes with the item types they roll on.
+    with ipc._ipc_lock:
+        items = ipc.request("spawnlist")
+        if items.get("ok") is not True:
+            return items
+        affixes = ipc.request("lootread")
+    if affixes.get("ok") is True:
+        items["affixes"] = [{k: a[k] for k in ("id", "name", "tiers", "classes", "rollsOn") if k in a} for a in affixes.get("affixes", [])]
+    return items
+
+
 def custom(save_id, template_id, affixes, perfect, modifiers="none"):
     # UI validation owns ranges and expected identity; native code independently
     # validates all inputs and snapshots the selected item before replacement.

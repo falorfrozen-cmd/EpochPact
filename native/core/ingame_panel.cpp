@@ -3691,7 +3691,7 @@ std::string Panel(const std::string& action) {
             const auto field = name.substr(6, eq-6);
             std::string value = name.substr(eq+1);  // %20: a space (the command line splits at spaces)
             for (size_t at; (at = value.find("%20")) != std::string::npos;) value.replace(at, 3, " ");
-            if (field != "craft_materials-value" && field != "spawn-search" && field != "spawn-level" && field != "wardrobe-search" && field != "workshop-affix-search") throw std::runtime_error("Field not in QA allowlist");
+            if (field != "craft_materials-value" && field != "spawn-search" && field != "spawn-level" && field != "wardrobe-search" && field != "workshop-affix-search" && field != "spawn-affix-search") throw std::runtime_error("Field not in QA allowlist");
             for (auto& input : win.inputs) if (input.name == field) {
                 managed::Root text(il2cpp::api().string_new(value.c_str())); void* args[]{text.Get()};
                 Invoke(Find("Unity.TextMeshPro.dll", "TMPro", "TMP_InputField", "set_text", 1), input.field.Get(), args);
@@ -3735,8 +3735,8 @@ std::string Panel(const std::string& action) {
         }
         if (name.rfind("click:", 0) == 0) {
             const auto control=name.substr(6);
-            const bool save=control=="craft_materials" || control=="craft_forge" || control=="craft_custom";
-            const bool view=control=="craft_custom_catalog" || control=="spawn_list" || control=="spawn_item" || control.rfind("spawn-",0)==0 || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0
+            const bool save=control=="craft_materials" || control=="craft_forge" || control=="craft_custom" || control=="craft_tiers";
+            const bool view=control=="craft_custom_catalog" || control=="spawn_list" || control=="spawn_item" || control.rfind("spawn-",0)==0 || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0 || control.rfind("tiers-",0)==0
                 || control=="transmog_read" || control.rfind("transmog-",0)==0 || control.rfind("mirror-",0)==0 || control.rfind("wardrobe-",0)==0;
             if (!save && !view) throw std::runtime_error("Control not in QA allowlist");
             if (win.dialogOpen || win.listOpen) throw std::runtime_error("Dismiss the current dialog first");

@@ -3711,7 +3711,38 @@
       "default": null,
       "resetCommand": null,
       "lifetime": "game_save",
-      "description": "Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8 with a chosen or random roll; T8 is primordial, one per item) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling.",
+      "description": "Replace the selected forge item with a recovery backup. Combine a template, regular affixes (T1-T8, any of them T8, with a chosen or random roll) and up to 64 individual Unique/Set modifier lines. Mixed modifiers use one affix slot and require EpochPact plus workshop-recipes.txt on every installation; restore original gear before uninstalling.",
+      "currentSource": null,
+      "requirements": [
+        "offline",
+        "loaded_actor"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
+      "id": "craft_tiers",
+      "group": "crafting",
+      "label": "Change affix tiers",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "crafttiers {save_id} {tiers}",
+      "pythonApi": "tools.build_backend.tiers(save_id, tiers)",
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        },
+        {
+          "name": "tiers",
+          "type": "single_token"
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "game_save",
+      "description": "Change the tiers of the affixes already on the item in the game's forge (T1-T8; any of them can be T8), without making a new item. Rolls and the rest of the item stay. Creates a recovery backup.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -3789,6 +3820,54 @@
       "resetCommand": null,
       "lifetime": "actor",
       "description": "The game makes the chosen base item, Unique or Set with its own rules and drops it next to your character, like a monster drop. Base items: Normal, Magic, Rare or Exalted. Uniques: the game's Legendary Potential roll or a chosen 0-4 (Weaver's Will Uniques and Sets roll their own). Item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up.",
+      "currentSource": null,
+      "requirements": [
+        "offline",
+        "loaded_actor"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "spawn_custom",
+      "group": "crafting",
+      "label": "Spawn with chosen affixes",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "spawncustom {save_id} {item} {affixes} {item_level} {count}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        },
+        {
+          "name": "item",
+          "type": "single_token",
+          "maximumLength": 16
+        },
+        {
+          "name": "affixes",
+          "type": "single_token"
+        },
+        {
+          "name": "item_level",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        {
+          "name": "count",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "actor",
+      "description": "The game makes the chosen base item (gear, idol or idol altar) with the affixes you choose, each with its tier (any of them can be T8), and drops it next to your character. Up to seven affixes, item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -4881,6 +4960,40 @@
       "resetCommand": null,
       "lifetime": "game_save",
       "description": "Gerçek waypoint sahnelerini açar; Monolith timeline difficulty unlock ayrı işlemdir.",
+      "currentSource": null,
+      "requirements": [
+        "offline",
+        "loaded_id_matches",
+        "snapshot_before_write"
+      ],
+      "documentation": "docs/progression.md"
+    },
+    {
+      "id": "character_level",
+      "group": "campaign",
+      "label": "Set character level",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "setlevel {save_id} {level}",
+      "pythonApi": "tools.progression_backend.set_level(save_id, level)",
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        },
+        {
+          "name": "level",
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 100
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "game_save",
+      "description": "Raise the loaded character to a level from 2 to 100 with the game's own level-ups: the passive and attribute points of each level come with them. A lower level is not offered. Creates a recovery backup.",
       "currentSource": null,
       "requirements": [
         "offline",
@@ -34863,7 +34976,7 @@
     ]
   },
   "counts": {
-    "controls": 218,
+    "controls": 221,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

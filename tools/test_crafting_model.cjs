@@ -39,7 +39,7 @@ test('each affix has its own tier 1-8 and roll 1-100% or random',()=>{
  assert.equal(C.args(d).affixes,'0:8:100,1:1:r,2:5:37');
  assert.equal(C.summary(d,tiers).affixes,'3 selected affixes · T8, T1, T5');
  assert.equal(C.summary({...C.defaults(),affixes:['0']},tiers).affixes,'1 selected affix · T7');
- assert.match(C.problem({...d,settings:{...d.settings,1:{tier:8,roll:50}}},tiers),/one T8/,'one primordial affix per item');
+ assert.equal(C.problem({...d,settings:{...d.settings,1:{tier:8,roll:50}}},tiers),'','T8 on more than one affix');
  assert.match(C.problem({...d,settings:{...d.settings,2:{tier:8,roll:50},0:{tier:7,roll:50}}},tiers),/no T8/,'T8 only where the game has it');
  for(const roll of [0,101,1.5,NaN,'x'])assert.match(C.problem({...d,settings:{...d.settings,2:{tier:5,roll}}},tiers),/roll from 1 to 100/);
  for(const tier of [0,9,2.5])assert.match(C.problem({...d,settings:{...d.settings,2:{tier,roll:50}}},tiers),/tier from T1 to T8/);

@@ -23,10 +23,20 @@ int main() {
         check(chosen[3].tier==7 && chosen[3].roll==kRandomRoll,"random roll");
     }
     check(ParseAffixes("1,2,3,4,5,6,7").size()==7,"seven affixes");
+    {
+        const auto tiers=ParseTiers("12:8,345:1");
+        check(tiers.size()==2 && tiers[0].id==12 && tiers[0].tier==8 && tiers[1].id==345 && tiers[1].tier==1,"tier changes");
+        bool threw=false;
+        for(const char* bad:{"","none","12","12:0","12:9","12:8,12:7","x:3","12:3:50"}){
+            try{ParseTiers(bad);}catch(const std::runtime_error&){threw=true;continue;}
+            threw=false;break;
+        }
+        check(threw,"bad tier changes are refused");
+    }
     refused("1,2,3,4,5,6,7,8","eight affixes are refused");
     refused("4,4","the same affix twice is refused");
     refused("4:3:10,4:5:10","the same affix with two tiers is refused");
-    refused("1:8:100,2:8:r","two T8 affixes are refused");
+    check(ParseAffixes("1:8:100,2:8:r,3:8:50,4:8:1,5:8:100,6:8:100,7:8:100").size()==7,"seven T8 affixes");
     refused("1:0:50","tier 0 is refused");
     refused("1:9:50","tier 9 is refused");
     refused("1:7:0","roll 0% is refused");

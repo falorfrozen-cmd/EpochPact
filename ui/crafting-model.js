@@ -2,8 +2,8 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.EpochCrafting=api;})(typeof globalThis!=='undefined'?globalThis:this,()=>{
  'use strict';
  const sections=[{id:'forge',label:'Forge Settings',hint:'Costs, materials and glyph chances'},{id:'materials',label:'Materials',hint:'Stock your crafting stash'},{id:'custom',label:'Custom Items',hint:'Build an item step by step'},{id:'spawn',label:'Spawn Items',hint:'Drop any item at your feet'}];
- // settings: per chosen affix {tier:1-8, roll:1-100 or 'random'}. T8 is the
- // game's primordial tier: one per item, only for affixes that have it.
+ // settings: per chosen affix {tier:1-8, roll:1-100 or 'random'}. T8 only for
+ // affixes that have it, on any of them; the first T8 is the sealed primordial one.
  const defaults=()=>({template_id:'-1',affixes:[],perfect:'1',modifiers:[],settings:{}});
  const PRIMORDIAL=8;
  function setting(draft,id){
@@ -44,7 +44,6 @@
    if(s.tier>tiersOf(data,id))return 'An affix has no T8 in the game. Choose T1 to T7 for it.';
    if(s.roll!=='random'&&!(Number.isInteger(s.roll)&&s.roll>=1&&s.roll<=100))return 'Choose a roll from 1 to 100%, or Random.';
   }
-  if(affixes.filter(id=>setting(draft,id).tier===PRIMORDIAL).length>1)return 'An item can have one T8 (primordial) affix.';
   const currentRegular=forge?.affixes?.filter(x=>data.affixes?.some(a=>String(a.id)===String(x.id))).length??0;
   if(mods.length&&!affixes.length&&currentRegular>6)return 'This item has seven affixes. Choose up to six affixes to leave room for extra effects.';
   return '';

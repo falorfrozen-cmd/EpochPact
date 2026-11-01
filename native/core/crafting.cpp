@@ -17,6 +17,7 @@
 #include <random>
 #include <set>
 #include <exception>
+#include <functional>
 
 namespace ep::crafting {
 namespace {
@@ -414,9 +415,14 @@ std::string Preview() {
         const int fp=Get<uint8_t>(c.main,forgingPotential);
         out << ",\"forgingPotential\":" << fp << ",\"itemType\":" << int(Get<uint8_t>(c.main,itemType)) << ",\"affixes\":[";
         bool first=true;
+        // with its name, sealed type and tier count, for changing tiers in place (crafttiers)
+        Root catalog(Invoke(Resolve("AffixList","get",0)));const auto sealedType=Offset("ItemAffix","sealedAffixType");
         if(void* list=Get<void*>(c.main,affixList)) for(void* a:Entries(list)) if(a) {
             if(!first) out<<','; first=false;
-            out << "{\"id\":" << Get<uint16_t>(a,affixId) << ",\"tier\":" << (Get<uint8_t>(a,affixTier)+1) << '}';
+            int id=Get<uint16_t>(a,affixId);void* args[]{&id};void* data=Invoke(Method(catalog.Get(),"GetAffix",1),catalog.Get(),args);
+            out << "{\"id\":" << id << ",\"tier\":" << (Get<uint8_t>(a,affixTier)+1) << ",\"sealed\":" << Get<int>(a,sealedType)
+                << ",\"tiers\":" << (data?Entries(Get<void*>(data,Offset("AffixList.Affix","tiers"))).size():0)
+                << ",\"name\":" << Json(data?Text(Invoke(Method(data,"getAffixDisplayName",0),data)):std::string()) << '}';
         }
         out << ']';
         out << ",\"sealedAffixCount\":" << Value<int>(Method(c.main,"get_SealedAffixCount",0),c.main);
@@ -612,6 +618,35 @@ std::vector<rules::AffixChoice> CustomAffixes(const std::string& input) {
     }
     return choices;
 }
+void* Verified(void* proposed,void* original);
+// The item's affixes replaced by choices (the old ones go, sealed ones included). Returns whether the item got a
+// sealed primordial affix.
+bool BuildAffixes(void* item,const std::vector<rules::AffixChoice>& choices,bool perfect) {
+    void* list=Get<void*>(item,affixList);
+    Invoke(Method(list,"Clear",0),list);
+    uint8_t no=0;for(const char* sealedFlag:{"hasSealedRegularAffix","hasSealedPrimordialAffix","hasSealedAffixFromCorruption"})Assign(item,sealedFlag,&no);
+    std::mt19937 random(std::random_device{}());
+    // ItemAffix(id, tier, roll, itemType, sealed): an affix that cannot roll on the item's type and has
+    // AffixList.Affix.convertOnIncompatibleItemType becomes its affixIDToConvertTo ("Throwing Damage" ->
+    // "Physical Damage"). Loading the item does the same, so such a choice is refused, never saved.
+    uint8_t base=Get<uint8_t>(item,itemType);Root catalog(Invoke(Resolve("AffixList","get",0)));
+    const auto name=[&](int affix){void* args[]{&affix};void* a=Invoke(Method(catalog.Get(),"GetAffix",1),catalog.Get(),args);return a?Text(Invoke(Method(a,"getAffixDisplayName",0),a)):"affix "+std::to_string(affix);};
+    int primordial=-1;
+    for(const auto& choice:choices) {
+        uint16_t id=static_cast<uint16_t>(choice.id);uint8_t tier=static_cast<uint8_t>(choice.tier-1),affixRoll=rules::RollByte(choice.roll,perfect,static_cast<uint8_t>(random()&0xff));int sealed=0;
+        Root affix(il2cpp::api().object_new(game::FindClass("LE.dll","","ItemAffix")));void* args[]{&id,&tier,&affixRoll,&base,&sealed};Invoke(Method(affix.Get(),".ctor",5),affix.Get(),args);
+        if(const int made=Get<uint16_t>(affix.Get(),affixId);made!=choice.id)throw std::runtime_error(name(choice.id)+" cannot be on this item type: the game turns it into "+name(made)+". Nothing was applied.");
+        void* add[]{affix.Get()};Invoke(Method(list,"Add",1),list,add);
+        if(choice.tier==rules::kPrimordialTier && primordial<0)primordial=choice.id;
+    }
+    // T8 is the game's primordial tier: the game's own method seals the first T8 affix (tier index 7, sealed type
+    // 2) and marks the item primordial, keeping the chosen roll. Further T8 affixes stay regular affixes at tier
+    // index 7. Without a T8 the item is not primordial.
+    if(primordial>=0)for(void* a:Entries(list))if(a&&Get<uint16_t>(a,affixId)==primordial){
+        bool keepRoll=true;void* args[]{a,&keepRoll};Invoke(Method(item,"MakeAffixSealedPrimordialAffix",2),item,args);return true;
+    }
+    return false;
+}
 void* CustomItem(void* original,int templateId,const std::string& input,bool perfect,int recipe=-1) {
     if(!original||!Value<bool>(Method(original,"isEquipment",0),original)||Get<uint8_t>(original,itemType)>=25)throw std::runtime_error("select a normal equipment item in the game forge");
     if(templateId<-1||templateId>65535)throw std::runtime_error("invalid Unique/Set template ID");
@@ -622,36 +657,15 @@ void* CustomItem(void* original,int templateId,const std::string& input,bool per
         if(choices.size()>6)throw std::runtime_error("mixed modifier recipe uses one affix slot; select up to six regular affixes");
         choices.push_back({recipe,7,rules::kItemRoll});
     }
-    int primordial=-1;size_t regular=0;
+    bool primordial=false;size_t regular=0;
     if(input!="keep"||recipe>=0) {
-        Invoke(Method(list,"Clear",0),list);
-        // The old affixes are gone, sealed ones included.
-        uint8_t no=0;for(const char* sealedFlag:{"hasSealedRegularAffix","hasSealedPrimordialAffix","hasSealedAffixFromCorruption"})Assign(copy.Get(),sealedFlag,&no);
-        std::mt19937 random(std::random_device{}());
-        // ItemAffix(id, tier, roll, itemType, sealed): an affix that cannot roll on the item's type and has
-        // AffixList.Affix.convertOnIncompatibleItemType becomes its affixIDToConvertTo ("Throwing Damage" ->
-        // "Physical Damage"). Loading the item does the same, so such a choice is refused, never saved.
-        uint8_t base=Get<uint8_t>(copy.Get(),itemType);Root catalog(Invoke(Resolve("AffixList","get",0)));
-        const auto name=[&](int affix){void* args[]{&affix};void* a=Invoke(Method(catalog.Get(),"GetAffix",1),catalog.Get(),args);return a?Text(Invoke(Method(a,"getAffixDisplayName",0),a)):"affix "+std::to_string(affix);};
-        for(const auto& choice:choices) {
-            uint16_t id=static_cast<uint16_t>(choice.id);uint8_t tier=static_cast<uint8_t>(choice.tier-1),affixRoll=rules::RollByte(choice.roll,perfect,static_cast<uint8_t>(random()&0xff));int sealed=0;
-            Root affix(il2cpp::api().object_new(game::FindClass("LE.dll","","ItemAffix")));void* args[]{&id,&tier,&affixRoll,&base,&sealed};Invoke(Method(affix.Get(),".ctor",5),affix.Get(),args);
-            if(const int made=Get<uint16_t>(affix.Get(),affixId);made!=choice.id)throw std::runtime_error(name(choice.id)+" cannot be on this item type: the game turns it into "+name(made)+". Nothing was applied.");
-            void* add[]{affix.Get()};Invoke(Method(list,"Add",1),list,add);
-            if(choice.tier==rules::kPrimordialTier)primordial=choice.id;
-        }
-        // T8 is the game's primordial tier: the game's own method seals the
-        // affix (tier index 7, sealed type 2) and marks the item primordial,
-        // keeping the chosen roll. Without a T8 the item is not primordial.
-        regular=choices.size()-(primordial>=0?1:0);
-        if(primordial>=0)for(void* a:Entries(list))if(a&&Get<uint16_t>(a,affixId)==primordial){
-            bool keepRoll=true;void* args[]{a,&keepRoll};Invoke(Method(copy.Get(),"MakeAffixSealedPrimordialAffix",2),copy.Get(),args);break;
-        }
+        primordial=BuildAffixes(copy.Get(),choices,perfect);
+        regular=choices.size()-(primordial?1:0);
         list=Get<void*>(copy.Get(),affixList);
     } else if(perfect)for(void* a:Entries(list))if(a)*reinterpret_cast<uint8_t*>(static_cast<char*>(a)+Offset("ItemAffix","affixRoll"))=255;
     // An item with a sealed primordial affix gets its rarity from the game
     // (ItemData.setValuesFromSerialisation): the regular affixes, at most 4.
-    uint16_t unique=templateId<0?0:static_cast<uint16_t>(templateId);uint8_t rarity=primordial>=0?static_cast<uint8_t>(std::min<size_t>(regular,4)):4;
+    uint16_t unique=templateId<0?0:static_cast<uint16_t>(templateId);uint8_t rarity=primordial?static_cast<uint8_t>(std::min<size_t>(regular,4)):4;
     if(templateId>=0) {
         void* args[]{&unique};void* found=Invoke(Resolve("UniqueList","getUnique",1),nullptr,args);if(!found)throw std::runtime_error("Unique/Set template is unavailable in this game version");Root entry(found);
         if(Get<uint16_t>(entry.Get(),Offset("UniqueList.Entry","uniqueID"))!=unique||Get<bool>(entry.Get(),Offset("UniqueList.Entry","hideFromPlayers")))throw std::runtime_error("select a public Unique/Set template");
@@ -666,9 +680,14 @@ void* CustomItem(void* original,int templateId,const std::string& input,bool per
     uint8_t zero=0;for(const char* field:{"legendaryPotential","weaversWill","weaversTouch"})Assign(copy.Get(),field,&zero);
     if(perfect){void* rolls=Get<void*>(copy.Get(),Offset("ItemData","implicitRolls"));if(rolls){const auto n=Get<uintptr_t>(rolls,0x18);if(n>32)throw std::runtime_error("invalid implicit roll data");std::memset(static_cast<char*>(rolls)+0x20,255,n);}}
     Invoke(Method(copy.Get(),"RebuildID",0),copy.Get());
-    // Prove the native save format can round-trip the proposed item before a
-    // live container is modified. No sidecar-only or invalid affix encoding.
-    Root loaded(CloneItem(copy.Get()));
+    return Verified(copy.Get(),original);
+}
+// Prove the native save format can round-trip the proposed item before a
+// live container is modified. No sidecar-only or invalid affix encoding.
+void* Verified(void* proposed,void* original) {
+    void* list=Get<void*>(proposed,affixList);
+    const uint8_t rarity=Get<uint8_t>(proposed,itemRarity);const uint16_t unique=Get<uint16_t>(proposed,Offset("ItemData","uniqueID"));
+    Root loaded(CloneItem(proposed));
     if(Get<uint8_t>(loaded.Get(),itemType)!=Get<uint8_t>(original,itemType)||Get<uint16_t>(loaded.Get(),itemSubtype)!=Get<uint16_t>(original,itemSubtype)||Get<uint8_t>(loaded.Get(),itemRarity)!=rarity||Get<uint16_t>(loaded.Get(),Offset("ItemData","uniqueID"))!=unique||Entries(Get<void*>(loaded.Get(),affixList)).size()!=Entries(list).size())throw std::runtime_error("custom item round-trip mismatch: type "+std::to_string(Get<uint8_t>(loaded.Get(),itemType))+"/"+std::to_string(Get<uint8_t>(original,itemType))+", subtype "+std::to_string(Get<uint16_t>(loaded.Get(),itemSubtype))+"/"+std::to_string(Get<uint16_t>(original,itemSubtype))+", rarity "+std::to_string(Get<uint8_t>(loaded.Get(),itemRarity))+"/"+std::to_string(rarity)+", template "+std::to_string(Get<uint16_t>(loaded.Get(),Offset("ItemData","uniqueID")))+"/"+std::to_string(unique)+", affixes "+std::to_string(Entries(Get<void*>(loaded.Get(),affixList)).size())+"/"+std::to_string(Entries(list).size())+"; nothing was applied");
     const auto before=Entries(list),after=Entries(Get<void*>(loaded.Get(),affixList));
     for(size_t i=0;i<before.size();++i)for(const auto offset:{affixId,affixTier,Offset("ItemAffix","affixRoll")}) {
@@ -677,24 +696,43 @@ void* CustomItem(void* original,int templateId,const std::string& input,bool per
     }
     const auto sealedType=Offset("ItemAffix","sealedAffixType"),primordialFlag=Offset("ItemData","hasSealedPrimordialAffix");
     for(size_t i=0;i<before.size();++i)if(Get<int>(before[i],sealedType)!=Get<int>(after[i],sealedType))throw std::runtime_error("the game changed a sealed custom affix during round-trip; nothing was applied");
-    if(Get<bool>(copy.Get(),primordialFlag)!=Get<bool>(loaded.Get(),primordialFlag))throw std::runtime_error("the game changed the primordial state during round-trip; nothing was applied");
+    if(Get<bool>(proposed,primordialFlag)!=Get<bool>(loaded.Get(),primordialFlag))throw std::runtime_error("the game changed the primordial state during round-trip; nothing was applied");
     return loaded.Get();
 }
+// The forge item's own affixes at new tiers: rolls, the template and the rest of the item stay. The game keeps
+// every T8 (tier index 7) as a sealed primordial affix (sealed type 2): a T8 is sealed so, one taken below T8
+// unsealed. Other sealed affixes (a sealed regular or corruption affix) keep their tier.
+void* TierItem(void* original,const std::string& input) {
+    if(!original||!Value<bool>(Method(original,"isEquipment",0),original)||Get<uint8_t>(original,itemType)>=25)throw std::runtime_error("select a normal equipment item in the game forge");
+    const auto changes=rules::ParseTiers(input);
+    Root copy(CloneItem(original));void* list=Get<void*>(copy.Get(),affixList);
+    Root catalog(Invoke(Resolve("AffixList","get",0)));const auto sealedType=Offset("ItemAffix","sealedAffixType");
+    constexpr int kSealedPrimordial=2;
+    for(const auto& change:changes) {
+        void* found=nullptr;for(void* a:Entries(list))if(a&&Get<uint16_t>(a,affixId)==change.id){found=a;break;}
+        if(!found)throw std::runtime_error("this affix is not on the forge item; refresh the selected item");
+        const int sealed=Get<int>(found,sealedType);
+        if(sealed&&sealed!=kSealedPrimordial)throw std::runtime_error("a sealed affix keeps its tier");
+        int id=change.id;void* args[]{&id};void* data=Invoke(Method(catalog.Get(),"GetAffix",1),catalog.Get(),args);
+        if(!data||Entries(Get<void*>(data,Offset("AffixList.Affix","tiers"))).size()<static_cast<size_t>(change.tier))throw std::runtime_error("this affix has no T"+std::to_string(change.tier)+" in the game's catalog");
+        *(static_cast<uint8_t*>(found)+affixTier)=static_cast<uint8_t>(change.tier-1);
+        *reinterpret_cast<int*>(static_cast<char*>(found)+sealedType)=change.tier==rules::kPrimordialTier?kSealedPrimordial:0;
+    }
+    bool primordial=false;for(void* a:Entries(list))primordial|=a&&Get<int>(a,sealedType)==kSealedPrimordial;
+    Assign(copy.Get(),"hasSealedPrimordialAffix",&primordial);
+    Invoke(Method(copy.Get(),"RebuildID",0),copy.Get());
+    return Verified(copy.Get(),original);
 }
-std::string Custom(const std::string& id,int templateId,const std::string& affixes,bool perfect,const std::string& modifiers) {
+// Replaces the forge item with make(the forge context) after a recovery backup, the way Custom Items does.
+std::string Replace(const std::string& id,const char* reason,const std::function<void*(const Context&)>& make) {
     Context prepared{};progression::SnapshotData snapshot;std::vector<std::unique_ptr<Root>> roots;std::unique_ptr<Root> replacement;
     const auto captured=Run([&]{prepared=Current();if(id!=prepared.id)throw std::runtime_error("character changed; refresh the forge");
-        int recipe=-1;if(!modifiers.empty()&&modifiers!="none"){
-            if(!prepared.main)throw std::runtime_error("select a forge item first");
-            Root itemList(Invoke(Resolve("ItemList","get",0)));int type=Get<uint8_t>(prepared.main,itemType),sub=Get<uint16_t>(prepared.main,itemSubtype);void* args[]{&type,&sub};
-            recipe=workshop::Recipe(modifiers,perfect,Value<float>(Method(itemList.Get(),"getAffixEffectModifier",2),itemList.Get(),args));
-        }
-        replacement=std::make_unique<Root>(CustomItem(prepared.main,templateId,affixes,perfect,recipe));for(void* p:{prepared.actor,prepared.manager,prepared.craft,prepared.main})roots.push_back(std::make_unique<Root>(p));SyncItems(prepared);snapshot=progression::CaptureSnapshotCurrent(id,"custom-forge-item");return std::string("{\"ok\":true}");});
+        replacement=std::make_unique<Root>(make(prepared));for(void* p:{prepared.actor,prepared.manager,prepared.craft,prepared.main})roots.push_back(std::make_unique<Root>(p));SyncItems(prepared);snapshot=progression::CaptureSnapshotCurrent(id,reason);return std::string("{\"ok\":true}");});
     if(captured!="{\"ok\":true}")return captured;
     std::string backup;try{backup=progression::WriteCapturedSnapshot(snapshot);}catch(const std::exception& e){return "{\"ok\":false,\"error\":"+Json(e.what())+"}";}
     auto result=Run([&]{
         auto c=Current();if(c.id!=prepared.id||c.name!=prepared.name||c.actor!=prepared.actor||c.main!=prepared.main||c.craft!=prepared.craft)throw std::runtime_error("forge selection changed while making the backup; nothing applied");
-        SyncItems(c);const auto now=progression::CaptureSnapshotCurrent(id,"custom-forge-item");if(now.character!=snapshot.character||now.stash!=snapshot.stash||now.global!=snapshot.global)throw std::runtime_error("save data changed while making the backup; nothing applied");
+        SyncItems(c);const auto now=progression::CaptureSnapshotCurrent(id,reason);if(now.character!=snapshot.character||now.stash!=snapshot.stash||now.global!=snapshot.global)throw std::runtime_error("save data changed while making the backup; nothing applied");
         void* container=Get<void*>(c.craft,forgeMain);const auto entries=Entries(Invoke(Method(container,"GetContent",0),container));if(entries.size()!=1)throw std::runtime_error("expected one forge item");Root entry(entries[0]);int amount=1,context=0;void* remove[]{entry.Get(),&amount,&context};
         if(!Value<bool>(Method(container,"TryRemoveItem",3),container,remove))throw std::runtime_error("normal forge removal refused");
         bool committed=false;
@@ -716,6 +754,31 @@ std::string Custom(const std::string& id,int templateId,const std::string& affix
         }
         return "{\"ok\":true,\"preview\":"+Preview()+"}";
     });result.pop_back();return result+",\"backup\":"+Json(backup)+"}";
+}
+}
+std::string Custom(const std::string& id,int templateId,const std::string& affixes,bool perfect,const std::string& modifiers) {
+    return Replace(id,"custom-forge-item",[&](const Context& prepared){
+        int recipe=-1;if(!modifiers.empty()&&modifiers!="none"){
+            if(!prepared.main)throw std::runtime_error("select a forge item first");
+            Root itemList(Invoke(Resolve("ItemList","get",0)));int type=Get<uint8_t>(prepared.main,itemType),sub=Get<uint16_t>(prepared.main,itemSubtype);void* args[]{&type,&sub};
+            recipe=workshop::Recipe(modifiers,perfect,Value<float>(Method(itemList.Get(),"getAffixEffectModifier",2),itemList.Get(),args));
+        }
+        return CustomItem(prepared.main,templateId,affixes,perfect,recipe);
+    });
+}
+void SetAffixes(void* item,const std::string& affixes,bool perfect) {
+    const auto choices=CustomAffixes(affixes);
+    if(choices.empty())throw std::runtime_error("choose affixes");
+    const bool primordial=BuildAffixes(item,choices,perfect);
+    // the item's rarity from its regular affixes, at most 4 (as the game sets it for a primordial item)
+    uint8_t rarity=static_cast<uint8_t>(std::min<size_t>(choices.size()-(primordial?1:0),4));
+    Assign(item,"rarity",&rarity);
+}
+std::string Tiers(const std::string& id,const std::string& input) {
+    return Replace(id,"forge-affix-tiers",[&](const Context& prepared){
+        if(!prepared.main)throw std::runtime_error("select a forge item first");
+        return TierItem(prepared.main,input);
+    });
 }
 namespace {
 struct MaterialInfo { int type, id, count; std::string name; };

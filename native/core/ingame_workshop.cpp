@@ -175,15 +175,12 @@ std::string Problem(const Draft& d, const Catalog* data, const JValue* forge) { 
     for (const auto& id : d.modifiers) if (!data->modifierAt.count(id)) return "An extra effect is no longer in the current game catalog. Review your selection.";
     for (const auto& id : d.affixes)
         if (const std::string to = ConvertsTo(data, id, forge); !to.empty()) return ConvertProblem(data, id, to);
-    int primordial = 0;
     for (const auto& id : d.affixes) {
         const Effective s = SettingOf(d, id);
         if (s.tier < 1 || s.tier > kPrimordial) return "Choose a tier from T1 to T8.";
         if (s.tier > TiersOf(id)) return "An affix has no T8 in the game. Choose T1 to T7 for it.";
         if (!s.random && !(s.valid && s.roll >= 1 && s.roll <= 100)) return "Choose a roll from 1 to 100%, or Random.";
-        primordial += s.tier == kPrimordial;
     }
-    if (primordial > 1) return "An item can have one T8 (primordial) affix.";
     int currentRegular = 0;
     if (forge && (*forge)["affixes"].IsArray())
         for (const auto& a : (*forge)["affixes"].items) currentRegular += data->affixAt.count(IdOf(a.Find("id"))) > 0;
@@ -993,7 +990,7 @@ void MakeAffixRows(Section& s) {
             std::vector<std::string> options;
             float widest = 0;
             for (int t = 1; t <= tiers; ++t) {
-                options.push_back(t == kPrimordial ? Tr("T8 \xC2\xB7 primordial") : "T" + std::to_string(t));
+                options.push_back("T" + std::to_string(t));
                 widest = std::max(widest, TextAdvance(Face::Body, 11, options.back()));
             }
             const float selW = std::ceil(widest) + 35;
@@ -1229,8 +1226,9 @@ void MakeReview(Section& s) {
             });
         });
         y = sy + selH + 14;
-        y += StepText(in, y, Tr("Each chosen affix has its own tier (T1\xE2\x80\x93T8) and roll (1\xE2\x80\x93" "100% of its tier's range, or Random). T8 is the game's primordial "
-                                "tier: one per item, shown for affixes that have it; the game limits how many primordial items you can wear. Roll quality applies to the "
+        y += StepText(in, y, Tr("Each chosen affix has its own tier (T1\xE2\x80\x93T8) and roll (1\xE2\x80\x93" "100% of its tier's range, or Random). T8 is the game's top tier, shown "
+                                "for affixes that have it, and any affix can be T8. The first T8 affix is sealed as the item's primordial affix; the game limits how many "
+                                "primordial items you can wear. Roll quality applies to the "
                                 "template, implicits and extra effects, and is the starting roll for newly chosen affixes. Without extra effects, keeping current affixes "
                                 "preserves their tiers and midpoint mode keeps their existing rolls. Adding extra effects rebuilds kept affixes at T7 with the chosen rolls."));
         // #workshop-summary: dl.craft-summary (110px | 1fr, gap 12, padding 18, soft), the problem, the portability note
@@ -1296,10 +1294,136 @@ void MakeReview(Section& s) {
 //   spawn_head     title, Load / Refresh item list, the search and the type buttons
 //   spawn_list     the matching items, live while typing; a click chooses one
 //   spawn_options  the chosen item, only the options that apply to it, Spawn
+// ------------------------------------------------------------------- Change affix tiers (crafttiers)
+// The forge item's affixes (the forge preview), a tier select for each; a sealed regular or corruption affix keeps its
+// tier (sealed 2 is the game's T8). Its own panel below Custom Items.
+std::map<std::string, int>& TierDraft() {
+    static std::map<std::string, int> m;
+    return m;
+}
+struct TierRow { std::string id, name; int tier = 1, tiers = 7; bool editable = true; };
+std::vector<TierRow> TierRows() {
+    std::vector<TierRow> rows;
+    const JValue* f = Forge();
+    if (!f || !True(f->Find("canCustom"))) return rows;
+    for (const auto& a : (*f)["affixes"].items) {
+        TierRow r;
+        r.id = IdOf(a.Find("id"));
+        r.name = Clean(a["name"].Str(r.id));
+        r.tier = static_cast<int>(a["tier"].Num(1));
+        r.tiers = std::max(r.tier, std::min(8, static_cast<int>(a["tiers"].Num(7))));
+        const int sealed = static_cast<int>(a["sealed"].Num(0));
+        r.editable = sealed == 0 || sealed == 2;
+        rows.push_back(std::move(r));
+    }
+    return rows;
+}
+std::string TierSpec() {
+    std::string out;
+    for (const auto& r : TierRows()) {
+        const auto it = TierDraft().find(r.id);
+        if (r.editable && it != TierDraft().end() && it->second != r.tier) out += (out.empty() ? "" : ",") + r.id + ":" + std::to_string(it->second);
+    }
+    return out;
+}
+std::string TiersShown() {
+    const JValue* f = Forge();
+    std::string s = f ? IdOf(f->Path("player.id")) : "";
+    for (const auto& r : TierRows()) s += "|" + r.id + ":" + std::to_string(r.tier) + (r.editable ? "" : "s");
+    return s;
+}
+std::string TiersReason() {
+    std::string reason;
+    if (!Eligible(&reason)) return reason;
+    if (TierRows().empty()) return Tr("Put an equipment item in the game's forge, then refresh the selected item.");
+    if (TierSpec().empty()) return Tr("Choose a new tier for an affix.");
+    return "";
+}
+void ApplyTiers() {
+    const std::string reason = TiersReason();
+    if (!reason.empty()) { Toast(reason, true); return; }
+    const JValue* forge = Forge();
+    ActionRun run;
+    run.command = "crafttiers {save_id} " + TierSpec();
+    run.expectId = forge ? IdOf(forge->Path("player.id")) : "";
+    const std::string name = forge ? (*forge)["player"]["name"].Str() : "";
+    run.confirmTitle = Tr("Change these affix tiers?");
+    run.confirmMessage = Fmt("Character: {0}", {name.empty() ? Tr("Loaded offline character") : name}) + "\n" +
+                         Tr("Changes only the tiers of the item in the game\xE2\x80\x99s forge. A recovery backup is created.");
+    run.success = [](const JValue&) { return Tr("Affix tiers changed."); };
+    run.reread = {"craftread"};
+    run.done = [](const JValue&) { TierDraft().clear(); };
+    RunAction(run);
+}
+void MakeTiers(Section& s) {
+    s.reads.insert("craftread");
+    s.build = [](Section& sec, const Ctx& c) {
+        sec.state["shown"] = TiersShown();
+        const int sid = sec.id;
+        Panel p = OpenPanel(c.parent, kPadX, 0, kPanelW);
+        const Ctx in = c.At(p.rt.Get(), kPadX, 0);
+        Style h2{Face::Serif, 27, C("ink")};
+        const float lh = LineHeight(h2);
+        Button load = AddButton(in, kPanelPad + kPanelInner, kPanelPad, Tr("Refresh selected item"), Look::Normal, [] { Read("craftread"); }, true, "tiers-refresh");
+        const float row = std::max(lh, load.h);
+        PlaceButton(in, load, kPanelPad + kPanelInner - load.w, kPanelPad + (row - load.h) / 2);
+        TextBox(in.parent, "Title", kPanelPad, kPanelPad + (row - lh) / 2, kPanelInner - load.w - 15, lh, h2, Tr("Change affix tiers"));
+        float y = kPanelPad + row + 16;
+        y += Muted(in.parent, kPanelPad, y, kPanelInner,
+                   Tr("Change the tiers of the affixes already on the item in the game\xE2\x80\x99s forge, without making a new item. Rolls and the rest of the item stay, "
+                      "and any affix can be T8. A recovery backup is created.")) + 16;
+        const auto rows = TierRows();
+        if (rows.empty()) y += StepText(in, y, Tr("Waiting for an equipment item in the game\xE2\x80\x99s forge.")) + 14;
+        const std::string tierText = Tr("Tier");
+        for (const auto& r : rows) {
+            const float rowH = 27.6f + 12 + 2, cy = y + 1 + 6;
+            Fill(in.parent, "Affix row", kPanelPad, y, kPanelInner, rowH, Hex("#0a121080"), 3);
+            Outline(in.parent, "Affix row border", kPanelPad, y, kPanelInner, rowH, C("line"), 3);
+            TextBox(in.parent, "Affix name", kPanelPad + 9, cy, kPanelInner - 220, 27.6f, Style{Face::Body, 12, C("ink"), 0, 0, kLeft}, Tr(r.name));
+            if (!r.editable) {
+                TextBox(in.parent, "Sealed", kPanelPad + kPanelInner - 200, cy, 191, 27.6f, Style{Face::Body, 11, C("muted"), 0, 0, kLeft},
+                        Tr("Sealed") + " \xC2\xB7 T" + std::to_string(r.tier));
+            } else {
+                std::vector<std::string> options;
+                for (int t = 1; t <= r.tiers; ++t) options.push_back("T" + std::to_string(t));
+                const auto it = TierDraft().find(r.id);
+                const int chosen = it != TierDraft().end() ? it->second : r.tier;
+                const float selW = 64, sx = kPanelPad + kPanelInner - 9 - selW, sy = cy + (27.6f - 26) / 2;
+                const float labelW = std::ceil(TextAdvance(Face::Body, 11, tierText)) + 4;
+                TextBox(in.parent, "Tier", sx - 6 - labelW, cy, labelW, 27.6f, Style{Face::Body, 11, C("muted"), 0, 0, kLeft}, tierText);
+                const std::string id = r.id;
+                SelectBox(in, sx, sy, selW, 26, 11, "T" + std::to_string(chosen), "tiers-tier#" + id, [in, sx, sy, selW, options, chosen, id, sid] {
+                    OpenBelow(in, sx, sy, selW, 26, options, chosen - 1, [id, sid](int i) {
+                        TierDraft()[id] = i + 1;
+                        Rebuild(sid);
+                    });
+                });
+            }
+            y += rowH + 8;
+        }
+        y += 10;
+        const std::string reason = TiersReason();
+        if (!reason.empty() && !rows.empty()) y += StepText(in, y, reason) + 12;
+        Button b = AddButton(in, kPanelPad + kPanelInner, y, Tr("Apply tiers"), Look::Primary, [] { ApplyTiers(); }, true, "craft_tiers");
+        if (!reason.empty()) SetEnabled(in, b, false);
+        const float h = y + b.h + kPanelPad;
+        ClosePanel(p, kPanelW, h);
+        return h;
+    };
+    s.onData = [](Section& sec, const std::string&) {
+        if (sec.state["shown"] == TiersShown()) return;
+        TierDraft().clear();
+        Rebuild(sec.id);
+    };
+}
+
+// ------------------------------------------------------------------------------- Spawn Items
 struct SpawnEntry { std::string id, name, meta, lower, kind; bool weaver = false, lp = true; int maxAffixes = 4; };
 struct SpawnState {
-    std::string filter, kind = "all", item, level = "100", count = "1";
-    int rarity = 2, lp = -1;
+    std::string filter, kind = "all", item, level = "100", count = "1", affixFilter;
+    int rarity = 2, lp = -1, affixType = -1;
+    std::vector<std::pair<int, int>> affixes;  // Spawn with chosen affixes: (affix ID, tier)
+    bool randomRolls = false;
     size_t limit = 100;
     std::map<std::string, int> blocks;  // section kind -> id
     std::vector<SpawnEntry> entries;
@@ -1385,6 +1509,8 @@ bool WholeNumber(const std::string& text, int low, int high, int* out) {
     *out = v;
     return true;
 }
+int SpawnBaseType();
+std::string SpawnAffixSpec();
 void SpawnNow() {
     const std::string reason = SpawnReason();
     if (!reason.empty()) { Toast(reason, true); return; }
@@ -1394,6 +1520,8 @@ void SpawnNow() {
     ActionRun run;
     run.command = "spawnitem {save_id} " + SP().item + " " + std::to_string(SP().rarity) + " " + std::to_string(SP().lp) + " " + std::to_string(level) + " " +
                   std::to_string(count);
+    if (!SP().affixes.empty() && SpawnBaseType() >= 0)
+        run.command = "spawncustom {save_id} " + SP().item + " " + SpawnAffixSpec() + " " + std::to_string(level) + " " + std::to_string(count);
     run.expectId = IdOf(Cached("spawnlist")->Path("player.id"));
     run.success = [](const JValue& v) {
         const double n = v["spawned"].Num(0);
@@ -1467,7 +1595,7 @@ void MakeSpawnHead(Section& s) {
     s.onData = [](Section& sec, const std::string&) {
         if (sec.state["shown"] == SpawnShown() || Typing(sec.id)) return;
         Rebuild(sec.id);
-        SpawnRebuild({"spawn_list", "spawn_options"});
+        SpawnRebuild({"spawn_list", "spawn_affix_head", "spawn_affix_list", "spawn_options"});
     };
 }
 
@@ -1537,7 +1665,7 @@ void ChooseSpawn(int sid, size_t index) {
     v->chosen = static_cast<int>(index);
     Fade(v->rows[index].fill.Get(), C("soft"), 0);
     SP().item = SpawnEntries()[v->rows[index].entry].id;
-    SpawnRebuild({"spawn_options"});
+    SpawnRebuild({"spawn_affix_head", "spawn_affix_list", "spawn_options"});
 }
 void MakeSpawnList(Section& s) {
     s.build = [](Section& sec, const Ctx& c) {
@@ -1641,6 +1769,144 @@ void MakeSpawnList(Section& s) {
 }
 
 // 3. the chosen item and only the options that apply to it, then Spawn
+// Spawn with chosen affixes: for a base item, up to seven of the affixes it rolls (lootread rollsOn), each with its
+// tier; the search and the list in two sections, so typing rebuilds only the list.
+struct SpawnAffix { int id = 0, tiers = 1; std::string name, lower, classes; };
+int SpawnBaseType() {
+    const SpawnEntry* x = SpawnChosen();
+    return x && x->kind == "base" ? std::atoi(x->id.c_str() + 1) : -1;
+}
+std::vector<SpawnAffix> SpawnAffixes() {
+    std::vector<SpawnAffix> out;
+    const int type = SpawnBaseType();
+    const JValue* d = Cached("lootread");
+    if (type < 0 || !d) return out;
+    for (const auto& a : (*d)["affixes"].items) {
+        bool rolls = false;
+        for (const auto& t : a["rollsOn"].items) rolls |= t.IsNumber() && static_cast<int>(t.number) == type;
+        if (!rolls) continue;
+        SpawnAffix x;
+        x.id = static_cast<int>(a["id"].Num(0));
+        x.tiers = std::max(1, std::min(8, static_cast<int>(a["tiers"].Num(1))));
+        x.name = Clean(a["name"].Str());
+        x.lower = Lower(x.name);
+        for (const auto& k : a["classes"].items) x.classes += (x.classes.empty() ? "" : ", ") + Tr(k.Str());
+        out.push_back(std::move(x));
+    }
+    return out;
+}
+std::string SpawnAffixSpec() {
+    std::string out;
+    for (const auto& [id, tier] : SP().affixes) out += (out.empty() ? "" : ",") + std::to_string(id) + ":" + std::to_string(tier) + ":" + (SP().randomRolls ? "r" : "100");
+    return out;
+}
+void MakeSpawnAffixHead(Section& s) {
+    s.reads.insert("lootread");
+    s.build = [](Section& sec, const Ctx& c) {
+        SP().blocks["spawn_affix_head"] = sec.id;
+        sec.after = 0;
+        const int type = SpawnBaseType();
+        if (type != SP().affixType) {
+            SP().affixType = type;
+            SP().affixes.clear();
+        }
+        if (type < 0) return 0.f;
+        const Ctx in = Block(c);
+        float y = 22;
+        Solid(in.parent, "Divider", kPanelPad, y, kPanelInner, 1, C("line"));
+        y += 1 + 20;
+        y += FieldLabelText(in, kPanelPad, y, kPanelInner, Tr("Affixes (optional)")) + 4;
+        y += StepText(in, y, Tr("Leave empty for the game's own roll. Choose up to seven of the affixes this item rolls; each has its own tier, and any of them can be T8.")) + 10;
+        y += SearchInput(in, y, kPanelInner, SP().affixFilter, Tr("Search health, damage, resistance..."),
+                         [](const std::string& t) {
+                             SP().affixFilter = t;
+                             SpawnRebuild({"spawn_affix_list"});
+                         }, "spawn-affix-search");
+        return y;
+    };
+    s.onData = [](Section& sec, const std::string&) {
+        if (!Typing(sec.id)) SpawnRebuild({"spawn_affix_head", "spawn_affix_list"});
+    };
+}
+void MakeSpawnAffixList(Section& s) {
+    s.build = [](Section& sec, const Ctx& c) {
+        SP().blocks["spawn_affix_list"] = sec.id;
+        sec.after = 0;
+        if (SpawnBaseType() < 0) return 0.f;
+        const Ctx in = Block(c);
+        const int sid = sec.id;
+        float y = 12;
+        const auto all = SpawnAffixes();
+        if (all.empty()) return y + StepText(in, y, Tr(Cached("lootread") ? "No matches. Try another search." : "Refresh the item list to choose affixes.")) + 4;
+        // the matches as chips (the first 24); a chosen one is not offered again
+        const auto words = Words(SP().affixFilter);
+        float x = kPanelPad, rowH = 0;
+        size_t shown = 0, matches = 0;
+        for (const auto& a : all) {
+            if (!Matches(a.lower, words)) continue;
+            ++matches;
+            if (std::any_of(SP().affixes.begin(), SP().affixes.end(), [&](const auto& p) { return p.first == a.id; })) continue;
+            if (shown >= 24) continue;
+            ++shown;
+            const std::string text = "+ " + Tr(a.name) + (a.classes.empty() ? "" : " \xC2\xB7 " + a.classes);
+            const float want = std::ceil(TextAdvance(Face::Body, 11, text)) + 1 + 22;
+            if (x > kPanelPad && x + std::min(want, kPanelInner) > kPanelPad + kPanelInner) {
+                y += rowH + 8;
+                x = kPanelPad;
+                rowH = 0;
+            }
+            float h = 0;
+            const int id = a.id, top = a.tiers;
+            x += ChipButton(in, x, y, kPanelInner - (x - kPanelPad), 10, 6, text, "spawn-affix#" + std::to_string(id), [id, top, sid] {
+                     if (SP().affixes.size() >= 7) { Toast(Tr("Choose up to seven affixes."), true); return; }
+                     SP().affixes.push_back({id, top});
+                     Rebuild(sid);
+                 }, &h) + 8;
+            rowH = std::max(rowH, h);
+        }
+        y += rowH + 10;
+        y += Paragraph(in.parent, "Count", kPanelPad, y, kPanelInner, Text(11, "muted", 0, false),
+                       Fmt("{0} matches \xC2\xB7 {1} selected", {std::to_string(matches), std::to_string(SP().affixes.size())})) + 12;
+        // the chosen ones: the name, the tier, x
+        const std::string tierText = Tr("Tier");
+        for (size_t i = 0; i < SP().affixes.size(); ++i) {
+            const auto [id, tier] = SP().affixes[i];
+            const auto found = std::find_if(all.begin(), all.end(), [id = id](const SpawnAffix& a) { return a.id == id; });
+            const std::string name = found != all.end() ? found->name : std::to_string(id);
+            const int top = found != all.end() ? found->tiers : 8;
+            const float rowHeight = 27.6f + 12 + 2, cy = y + 1 + 6;
+            Fill(in.parent, "Affix row", kPanelPad, y, kPanelInner, rowHeight, Hex("#0a121080"), 3);
+            Outline(in.parent, "Affix row border", kPanelPad, y, kPanelInner, rowHeight, C("line"), 3);
+            TextBox(in.parent, "Affix name", kPanelPad + 9, cy, kPanelInner - 260, 27.6f, Style{Face::Body, 12, C("ink"), 0, 0, kLeft}, Tr(name));
+            const float xW = std::ceil(TextAdvance(Face::Body, 11, "\xC3\x97")) + 18 + 2, right = kPanelPad + kPanelInner - 1 - 8;
+            const size_t index = i;
+            ChipButton(in, right - xW, cy, xW, 9, 4, "\xC3\x97", "spawn-affix-remove#" + std::to_string(id), [index, sid] {
+                if (index < SP().affixes.size()) SP().affixes.erase(SP().affixes.begin() + static_cast<std::ptrdiff_t>(index));
+                Rebuild(sid);
+            });
+            std::vector<std::string> options;
+            for (int t = 1; t <= top; ++t) options.push_back("T" + std::to_string(t));
+            const float selW = 64, sx = right - xW - 12 - selW, sy = cy + (27.6f - 26) / 2;
+            const float labelW = std::ceil(TextAdvance(Face::Body, 11, tierText)) + 4;
+            TextBox(in.parent, "Tier", sx - 6 - labelW, cy, labelW, 27.6f, Style{Face::Body, 11, C("muted"), 0, 0, kLeft}, tierText);
+            SelectBox(in, sx, sy, selW, 26, 11, "T" + std::to_string(tier), "spawn-affix-tier#" + std::to_string(id), [in, sx, sy, selW, options, tier = tier, index, sid] {
+                OpenBelow(in, sx, sy, selW, 26, options, tier - 1, [index, sid](int t) {
+                    if (index < SP().affixes.size()) SP().affixes[index].second = t + 1;
+                    Rebuild(sid);
+                });
+            });
+            y += rowHeight + 8;
+        }
+        if (!SP().affixes.empty()) {
+            y += 4 + FieldLabelText(in, kPanelPad, y + 4, kPanelInner, Tr("Rolls")) + 6;
+            y += SpawnButtons(in, kPanelPad, y, {Tr("Maximum"), Tr("Random")}, SP().randomRolls ? 1 : 0, "spawn-affix-roll", [sid](int i) {
+                     SP().randomRolls = i == 1;
+                     Rebuild(sid);
+                 }) + 4;
+        }
+        return y;
+    };
+}
 void MakeSpawnOptions(Section& s) {
     s.build = [](Section& sec, const Ctx& c) {
         SP().blocks["spawn_options"] = sec.id;
@@ -1713,7 +1979,10 @@ void RegisterWorkshopSections() {
     RegisterSection("ws_review", MakeReview);
     RegisterSection("spawn_head", MakeSpawnHead);
     RegisterSection("spawn_list", MakeSpawnList);
+    RegisterSection("spawn_affix_head", MakeSpawnAffixHead);
+    RegisterSection("spawn_affix_list", MakeSpawnAffixList);
     RegisterSection("spawn_options", MakeSpawnOptions);
+    RegisterSection("ws_tiers", MakeTiers);
 }
 std::string WorkshopState() {
     const State& w = W();

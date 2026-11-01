@@ -71,7 +71,13 @@ progressread
 masteryopen <loaded offline save id from progressread>
 questscomplete <progressread içindeki çevrimdışı kayıt id'si>
 waypointsunlock <progressread içindeki çevrimdışı kayıt id'si>
+setlevel <progressread içindeki çevrimdışı kayıt id'si> <2-100>
 ```
+
+`setlevel` (Set character level, 0.1.2-dev.53): karakteri kampanya tamamlamanın seviye 55
+yolundan, her karede bir seviye `ExperienceTracker.GainExpDirect` ile yükseltir; her seviyenin
+pasif ve attribute puanları normal gelir. Önce kurtarma yedeği, sonda kayıt. Daha düşük veya
+aynı seviye reddedilir.
 
 Yanıtlar JSON'dur. Kimlik eskiyse işlem reddedilir. İki ayrı offline kontrolü
 (`GameplayEnvironment`, yüklü `CharacterData.IsOffline`) ve görev listesinin

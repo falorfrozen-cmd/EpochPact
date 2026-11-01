@@ -204,7 +204,7 @@ def sections(page, controls, counts):
                 native("echo_results", group="navigator", controls=["echo_focus"])]
     if page == "campaign":
         return [native("cached_summary", read="progressread"),
-                native("campaign", controls=["campaign_complete", "waypoints_unlock"]), native("mastery", controls=["mastery_choose"])]
+                native("campaign", controls=["campaign_complete", "waypoints_unlock", "character_level"]), native("mastery", controls=["mastery_choose"])]
     if page == "inventory":
         return [native("inventory_shortcuts", controls=["inventory_read", "inventory_stash", "inventory_vendor", "inventory_stashall", "inventory_sellall"]),
                 settings("Automatic sorting and Sell all", ["inventory_autosort", "inventory_autosortall", "inventory_sellkeep"], text=AUTOSORT_TEXT,
@@ -237,10 +237,12 @@ def sections(page, controls, counts):
                 native("ws_affix_head", **ws), native("ws_affix_list", **ws), native("ws_affix_rows", **ws),
                 native("ws_extra_head", **ws), native("ws_mod_list", **ws), native("ws_mod_rows", **ws),
                 native("ws_review", controls=["craft_custom"], **ws),
+                native("ws_tiers", tab="custom", group="tiers", controls=["craft_tiers"]),
                 # Spawn Items: one panel in three sections (typing builds only the results again)
                 native("spawn_head", tab="spawn", group="spawn", controls=["spawn_list"]),
                 native("spawn_list", tab="spawn", group="spawn"),
-                native("spawn_options", tab="spawn", group="spawn", controls=["spawn_item"])]
+                native("spawn_affix_head", tab="spawn", group="spawn"), native("spawn_affix_list", tab="spawn", group="spawn"),
+                native("spawn_options", tab="spawn", group="spawn", controls=["spawn_item", "spawn_custom"])]
     if page == "settings":
         return [native("settings_language"), native("settings_profiles"), native("settings_version"),
                 native("settings_report"), native("settings_recovery"), native("settings_navigation"),
