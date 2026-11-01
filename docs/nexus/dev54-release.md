@@ -27,7 +27,7 @@ level -> Apply -> confirm, level 1 kept with the other rewards; F6 Spawn Items: 
 "300 Max Mana" affixes, 254 spawned, picked up, kept after a restart), `builds\dev54-live1` (raise: 1 -> 55),
 `builds\dev54-live3` (the select at full card width). The desktop app: render and bridge tests (the select, keep/raise
 commands).
-VirusTotal (1 November 2026): version.dll (scan pending), InGame ZIP (scan pending).
+VirusTotal (1 November 2026): version.dll 0/71, InGame ZIP 0/68.
 
 ## GitHub release
 
@@ -46,7 +46,7 @@ Both contain the same `version.dll`, so both have the in-game window.
 - **Finish the campaign and keep your level.** Campaign → *Complete main + side campaign* has a new **Character level** choice. *Keep my current level (no quest XP)* completes the campaign without quest experience, so a level 1 character stays level 1. Every other quest reward still comes: passive points, idol slots, gold, attributes, and Choose Mastery opens afterwards. *Raise to at least level 55* (the default) works as before.
 - **Omen idols: every affix in Spawn Items.** The game lets Omen idols roll more affixes than their size: a Large Omen Idol also rolls the Huge and Adorned Idol affixes, a Grand Omen Idol the Ornate and Adorned ones. *Affixes (optional)* now lists them, e.g. "Increased Lightning Damage (Doubled If You Have Over 300 Max Mana)" on a Large Arcane Omen Idol.
 
-Last Epoch 1.5.3 (Steam), offline only. VirusTotal: version.dll (scan pending), InGame ZIP (scan pending).
+Last Epoch 1.5.3 (Steam), offline only. VirusTotal: version.dll 0/71, InGame ZIP 0/68.
 Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 ```
 
@@ -71,3 +71,16 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 > **Desktop app (EXE):** in EpochPact open *What's new → Install update*, or download it here:
 > https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.54
 > **Manual install, no EXE:** download the main file from Nexus (https://www.nexusmods.com/lastepoch/mods/44?tab=files) or `EpochPact-0.1.2-dev.54-InGame.zip` from the GitHub link above, and copy the new `version.dll` over the old one.
+
+## Published 2026-11-01 (owner: "yeni sürümü github ve nexusmods'ta yayınla ... nexus'ta şu kısma yeni versiyonda ne olduğunu yazman lazım")
+
+- GitHub: release `v0.1.2-dev.54` (Latest, not a prerelease) with both ZIPs; the asset digests are the SHA-256 values
+  above; target and `main` = 1b48139 (fast-forward from 53d6f70). Published before the scans, the notes' VirusTotal line
+  added after them.
+- VirusTotal (Chrome, fresh uploads): version.dll 0/71 (Kaspersky undetected), InGame ZIP 0/68.
+- Nexus mod 44: main file "EpochPact - in-game edition (manual install)" updated to 0.1.2-dev.54 with the InGame ZIP
+  (dev.53 archived), mod version 0.1.2-dev.54, the two changelog lines above, and the file description now says what
+  is new (the text above, 240 characters, the field's limit is 255). Mod description lines changed (version, Crafting:
+  Omen idols, Campaign: keep your level, Safety: VirusTotal 0/71 and 0/68). The public page shows the new version, file
+  description and description; the file was in Nexus's own scan ("not yet available for download") right after upload.
+- Discord: the owner sends the announcement (draft above). Player replies (English) given to the owner first.

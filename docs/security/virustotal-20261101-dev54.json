@@ -1,0 +1,51 @@
+{
+  "version": "0.1.2-dev.54",
+  "observed": "2026-11-01 (UTC+03:00), fresh uploads through the VirusTotal web interface",
+  "build": "fix52 branch dev53 commit bc9962c (player flavor; build-info loaderSha256 = version.dll below); the desktop edition from the same player files",
+  "files": {
+    "version.dll": {
+      "sha256": "02fd64a662d03a674521aa04179d26c1883df8fc08c14e638a3ee30f918ec5c2",
+      "bytes": 8662528,
+      "in": [
+        "EpochPact-0.1.2-dev.54-InGame.zip",
+        "EpochPact-0.1.2-dev.54.zip (Manual Installation and the app's player files)"
+      ],
+      "virusTotal": "0/71 (no engine flagged; Kaspersky undetected)",
+      "report": "https://www.virustotal.com/gui/file/02fd64a662d03a674521aa04179d26c1883df8fc08c14e638a3ee30f918ec5c2"
+    },
+    "EpochPact.Core.dll": {
+      "sha256": "28cf61b46f618ee93f3f7d8b93196024a92edec88023ecbd4f8aded43e1f5634",
+      "bytes": 8653824,
+      "in": [
+        "EpochPact-0.1.2-dev.54.zip (MelonLoader path)"
+      ],
+      "virusTotal": "not uploaded (desktop edition only; not on Nexus)"
+    },
+    "EpochPact.exe": {
+      "sha256": "b177ff4db8f574bdcca106dadd8984c44d4841c72f07987b7d548d02ef642efc",
+      "bytes": 372347,
+      "in": [
+        "EpochPact-0.1.2-dev.54.zip"
+      ],
+      "virusTotal": "not uploaded (desktop edition only; not on Nexus)"
+    }
+  },
+  "packages": {
+    "EpochPact-0.1.2-dev.54-InGame.zip": {
+      "sha256": "15ddc19147b8f3359b9074d2d1c30b4fa814d7bb1f8283afc6e602549ee71121",
+      "bytes": 3724858,
+      "virusTotal": "0/68 (no engine flagged)",
+      "report": "https://www.virustotal.com/gui/file/15ddc19147b8f3359b9074d2d1c30b4fa814d7bb1f8283afc6e602549ee71121",
+      "localDefender": "No threats found"
+    },
+    "EpochPact-0.1.2-dev.54.zip": {
+      "sha256": "220b433cefcfbbf78f7e10f0723c0fcb2ca02694605eb2ac5160532225b2f960",
+      "bytes": 36825063,
+      "virusTotal": "not uploaded (over the 10 MB browser upload limit)",
+      "localDefender": "No threats found (folder and ZIP)"
+    }
+  },
+  "localDefender": "signatures 1.463.72.0: the InGame package folder, the desktop folder and the desktop ZIP found no threats",
+  "checks": "package_ingame_player and package_player_folder verified; verify_player_package and verify_connection_package passed; Python 397, JavaScript 246, native 26 tests; shipping check builds\\dev54-final-live1 (level-1 clone: campaign with keep, Omen idol affix 254, restart); feature checks builds\\dev54-live2 (F6 campaign keep, F6 Spawn Omen idol, restart), builds\\dev54-live1 (raise path 1 -> 55)",
+  "note": "Scan counts describe these exact bytes on this date only; they are not a safety certification."
+}
