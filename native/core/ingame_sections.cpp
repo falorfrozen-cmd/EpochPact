@@ -830,8 +830,13 @@ CardMaker LevelCard(int section) {
             ActionRun run;
             run.command = line;
             run.snapshot = "progressread";
-            run.confirmTitle = Tr(c.label);
-            run.confirmMessage = SaveMessage(c);
+            const JValue* r = Cached("progressread");
+            const JValue* now = r ? r->Path("player.level") : nullptr;
+            const JValue* name = r ? r->Path("player.name") : nullptr;
+            run.confirmTitle = Tr("Raise the character level?");
+            run.confirmMessage = Fmt("Character: {0}", {name && name->IsString() ? name->text : Tr("Loaded offline character")}) + "\n" +
+                                 Fmt("Level {0} \xE2\x86\x92 {1}", {now && now->IsNumber() ? Num(now->number) : std::string("?"), line.substr(line.find_last_of(' ') + 1)}) + "\n\n" +
+                                 Tr("The passive and attribute points of each level come with it. A recovery backup is created.");
             run.success = [](const JValue& v) {
                 const JValue* l = v.Path("after.level");
                 return Fmt("Character raised to level {0}.", {l && l->IsNumber() ? Num(l->number) : std::string("?")});

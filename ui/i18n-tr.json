@@ -1909,7 +1909,7 @@
 "Each chosen affix has its own tier (T1–T8) and roll (1–100% of its tier's range, or Random). T8 is the game's top tier, shown for affixes that have it, and any affix can be T8. The first T8 affix is sealed as the item's primordial affix; the game limits how many primordial items you can wear. Roll quality applies to the template, implicits and extra effects, and is the starting roll for newly chosen affixes. Without extra effects, keeping current affixes preserves their tiers and midpoint mode keeps their existing rolls. Adding extra effects rebuilds kept affixes at T7 with the chosen rolls.": "Seçilen her affix'in kendi tier'ı (T1–T8) ve roll değeri vardır (tier aralığının %1–100'ü veya Rastgele). T8 oyunun en yüksek tier'ıdır, yalnızca bunu destekleyen affix'lerde gösterilir ve herhangi bir affix T8 olabilir. İlk T8 affix eşyanın primordial affix'i olarak mühürlenir; oyun aynı anda kuşanabileceğiniz primordial eşya sayısını sınırlar. Roll kalitesi şablona, implicit'lere ve ek efektlere uygulanır ve yeni seçilen affix'lerin başlangıç roll değeridir. Ek efekt yoksa mevcut affix'leri korumak tier'larını korur; orta değer modu da mevcut roll'larını değiştirmez. Ek efekt eklemek, korunan affix'leri seçilen roll değerleriyle T7 olarak yeniden oluşturur.",
 "Remove {0}": "Kaldır: {0}",
 "Affixes (optional)": "Affix'ler (isteğe bağlı)",
-"Leave empty for the game's own roll. Choose up to seven of the affixes this item rolls; each has its own tier, and any of them can be T8.": "Oyunun kendi seçimi için boş bırakın. Bu eşyada çıkabilen affix'lerden en fazla yedisini seçin; her birinin kendi tier'ı olur ve herhangi biri T8 olabilir.",
+"Leave empty for the game's own roll. Choose up to seven of the affixes this item rolls; each has its own tier, and any of them can be T8. With chosen affixes, Rarity does not apply.": "Oyunun kendi seçimi için boş bırakın. Bu eşyada çıkabilen affix'lerden en fazla yedisini seçin; her birinin kendi tier'ı olur ve herhangi biri T8 olabilir. Affix seçildiğinde Nadirlik seçeneği geçerli olmaz.",
 "Rolls": "Roll değerleri",
 "Maximum": "En yüksek",
 "Affix {0}": "Affix {0}",
@@ -1929,5 +1929,8 @@
 "Spawn with chosen affixes": "Seçilen affix'lerle oluştur",
 "The game makes the chosen base item (gear, idol or idol altar) with the affixes you choose, each with its tier (any of them can be T8), and drops it next to your character. Up to seven affixes, item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up.": "Oyun seçilen taban eşyayı (ekipman, idol veya idol altarı) seçtiğiniz affix'lerle, her biri kendi tier'ıyla (herhangi biri T8 olabilir) yapar ve karakterinizin yanına bırakır. En fazla yedi affix, eşya seviyesi 1–100, bir seferde en fazla 20 adet. Eşyaları yerden alana kadar hiçbir şey kaydedilmez.",
 "Change these affix tiers?": "Bu affix tier'ları değiştirilsin mi?",
-"Changes only the tiers of the item in the game’s forge. A recovery backup is created.": "Yalnızca oyunun forge'undaki eşyanın tier'larını değiştirir. Bir kurtarma yedeği oluşturulur."
+"Changes only the tiers of the item in the game’s forge. A recovery backup is created.": "Yalnızca oyunun forge'undaki eşyanın tier'larını değiştirir. Bir kurtarma yedeği oluşturulur.",
+"Raise the character level?": "Karakter seviyesi yükseltilsin mi?",
+"Level {0} → {1}": "Seviye {0} → {1}",
+"The passive and attribute points of each level come with it. A recovery backup is created.": "Her seviyenin pasif ve attribute puanları da gelir. Bir kurtarma yedeği oluşturulur."
 }

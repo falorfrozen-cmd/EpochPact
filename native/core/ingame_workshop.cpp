@@ -1816,7 +1816,7 @@ void MakeSpawnAffixHead(Section& s) {
         Solid(in.parent, "Divider", kPanelPad, y, kPanelInner, 1, C("line"));
         y += 1 + 20;
         y += FieldLabelText(in, kPanelPad, y, kPanelInner, Tr("Affixes (optional)")) + 4;
-        y += StepText(in, y, Tr("Leave empty for the game's own roll. Choose up to seven of the affixes this item rolls; each has its own tier, and any of them can be T8.")) + 10;
+        y += StepText(in, y, Tr("Leave empty for the game's own roll. Choose up to seven of the affixes this item rolls; each has its own tier, and any of them can be T8. With chosen affixes, Rarity does not apply.")) + 10;
         y += SearchInput(in, y, kPanelInner, SP().affixFilter, Tr("Search health, damage, resistance..."),
                          [](const std::string& t) {
                              SP().affixFilter = t;

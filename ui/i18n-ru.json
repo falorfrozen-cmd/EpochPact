@@ -1909,7 +1909,7 @@
 "Each chosen affix has its own tier (T1–T8) and roll (1–100% of its tier's range, or Random). T8 is the game's top tier, shown for affixes that have it, and any affix can be T8. The first T8 affix is sealed as the item's primordial affix; the game limits how many primordial items you can wear. Roll quality applies to the template, implicits and extra effects, and is the starting roll for newly chosen affixes. Without extra effects, keeping current affixes preserves their tiers and midpoint mode keeps their existing rolls. Adding extra effects rebuilds kept affixes at T7 with the chosen rolls.": "У каждого выбранного аффикса свой тир (T1–T8) и значение (1–100% диапазона тира или случайное). T8 — высший тир игры, только для аффиксов, у которых он есть, и T8 может быть у любого аффикса. Первый аффикс T8 запечатывается как первородный аффикс предмета; игра ограничивает число первородных предметов, которые можно надеть. Качество значений относится к шаблону, имплицитам и дополнительным эффектам и задаёт начальное значение для новых аффиксов. Без дополнительных эффектов сохранённые текущие аффиксы остаются со своими тирами, а в режиме средних значений сохраняются и их текущие значения. При добавлении дополнительных эффектов сохранённые аффиксы пересоздаются на T7 с выбранным качеством значений.",
 "Remove {0}": "Убрать: {0}",
 "Affixes (optional)": "Аффиксы (необязательно)",
-"Leave empty for the game's own roll. Choose up to seven of the affixes this item rolls; each has its own tier, and any of them can be T8.": "Оставьте пустым, чтобы игра выбрала сама. Выберите до семи аффиксов, которые бывают на этом предмете; у каждого свой тир, и любой может быть T8.",
+"Leave empty for the game's own roll. Choose up to seven of the affixes this item rolls; each has its own tier, and any of them can be T8. With chosen affixes, Rarity does not apply.": "Оставьте пустым, чтобы игра выбрала сама. Выберите до семи аффиксов, которые бывают на этом предмете; у каждого свой тир, и любой может быть T8. При выбранных аффиксах редкость не применяется.",
 "Rolls": "Значения",
 "Maximum": "Максимум",
 "Affix {0}": "Аффикс {0}",
@@ -1929,5 +1929,8 @@
 "Spawn with chosen affixes": "Создать с выбранными аффиксами",
 "The game makes the chosen base item (gear, idol or idol altar) with the affixes you choose, each with its tier (any of them can be T8), and drops it next to your character. Up to seven affixes, item level 1-100, up to 20 at a time. Nothing is saved until you pick the items up.": "Игра создаёт выбранный базовый предмет (снаряжение, идол или алтарь идолов) с выбранными аффиксами, у каждого свой тир (T8 может быть у любого), и бросает его рядом с персонажем. До семи аффиксов, уровень предмета 1–100, до 20 за раз. Ничего не сохраняется, пока вы не подберёте предметы.",
 "Change these affix tiers?": "Изменить эти тиры аффиксов?",
-"Changes only the tiers of the item in the game’s forge. A recovery backup is created.": "Меняет только тиры предмета в Кузнице игры. Создаётся резервная копия для восстановления."
+"Changes only the tiers of the item in the game’s forge. A recovery backup is created.": "Меняет только тиры предмета в Кузнице игры. Создаётся резервная копия для восстановления.",
+"Raise the character level?": "Повысить уровень персонажа?",
+"Level {0} → {1}": "Уровень {0} → {1}",
+"The passive and attribute points of each level come with it. A recovery backup is created.": "Очки пассивных умений и характеристик каждого уровня тоже начисляются. Создаётся резервная копия для восстановления."
 }
