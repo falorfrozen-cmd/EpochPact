@@ -23,7 +23,7 @@ helmet with seven T8 affixes, picked up and kept after a restart (a Unique refus
 (converted affixes, class tags, anylevel, craftcorrupted, Weaver idols, Wardrobe looks). Feature checks with the test build:
 `builds\dev53-native1`, `builds\dev53-ui1` (F6), `builds\dev53-hold1` (the desktop app with live data: tiers, Spawn with
 affixes, character level), `builds\dev53-tiers-rare2` (an ordinary Rare to T8 and back, restart).
-VirusTotal (1 November 2026): version.dll (scan pending), InGame ZIP (scan pending).
+VirusTotal (1 November 2026): version.dll 0/71, InGame ZIP 0/67.
 
 ## GitHub release
 
@@ -44,7 +44,7 @@ Both contain the same `version.dll`, so both have the in-game window.
 - **Spawn with chosen affixes (idols, idol altars and gear).** Crafting → Spawn Items: after choosing a base item, open *Affixes (optional)*, search the affixes that item rolls, pick up to seven and give each a tier (any of them T8), then Spawn. Leave it empty for the game's own roll.
 - **Set character level.** Campaign → *Set character level*: raise your character to a level from 2 to 100 with the game's own level-ups (passive and attribute points come with them). Lowering is not offered; a recovery backup is made.
 
-Last Epoch 1.5.3 (Steam), offline only. VirusTotal: version.dll (scan pending), InGame ZIP (scan pending).
+Last Epoch 1.5.3 (Steam), offline only. VirusTotal: version.dll 0/71, InGame ZIP 0/67.
 Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 ```
 
@@ -70,3 +70,14 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 > **Desktop app (EXE):** in EpochPact open *What's new → Install update*, or download it here:
 > https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.53
 > **Manual install, no EXE:** download the main file from Nexus (https://www.nexusmods.com/lastepoch/mods/44?tab=files) or `EpochPact-0.1.2-dev.53-InGame.zip` from the GitHub link above, and copy the new `version.dll` over the old one.
+
+## Published 2026-11-01 (owner: "son testleri yap ... github'da yayınla ... virustotal ... 0 çıkarsa nexusmods'a")
+
+- GitHub: release `v0.1.2-dev.53` (Latest, not a prerelease) with both ZIPs; the asset digests are the SHA-256 values
+  above; target and `main` = 53d6f70 (fast-forward from 20b4451). Published before the scans (the owner's order), the
+  notes' VirusTotal line added after them.
+- VirusTotal (Chrome, fresh uploads): version.dll 0/71, InGame ZIP 0/67, Kaspersky undetected on both.
+- Nexus mod 44: main file "EpochPact - in-game edition (manual install)" updated to 0.1.2-dev.53 with the InGame ZIP
+  (dev.52 archived), mod version 0.1.2-dev.53, the four changelog lines above; description lines changed (version,
+  Crafting, Campaign, Safety with VirusTotal 0/71 and 0/67). The public page shows the new version and description.
+- Discord: the owner sends the announcement (draft above).
