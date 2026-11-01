@@ -138,7 +138,8 @@ roll 1–100 or `r`, for example `12:8:100,345:5:50,6:7:r`.
 the workshop): the tiers of the affixes already on the forge item, without a new item.
 Rolls, the template, Legendary Potential and the rest stay; a T8 is sealed as a primordial
 affix, an affix taken below T8 is unsealed, and a sealed regular or corruption affix keeps
-its tier. The same backup, round trip and replace path as Custom Items.
+its tier. An item that turns primordial gets the rarity the game loads it with (its affixes
+but one, at most 4). The same backup, round trip and replace path as Custom Items.
 
 The native v6 format stores at most seven affixes. Eight are rejected before mutation;
 otherwise the native three-bit affix count would become zero on reload. Mixed recipes
