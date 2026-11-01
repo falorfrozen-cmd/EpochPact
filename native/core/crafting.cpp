@@ -719,6 +719,13 @@ void* TierItem(void* original,const std::string& input) {
         *reinterpret_cast<int*>(static_cast<char*>(found)+sealedType)=change.tier==rules::kPrimordialTier?kSealedPrimordial:0;
     }
     bool primordial=false;for(void* a:Entries(list))primordial|=a&&Get<int>(a,sealedType)==kSealedPrimordial;
+    // A primordial item's rarity is what the game sets when it loads one: its affixes but one, at most 4 (a Rare
+    // with three affixes and one taken to T8 loads as rarity 2). An item that stops being primordial gets the
+    // rarity of its affixes, at most 4.
+    if(primordial||Get<bool>(original,Offset("ItemData","hasSealedPrimordialAffix"))){
+        const size_t count=Entries(list).size();uint8_t rarity=static_cast<uint8_t>(std::min<size_t>(primordial?(count?count-1:0):count,4));
+        if(Get<uint16_t>(copy.Get(),Offset("ItemData","uniqueID"))==0)Assign(copy.Get(),"rarity",&rarity);
+    }
     Assign(copy.Get(),"hasSealedPrimordialAffix",&primordial);
     Invoke(Method(copy.Get(),"RebuildID",0),copy.Get());
     return Verified(copy.Get(),original);
