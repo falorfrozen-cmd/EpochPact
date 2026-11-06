@@ -219,4 +219,5 @@ std::string Create(const char* trigger) {
     }
 }
 
+void Notice(const std::string& title, const std::string& text) { Notify(title, text); }
 }  // namespace ep::report

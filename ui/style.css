@@ -124,3 +124,4 @@ html.overlay-page{background:transparent}.overlay-body{position:relative;display
 .look-slots{display:grid;gap:12px}
 .look-slots label{display:grid;gap:6px}
 @media (max-width:900px){.looks-layout{grid-template-columns:1fr}}
+.setting-help{margin-left:auto}.setting-help+.toggle{margin-left:10px}

@@ -46,7 +46,7 @@ LIFETIME = {"session": "Session", "actor": "Character", "game_save": "Game save"
 NO_UNIT = {"lprolls", "idolprefixes", "idolsuffixes", "craft_fp", "loot_ww", "build_weaverflat", "build_projectileflat", "build_blessingoptions", "build_minionextra", "build_totemextra",
            "build_ballistaextra", "build_forgedextra", "build_companionextra"}
 AUTOMATIC_TEMPLATES = ("buildset ", "qolset ", "qolarea ", "pickupradius ", "pickupinterval ", "autopickup ", "remotepickup ", "stashpickup ", "mapreveal ", "mapset ", "tierset ",
-                       "fontset ", "effectsset ", "deathrecap ", "rageset ", "invset ")
+                       "fontset ", "effectsset ", "deathrecap ", "rageset ", "invset ", "questskip ", "bossdoors ", "noblessing ", "autoshatter ", "autoshatterquiet ")
 # Values the catalog does not name a source for: where app.js reads them.
 EXTRA_SOURCES = {
     "pickup_radius": ("pickupradius", "radius"), "pickup_interval": ("pickupradius", "intervalSeconds"),
@@ -54,9 +54,8 @@ EXTRA_SOURCES = {
     "tier_rules": ("tierread", "rules"), "tier_rule_position": ("tierread", "rulePosition"), "tier_rule_parts": ("tierread", "ruleParts"),
     "tier_filter_colors": ("tierread", "filterColors"), "tier_name_colors": ("tierread", "nameColors"), "tier_special": ("tierread", "special"),
     "map_minimapsize": ("mapsettings", "minimapSize"), "map_minimapzoom": ("mapsettings", "minimapZoom"),
-    "map_minimapopacity": ("mapsettings", "minimapOpacity"), "map_overlayopacity": ("mapsettings", "overlayOpacity"),
-    "map_overlayzoom": ("mapsettings", "overlayZoom"),
-    "inventory_autosort": ("invread", "autosort"), "inventory_autosortall": ("invread", "autosortAll"), "inventory_sellkeep": ("invread", "sellKeep"),
+    "map_minimapopacity": ("mapsettings", "minimapOpacity"),
+    "inventory_pages": ("invread", "pages"), "inventory_idolslots": ("invread", "idolSlots"), "inventory_autosort": ("invread", "autosort"), "inventory_autosortall": ("invread", "autosortAll"), "inventory_sellkeep": ("invread", "sellKeep"),
 }
 # Reads whose results are JSON objects the panel can follow a path into.
 JSON_READS = {"buildread", "qolread", "rageread", "effectsread", "deathrecap", "pickupradius", "tierread", "mapsettings", "invread", "fontread",
@@ -465,7 +464,7 @@ def build_data():
                        "skill_budgets": ("", "Skill and point budgets"), "free_respec": ("", "Free respec"),
                        "summon_allies": ("", "Live summoned allies"), "damage_meter": ("damage-meter", "Damage meter"),
                        "minion_bonuses": ("", "Minion and companion bonuses"),
-                       "inventory_shortcuts": ("", "Inventory shortcuts"), "stash_rules": ("", "Stash tabs from loot filter"),
+                       "inventory_shortcuts": ("", "Inventory pages"), "stash_rules": ("", "Stash tabs from loot filter"),
                        "wardrobe": ("wardrobe", "Wardrobe"),
                        "campaign": ("", "Campaign quests"), "mastery": ("", "Mastery"), "monolith_management": ("", "Monolith management"),
                        "collection_head": ("collection", "Unique Atlas" if page_id == "atlas" else "Stash Assistant"),

@@ -753,7 +753,7 @@
     {
       "id": "build_minionextra",
       "group": "summons",
-      "label": "Extra minions per skill",
+      "label": "Extra minions and companions per skill",
       "widget": "number",
       "availability": "implemented",
       "commandTemplate": "buildset minionextra {value}",
@@ -770,7 +770,7 @@
       "default": 0,
       "resetCommand": "buildset minionextra 0",
       "lifetime": "session",
-      "description": "Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies and other minions. Cast the skill again to fill the new places. Totems, ballistas, forged weapons and companions have their own settings.",
+      "description": "Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies, other minions and companions, for example three Bears. Your companion limit rises with it. Cast the skill again to fill the new places. Totems, ballistas and forged weapons have their own settings.",
       "currentSource": "liveState.buildread.settings.minionextra.value",
       "requirements": [
         "offline"
@@ -878,7 +878,7 @@
       "default": 0,
       "resetCommand": "buildset companionextra 0",
       "lifetime": "session",
-      "description": "Raise your companion limit by this many. The game's other companion rules still apply, such as one of each kind.",
+      "description": "Raise your companion limit by this many, for more kinds at once. For more of the same companion use Extra minions and companions per skill.",
       "currentSource": "liveState.buildread.settings.companionextra.value",
       "requirements": [
         "offline"
@@ -1812,6 +1812,60 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "rage_lizards",
+      "group": "world",
+      "label": "Loot Lizard chance",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "rageset lizards {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 20
+        }
+      ],
+      "default": 1,
+      "resetCommand": "rageset lizards 1",
+      "lifetime": "session",
+      "description": "Multiplies how many Loot Lizards the game places in a zone; 0 places none. It applies from the next zone you enter.",
+      "currentSource": "liveState.rageread.settings.lizards.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "rage_nemesis",
+      "group": "world",
+      "label": "Nemesis chance",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "rageset nemesis {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 20
+        }
+      ],
+      "default": 1,
+      "resetCommand": "rageset nemesis 1",
+      "lifetime": "session",
+      "description": "Multiplies the chance of a Nemesis encounter in a zone; 0 places none. Your level must still reach the game's minimum. It applies from the next zone you enter.",
+      "currentSource": "liveState.rageread.settings.nemesis.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "death_recap_read",
       "group": "summons",
       "label": "Death recap",
@@ -1997,6 +2051,32 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "inventory_eternity",
+      "group": "inventory",
+      "label": "Open Eternity Cache",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "eternitycache {save_id}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "view",
+      "description": "Open the game's own Eternity Cache wherever you are, without running the Temporal Sanctum: put in a Unique with Legendary Potential and an Exalted item, choose the affixes to keep (one choice per Legendary Potential; with 4 all go over) and Seal; the game makes the legendary. Works as a Tier 4 cache (Uniques of any level) and as often as you like. With a legendary waiting in the cache, it opens the cache to take it out.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "inventory_sellall",
       "group": "inventory",
       "label": "Sell all inventory items",
@@ -2127,6 +2207,80 @@
       "resetCommand": "invset sellkeep 1",
       "lifetime": "session",
       "description": "Which items Sell all leaves in your inventory. Remembered by EpochPact.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "inventory_pages",
+      "group": "inventory",
+      "label": "Inventory and idol pages",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "invset pages {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 1,
+      "resetCommand": "invset pages 1",
+      "lifetime": "session",
+      "description": "Buttons 1 to 4 on the left of the items and 1 to 3 over the idols. Each page keeps its own items, or its own idols and altar; only the page shown counts for your character. When the inventory page shown is full, items you pick up go to the next page with room. Waiting pages are kept in a file for each character. An item on the cursor comes with you, so you can carry it to another page. Remembered by EpochPact.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "inventory_idolslots",
+      "group": "inventory",
+      "label": "All idol slots open",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "invset idolslots {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "invset idolslots 0",
+      "lifetime": "session",
+      "description": "Every idol slot is open, locked and closed ones too, with any idol altar or with none. Idols that sit in an extra slot need this setting: turn it off or remove EpochPact only after you move them. Remembered by EpochPact.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "inventory_pagesstash",
+      "group": "inventory",
+      "label": "Move waiting pages to the stash",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "itempages tostash",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "game_save",
+      "description": "Every item waiting on another page goes to your stash, for when you stop using the pages or remove EpochPact. Items that do not fit keep waiting. The page shown stays where it is.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -3455,6 +3609,90 @@
       "documentation": "docs/loot-crafting.md"
     },
     {
+      "id": "loot_autoshatter",
+      "group": "loot",
+      "label": "Shatter what the filter hides",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "autoshatter {value}",
+      "pythonApi": "tools.loot_crafting_backend.auto_shatter(value)",
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "autoshatter 0",
+      "lifetime": "session",
+      "description": "Items your loot filter hides on the ground are shattered at once, with the game's own Rune of Shattering rule and without using a rune: their shards go to your materials. Uniques, Sets, Legendaries, idols and items without affixes are left alone. Nothing happens without an active filter.",
+      "currentSource": "liveState.craftread.autoShatter",
+      "requirements": [
+        "offline",
+        "loaded_actor"
+      ],
+      "documentation": "docs/loot-crafting.md"
+    },
+    {
+      "id": "loot_shatterquiet",
+      "group": "loot",
+      "label": "Hide shatter notices",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "autoshatterquiet {value}",
+      "pythonApi": "tools.loot_crafting_backend.shatter_quiet(value)",
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "autoshatterquiet 0",
+      "lifetime": "session",
+      "description": "No notice on the left for the shards of items shattered automatically. Shards you pick up yourself keep theirs.",
+      "currentSource": "liveState.craftread.autoShatterQuiet",
+      "requirements": [
+        "offline",
+        "loaded_actor"
+      ],
+      "documentation": "docs/loot-crafting.md"
+    },
+    {
+      "id": "craft_exalted",
+      "group": "crafting",
+      "label": "Add new affixes to Exalted items",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "craftexalted {value}",
+      "pythonApi": "tools.loot_crafting_backend.allow_exalted(value)",
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "craftexalted 0",
+      "lifetime": "session",
+      "description": "Let a shard add a new affix to an Exalted item that has a free place, as on a Rare item. The game's limits stay: two prefixes, two suffixes, Forging Potential and level. The item stays Exalted and the new affix starts at T1.",
+      "currentSource": "liveState.craftread.allowExalted",
+      "requirements": [
+        "offline",
+        "loaded_actor"
+      ],
+      "documentation": "docs/loot-crafting.md"
+    },
+    {
       "id": "craft_hope",
       "group": "crafting",
       "label": "Glyph of Hope FP koruma ihtimali",
@@ -3751,6 +3989,58 @@
       "documentation": "docs/build-controls.md"
     },
     {
+      "id": "item_lp_read",
+      "group": "crafting",
+      "label": "Load items with Legendary Potential",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "lpread",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read the Uniques in your inventory that can have Legendary Potential. Changes nothing.",
+      "currentSource": null,
+      "requirements": [
+        "offline",
+        "loaded_actor"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "item_lp",
+      "group": "crafting",
+      "label": "Change Legendary Potential",
+      "widget": "button",
+      "availability": "implemented",
+      "commandTemplate": "setlp {save_id} {changes}",
+      "pythonApi": "tools.build_backend.set_legendary_potential(save_id, changes)",
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "save_id",
+          "type": "digit_string",
+          "optionsSource": "liveState.progressread.player.id"
+        },
+        {
+          "name": "changes",
+          "type": "single_token"
+        }
+      ],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "game_save",
+      "description": "Change the Legendary Potential of Uniques in your inventory, from 0 to 4, without making a new item. Rolls and the rest of the item stay. Sets, Legendaries and Uniques the game gives no Legendary Potential are not listed. Creates a recovery backup.",
+      "currentSource": null,
+      "requirements": [
+        "offline",
+        "loaded_actor"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "spawn_list",
       "group": "crafting",
       "label": "Load spawnable items",
@@ -3950,60 +4240,6 @@
       "resetCommand": "mapset minimapopacity 0",
       "lifetime": "session",
       "description": "Opacity of the corner minimap, its frame and icons. 0 keeps the game's own value.",
-      "currentSource": null,
-      "requirements": [
-        "offline"
-      ],
-      "documentation": "docs/player-conveniences.md"
-    },
-    {
-      "id": "map_overlayopacity",
-      "group": "display",
-      "label": "Overlay map opacity",
-      "widget": "number",
-      "availability": "implemented",
-      "commandTemplate": "mapset overlayopacity {value}",
-      "pythonApi": null,
-      "responseFormat": "json",
-      "parameters": [
-        {
-          "name": "value",
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
-        }
-      ],
-      "default": 0,
-      "resetCommand": "mapset overlayopacity 0",
-      "lifetime": "session",
-      "description": "Opacity of the full-screen overlay map, beyond the game's slider range. 0 keeps your game setting.",
-      "currentSource": null,
-      "requirements": [
-        "offline"
-      ],
-      "documentation": "docs/player-conveniences.md"
-    },
-    {
-      "id": "map_overlayzoom",
-      "group": "display",
-      "label": "Overlay map zoom",
-      "widget": "number",
-      "availability": "implemented",
-      "commandTemplate": "mapset overlayzoom {value}",
-      "pythonApi": null,
-      "responseFormat": "json",
-      "parameters": [
-        {
-          "name": "value",
-          "type": "number",
-          "minimum": 0.25,
-          "maximum": 4
-        }
-      ],
-      "default": 1,
-      "resetCommand": "mapset overlayzoom 1",
-      "lifetime": "session",
-      "description": "Below 1 zooms the overlay map in, above 1 shows more. Extends the game's overlay zoom limits.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -5246,6 +5482,87 @@
       "lifetime": "session",
       "description": "Pozitif doğal kazanç; kayıpları/elle mutlak değer ayarını çarpmaz.",
       "currentSource": "liveState.monolithread.stabilityMultiplier",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/monolith.md"
+    },
+    {
+      "id": "monolith_noblessing",
+      "group": "monolith",
+      "label": "No blessing choice",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "noblessing {value}",
+      "pythonApi": "tools.monolith_backend.no_blessing(value)",
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "noblessing 0",
+      "lifetime": "session",
+      "description": "The blessing choice does not open after a timeline boss, on every boss while this is on. You get no new blessing from those kills; the blessings you have stay. Drops and the way out are as usual.",
+      "currentSource": "liveState.monolithread.noBlessing",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/monolith.md"
+    },
+    {
+      "id": "monolith_bossdoors",
+      "group": "monolith",
+      "label": "Boss doors and Boss Rush",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "bossdoors {value}",
+      "pythonApi": "tools.monolith_backend.boss_doors(value)",
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "bossdoors 0",
+      "lifetime": "session",
+      "description": "A rock next to the waypoint in the Monolith Hub takes you to the Boss Hall. Ten doors there start a timeline's boss straight away, even a locked one. One switches Normal, Empowered (with your corruption) and Empowered with its Harbinger. One runs all ten in turn: the portal that opens after a kill starts the next boss, a town portal only takes you to town, and the same door goes on later. Bosses drop as usual. Go to the Monolith Hub from the map.",
+      "currentSource": "liveState.monolithread.bossDoors",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/monolith.md"
+    },
+    {
+      "id": "monolith_questskip",
+      "group": "monolith",
+      "label": "Boss'tan önceki görev echo'larını atla",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "questskip {value}",
+      "pythonApi": "tools.monolith_backend.quest_skip(value)",
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "questskip 0",
+      "lifetime": "session",
+      "description": "Normal timeline'da Stability dolunca boss'tan önceki görev echo'ları tamamlanmış sayılır (MonolithRun.questCompletion boss'un sırasına); açılırken dolu run'lara EoT/Hub/Rest'te yedekle hemen uygulanır.",
+      "currentSource": "liveState.monolithread.questSkip",
       "requirements": [
         "offline"
       ],
@@ -34985,7 +35302,7 @@
     ]
   },
   "counts": {
-    "controls": 221,
+    "controls": 233,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

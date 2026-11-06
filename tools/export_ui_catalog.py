@@ -91,11 +91,11 @@ def controls():
         ("projectiles", "skills", "Projectile count multiplier", 1, 8, 1, False, "Multiply player-owned projectile volleys and moving projectile emissions that lack a native extra-projectile component. Each emission group is capped at 64. Beams, stationary areas, summons and enemy attacks are excluded."),
         ("projectileflat", "skills", "Extra projectiles", 0, 32, 0, True, "Add extra projectiles after the multiplier in each projectile emission group. Supports native volleys and retrofitted moving projectiles; does not duplicate beams or stationary areas."),
         ("summonduration", "summons", "Summon lifetime multiplier", 1, 10, 1, False, "Extend player-owned summon expiry timers and slow native health decay, including Wraith/Abomination paths. AI, attacks and combat damage remain normal. Permanent minions remain permanent."),
-        ("minionextra", "summons", "Extra minions per skill", 0, 20, 0, True, "Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies and other minions. Cast the skill again to fill the new places. Totems, ballistas, forged weapons and companions have their own settings."),
+        ("minionextra", "summons", "Extra minions and companions per skill", 0, 20, 0, True, "Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies, other minions and companions, for example three Bears. Your companion limit rises with it. Cast the skill again to fill the new places. Totems, ballistas and forged weapons have their own settings."),
         ("totemextra", "summons", "Extra totems per skill", 0, 10, 0, True, "Raise each totem skill's own limit by this many (Thorn Totem, Storm Totem, Warcry Totem and other totems)."),
         ("ballistaextra", "summons", "Extra ballistas", 0, 10, 0, True, "Raise the Ballista limit by this many."),
         ("forgedextra", "summons", "Extra forged weapons", 0, 20, 0, True, "Raise the forged weapon limit by this many."),
-        ("companionextra", "summons", "Extra companions", 0, 10, 0, True, "Raise your companion limit by this many. The game's other companion rules still apply, such as one of each kind."),
+        ("companionextra", "summons", "Extra companions", 0, 10, 0, True, "Raise your companion limit by this many, for more kinds at once. For more of the same companion use Extra minions and companions per skill."),
         ("immortalminions", "summons", "Immortal minions", 0, 1, 0, True, "Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back."),
         ("blessingoptions", "monolith", "Blessing choices", 0, 5, 0, True, "Choose Normal, 3, 4 or 5 options for newly generated Monolith boss rewards. This does not change existing rewards."),
         ("blessingrolls", "monolith", "Maximum blessing rolls", 0, 1, 0, True, "Use the upper roll limit on newly generated boss blessing options. Existing blessings are kept."),
@@ -170,6 +170,12 @@ def controls():
         "Every Rage of Morditas reward item gets Ice or Blood forging potential; this is how many get Blood. The game's own share is 50 %. The Rituals of Ice and Blood still give their own type.",
         params=[parameter("value","integer",-1,100,choices=[-1,0,25,50,75,100])],default=-1,reset="rageset blood -1",current="liveState.rageread.settings.blood.value",doc="docs/player-conveniences.md")
     items[-1]["parameters"][0]["choiceLabels"]=["The game's own (50 %)","0 % (all Ice)","25 % Blood","50 % Blood","75 % Blood","100 % (all Blood)"]
+    add("rage_lizards","world","Loot Lizard chance","number","rageset lizards {value}","session",
+        "Multiplies how many Loot Lizards the game places in a zone; 0 places none. It applies from the next zone you enter.",
+        params=[parameter("value","number",0,20)],default=1,reset="rageset lizards 1",current="liveState.rageread.settings.lizards.value",doc="docs/player-conveniences.md")
+    add("rage_nemesis","world","Nemesis chance","number","rageset nemesis {value}","session",
+        "Multiplies the chance of a Nemesis encounter in a zone; 0 places none. Your level must still reach the game's minimum. It applies from the next zone you enter.",
+        params=[parameter("value","number",0,20)],default=1,reset="rageset nemesis 1",current="liveState.rageread.settings.nemesis.value",doc="docs/player-conveniences.md")
     add("death_recap_read","summons","Death recap","read","deathrecap","read_only",
         "The last deaths since the game started: the hits of the 10 seconds before each (attacker, skill or ailment, damage by type, health and ward after) and the buffs and debuffs shown at the death. Reading it does not change the game.",doc="docs/player-conveniences.md")
     add("death_recap","summons","Record deaths","toggle","deathrecap {value}","session",
@@ -185,6 +191,9 @@ def controls():
         add("inventory_"+action,"inventory",label,"button","inventoryaction {save_id} "+action,lifetime,
             "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory.",
             params=[save_id],doc="docs/player-conveniences.md")
+    add("inventory_eternity","inventory","Open Eternity Cache","button","eternitycache {save_id}","view",
+        "Open the game's own Eternity Cache wherever you are, without running the Temporal Sanctum: put in a Unique with Legendary Potential and an Exalted item, choose the affixes to keep (one choice per Legendary Potential; with 4 all go over) and Seal; the game makes the legendary. Works as a Tier 4 cache (Uniques of any level) and as often as you like. With a legendary waiting in the cache, it opens the cache to take it out.",
+        params=[save_id],doc="docs/player-conveniences.md")
     add("inventory_sellall","inventory","Sell all inventory items","button","inventoryaction {save_id} sellall","game_save",
         "Sell every inventory item the vendor buys, with the game's own sale (as Ctrl+click on an item). The vendor opens first when it is not open. What Sell all keeps is chosen below; equipped items are never sold. Sold items are in the vendor's buyback list. Creates a recovery backup.",
         params=[save_id],doc="docs/player-conveniences.md")
@@ -200,6 +209,15 @@ def controls():
         "Which items Sell all leaves in your inventory. Remembered by EpochPact.",
         params=[parameter("value","integer",0,2,choices=[0,1,2])],default=1,reset="invset sellkeep 1",doc="docs/player-conveniences.md")
     items[-1]["parameters"][0]["choiceLabels"]=['Sell everything', 'Keep Unique, Set and Legendary', 'Keep Unique, Set, Legendary and Exalted']
+    add("inventory_pages","inventory","Inventory and idol pages","toggle","invset pages {value}","session",
+        "Buttons 1 to 4 on the left of the items and 1 to 3 over the idols. Each page keeps its own items, or its own idols and altar; only the page shown counts for your character. When the inventory page shown is full, items you pick up go to the next page with room. Waiting pages are kept in a file for each character. An item on the cursor comes with you, so you can carry it to another page. Remembered by EpochPact.",
+        params=[parameter("value","integer",0,1)],default=1,reset="invset pages 1",doc="docs/player-conveniences.md")
+    add("inventory_idolslots","inventory","All idol slots open","toggle","invset idolslots {value}","session",
+        "Every idol slot is open, locked and closed ones too, with any idol altar or with none. Idols that sit in an extra slot need this setting: turn it off or remove EpochPact only after you move them. Remembered by EpochPact.",
+        params=[parameter("value","integer",0,1)],default=0,reset="invset idolslots 0",doc="docs/player-conveniences.md")
+    add("inventory_pagesstash","inventory","Move waiting pages to the stash","button","itempages tostash","game_save",
+        "Every item waiting on another page goes to your stash, for when you stop using the pages or remove EpochPact. Items that do not fit keep waiting. The page shown stays where it is.",
+        doc="docs/player-conveniences.md")
     add("inventory_sorttab","inventory","Sort a stash tab automatically","selector","invsorttab {tab} {value}","session",
         "Sort this stash tab each time it is shown, with the game's own Sort. Remembered by EpochPact.",
         params=[parameter("tab","integer",0,999999),parameter("value","integer",0,1)],doc="docs/player-conveniences.md")
@@ -348,6 +366,18 @@ def controls():
         "Craft a corrupted item in the forge as before it was corrupted. It has no Forging Potential left, so a craft costs none (the forge shows 1), and the item stays corrupted.",
         params=[value(0,1)], default=0, reset="craftcorrupted 0", api="tools.loot_crafting_backend.allow_corrupted(value)",
         current="liveState.craftread.allowCorrupted", requires=("loaded_actor",), doc="docs/loot-crafting.md")
+    add("loot_autoshatter", "loot", "Shatter what the filter hides", "toggle", "autoshatter {value}", "session",
+        "Items your loot filter hides on the ground are shattered at once, with the game's own Rune of Shattering rule and without using a rune: their shards go to your materials. Uniques, Sets, Legendaries, idols and items without affixes are left alone. Nothing happens without an active filter.",
+        params=[value(0, 1)], default=0, reset="autoshatter 0", api="tools.loot_crafting_backend.auto_shatter(value)",
+        current="liveState.craftread.autoShatter", requires=("loaded_actor",), doc="docs/loot-crafting.md")
+    add("loot_shatterquiet", "loot", "Hide shatter notices", "toggle", "autoshatterquiet {value}", "session",
+        "No notice on the left for the shards of items shattered automatically. Shards you pick up yourself keep theirs.",
+        params=[value(0, 1)], default=0, reset="autoshatterquiet 0", api="tools.loot_crafting_backend.shatter_quiet(value)",
+        current="liveState.craftread.autoShatterQuiet", requires=("loaded_actor",), doc="docs/loot-crafting.md")
+    add("craft_exalted", "crafting", "Add new affixes to Exalted items", "toggle", "craftexalted {value}", "session",
+        "Let a shard add a new affix to an Exalted item that has a free place, as on a Rare item. The game's limits stay: two prefixes, two suffixes, Forging Potential and level. The item stays Exalted and the new affix starts at T1.",
+        params=[value(0,1)], default=0, reset="craftexalted 0", api="tools.loot_crafting_backend.allow_exalted(value)",
+        current="liveState.craftread.allowExalted", requires=("loaded_actor",), doc="docs/loot-crafting.md")
     for glyph, label in (("hope", "Glyph of Hope FP koruma ihtimali"), ("despair", "Glyph of Despair seal ihtimali")):
         add("craft_"+glyph, "crafting", label, "selector", "craft"+glyph+" {value}", "session",
             "Yüzde 0–100 veya reset; native glyph/affix uygunluğu gerekir. Despair T1–T4; Greater Hope ayrı desteklenmez.",
@@ -376,6 +406,12 @@ def controls():
         params=[save_id, parameter("tiers", "single_token")], api="tools.build_backend.tiers(save_id, tiers)", requires=("loaded_actor",), doc="docs/build-controls.md")
     items[-1]["parameters"][2]["maximumLength"] = 160
     items[-1]["parameters"][4]["maximumLength"] = 2048
+    add("item_lp_read", "crafting", "Load items with Legendary Potential", "read", "lpread", "read_only",
+        "Read the Uniques in your inventory that can have Legendary Potential. Changes nothing.",
+        requires=("loaded_actor",), doc="docs/player-conveniences.md")
+    add("item_lp", "crafting", "Change Legendary Potential", "button", "setlp {save_id} {changes}", "game_save",
+        "Change the Legendary Potential of Uniques in your inventory, from 0 to 4, without making a new item. Rolls and the rest of the item stay. Sets, Legendaries and Uniques the game gives no Legendary Potential are not listed. Creates a recovery backup.",
+        params=[save_id, parameter("changes", "single_token")], api="tools.build_backend.set_legendary_potential(save_id, changes)", requires=("loaded_actor",), doc="docs/player-conveniences.md")
     add("spawn_list", "crafting", "Load spawnable items", "read", "spawnlist", "read_only",
         "Read the base items, Uniques and Sets the game can make. Does not create items.",
         requires=("loaded_actor",), doc="docs/player-conveniences.md")
@@ -407,12 +443,6 @@ def controls():
     add('map_minimapopacity',"display",'Minimap opacity',"number","mapset minimapopacity {value}","session",
         "Opacity of the corner minimap, its frame and icons. 0 keeps the game's own value.",
         params=[parameter("value","number",0,1)],default=0,reset="mapset minimapopacity 0",doc="docs/player-conveniences.md")
-    add('map_overlayopacity',"display",'Overlay map opacity',"number","mapset overlayopacity {value}","session",
-        "Opacity of the full-screen overlay map, beyond the game's slider range. 0 keeps your game setting.",
-        params=[parameter("value","number",0,1)],default=0,reset="mapset overlayopacity 0",doc="docs/player-conveniences.md")
-    add('map_overlayzoom',"display",'Overlay map zoom',"number","mapset overlayzoom {value}","session",
-        "Below 1 zooms the overlay map in, above 1 shows more. Extends the game's overlay zoom limits.",
-        params=[parameter("value","number",0.25,4)],default=1,reset="mapset overlayzoom 1",doc="docs/player-conveniences.md")
     add('tier_icons',"display",'Affix tiers on item icons',"toggle",'tierset icons {value}',"session",
         'Show each affix tier as coloured digits on inventory, stash and equipment icons (for example 7 6 5 4). Display only; items are unchanged.',
         params=[parameter("value","integer",0,1)],default=0,reset='tierset icons 0',doc="docs/player-conveniences.md")
@@ -546,6 +576,18 @@ def controls():
         items[-1]["currentSource"] = f"liveState.monolithread.timelines[id=timeline].difficulties[index=difficultyIndex].run.{id}"
     mult("stability_multiplier", "monolith", "Stability kazanım çarpanı", "stabilitymult", 100,
          "Pozitif doğal kazanç; kayıpları/elle mutlak değer ayarını çarpmaz.", "tools.monolith_backend.multiplier(value)", "liveState.monolithread.stabilityMultiplier", "docs/monolith.md")
+    add("monolith_noblessing", "monolith", "No blessing choice", "toggle", "noblessing {value}", "session",
+        "The blessing choice does not open after a timeline boss, on every boss while this is on. You get no new blessing from those kills; the blessings you have stay. Drops and the way out are as usual.",
+        params=[value(0, 1)], default=0, reset="noblessing 0", api="tools.monolith_backend.no_blessing(value)",
+        current="liveState.monolithread.noBlessing", requires=("loaded_actor",), doc="docs/monolith.md")
+    add("monolith_bossdoors", "monolith", "Boss doors and Boss Rush", "toggle", "bossdoors {value}", "session",
+        "A rock next to the waypoint in the Monolith Hub takes you to the Boss Hall. Ten doors there start a timeline's boss straight away, even a locked one. One switches Normal, Empowered (with your corruption) and Empowered with its Harbinger. One runs all ten in turn: the portal that opens after a kill starts the next boss, a town portal only takes you to town, and the same door goes on later. Bosses drop as usual. Go to the Monolith Hub from the map.",
+        params=[value(0, 1)], default=0, reset="bossdoors 0", api="tools.monolith_backend.boss_doors(value)",
+        current="liveState.monolithread.bossDoors", requires=("loaded_actor",), doc="docs/monolith.md")
+    add("monolith_questskip", "monolith", "Boss'tan önceki görev echo'larını atla", "toggle", "questskip {value}", "session",
+        "Normal timeline'da Stability dolunca boss'tan önceki görev echo'ları tamamlanmış sayılır (MonolithRun.questCompletion boss'un sırasına); açılırken dolu run'lara EoT/Hub/Rest'te yedekle hemen uygulanır.",
+        params=[value(0, 1)], default=0, reset="questskip 0", api="tools.monolith_backend.quest_skip(value)",
+        current="liveState.monolithread.questSkip", doc="docs/monolith.md")
     add("cof_read", "cof", "CoF kataloğu / güncel durum", "read", "cofread", "read_only",
         "Rank/Favor/Reputation/yuvalar/lensler/ödül uygunluğu ve tuning telemetrisi.", api="tools.cof_backend.read()", doc="docs/cof.md")
     cof_persist = ("loaded_id_matches", "snapshot_before_write")

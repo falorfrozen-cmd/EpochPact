@@ -29,7 +29,7 @@ int main(){
     Rect screen{-1920,-540,1920,1080},grid{-705.6f,-475.8f,657.6f,376.8f};
     auto standard=PlaceToolbar(menu,screen,grid,footer,left,currency);
     Check(standard.visible&&standard.buttons[0].w==100&&standard.buttons[1].w==118&&standard.buttons[3].w==100&&standard.rect.y>footer.y+footer.h);
-    Check(std::abs(standard.buttons[3].x+standard.buttons[3].w-standard.rect.x-standard.rect.w)<.001f);  // the row holds all four
+    Check(standard.buttons[4].w==140&&std::abs(standard.buttons[4].x+standard.buttons[4].w-standard.rect.x-standard.rect.w)<.001f);  // the row holds all five
     Rect maximumCurrency{-461.51f,footer.y,416.71f,footer.h};
     auto maximum=PlaceToolbar(menu,screen,grid,footer,left,maximumCurrency);
     Check(maximum.visible&&maximum.rect.x==standard.rect.x&&maximum.rect.y==standard.rect.y);

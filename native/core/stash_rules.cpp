@@ -338,7 +338,9 @@ std::string State(const Ctx& c) {
     const auto containers = Entries(Invoke(Method(view.container, "get_Containers", 0), view.container));
     for (size_t i = 0; i < tabs.size(); ++i) {
         if (!tabs[i]) continue; if (comma) out << ','; comma = true;
-        const int items = i < containers.size() && containers[i] ? Value<int>(Method(containers[i], "ContentCount", 0), containers[i]) : -1;
+        // The tab list is in display order; the containers are in tab ID order.
+        const size_t at = static_cast<size_t>(TabId(tabs[i]));
+        const int items = at < containers.size() && containers[at] ? Value<int>(Method(containers[at], "ContentCount", 0), containers[at]) : -1;
         out << TabJson(tabs[i], items);
     }
     out << "],\"filter\":";

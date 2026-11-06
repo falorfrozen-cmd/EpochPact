@@ -15,6 +15,7 @@ function saveDisplayPreference(name,id,enabled){
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const pages = {
  overview: ["Overview", "◈", "Your timeline. Your rules.", "Shape your journey, your loot and your character."],
+ whatsnew: ["What's New", "✦", "See what changed.", "The newest version first, with its settings right here."],
  game_setup: ["Game setup", "⌁", "Connect your game.", "Choose Last Epoch.exe, install the player mod and launch offline."],
  general: ["General settings", "⚙", "Your journey. Your rules.", "Experience, loot, enemies and everyday conveniences."],
  loot: ["Loot & Pickup", "▣", "Keep what matters.", "Automatic collection, loot filters and crafting material pickup."],
@@ -24,9 +25,10 @@ const pages = {
  equipment: ["Equipment", "⚔", "Equip your imagination.", "Offhand combinations, set bonuses, primordial items and level requirements."],
  wardrobe: ["Wardrobe", "♛", "Dress the legend.", "Try every look on your character before you wear it."],
  summons: ["Summons", "♧", "Command your companions.", "Minion bonuses and temporary summon duration."],
+ combat: ["Combat", "⚔", "Read every fight.", "Damage meter and death recap."],
  display: ["Display & Camera", "◉", "See Eterra your way.", "Camera pitch, zoom and temporary graphics overrides."],
  world: ["World & Exploration", "⌖", "Explore without friction.", "Map visibility and nearby chest, shrine and portal interactions."],
- inventory: ["Inventory", "▤", "Your workshop, anywhere.", "Open your stash or vendor and transfer inventory items safely."],
+ inventory: ["Inventory", "▤", "Your workshop, anywhere.", "Extra pages, sorting and stash tabs from your loot filter."],
  atlas: ["Unique Atlas", "✦", "Every relic has a story.", "Your collection, missing treasures and the next item to chase."],
  stash: ["Stash Assistant", "▤", "Find the keeper.", "Compare your copies and mark what matters."],
  campaign: ["Campaign", "⌘", "Begin a new chapter.", "Quests, their normal rewards and waypoints across the world."],
@@ -53,7 +55,7 @@ const affixKinds={
 function affixKind(el){return el?.closest?.('[data-affix-kind]')?.dataset?.affixKind||"loot_affixes";}
 function affixSelector(kind,s){return kind==="loot_affixes"?s:`[data-affix-kind="${kind}"] ${s}`;}
 let craftingSection='forge',workshopAdvanced=false;
-let spawnOptionsOf=null,spawnFilter='',spawnKind='all',spawnDraft={item:'',rarity:'2',lp:'-1',item_level:'100',count:'1',affixes:[],roll:'100'},spawnAffixFilter='',spawnAffixType=null,tierDraft={};
+let spawnOptionsOf=null,spawnFilter='',spawnKind='all',spawnDraft={item:'',rarity:'2',lp:'-1',item_level:'100',count:'1',affixes:[],roll:'100'},spawnAffixFilter='',spawnAffixType=null,tierDraft={},lpDraft={};
 const craftDisclosure={advanced:false,defaults:false};
 let workshopDraft=craftingModel.defaults(),workshopOwner=null;
 let workshopModifierFilter="";
@@ -209,7 +211,7 @@ async function restoreBonuses(){
  const n=Number(/^statrestore: restored (\d+) /.exec(result?.text||"")?.[1]||0);
  if(n)notify(n===1?"1 character bonus restored.":`${n} character bonuses restored.`);
 }
-function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|qolarea|pickupradius|pickupinterval|autopickup|remotepickup|stashpickup|mapreveal|mapset|tierset|fontset|effectsset|deathrecap|rageset|invset) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
+function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|qolarea|pickupradius|pickupinterval|autopickup|remotepickup|stashpickup|mapreveal|mapset|tierset|fontset|effectsset|deathrecap|rageset|invset|questskip|bossdoors|noblessing|autoshatter|autoshatterquiet) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
 function automaticOwner(){
  if(preview)return "preview";
  const p=connected.player;
@@ -343,16 +345,17 @@ function playerResult(payload,result){
   stability:`Stability set to ${a.value}.${where}`,corruption:`Corruption set to ${a.value}.${where}`,
   campaign_complete:a.level_mode==="keep"?(result.mastery?.needsSelection?"Campaign completed with normal rewards. Your level was kept. Use Choose Mastery to finish your character.":"Campaign completed with normal rewards. Your level was kept."):result.mastery?.needsSelection?"Campaign completed with normal rewards. Use Choose Mastery to finish your character.":"Campaign completed with normal rewards.",waypoints_unlock:"All waypoints unlocked.",
   mastery_choose:"Mastery selection opened in the game. Choose and confirm your mastery there.",
-  inventory_stash:result.opened===false?"Stash closed in the game.":"Stash opened in the game.",inventory_vendor:result.opened===false?"Vendor closed in the game.":"Vendor opened in the game.",
+  inventory_stash:result.opened===false?"Stash closed in the game.":"Stash opened in the game.",inventory_vendor:result.opened===false?"Vendor closed in the game.":"Vendor opened in the game.",inventory_eternity:result.future?"Eternity Cache opened in the game. Your legendary is waiting in it.":"Eternity Cache opened in the game.",
   loot_log_clear:"Recent pickups cleared. Items and gold are unchanged.",
   pickup_now:`Picked up ${result.picked??0} drops.${result.inventoryFull?" Your inventory is full: equipment waits until you open and close your inventory.":""}`,
+  inventory_pagesstash:`Moved ${result.moved??0} waiting items to your stash. ${result.noRoom??0} did not fit and keep waiting.`,
   inventory_sellall:`Sold ${result.sold??0} items for ${(result.gold??0).toLocaleString()} gold. ${result.kept??0} items kept${result.refused?`, ${result.refused} the vendor does not buy`:""}. Sold items are in the vendor's buyback list.`,
   inventory_stashall:(result.remaining??0)>0?`Moved ${result.moved??0} items to your stash. ${result.remaining} items stayed in your inventory: the stash had no room for them. Free stash space or add a stash tab, then try again.`:`Moved ${result.moved??0} items to your stash. Your inventory is empty; equipped items were not moved.`,
   monolith_unlock:"Normal and Empowered timelines unlocked.",monolith_select:`Timeline selected.${where}`,
   cof_rank:`Circle of Fortune rank set to ${a.value}.`,cof_favor:`Favor set to ${a.value}.`,
   cof_reputation_grant:`Added ${a.value} Reputation.`,cof_join:"Joined Circle of Fortune.",cof_lenses_unlock:"Available lenses unlocked.",
   cofprophecy:`Prophecy slot ${Number(a.slot)+1} updated.`,cof_charges:`Prophecy slot ${Number(a.slot)+1} charges set to ${a.value}.`,
-  character_level:`Character raised to level ${result.after?.level??a.level}.`,craft_tiers:"Affix tiers changed.",
+  character_level:`Character raised to level ${result.after?.level??a.level}.`,craft_tiers:"Affix tiers changed.",item_lp:"Legendary Potential changed.",
   spawn_custom:(result.spawned??0)===1?`${result.name} dropped next to your character.`:`${result.spawned??0} × ${result.name} dropped next to your character.`,
   spawn_item:(result.spawned??0)===1?`${result.name} dropped next to your character.`:`${result.spawned??0} × ${result.name} dropped next to your character.`,
   craft_forge:"Item forged once.",craft_materials:`${result.updatedKinds??0} material types stocked to at least ${result.target??a.value}. Saved in your crafting stash.`,craft_reset:"Normal crafting restored.",loot_reset:"Pickup rules reset.",stat_reset:"All character bonuses reset.",
@@ -381,7 +384,7 @@ function confirmAction(title,message) {
 }
 function finishConfirm(value) {$("#confirm-dialog").close();if(confirmationResolve){confirmationResolve(value);confirmationResolve=null;}}
 function controlById(id){return catalog.controls.find(x=>x.id===id);}
-function saveSnapshot(c){return ["spawn_item","spawn_custom"].includes(c.id)?cache.spawn_list:c.group==="inventory"?cache.inventory_read:c.group==="skills"?cache.build_read:c.id==="craft_materials"?cache.craft_materials_read:["craft_forge","craft_custom","craft_tiers"].includes(c.id)?cache.craft_read?.forgePreview:cache[c.group==="campaign"?"progress_read":c.group==="monolith"?"monolith_read":"cof_read"];}
+function saveSnapshot(c){return ["spawn_item","spawn_custom"].includes(c.id)?cache.spawn_list:c.group==="inventory"?cache.inventory_read:c.group==="skills"?cache.build_read:c.id==="item_lp"?cache.item_lp_read:c.id==="craft_materials"?cache.craft_materials_read:["craft_forge","craft_custom","craft_tiers"].includes(c.id)?cache.craft_read?.forgePreview:cache[c.group==="campaign"?"progress_read":c.group==="monolith"?"monolith_read":"cof_read"];}
 function eligible(control) {
  if(preview)return true;
  if(!connected.connected)return false;
@@ -414,6 +417,7 @@ function updateDisabled() {
    reason ||= cache.craft_read?.forgePreview?.canCustom!==true?"Put an equipment item in the game's forge, then refresh the selected item.":craftingModel.problem(workshopDraft,cache.craft_custom_catalog,cache.craft_read?.forgePreview);
    if(!preview&&cache.craft_custom_catalog?.player&&String(cache.craft_custom_catalog.player.id)!==String(connected.player?.id))reason ||= "Load item choices for the current character.";
   }
+  if(c.id==="item_lp")reason ||= !cache.item_lp_read?"Load your items.":!lpRows().length?"No Unique that can have Legendary Potential in your inventory.":!lpChanges().length?"Choose a new Legendary Potential for an item.":"";
   if(c.id==="craft_tiers")reason ||= cache.craft_read?.forgePreview?.canCustom!==true?"Put an equipment item in the game's forge, then refresh the selected item.":!tierChanges().length?"Choose a new tier for an affix.":"";
   if(preview&&["craft_materials","craft_materials_read"].includes(c.id))reason ||= "Load an offline character to read or stock real crafting materials.";
   if(c.id==="spawn_item"){
@@ -518,7 +522,28 @@ function settingCard(c) {
  const p=c.parameters.find(x=>x.name==="value"),v=settingDisplayValue(c.id,values[c.id]??c.default),unit=unitFor(c);
  const isToggle=c.widget==="toggle";
  if(p.choices)return `<article class="control-card" data-setting="${esc(c.id)}"><div class="control-top"><h3>${esc(c.label)}</h3><span class="badge">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><div class="control-tools"><select data-setting-choice="${c.id}" aria-label="${esc(c.label)}">${p.choices.map((x,i)=>`<option value="${x}" ${x===v?"selected":""}>${esc(p.choiceLabels?.[i]??(x===0?"Normal game choices":`${x} choices`))}</option>`).join("")}</select><button class="quiet" data-setting-reset="${c.id}">Default</button></div><div class="limits"><span data-setting-feedback="${c.id}" role="status">${settingFeedback(c.id)}</span></div></article>`;
- return `<article class="control-card" data-setting="${esc(c.id)}"><div class="control-top"><span class="icon ${esc(c.id)}" aria-hidden="true"></span><div><div class="control-title">${esc(c.label)}</div></div><span class="badge">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><div class="control-tools">${isToggle?`<label class="toggle">${v?"On":"Off"}<input aria-label="${esc(c.label)}" type="checkbox" data-setting-toggle="${c.id}" ${v?"checked":""}></label>`:`<input type="range" aria-label="${esc(`${c.label}: slider`)}" data-setting-range="${c.id}" min="${p.minimum}" max="${p.maximum}" step="${p.type==="integer"?1:0.1}" value="${v??p.minimum}"><div class="stepper"><button data-step="-1" data-setting-id="${c.id}" aria-label="${esc(`${c.label}: decrease`)}">−</button><input aria-label="${esc(`${c.label}: exact value`)}" data-setting-number="${c.id}" type="number" min="${p.minimum}" max="${p.maximum}" step="${p.type==="integer"?1:"any"}" value="${v??""}" placeholder="Rank" ${c.default===null?'':'required'}><button data-step="1" data-setting-id="${c.id}" aria-label="${esc(`${c.label}: increase`)}">+</button></div><span class="unit">${unit}</span>`}<button class="quiet" data-setting-reset="${c.id}">Default</button></div><div class="limits">${defaultText(c,p,unit,isToggle)} <span class="setting-feedback" data-setting-feedback="${c.id}" role="status">${settingFeedback(c.id)}</span></div></article>`;
+ return `<article class="control-card" data-setting="${esc(c.id)}"><div class="control-top"><span class="icon ${esc(c.id)}" aria-hidden="true"></span><div><div class="control-title">${esc(c.label)}</div></div><span class="badge">${lifetime[c.lifetime]}</span></div><p class="control-description">${esc(description(c))}</p><div class="control-tools">${SETTING_HELP[c.id]?`<button type="button" class="quiet setting-help" data-setting-help="${esc(c.id)}" aria-label="How to use this setting" title="How to use this setting">?</button>`:""}${isToggle?`<label class="toggle">${v?"On":"Off"}<input aria-label="${esc(c.label)}" type="checkbox" data-setting-toggle="${c.id}" ${v?"checked":""}></label>`:`<input type="range" aria-label="${esc(`${c.label}: slider`)}" data-setting-range="${c.id}" min="${p.minimum}" max="${p.maximum}" step="${p.type==="integer"?1:0.1}" value="${v??p.minimum}"><div class="stepper"><button data-step="-1" data-setting-id="${c.id}" aria-label="${esc(`${c.label}: decrease`)}">−</button><input aria-label="${esc(`${c.label}: exact value`)}" data-setting-number="${c.id}" type="number" min="${p.minimum}" max="${p.maximum}" step="${p.type==="integer"?1:"any"}" value="${v??""}" placeholder="Rank" ${c.default===null?'':'required'}><button data-step="1" data-setting-id="${c.id}" aria-label="${esc(`${c.label}: increase`)}">+</button></div><span class="unit">${unit}</span>`}<button class="quiet" data-setting-reset="${c.id}">Default</button></div><div class="limits">${defaultText(c,p,unit,isToggle)} <span class="setting-feedback" data-setting-feedback="${c.id}" role="status">${settingFeedback(c.id)}</span></div></article>`;
+}
+const SETTING_HELP={monolith_bossdoors:{title:"Where are the boss doors?",note:"Turn this on, then open the map and go to Fall of the Outcasts in the Monolith Hub.",rows:[["Where","A small Monolith rock named Boss Hall stands next to the waypoint of Fall of the Outcasts. Click it to go in; a rock in the hall brings you back. Hold the cursor on a rock to see its name."],["Boss doors","Ten rocks, one for each timeline's boss. A click starts that boss straight away, even on a locked timeline."],["Empowered","One rock switches Normal, Empowered (with your corruption) and Empowered with its Harbinger. The choice applies to the boss doors and to Boss Rush."],["Boss Rush","Its rock is in the Boss Hall too. It runs all ten bosses in turn: the portal that opens after a kill starts the next one."],["Stations","Three more rocks in the hall open your stash, a vendor and the Eternity Cache."]]}};
+function showSettingHelp(id){
+ const h=SETTING_HELP[id];if(!h)return;
+ $("#result-title").textContent=h.title;
+ $("#result-text").innerHTML=`<p class="note">${esc(h.note)}</p><dl class="result-summary">${h.rows.map(([a,b])=>`<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join("")}</dl>`;
+ if(!$("#result-dialog").open)$("#result-dialog").showModal();
+}
+// Newest first; a new release adds its row at the top, here and in tools/ingame_pages.py WHATS_NEW.
+const whatsNew=[
+ {title:"v0.1.2-dev.55",ids:["monolith_bossdoors", "monolith_questskip", "monolith_noblessing", "inventory_pages", "inventory_idolslots", "loot_autoshatter", "rage_lizards", "rage_nemesis"],text:"A Boss Hall of its own with boss doors and Boss Rush, with Empowered and Harbinger. Quest echo skip, no blessing window. Eternity Cache anywhere, with one affix choice per Legendary Potential. New affixes on Exalted items, Legendary Potential of your Uniques, corrupted affixes in Custom Items. Inventory and idol pages, all idol slots open, shatter what the filter hides. Loot Lizard and Nemesis chance, more companions, a Combat page. Works on Last Epoch 1.5.4.",links:["monolith", "crafting", "inventory", "combat"]},
+ {title:"v0.1.2-dev.54",ids:[],text:"Campaign at your current level. Omen idols' affixes in Spawn Items.",links:["campaign", "crafting"]},
+ {title:"v0.1.2-dev.53",ids:[],text:"T8 on any affix, affix tiers changed in place, character level, Spawn with chosen affixes.",links:["crafting", "campaign"]},
+ {title:"v0.1.2-dev.52",ids:[],text:"Custom Items keeps affixes the game would convert from being chosen.",links:["crafting"]},
+ {title:"v0.1.2-dev.51",ids:["build_anylevel"],text:"Class tags on affixes, gear above your level, crafting corrupted items.",links:["crafting"]},
+ {title:"v0.1.2-dev.50",ids:[],text:"Wardrobe: a click wears the look and keeps it at once.",links:["wardrobe"]},
+ {title:"v0.1.2-dev.49",ids:["build_masteryskills"],text:"The Wardrobe page, skills of your other masteries, always the most idol affixes.",links:["wardrobe", "general"]}
+];
+function whatsNewPanel(v){
+ const cards=v.ids.map(controlById).filter(Boolean);
+ return `<section class="panel"><div class="section-head"><h2>${esc(v.title)}</h2>${cards.length?`<span class="badge">Changes apply automatically</span>`:""}</div><p class="muted">${esc(v.text)}</p>${cards.length?`<div class="control-grid">${cards.map(settingCard).join("")}</div>`:""}<h3>Where to find it</h3><div class="control-grid">${v.links.map(id=>`<button data-go="${id}" class="settings-card"><h3>${pages[id][1]} ${pages[id][0]}</h3><p class="muted">${pages[id][3]}</p></button>`).join("")}</div></section>`;
 }
 function settingPanel(title,controls){return `<section class="panel"><div class="section-head"><h2>${title}</h2><span class="badge">${controls.every(automaticSetting)?"Changes apply automatically":"Use Apply changes below"}</span></div><div class="control-grid">${controls.map(settingCard).join("")}</div></section>`;}
 function actionCard(c, fields="", extra=""){
@@ -619,7 +644,7 @@ function updateWorkshopUi(){
 }
 function customWorkshop(){
  const forge=cache.craft_read?.forgePreview,loaded=!!cache.craft_custom_catalog?.items?.length;
- return `<section class="panel craft-workshop"><div class="section-head"><h2>Custom Items</h2><button data-refresh="craft_custom_catalog" data-control-id="craft_custom_catalog">${loaded?'Refresh item choices':'Load item choices'}</button></div><p class="muted">Keep your item’s equipment base. Choose its template and affixes, then review the result before creating it.</p><form class="control-form" data-id="craft_custom"><section class="craft-step"><h3><span>1</span>Select the item in the game</h3><p>Open the game’s forge and place the equipment item you want to change.</p><div class="craft-item-state"><span>${forge?.canCustom?`Equipment selected · ${forge.forgingPotential??'—'} Forging Potential · ${forge.affixes?.length??0} affixes`:'Waiting for an equipment item in the game’s forge.'}</span><button type="button" data-refresh="craft_read" data-control-id="craft_read">Refresh selected item</button></div></section><section class="craft-step"><h3><span>2</span>Choose a template</h3><p>Use Exalted for affixes only, or copy one Unique / Set template onto this base.</p><div class="craft-template-search"><label>Find a template<input type="search" data-workshop-search="template" value="${esc(workshopFilters.template)}" placeholder="Search item names..."></label><label>Type<select data-workshop-kind><option value="all" ${workshopTemplateKind==='all'?'selected':''}>All templates</option><option value="unique" ${workshopTemplateKind==='unique'?'selected':''}>Unique</option><option value="set" ${workshopTemplateKind==='set'?'selected':''}>Set</option></select></label></div><label>Template<select name="template_id" data-workshop-template>${workshopTemplateOptions()}</select></label></section><section class="craft-step"><h3><span>3</span>Choose T7 affixes</h3><p>Click to add or remove an affix. Choose up to ${workshopDraft.modifiers.length?6:7}; leave all unchecked to keep the item’s current affixes.</p><label>Find an affix<input type="search" data-workshop-search="affixes" value="${esc(workshopFilters.affixes)}" placeholder="Search health, damage, resistance..."></label><div data-workshop-list="affixes">${workshopPicker('affixes')}</div><div class="craft-chips" data-workshop-chips="affixes">${workshopChips('affixes')}</div></section><details class="craft-step craft-extra" data-workshop-advanced ${workshopAdvanced?'open':''}><summary>Add extra Unique / Set effects <span>Advanced · optional</span></summary><p>Mix individual effects from different items. Choose up to 64 lines. They share one affix slot, so only six regular affixes can be selected.</p><label>Find an effect<input type="search" data-workshop-search="modifiers" value="${esc(workshopFilters.modifiers)}" placeholder="Search a source item or effect..."></label><div data-workshop-list="modifiers">${workshopPicker('modifiers')}</div><div class="craft-chips" data-workshop-chips="modifiers">${workshopChips('modifiers')}</div></details><section class="craft-step"><h3><span>4</span>Review and create</h3><label>Roll quality<select name="perfect"><option value="1" ${workshopDraft.perfect==='1'?'selected':''}>Maximum rolls</option><option value="0" ${workshopDraft.perfect==='0'?'selected':''}>Midpoint rolls</option></select></label><p class="muted">Each chosen affix has its own tier (T1–T8) and roll (1–100% of its tier's range, or Random). T8 is the game's top tier, shown for affixes that have it, and any affix can be T8. The first T8 affix is sealed as the item's primordial affix; the game limits how many primordial items you can wear. Roll quality applies to the template, implicits and extra effects, and is the starting roll for newly chosen affixes. Without extra effects, keeping current affixes preserves their tiers and midpoint mode keeps their existing rolls. Adding extra effects rebuilds kept affixes at T7 with the chosen rolls.</p><div id="workshop-summary">${workshopSummary()}</div><p class="muted">Replaces the selected item once and saves a recovery backup. This custom action does not consume crafting materials.</p><p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" class="primary" data-control-id="craft_custom">Create custom item</button></div></section></form></section>`+tiersPanel();
+ return `<section class="panel craft-workshop"><div class="section-head"><h2>Custom Items</h2><button data-refresh="craft_custom_catalog" data-control-id="craft_custom_catalog">${loaded?'Refresh item choices':'Load item choices'}</button></div><p class="muted">Keep your item’s equipment base. Choose its template and affixes, then review the result before creating it.</p><form class="control-form" data-id="craft_custom"><section class="craft-step"><h3><span>1</span>Select the item in the game</h3><p>Open the game’s forge and place the equipment item you want to change.</p><div class="craft-item-state"><span>${forge?.canCustom?`Equipment selected · ${forge.forgingPotential??'—'} Forging Potential · ${forge.affixes?.length??0} affixes`:'Waiting for an equipment item in the game’s forge.'}</span><button type="button" data-refresh="craft_read" data-control-id="craft_read">Refresh selected item</button></div></section><section class="craft-step"><h3><span>2</span>Choose a template</h3><p>Use Exalted for affixes only, or copy one Unique / Set template onto this base.</p><div class="craft-template-search"><label>Find a template<input type="search" data-workshop-search="template" value="${esc(workshopFilters.template)}" placeholder="Search item names..."></label><label>Type<select data-workshop-kind><option value="all" ${workshopTemplateKind==='all'?'selected':''}>All templates</option><option value="unique" ${workshopTemplateKind==='unique'?'selected':''}>Unique</option><option value="set" ${workshopTemplateKind==='set'?'selected':''}>Set</option></select></label></div><label>Template<select name="template_id" data-workshop-template>${workshopTemplateOptions()}</select></label></section><section class="craft-step"><h3><span>3</span>Choose T7 affixes</h3><p>Click to add or remove an affix. Choose up to ${workshopDraft.modifiers.length?6:7}; leave all unchecked to keep the item’s current affixes.</p><label>Find an affix<input type="search" data-workshop-search="affixes" value="${esc(workshopFilters.affixes)}" placeholder="Search health, damage, resistance..."></label><div data-workshop-list="affixes">${workshopPicker('affixes')}</div><div class="craft-chips" data-workshop-chips="affixes">${workshopChips('affixes')}</div></section><details class="craft-step craft-extra" data-workshop-advanced ${workshopAdvanced?'open':''}><summary>Add extra Unique / Set effects <span>Advanced · optional</span></summary><p>Mix individual effects from different items. Choose up to 64 lines. They share one affix slot, so only six regular affixes can be selected.</p><label>Find an effect<input type="search" data-workshop-search="modifiers" value="${esc(workshopFilters.modifiers)}" placeholder="Search a source item or effect..."></label><div data-workshop-list="modifiers">${workshopPicker('modifiers')}</div><div class="craft-chips" data-workshop-chips="modifiers">${workshopChips('modifiers')}</div></details><section class="craft-step"><h3><span>4</span>Review and create</h3><label>Roll quality<select name="perfect"><option value="1" ${workshopDraft.perfect==='1'?'selected':''}>Maximum rolls</option><option value="0" ${workshopDraft.perfect==='0'?'selected':''}>Midpoint rolls</option></select></label><p class="muted">Each chosen affix has its own tier (T1–T8) and roll (1–100% of its tier's range, or Random). T8 is the game's top tier, shown for affixes that have it, and any affix can be T8. The first T8 affix is sealed as the item's primordial affix; the game limits how many primordial items you can wear. Roll quality applies to the template, implicits and extra effects, and is the starting roll for newly chosen affixes. Without extra effects, keeping current affixes preserves their tiers and midpoint mode keeps their existing rolls. Adding extra effects rebuilds kept affixes at T7 with the chosen rolls.</p><div id="workshop-summary">${workshopSummary()}</div><p class="muted">Replaces the selected item once and saves a recovery backup. This custom action does not consume crafting materials.</p><p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" class="primary" data-control-id="craft_custom">Create custom item</button></div></section></form></section>`+tiersPanel()+itemLpPanel();
 }
 function spawnEntries(){
  const d=cache.spawn_list;
@@ -684,6 +709,13 @@ function tiersPanel(){
  const body=rows.length?`<div class="craft-tier-rows">${rows.map(a=>{const name=clean(a.name||`Affix ${a.id}`),cur=Number(tierDraft[a.id]??a.tier),top=Math.max(a.tier,Math.min(8,a.tiers||7));return `<div class="craft-affix-row"><span class="craft-affix-name">${esc(name)}</span>${tierEditable(a)?`<label>Tier<select data-tier-edit="${esc(a.id)}">${Array.from({length:top},(_,i)=>i+1).map(t=>`<option value="${t}" ${t===cur?'selected':''}>T${t}</option>`).join('')}</select></label>`:`<span class="muted">Sealed · T${a.tier}</span>`}</div>`;}).join('')}</div>`:'<p class="muted">Waiting for an equipment item in the game’s forge.</p>';
  return `<section class="panel craft-tiers"><div class="section-head"><h2>Change affix tiers</h2><button data-refresh="craft_read" data-control-id="craft_read">Refresh selected item</button></div><p class="muted">Change the tiers of the affixes already on the item in the game’s forge, without making a new item. Rolls and the rest of the item stay, and any affix can be T8. A recovery backup is created.</p><form class="control-form" data-id="craft_tiers">${body}<input type="hidden" name="tiers" value="${esc(tierChanges().join(',')||'none')}"><p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" class="primary" data-control-id="craft_tiers">Apply tiers</button></div></form></section>`;
 }
+function lpRows(){return cache.item_lp_read?.items||[];}
+function lpChanges(){return lpRows().filter(i=>lpDraft[i.id]!==undefined&&Number(lpDraft[i.id])!==i.lp).map(i=>`${i.id}:${lpDraft[i.id]}`);}
+function itemLpPanel(){
+ const rows=lpRows(),loaded=!!cache.item_lp_read;
+ const body=rows.length?`<div class="craft-tier-rows">${rows.map(i=>{const cur=Number(lpDraft[i.id]??i.lp);return `<div class="craft-affix-row"><span class="craft-affix-name">${esc(clean(i.name))}${i.baseType?` · ${esc(clean(i.baseType))}`:''}</span><label>LP<select data-lp-edit="${esc(i.id)}">${[0,1,2,3,4].map(lp=>`<option value="${lp}" ${lp===cur?'selected':''}>${lp}</option>`).join('')}</select></label></div>`;}).join('')}</div>`:`<p class="note">${loaded?'No Unique that can have Legendary Potential in your inventory.':'Load your items.'}</p>`;
+ return `<section class="panel craft-tiers"><div class="section-head"><h2>Change Legendary Potential</h2><button data-refresh="item_lp_read" data-control-id="item_lp_read">Refresh items</button></div><p class="muted">Change the Legendary Potential of Uniques in your inventory, from 0 to 4, without making a new item. Rolls and the rest of the item stay. Take off a worn item first. A recovery backup is created.</p><form class="control-form" data-id="item_lp">${body}<input type="hidden" name="changes" value="${esc(lpChanges().join(',')||'none')}"><p class="action-reason" data-action-reason role="status" hidden></p><div class="actions"><button type="submit" class="primary" data-control-id="item_lp">Apply Legendary Potential</button></div></form></section>`;
+}
 function spawnFields(){
  const list=spawnOptions(),loaded=!!cache.spawn_list?.bases?.length;
  const kinds=[['all','All items'],['base','Base items'],['unique','Uniques'],['set','Set items']];
@@ -716,7 +748,7 @@ function renderCrafting(){
  }else if(craftingSection==='custom')html=customWorkshop();
  else if(craftingSection==='spawn')html=spawnPanel();
  else html=`<p class="note">These settings affect the game’s normal forge. Edit them here, then use <strong>Apply changes</strong> below. No item is crafted until you craft in the game or press Craft once.</p>`+
-  settingPanel('Affix upgrade limit',[controlById('craft_t7')])+settingPanel('Corrupted items',[controlById('craft_corrupted')])+settingPanel('Preserve materials',[
+  settingPanel('Affix upgrade limit',[controlById('craft_t7')])+settingPanel('Corrupted items',[controlById('craft_corrupted')])+settingPanel('Exalted items',[controlById('craft_exalted')])+settingPanel('Preserve materials',[
    craftingControl('craft_shards','Keep affix shards','Keep the shard used for a craft. You need at least one to begin.'),
    craftingControl('craft_runes','Keep runes','Keep the rune used for a craft. You need at least one to begin.'),
    craftingControl('craft_glyphs','Keep glyphs','Keep the glyph used for a craft. You need at least one to begin.')])+settingPanel('Forging Potential cost',[craftingControl('craft_fp','Forging Potential cost','0 = no FP cost · 0.5 = half cost · 1 = normal cost. Does not add FP to an item.')])+
@@ -779,32 +811,39 @@ async function openPage(){
  if(page==="display")await refreshSection("build_read",{refreshConnectionFirst:false});
  if(page==="display"&&controlById("effects_read"))await refreshSection("effects_read",{refreshConnectionFirst:false});
  if(page==="settings"&&!preview&&connected.connected&&controlById("report_read"))await refreshSection("report_read",{refreshConnectionFirst:false});
- if(page==="summons"&&!preview&&connected.connected&&controlById("damage_session_read")){const r=await job({type:"control",id:"damage_session_read",operation:"read"}).catch(()=>null);if(r?.ok){cache.damage_session_read=r;renderDamage();if(Number.isInteger(r.deaths))deathCount=r.deaths;}await refreshDeaths();}
+ if(page==="combat"&&!preview&&connected.connected&&controlById("damage_session_read")){const r=await job({type:"control",id:"damage_session_read",operation:"read"}).catch(()=>null);if(r?.ok){cache.damage_session_read=r;renderDamage();if(Number.isInteger(r.deaths))deathCount=r.deaths;}await refreshDeaths();}
  if(page==="world")await refreshSection("map_read",{refreshConnectionFirst:false});
- if(page==="world"&&!preview&&controlById("rage_read")&&eligible(controlById("rage_read"))){await refreshSection("rage_read",{refreshConnectionFirst:false});for(const id of ["rage_spawn","rage_hunttime","rage_charges","rage_buffs","rage_blood"])syncSettingUi(id);}
+ if(page==="world"&&!preview&&controlById("rage_read")&&eligible(controlById("rage_read"))){await refreshSection("rage_read",{refreshConnectionFirst:false});for(const id of ["rage_spawn","rage_hunttime","rage_charges","rage_buffs","rage_blood","rage_lizards","rage_nemesis"])syncSettingUi(id);}
  if(page==="wardrobe"&&!preview&&controlById("transmog_read")&&eligible(controlById("transmog_read")))await readLooks();
  if(page==="inventory"&&!preview&&controlById("inventory_tools_read")&&eligible(controlById("inventory_tools_read"))){await refreshSection("inventory_tools_read",{refreshConnectionFirst:false});syncInventoryTools(cache.inventory_tools_read);}
  if(page==="crafting"&&!preview&&eligible(controlById("craft_materials_read")))await refreshSection("craft_materials_read",{refreshConnectionFirst:false});
+ if(page==="crafting")await autoLoadCraftSection();
+ if(page==="whatsnew"&&!preview){
+  for(const id of ["monolith_read","inventory_tools_read","rage_read","loot_read","build_read"])if(controlById(id)&&eligible(controlById(id)))await refreshSection(id,{refreshConnectionFirst:false});
+  if(page==="whatsnew"){if(cache.inventory_tools_read)syncInventoryTools(cache.inventory_tools_read);for(const v of whatsNew)for(const id of v.ids)syncSettingUi(id);}
+ }
  if(["general","monolith"].includes(page)&&!cache.build_read&&controlById("build_read")&&eligible(controlById("build_read")))await refreshSection("build_read",{refreshConnectionFirst:false});
  if(rememberScroll()&&scrollPage===page&&pageScroll[page]&&$("#main-scroll").scrollTop<pageScroll[page])$("#main-scroll").scrollTop=pageScroll[page];
 }
 function renderPage(){
  navigation();const p=pages[page];$("#breadcrumb").textContent="EpochPact / "+tr(p[0]);$("#page-title").textContent=p[2];$("#page-subtitle").textContent=p[3];
  if(page==="overview"){
-  content.innerHTML=`<div class="summary-grid"><div class="summary"><strong>${catalog.controls.filter(playerControl).length}</strong><span>Available tools</span></div><div class="summary"><strong>${catalog.counts.sheetRows}</strong><span>Character bonuses</span></div><div class="summary"><strong>${catalog.counts.timelines}</strong><span>Monolith timelines</span></div><div class="summary"><strong>${catalog.counts.statAliases}</strong><span>Common stats</span></div></div>`+settingPanel("Quick controls",["xp","speed","drops","gold"].map(controlById))+`<section class="panel"><h2>Explore your workshop</h2><div class="control-grid">${["stats","loot","crafting","campaign","monolith","cof"].map(id=>`<button data-go="${id}" class="settings-card"><h3>${pages[id][1]} ${pages[id][0]}</h3><p class="muted">${pages[id][3]}</p></button>`).join("")}</div></section>`;
+  content.innerHTML=`<div class="summary-grid"><div class="summary"><strong>${catalog.controls.filter(playerControl).length}</strong><span>Available tools</span></div><div class="summary"><strong>${catalog.counts.sheetRows}</strong><span>Character bonuses</span></div><div class="summary"><strong>${catalog.counts.timelines}</strong><span>Monolith timelines</span></div><div class="summary"><strong>${catalog.counts.statAliases}</strong><span>Common stats</span></div></div>`;
+ }else if(page==="whatsnew"){
+  content.innerHTML=whatsNew.map(whatsNewPanel).join("");
  }else if(page==="game_setup"){
   content.innerHTML='';
  }else if(page==="general"){
   content.innerHTML=settingPanel("General game settings",catalog.controls.filter(c=>c.group==="general"&&["number","toggle"].includes(c.widget)&&!c.id.startsWith("loot_")&&!c.id.startsWith("craft_")&&!c.id.startsWith("map_")&&!weaverSettings.includes(c.id)))+weaverPanel();
  }else if(page==="display"){
-  content.innerHTML=settingPanel("Camera",["build_zoom","build_cameraangle"].map(controlById))+settingPanel("Minimap and overlay",["map_minimapsize","map_minimapzoom","map_minimapopacity","map_overlayopacity","map_overlayzoom"].map(controlById))+settingPanel("Item tiers",["tier_icons","tier_tooltips","tier_lines","tier_special","tier_rules","tier_rule_position","tier_rule_parts"].map(controlById).filter(Boolean))+tierPalette()+fontPanel()+settingPanel("Graphics effects",catalog.controls.filter(c=>c.group==="display"&&c.id.startsWith("qol_")))+`<p class="note">Graphics overrides last for this character session. Turning them off restores the previous renderer values. Your saved graphics preferences are kept.</p>`;
+  content.innerHTML=settingPanel("Camera",["build_zoom","build_cameraangle"].map(controlById))+settingPanel("Minimap",["map_minimapsize","map_minimapzoom","map_minimapopacity"].map(controlById))+settingPanel("Item tiers",["tier_icons","tier_tooltips","tier_lines","tier_special","tier_rules","tier_rule_position","tier_rule_parts"].map(controlById).filter(Boolean))+tierPalette()+fontPanel()+settingPanel("Graphics effects",catalog.controls.filter(c=>c.group==="display"&&c.id.startsWith("qol_")))+`<p class="note">Graphics overrides last for this character session. Turning them off restores the previous renderer values. Your saved graphics preferences are kept.</p>`;
   content.innerHTML=settingPanel("Buffs & debuffs in game",["effects_enabled","effects_player","effects_target","effects_descriptions","effects_scale","effects_rows"].map(controlById))+`<p class="note">Uses live game icons and descriptions. Effects with no readable timer show —. The panels let clicks pass through and only show effects exposed by the game's native UI.</p>`+content.innerHTML;
  }else if(page==="world"){
-  content.innerHTML=settingPanel("Map visibility",[controlById("map_reveal")])+settingPanel("Nearby interactions",["qol_chests","qol_shrines","qol_portals","qol_arearadius","qol_areashape","qol_areashow"].map(controlById).filter(Boolean))+areaColorPanel()+ragePanel();
+  content.innerHTML=settingPanel("Map visibility",[controlById("map_reveal")])+settingPanel("Nearby interactions",["qol_chests","qol_shrines","qol_portals","qol_arearadius","qol_areashape","qol_areashow"].map(controlById).filter(Boolean))+areaColorPanel()+ragePanel()+settingPanel("Rare encounters",["rage_lizards","rage_nemesis"].map(controlById));
  }else if(page==="inventory"){
-  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory shortcuts</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the game's placement: tabs whose stash priority matches an item first, otherwise the selected tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_stash","inventory_vendor","inventory_stashall","inventory_sellall"].map(controlById).filter(Boolean).map(c=>actionCard(c)).join("")}</div></section>`+autoSortPanel()+stashRulesPanel();
+  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory pages</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the game's placement: tabs whose stash priority matches an item first, otherwise the selected tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_pagesstash"].map(controlById).filter(Boolean).map(c=>actionCard(c)).join("")}</div></section>`+settingPanel("Extra pages",[controlById("inventory_pages"),controlById("inventory_idolslots")].filter(Boolean))+autoSortPanel()+stashRulesPanel();
  }else if(page==="loot"){
-  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius"),controlById("pickup_interval")])+settingPanel("Pick up from afar",[controlById("remotepickup")])+settingPanel("Stash tabs on pickup",[controlById("stashpickup")])+lootPanel()+`<section class="panel"><h2>Collect now</h2>${cache.pickup_radius_read?.inventoryFull?`<p class="note">Your inventory is full. Equipment pickup is paused until you open and close your inventory; gold, potions, tomes, bones and materials are still collected.</p>`:""}<div class="control-grid">${actionCard(controlById("pickup_now"))}</div></section>`+settingPanel("Quality rules",["loot_lp","loot_ww","loot_t7","loot_filter"].map(controlById).filter(Boolean))+filterFilesPanel()+settingPanel("Loot filter window",["tier_filter_colors","tier_name_colors"].map(controlById).filter(Boolean))+(controlById("tier_name_colors")?`<p class="note">${esc(tr("Rule name examples"))}: <code>${esc(nameTagExamples.join("   "))}</code></p>`:"")+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
+  content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius"),controlById("pickup_interval")])+settingPanel("Pick up from afar",[controlById("remotepickup")])+settingPanel("Stash tabs on pickup",[controlById("stashpickup")])+settingPanel("Hidden items",[controlById("loot_autoshatter"),controlById("loot_shatterquiet")])+lootPanel()+`<section class="panel"><h2>Collect now</h2>${cache.pickup_radius_read?.inventoryFull?`<p class="note">Your inventory is full. Equipment pickup is paused until you open and close your inventory; gold, potions, tomes, bones and materials are still collected.</p>`:""}<div class="control-grid">${actionCard(controlById("pickup_now"))}</div></section>`+settingPanel("Quality rules",["loot_lp","loot_ww","loot_t7","loot_filter"].map(controlById).filter(Boolean))+filterFilesPanel()+settingPanel("Loot filter window",["tier_filter_colors","tier_name_colors"].map(controlById).filter(Boolean))+(controlById("tier_name_colors")?`<p class="note">${esc(tr("Rule name examples"))}: <code>${esc(nameTagExamples.join("   "))}</code></p>`:"")+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
  }else if(page==="crafting"){
   content.innerHTML=renderCrafting();
  }else if(page==="skills"){
@@ -814,10 +853,12 @@ function renderPage(){
   content.innerHTML=cachedSummary("build_read")+settingPanel("Equipment rules",["offhand","fullsets","primordials","anylevel"].map(key=>controlById("build_"+key)));
  }else if(page==="wardrobe"){
   content.innerHTML=looksPanel();
+ }else if(page==="combat"){
+  content.innerHTML=damagePanel()+deathPanel();
  }else if(page==="summons"){
   const aliases=catalog.characterStats.aliases;
   const summonStats=aliases.map((row,index)=>({row,index})).filter(x=>/^minion|^maxcompanions/.test(x.row.name));
-  content.innerHTML=damagePanel()+deathPanel()+`<section class="panel"><div class="section-head"><h2>Live summoned allies</h2><button data-refresh="summons_read" data-control-id="summons_read">Refresh allies</button></div>${summonColumnPicker()}<div class="actions"><button id="summon-baseline">Save damage baseline</button><button id="summon-baseline-clear">Clear baseline</button></div><div id="summon-live">${summonTable()}</div></section>`+settingPanel("Summon lifetime",[controlById("build_summonduration")])+settingPanel("Minion counts",["minionextra","totemextra","ballistaextra","forgedextra","companionextra","immortalminions"].map(key=>controlById("build_"+key)).filter(Boolean))+`<section class="panel"><h2>Minion and companion bonuses</h2><p class="muted">These controls use the existing character stat editor. Minion tags keep these bonuses separate from your own damage and health.</p><div class="control-grid">${summonStats.map(x=>`<button class="settings-card" data-summon-stat="${x.index}"><h3>${esc(ST.name(x.row,"aliases"))}</h3><p class="muted">Edit bonus →</p></button>`).join("")}</div></section>`;
+  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Live summoned allies</h2><button data-refresh="summons_read" data-control-id="summons_read">Refresh allies</button></div>${summonColumnPicker()}<div class="actions"><button id="summon-baseline">Save damage baseline</button><button id="summon-baseline-clear">Clear baseline</button></div><div id="summon-live">${summonTable()}</div></section>`+settingPanel("Summon lifetime",[controlById("build_summonduration")])+settingPanel("Minion counts",["minionextra","totemextra","ballistaextra","forgedextra","companionextra","immortalminions"].map(key=>controlById("build_"+key)).filter(Boolean))+`<section class="panel"><h2>Minion and companion bonuses</h2><p class="muted">These controls use the existing character stat editor. Minion tags keep these bonuses separate from your own damage and health.</p><div class="control-grid">${summonStats.map(x=>`<button class="settings-card" data-summon-stat="${x.index}"><h3>${esc(ST.name(x.row,"aliases"))}</h3><p class="muted">Edit bonus →</p></button>`).join("")}</div></section>`;
  }else if(page==="stats")renderStats();
  else if(page==="campaign"){
   const mastery=window.EpochSession.current(cache.progress_read,connected,preview)?cache.progress_read?.mastery:null;
@@ -840,10 +881,8 @@ function questTable(){
  const live=cache.progress_read;const quests=live?.quests?.filter(x=>x.eligible)||catalog.optionCatalogs.campaignQuests;
  return `<p class="muted">${live?"Live quest data":"Static coverage catalog"}</p><div class="table-wrap"><table><thead><tr><th>Quest</th><th>Type</th><th>XP</th><th>Gold</th><th>Passive</th><th>Idol</th><th>Attribute</th></tr></thead><tbody>${quests.map(q=>`<tr><td>${esc(q.name)}</td><td>${q.main?"Main":"Side"}</td><td>${q.xp}</td><td>${q.gold}</td><td>${q.passive}</td><td>${q.idol}</td><td>${q.attributes}</td></tr>`).join("")}</tbody></table></div>`;
 }
-function monolithDensityPanel(){
- const density={...controlById("density"),label:"Monolith monster density",
-  description:"Increases the average size of new regular enemy packs in Normal and Empowered Echoes. Apply before entering the next Echo; existing packs and bosses are unchanged."};
- return settingPanel("Echo modifiers",[density,controlById("stability_multiplier")])+`<p class="note">Monster density is shared with General settings and applies to eligible packs in other combat areas too. ×1 uses normal pack sizes. Apply before entering the next Echo; restarting the game resets these session settings.</p>`;
+function echoModifiersPanel(){
+ return settingPanel("Echo modifiers",[controlById("stability_multiplier"),controlById("monolith_questskip"),controlById("monolith_bossdoors"),controlById("monolith_noblessing")])+`<p class="note">Apply before entering the next Echo; restarting the game resets these session settings.</p>`;
 }
 function renderMonolith(){
  const live=cache.monolith_read, timelines=live?.timelines||[];
@@ -851,7 +890,7 @@ function renderMonolith(){
  const t=timelines.find(x=>x.id===Number(monoTarget.timeline));const d=t?.difficulties.find(x=>x.index===(monoTarget.difficulty==="empowered"?1:0));
  const targetFields=`<input type="hidden" name="timeline" value="${monoTarget.timeline||""}"><input type="hidden" name="difficulty" value="${monoTarget.difficulty}">`;
  function absolute(id,label,max,min,current){const draft=monoDrafts[monoDraftKey(id)];return actionCard(controlById(id),targetFields+field("value",`${label} · ${min??"?"}–${max??"?"}`,`<input name="value" type="number" step="1" ${min!=null?`min="${min}"`:""} ${max!=null?`max="${max}"`:""} value="${esc(draft??current??"")}" required>`));}
- content.innerHTML=cachedSummary("monolith_read")+monolithDensityPanel()+settingPanel("Boss blessing rewards",["blessingoptions","blessingrolls"].map(key=>controlById("build_"+key)))+`<section class="panel"><div class="section-head"><h2>Monolith management</h2><button data-refresh="monolith_read" data-control-id="monolith_read">Refresh live</button></div><p class="muted">Opening a timeline or showing an Echo travels to Traveler's Rest first. Refreshing data does not travel or start an Echo.</p><div class="form-grid"><label>Timeline<select id="timeline-target">${options(timelines,monoTarget.timeline)}</select></label><label>Difficulty<select id="difficulty-target"><option value="normal" ${monoTarget.difficulty==="normal"?"selected":""}>Normal</option><option value="empowered" ${monoTarget.difficulty==="empowered"?"selected":""}>Empowered</option></select></label></div><p class="muted">${d?`Level ${d.level} · ${d.unlocked?"Unlocked":"Locked"} · Corruption ${d.minCorruption}–${d.maxCorruption} · Stability 0–${d.maxStability}`:"Refresh the live timeline catalog."}</p><div class="control-grid">${actionCard(controlById("monolith_unlock"))}${actionCard(controlById("monolith_select"),targetFields)}${absolute("corruption","Corruption",d?.maxCorruption,d?.minCorruption,d?.run?.corruption)}${absolute("stability","Stability",d?.maxStability,0,d?.run?.stability)}</div></section>`;
+ content.innerHTML=cachedSummary("monolith_read")+echoModifiersPanel()+settingPanel("Boss blessing rewards",["blessingoptions","blessingrolls"].map(key=>controlById("build_"+key)))+`<section class="panel"><div class="section-head"><h2>Monolith management</h2><button data-refresh="monolith_read" data-control-id="monolith_read">Refresh live</button></div><p class="muted">Opening a timeline or showing an Echo travels to Traveler's Rest first. Refreshing data does not travel or start an Echo.</p><div class="form-grid"><label>Timeline<select id="timeline-target">${options(timelines,monoTarget.timeline)}</select></label><label>Difficulty<select id="difficulty-target"><option value="normal" ${monoTarget.difficulty==="normal"?"selected":""}>Normal</option><option value="empowered" ${monoTarget.difficulty==="empowered"?"selected":""}>Empowered</option></select></label></div><p class="muted">${d?`Level ${d.level} · ${d.unlocked?"Unlocked":"Locked"} · Corruption ${d.minCorruption}–${d.maxCorruption} · Stability 0–${d.maxStability}`:"Refresh the live timeline catalog."}</p><div class="control-grid">${actionCard(controlById("monolith_unlock"))}${actionCard(controlById("monolith_select"),targetFields)}${absolute("corruption","Corruption",d?.maxCorruption,d?.minCorruption,d?.run?.corruption)}${absolute("stability","Stability",d?.maxStability,0,d?.run?.stability)}</div></section>`;
 }
 function renderCof(){
  const live=cache.cof_read,cof=live?.cof;
@@ -1001,7 +1040,10 @@ async function refreshSection(id,{refreshConnectionFirst=true}={}){
  if(!eligible(controlById(id)))return;
  const r=await runTask({type:"control",id,operation:"read"},{silent:true});if(!r)return;
  if(!syncLootCraft(id,r))cache[id]=r;
- if(id==="monolith_read"){appliedValues.stability_multiplier=r.stabilityMultiplier;if(!dirty.has("stability_multiplier"))values.stability_multiplier=r.stabilityMultiplier;}
+ if(id==="monolith_read"){appliedValues.stability_multiplier=r.stabilityMultiplier;if(!dirty.has("stability_multiplier"))values.stability_multiplier=r.stabilityMultiplier;
+  if(r.questSkip!==undefined){appliedValues.monolith_questskip=Number(r.questSkip);if(!dirty.has("monolith_questskip"))values.monolith_questskip=Number(r.questSkip);}
+  if(r.bossDoors!==undefined){appliedValues.monolith_bossdoors=Number(r.bossDoors);if(!dirty.has("monolith_bossdoors"))values.monolith_bossdoors=Number(r.bossDoors);}
+  if(r.noBlessing!==undefined){appliedValues.monolith_noblessing=Number(r.noBlessing);if(!dirty.has("monolith_noblessing"))values.monolith_noblessing=Number(r.noBlessing);}}
  if(id==="cof_read"){
   const map={cof_favor_multiplier:r.favorMultiplier,cof_reputation_multiplier:r.reputationMultiplier};
   for(const c of catalog.controls.filter(c=>c.group==="cof"&&c.lifetime==="session")){
@@ -1027,7 +1069,7 @@ function syncLootCraft(id,result){
   return true;
  }
  if(["craft_materials","craft_materials_read"].includes(id)){cache.craft_materials_read=result;return true;}
- if(id==="inventory_tools_read"||inventoryTools.includes(id)||id==="inventory_sorttab"){syncInventoryTools(result);return true;}
+ if(id==="inventory_tools_read"||inventoryTools.includes(id)||id==="inventory_pages"||id==="inventory_idolslots"||id==="inventory_sorttab"){syncInventoryTools(result);return true;}
  if(id==="rage_read"||id.startsWith("rage_")){cache.rage_read={...cache.rage_read,...result};
   for(const [key,item] of Object.entries(result.settings||{})){const cid="rage_"+key;if(!controlById(cid)||item.value==null)continue;appliedValues[cid]=item.value;if(!dirty.has(cid)&&!autoManaged(cid))values[cid]=item.value;}
   const facts=$("#rage-facts");if(facts)facts.textContent=rageFacts();
@@ -1057,7 +1099,7 @@ function syncLootCraft(id,result){
  if(readId==='loot_read'&&Array.isArray(result.affixIds))affixPicker.receive(wantedAffixes,result.affixIds,preview?'preview':automaticOwner()||null,{force:id==='loot_reset'});
  const toggle=x=>x===undefined?undefined:Number(x);
  const fresh=readId==="map_read"?{map_reveal:toggle(result.enabled)}:readId==="loot_read"?{loot_lp:result.minimumLP,...(result.minimumWW!=null?{loot_ww:result.minimumWW}:{}),loot_t7:toggle(result.t7),loot_filter:toggle(result.respectFilter)}:
-  {craft_fp:result.fpFactor,craft_t7:toggle(result.allowT7),craft_corrupted:toggle(result.allowCorrupted),craft_shards:toggle(result.preserveShards),craft_runes:toggle(result.preserveRunes),craft_glyphs:toggle(result.preserveGlyphs),craft_level:toggle(result.bypassLevel),craft_hope:result.hopePercent,craft_despair:result.despairPercent};
+  {craft_fp:result.fpFactor,craft_t7:toggle(result.allowT7),craft_corrupted:toggle(result.allowCorrupted),craft_exalted:toggle(result.allowExalted),loot_autoshatter:toggle(result.autoShatter),loot_shatterquiet:toggle(result.autoShatterQuiet),craft_shards:toggle(result.preserveShards),craft_runes:toggle(result.preserveRunes),craft_glyphs:toggle(result.preserveGlyphs),craft_level:toggle(result.bypassLevel),craft_hope:result.hopePercent,craft_despair:result.despairPercent};
  for(const [key,value] of Object.entries(fresh))if(value!==undefined){appliedValues[key]=value;if(!dirty.has(key))values[key]=value;}
  return true;
 }
@@ -1169,7 +1211,7 @@ function autoSortPanel(){
 }
 function syncInventoryTools(r){
  if(!r?.ok||!("autosort" in r))return;cache.inventory_tools_read=r;
- for(const [id,v] of [["inventory_autosort",r.autosort?1:0],["inventory_autosortall",r.autosortAll?1:0],["inventory_sellkeep",r.sellKeep]]){appliedValues[id]=v;if(!dirty.has(id)&&!autoManaged(id))values[id]=v;syncSettingUi(id);}
+ for(const [id,v] of [["inventory_autosort",r.autosort?1:0],["inventory_autosortall",r.autosortAll?1:0],["inventory_sellkeep",r.sellKeep],["inventory_pages",r.pages===false?0:1],["inventory_idolslots",r.idolSlots?1:0]]){appliedValues[id]=v;if(!dirty.has(id)&&!autoManaged(id))values[id]=v;syncSettingUi(id);}
  const node=$("#sort-tabs");if(node)node.innerHTML=autoSortTabs();
 }
 const ruleTypes=["Show","Hide","Highlight"];
@@ -1177,21 +1219,20 @@ function stashRulesArgs(extra={}){return {expected_id:connected.player?.id,expec
 function stashRulesPanel(){
  const c=controlById("stash_rules_read");if(!c)return "";
  const s=stashRules&&String(stashRules.player?.id)===String(connected.player?.id)?stashRules:null;
- const head=`<section class="panel" id="stash-rules"><div class="section-head"><h2>Stash tabs from loot filter</h2><button data-stash-rules="read" data-control-id="stash_rules_read">${s?"Refresh":"Read filter and tabs"}</button></div><p class="muted">One stash tab per loot filter rule, free of gold, in a folder named after the filter. Each tab gets the rule's rarity, type, class, item level, potential, faction, unique and corruption conditions as its stash priority, so the game's own stashing puts matching items there. Rules with affix or character-level conditions match more broadly in the tab priority; <b>Sort inventory by filter rule</b> uses the exact filter match. Every change creates a recovery backup.</p>`;
+ const head=`<section class="panel" id="stash-rules"><div class="section-head"><h2>Stash tabs from loot filter</h2><button data-stash-rules="read" data-control-id="stash_rules_read">${s?"Refresh":"Read filter and tabs"}</button></div><p class="muted">Link a stash tab to a loot filter rule. Each tab gets the rule's rarity, type, class, item level, potential, faction, unique and corruption conditions as its stash priority, so the game's own stashing puts matching items there. Rules with affix or character-level conditions match more broadly in the tab priority; <b>Sort inventory by filter rule</b> uses the exact filter match. Every change creates a recovery backup.</p>`;
  if(!s)return head+`<p class="empty">Select a loot filter in the game, then read it here.</p></section>`;
  if(!s.filter)return head+`<p class="note">No loot filter is active. Select one in the game's loot filter window.</p></section>`;
  const tabName=id=>esc(s.tabs.find(t=>t.id===id)?.name??"");
  const tabOptions=sel=>`<option value="0">—</option>`+s.tabs.map(t=>`<option value="${t.id}" ${t.id===sel?"selected":""}>${esc(t.name)}</option>`).join("");
  const rows=s.rules.map(r=>`<tr class="${r.enabled?"":"muted"}"><td>${r.number}</td><td>${ruleTypes[r.type]??r.type}${r.enabled?"":" · off"}</td><td>${esc(r.name||"—")}</td><td><select data-stash-rule-link="${r.number}" data-control-id="stash_rule_assign" aria-label="Tab for rule ${r.number}">${tabOptions(r.tab)}</select></td><td>${r.unmapped.length?`<span class="badge" title="${esc(r.unmapped.join(", "))}">Sort only: ${esc(r.unmapped.join(", "))}</span>`:r.mapped.length?"Tab priority":"—"}</td></tr>`).join("");
- return head+`<p class="note">Filter: <b>${esc(s.filter)}</b> · ${s.rules.length} rules · ${s.tabs.length} stash tabs${s.canAddTab?"":" · the game's tab limit is reached"}.</p><div class="table-wrap"><table class="stash-rules-table"><thead><tr><th>Rule</th><th>Type</th><th>Name</th><th>Stash tab</th><th>Matching</th></tr></thead><tbody>${rows}</tbody></table></div><div class="actions"><label class="inline-check"><input type="checkbox" id="stash-rules-hidden"> Include Hide rules</label><label class="inline-check"><input type="checkbox" id="stash-rules-disabled"> Include disabled rules</label></div><div class="actions"><button class="primary" data-stash-rules="create" data-control-id="stash_rules_create">Create tabs for rules without a tab</button><button data-stash-rules="sort" data-control-id="stash_rules_sort">Sort inventory by filter rule</button></div></section>`;
+ return head+`<p class="note">Filter: <b>${esc(s.filter)}</b> · ${s.rules.length} rules · ${s.tabs.length} stash tabs${s.canAddTab?"":" · the game's tab limit is reached"}.</p><div class="table-wrap"><table class="stash-rules-table"><thead><tr><th>Rule</th><th>Type</th><th>Name</th><th>Stash tab</th><th>Matching</th></tr></thead><tbody>${rows}</tbody></table></div><div class="actions"><button data-stash-rules="sort" data-control-id="stash_rules_sort">Sort inventory by filter rule</button></div></section>`;
 }
 function renderStashRules(){const node=$("#stash-rules");if(node)node.outerHTML=stashRulesPanel();const tabs=$("#sort-tabs");if(tabs)tabs.innerHTML=autoSortTabs();updateDisabled();}
 async function stashRulesAction(kind,extra={}){
- const id={read:"stash_rules_read",create:"stash_rules_create",sort:"stash_rules_sort",assign:"stash_rule_assign"}[kind];
+ const id={read:"stash_rules_read",sort:"stash_rules_sort",assign:"stash_rule_assign"}[kind];
  if(kind!=="read"){
   const name=connected.player?.name;
-  const text={create:`Create one free stash tab for each ${extra.hidden?"":"Show/Highlight "}rule of “${stashRules?.filter}” that has no tab yet, in a folder named after the filter. A recovery backup is created first.`,
-   sort:name?`Move ${name}'s inventory items into the tabs linked to the loot filter rule they match. Items without a linked rule stay in the inventory. A recovery backup is created first.`:`Move the loaded character's inventory items into the tabs linked to the loot filter rule they match. Items without a linked rule stay in the inventory. A recovery backup is created first.`,
+  const text={sort:name?`Move ${name}'s inventory items into the tabs linked to the loot filter rule they match. Items without a linked rule stay in the inventory. A recovery backup is created first.`:`Move the loaded character's inventory items into the tabs linked to the loot filter rule they match. Items without a linked rule stay in the inventory. A recovery backup is created first.`,
    assign:extra.rule?`Give this stash tab the conditions of rule ${extra.rule} as its stash priority. A recovery backup is created first.`:`Remove the rule link and stash priority from this tab. A recovery backup is created first.`}[kind];
   if(!await confirmAction(controlById(id).label,text)){renderStashRules();return;}
  }
@@ -1363,6 +1404,12 @@ function rageFacts(){
  const now=cache.rage_read?.game;if(!now)return "";
  return `Now: hunt ${esc(String(now.configs?.[0]?.huntSeconds??"—"))} s · Bloodrage charges at ${esc((now.chargeKills||[]).join(", "))} kills · hunt buffs at ${esc((now.buffKills||[]).join(", "))} kills.`;
 }
+// A Crafting tab that needs its list reads it when it is shown; its button stays for a refresh.
+async function autoLoadCraftSection(){
+ if(page!=="crafting"||preview)return;
+ const id=craftingSection==="custom"&&!cache.craft_custom_catalog?.items?.length?"craft_custom_catalog":craftingSection==="spawn"&&!cache.spawn_list?.bases?.length?"spawn_list":null;
+ if(id&&controlById(id)&&eligible(controlById(id))){await refreshSection(id,{refreshConnectionFirst:false});if(page==="crafting")renderPage();}
+}
 function ragePanel(){
  const list=["rage_spawn","rage_hunttime","rage_charges","rage_buffs","rage_blood"].map(controlById).filter(Boolean);if(!list.length)return "";
  return `<section class="panel" id="rage-panel"><div class="section-head"><h2>Rage of Morditas (Season 5)</h2><span class="badge">${list.every(automaticSetting)?"Changes apply automatically":"Use Apply changes below"}</span></div><p class="muted">These change only the values the game loaded, while you play offline; nothing is saved to your character. 1 (or the game's own) puts the game's values back.</p><p class="note" id="rage-facts">${rageFacts()}</p><div class="control-grid">${list.map(settingCard).join("")}</div></section>`;
@@ -1379,7 +1426,7 @@ function renderDeath(){const node=$("#death-live");if(node)node.innerHTML=deathV
 async function refreshDeaths(){
  if(!controlById("death_recap_read")||!eligible(controlById("death_recap_read")))return;
  const r=await job({type:"control",id:"death_recap_read",operation:"read"}).catch(()=>null);
- if(r?.ok&&page==="summons"){syncLootCraft("death_recap_read",r);deathIndex=0;renderDeath();syncSettingUi("death_recap");}
+ if(r?.ok&&page==="combat"){syncLootCraft("death_recap_read",r);deathIndex=0;renderDeath();syncSettingUi("death_recap");}
 }
 // Which damage type and rows the Summons page shows (the damage window has its own).
 function damageFilter(){
@@ -1480,7 +1527,7 @@ setInterval(()=>void pollConveniences(),1000);
 // Every second while the session runs, every few seconds otherwise: a session
 // started or stopped in the damage window shows up here too.
 let damageReadAt=0;
-setInterval(()=>{if(page==="summons"&&!preview&&!document.hidden&&!busy&&(cache.damage_session_read?.active||Date.now()-damageReadAt>=3000)){damageReadAt=Date.now();void job({type:"control",id:"damage_session_read",operation:"read"}).then(r=>{if(r?.ok&&page==="summons"){cache.damage_session_read=r;updateDamageView(r);}}).catch(()=>{});}},1000);
+setInterval(()=>{if(page==="combat"&&!preview&&!document.hidden&&!busy&&(cache.damage_session_read?.active||Date.now()-damageReadAt>=3000)){damageReadAt=Date.now();void job({type:"control",id:"damage_session_read",operation:"read"}).then(r=>{if(r?.ok&&page==="summons"){cache.damage_session_read=r;updateDamageView(r);}}).catch(()=>{});}},1000);
 function formArgs(form,c){
  const data=new FormData(form),args={};
  for(const p of c.parameters){if(p.name==="save_id")continue;let v=data.get(p.name);if(p.type==="optional_integer"&&(v===""||v===null))continue;
@@ -1509,7 +1556,7 @@ async function formAction(form,override){
   // One interface text per line, so the interface language can translate each line.
   const character=`Character: ${submittedName||'Loaded offline character'}`;
   const message=summary?[character,clean(summary.template),`${summary.affixes} · ${summary.effects} · ${summary.rolls}`,'','Replaces the item currently selected in the game’s forge. No materials are consumed. A recovery backup is created.',...(args.modifiers!=='none'?['Extra effects require EpochPact and workshop-recipes.txt when reloading or moving this item.']:[])].join('\n'):c.id==='character_level'?[character,`Level ${Number(cache.progress_read?.player?.level)||'?'} → ${args.level}`,'','The passive and attribute points of each level come with it. A recovery backup is created.'].join('\n'):c.id==='craft_tiers'?[character,...tierRows().filter(x=>tierChanges().includes(`${x.id}:${tierDraft[x.id]}`)).map(x=>`${clean(x.name||`Affix ${x.id}`)}: T${x.tier} → T${tierDraft[x.id]}`),'','Changes only the tiers of the item in the game’s forge. A recovery backup is created.'].join('\n'):c.id==='craft_materials'?[character,`Minimum stock: ${Number(args.value).toLocaleString()} of each shard, rune and glyph.`,'','Higher quantities are kept. Adds materials once to the shared crafting stash and creates a recovery backup. This does not enable infinite materials.'].join('\n'):c.description+(c.lifetime==="recovery"?" The game will close normally and the selected operation backup will be restored.":" This action changes the game save. The backend creates a backup before applying it.");
-  const accepted=await confirmAction(summary?'Create this custom item?':c.id==='craft_materials'?'Stock all materials?':c.id==='craft_tiers'?'Change these affix tiers?':c.id==='character_level'?'Raise the character level?':c.label,message);if(!accepted)return;
+  const accepted=await confirmAction(summary?'Create this custom item?':c.id==='craft_materials'?'Stock all materials?':c.id==='craft_tiers'?'Change these affix tiers?':c.id==='item_lp'?'Change Legendary Potential?':c.id==='character_level'?'Raise the character level?':c.label,message);if(!accepted)return;
  }
  if((c.lifetime==="game_save"||c.id==="mastery_choose")&&!preview){
   const snapshot=saveSnapshot(c);
@@ -1531,6 +1578,7 @@ async function formAction(form,override){
  }
  else if(c.lifetime==="game_save"){
   if(["corruption","stability"].includes(c.id)&&monoDrafts[draftKey]===submittedDraft)delete monoDrafts[draftKey];
+  if(c.id==="item_lp"){lpDraft={};delete cache.item_lp_read;await refreshSection("item_lp_read");}
   const readId={campaign:"progress_read",monolith:"monolith_read",cof:"cof_read",skills:"build_read"}[c.group];delete cache[readId];if(readId)await refreshSection(readId);
  }
 }
@@ -1575,6 +1623,7 @@ content.addEventListener("submit",e=>{if(e.target.matches(".control-form")){e.pr
 content.addEventListener('toggle',e=>{if(e.target.hasAttribute?.('data-workshop-advanced'))workshopAdvanced=e.target.open;if(e.target.dataset?.craftDisclosure)craftDisclosure[e.target.dataset.craftDisclosure]=e.target.open;},true);
 content.addEventListener("click",async e=>{
  const b=e.target.closest("button");if(!b||b.disabled)return;
+ if(b.dataset.settingHelp){showSettingHelp(b.dataset.settingHelp);return;}
  if(b.dataset.hidePart!==undefined){
   const el=b.parentElement,key=el?partKey(el):"";if(!key)return;
   const title=el.querySelector("h2,h3,.control-title")?.textContent.replace("×","").trim()||key;
@@ -1589,7 +1638,7 @@ content.addEventListener("click",async e=>{
  else if(b.hasAttribute?.('data-affix-add'))moveWantedAffixes('available',undefined,affixKind(b));
  else if(b.hasAttribute?.('data-affix-remove'))moveWantedAffixes('selected',undefined,affixKind(b));
  else if(b.hasAttribute?.('data-affix-clear')){const kind=affixKind(b),st=affixKinds[kind].state();affixPicker.move(st,[...st.selected],false);updateWantedAffixLists(kind);}
- else if(b.dataset.craftSection){craftingSection=b.dataset.craftSection;renderPage();}
+ else if(b.dataset.craftSection){craftingSection=b.dataset.craftSection;renderPage();void autoLoadCraftSection();}
  else if(b.dataset.workshopMore){workshopListLimits[b.dataset.workshopMore]+=40;updateWorkshopUi();}
  else if(b.dataset.workshopRemove){workshopDraft[b.dataset.workshopRemove]=workshopDraft[b.dataset.workshopRemove].filter(x=>x!==b.dataset.choice);updateWorkshopUi();}
  else if(b.dataset.spawnAffixRemove){spawnDraft.affixes=spawnDraft.affixes.filter(a=>String(a.id)!==b.dataset.spawnAffixRemove);updateSpawnAffixes();}
@@ -1601,7 +1650,7 @@ content.addEventListener("click",async e=>{
  else if(b.dataset.looks)await readLooks();
  else if(b.dataset.lookTurn!==undefined)await turnMirror(Number(b.dataset.lookTurn));
  else if(b.dataset.lookReset!==undefined)await setLook("all","none");
- else if(b.dataset.stashRules)await stashRulesAction(b.dataset.stashRules,b.dataset.stashRules==="create"?{hidden:$("#stash-rules-hidden")?.checked?1:0,disabled:$("#stash-rules-disabled")?.checked?1:0}:{});
+ else if(b.dataset.stashRules)await stashRulesAction(b.dataset.stashRules);
  else if(b.dataset.reportNow!==undefined){const r=await runTask({type:"control",id:"report_now"},{silent:true});if(r?.ok){notify(`Report saved: ${r.folder.split(/[\\/]/).pop()} (in the game's EpochPact\\reports folder).`);void refreshSection("report_read");}}
  else if(b.dataset.damageAction)await damageAction(b.dataset.damageAction);
  else if(b.dataset.deathRefresh!==undefined)await refreshDeaths();
@@ -1797,6 +1846,7 @@ content.addEventListener("change",e=>{
  if(t.hasAttribute?.('data-spawn-affix')){const id=Number(t.value);if(t.checked){if(spawnDraft.affixes.length>=7){t.checked=false;notify('Choose up to seven affixes.',true);return;}const x=(cache.spawn_list?.affixes||[]).find(a=>a.id===id);spawnDraft.affixes.push({id,tier:Math.min(8,Math.max(1,x?.tiers||1))});}else spawnDraft.affixes=spawnDraft.affixes.filter(a=>a.id!==id);updateSpawnAffixes();return;}
  if(t.dataset.spawnAffixTier){const a=spawnDraft.affixes.find(x=>String(x.id)===t.dataset.spawnAffixTier);if(a)a.tier=Number(t.value);updateSpawnAffixes();return;}
  if(t.hasAttribute?.('data-spawn-affix-roll')){spawnDraft.roll=t.value;updateSpawnAffixes();return;}
+ if(t.dataset.lpEdit){lpDraft[t.dataset.lpEdit]=t.value;const hidden=$('form[data-id="item_lp"] input[name=changes]');if(hidden)hidden.value=lpChanges().join(',')||'none';updateDisabled();return;}
  if(t.dataset.tierEdit){tierDraft[t.dataset.tierEdit]=t.value;const hidden=$('form[data-id="craft_tiers"] input[name=tiers]');if(hidden)hidden.value=tierChanges().join(',')||'none';updateDisabled();return;}
  if(t.name&&t.closest('form')?.dataset.id==="spawn_item"){spawnDraft[t.name]=t.value;if(t.name==='item')updateSpawnUi();return;}
  if(t.hasAttribute?.('data-workshop-kind')){workshopTemplateKind=t.value;const select=$('[data-workshop-template]');if(select)select.innerHTML=workshopTemplateOptions();return;}

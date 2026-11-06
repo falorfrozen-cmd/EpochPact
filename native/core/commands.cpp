@@ -1,3 +1,4 @@
+#include "item_pages.hpp"
 #include "commands.hpp"
 
 #include "common.hpp"
@@ -35,6 +36,7 @@
 #include "weaver.hpp"
 #include "idols.hpp"
 #include "enchanter.hpp"
+#include "eternity_cache.hpp"
 #include "transmog.hpp"
 #include "unique_rolls.hpp"
 #include "effects.hpp"
@@ -204,6 +206,11 @@ std::string Execute(const std::string& line) {
         return "{\"ok\":false,\"error\":\"use craftmix save-id template-id affixes perfect modifier-lines\"}";
     }
     if(cmd=="crafttiers")return args.size()==2?crafting::Tiers(args[0],args[1]):"{\"ok\":false,\"error\":\"use crafttiers save-id affix:tier,...\"}";
+#ifdef EPOCHPACT_TESTING
+    if(cmd=="bosstest"){if(args.size()<2)return "{\"ok\":false,\"error\":\"use bosstest id action\"}";if(args[1]=="goto"&&args.size()==3)return statedit::Waypoints(args[2],args[0]);return monolith::BossTest(args[0],std::vector<std::string>(args.begin()+1,args.end()));}
+#endif
+    if(cmd=="lpread")return args.empty()?crafting::LegendaryItems():"{\"ok\":false,\"error\":\"lpread expects no arguments\"}";
+    if(cmd=="setlp")return args.size()==2?crafting::SetLegendary(args[0],args[1]):"{\"ok\":false,\"error\":\"use setlp save-id x.y.uniqueID:0-4,...\"}";
     if(cmd=="craftcustom") {
         int id=-2,perfect=-1;
         if(args.size()==4){const auto a=std::from_chars(args[1].data(),args[1].data()+args[1].size(),id),b=std::from_chars(args[3].data(),args[3].data()+args[3].size(),perfect);if(a.ec==std::errc{}&&a.ptr==args[1].data()+args[1].size()&&b.ec==std::errc{}&&b.ptr==args[3].data()+args[3].size()&&(perfect==0||perfect==1))return crafting::Custom(args[0],id,args[2],perfect!=0);}
@@ -229,7 +236,7 @@ std::string Execute(const std::string& line) {
         return collection::Items(offset);
     }
     if (cmd == "lootread" || cmd == "lootmode" || cmd == "lootlp" || cmd == "lootww" || cmd == "loott7" || cmd == "lootfilter" || cmd == "lootaffixes" || cmd == "lootcategory" || cmd == "lootreset" ||
-        cmd == "craftread" || cmd == "craftfp" || cmd == "crafthope" || cmd == "craftdespair" || cmd == "craftshards" || cmd == "craftrunes" || cmd == "craftglyphs" || cmd == "craftlevel" || cmd == "craftt7" || cmd == "craftcorrupted" || cmd == "craftreset") {
+        cmd == "craftread" || cmd == "craftfp" || cmd == "crafthope" || cmd == "craftdespair" || cmd == "craftshards" || cmd == "craftrunes" || cmd == "craftglyphs" || cmd == "craftlevel" || cmd == "craftt7" || cmd == "craftcorrupted" || cmd == "craftexalted" || cmd == "craftreset") {
         const auto error=[](const char* message){return "{\"ok\":false,\"error\":"+managed::Json(message)+"}";};
         if(cmd=="lootread" || cmd=="craftread") {
             if(!args.empty()) return error("read expects no arguments");
@@ -327,7 +334,7 @@ std::string Execute(const std::string& line) {
     }
     if (cmd == "status") {
         std::string s = std::string("EpochPact ") + kVersion + "; gate: " + game::GateText() + "\n" + xp::Status() + "\n" +
-                        loot::Status() + "\n" + density::Status() + "\n" + monolith::Status() + "\n" + cof::Status() + "\n" + items::Status() + "\n" + stashrules::PickupStatus() + "\n" + weaver::Status() + "\n" + idols::Status() + "\n" + enchanter::Status() + "\n" + transmog::Status() + "\n" + uniquerolls::Status() + "\n" + player::Status() + "\nframe hook: " +
+                        loot::Status() + "\n" + density::Status() + "\n" + monolith::Status() + "\n" + cof::Status() + "\n" + items::Status() + "\n" + stashrules::PickupStatus() + "\n" + weaver::Status() + "\n" + idols::Status() + "\n" + enchanter::Status() + "\n" + eternity::Status() + "\n" + monolith::BossStatus() + "\n" + transmog::Status() + "\n" + uniquerolls::Status() + "\n" + player::Status() + "\nframe hook: " +
                         (mainthread::HookInstalled() ? "in" : "out (idle)");
 #ifdef EPOCHPACT_RESEARCH
         s += "\n" + research::Status();
@@ -431,6 +438,43 @@ std::string Execute(const std::string& line) {
     if (cmd == "monolithread") return args.empty() ? monolith::Read() : "monolithread: refused: no arguments expected";
     if (cmd == "factionread") return args.empty() ? factions::Read() : "factionread: refused: no arguments expected";
     if (cmd == "monolithunlock") return args.size() == 1 ? monolith::Unlock(args[0]) : "monolithunlock: refused: use monolithunlock <offline save id>";
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+    if (cmd == "eternitytest") return args.size() >= 2 ? eternity::Test(args[0], std::vector<std::string>(args.begin() + 1, args.end())) : "{\"ok\":false,\"error\":\"use eternitytest <save id> state|put x y|seal id|none|uiseal index\"}";
+#endif
+    if (cmd == "eternitycache") return args.size() == 1 ? eternity::Open(args[0]) : "{\"ok\":false,\"error\":\"use eternitycache <offline save id>\"}";
+    if (cmd == "itempages") {
+        if (args.size() == 1 && args[0] == "read") return itempages::Read(false);
+        if (args.size() == 1 && args[0] == "readfull") return itempages::Read(true);
+        if (args.size() == 1 && args[0] == "tostash") return itempages::ToStash();
+        if (args.size() == 3 && args[0] == "switch" && (args[1] == "inv" || args[1] == "idol") && args[2].size() == 1 && args[2][0] >= '1' && args[2][0] <= '4')
+            return itempages::Switch(args[1] == "inv" ? itempages::kInventory : itempages::kIdols, args[2][0] - '0');
+        return "{\"ok\":false,\"error\":\"use itempages read|tostash|switch inv|idol 1-4\"}";
+    }
+    if (cmd == "autoshatterquiet") {
+        if (args.size() != 1 || (args[0] != "0" && args[0] != "1")) return "{\"ok\":false,\"error\":\"use autoshatterquiet 0|1\"}";
+        return crafting::SetShatterQuiet(args[0] == "1");
+    }
+    if (cmd == "autoshatter") {
+        if (args.size() != 1 || (args[0] != "0" && args[0] != "1")) return "{\"ok\":false,\"error\":\"use autoshatter 0|1\"}";
+        return crafting::SetAutoShatter(args[0] == "1");
+    }
+    if (cmd == "noblessing") {
+        if (args.size() != 1 || (args[0] != "0" && args[0] != "1")) return "{\"ok\":false,\"error\":\"use noblessing 0|1\"}";
+        return monolith::SetNoBlessing(args[0] == "1");
+    }
+    if (cmd == "bossdoors") {
+        if (args.size() != 1 || (args[0] != "0" && args[0] != "1")) return "{\"ok\":false,\"error\":\"use bossdoors 0|1\"}";
+        return monolith::BossDoors(args[0] == "1");
+    }
+    if (cmd == "bosstravel") {
+        // the doors' own trips: to Traveler's Rest before a boss, to the hall after one
+        if (args.size() != 2 || (args[1] != "M_Rest" && args[1] != "MonolithHub:1")) return "{\"ok\":false,\"error\":\"use bosstravel save-id M_Rest|MonolithHub:1\"}";
+        return statedit::Waypoints(args[1], args[0]);
+    }
+    if (cmd == "questskip") {
+        if (args.size() != 1 || (args[0] != "0" && args[0] != "1")) return "{\"ok\":false,\"error\":\"use questskip 0|1\"}";
+        return monolith::SetQuestSkip(args[0] == "1");
+    }
     if (cmd == "stabilitymult") {
         if (args.empty()) return monolith::Status();
         double value = 0;

@@ -124,6 +124,18 @@ def allow_corrupted(value: bool) -> dict:
     return ipc.request(f"craftcorrupted {_toggle(value)}")
 
 
+def shatter_quiet(value: bool) -> dict:
+    return ipc.request(f"autoshatterquiet {_toggle(value)}")
+
+
+def auto_shatter(value: bool) -> dict:
+    return ipc.request(f"autoshatter {_toggle(value)}")
+
+
+def allow_exalted(value: bool) -> dict:
+    return ipc.request(f"craftexalted {_toggle(value)}")
+
+
 def reveal_map(value: bool) -> dict:
     return ipc.request(f"mapreveal {_toggle(value)}")
 

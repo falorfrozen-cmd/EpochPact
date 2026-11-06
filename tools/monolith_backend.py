@@ -125,4 +125,19 @@ def multiplier(value: float) -> dict:
     return progression.request(f"stabilitymult {value:.9g}")
 
 
+def quest_skip(value: int) -> dict:
+    # Skip quest echoes before the boss once a Normal run's Stability is full (0 off, 1 on).
+    if isinstance(value, bool) or value not in (0, 1):
+        raise ValueError("Choose on or off.")
+    return progression.request(f"questskip {value}")
+
+
+def no_blessing(value):
+    return progression.request(f"noblessing {value}")
+
+
+def boss_doors(value):
+    return progression.request(f"bossdoors {value}")
+
+
 undo = progression.undo

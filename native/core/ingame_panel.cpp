@@ -203,7 +203,7 @@ std::map<std::string, SectionMaker>& Makers() {
 std::deque<std::function<void()>> jobs;
 std::atomic<int> hotkey{VK_F6};
 std::atomic<bool> toggleRequested{false};
-std::atomic<uint64_t> opens{0}, closes{0}, faults{0};
+std::atomic<uint64_t> opens{0}, closes{0}, faults{0}, softFaultsTotal{0};
 bool broken = false;   // repeated faults: nothing more until the next F6 or "panel 1"
 bool reloadRequested = false;
 int screenW = 0, screenH = 0;
@@ -332,6 +332,18 @@ void Paint(Card& k, bool animate) {
 
 // ----------------------------------------------------------------------------------- cards
 // settingCard (app.js) at (x, y) in the panel; (ox, oy) is the panel's place in its section.
+// The ? beside the Boss doors switch.
+void ShowBossDoorsHelp() {
+    ShowResult(Tr("Where are the boss doors?"),
+               Tr("Turn this on, then open the map and go to Fall of the Outcasts in the Monolith Hub."),
+               {
+                {Tr("Where"), Tr("A small Monolith rock named Boss Hall stands next to the waypoint of Fall of the Outcasts. Click it to go in; a rock in the hall brings you back. Hold the cursor on a rock to see its name.")},
+                {Tr("Boss doors"), Tr("Ten rocks, one for each timeline's boss. A click starts that boss straight away, even on a locked timeline.")},
+                {Tr("Empowered"), Tr("One rock switches Normal, Empowered (with your corruption) and Empowered with its Harbinger. The choice applies to the boss doors and to Boss Rush.")},
+                {Tr("Boss Rush"), Tr("Its rock is in the Boss Hall too. It runs all ten bosses in turn: the portal that opens after a kill starts the next one.")},
+                {Tr("Stations"), Tr("Three more rocks in the hall open your stash, a vendor and the Eternity Cache.")}
+               });
+}
 // craft: in the Crafting page's content (#craft-category-content): no icon, no description
 // min-height; width: the card's (the only card of a panel spans the grid).
 float BuildCard(Section& s, void* panel, float ox, float oy, float x, float y, const Control& c, bool automatic, const JValue* override_, float width = kCardW,
@@ -469,6 +481,19 @@ float BuildCard(Section& s, void* panel, float ox, float oy, float x, float y, c
         toggle.h = toolsH;
         place(toggle, sx - 10 - 34, 0);
         push(std::move(toggle));
+        if (c.id == "monolith_bossdoors") {
+            // left of the On/Off text, whose longest form in any language fits in 50
+            Hit help;
+            help.kind = HitKind::Action;
+            help.area = Area::Main;
+            help.name = "help-" + c.id;
+            help.action = [] { ShowBossDoorsHelp(); };
+            Button q = MakeButton(tools.rt, "?", Look::Quiet, help);
+            const float qx = sx - 10 - 50 - 10 - q.w;
+            Move(q.node.rt, qx, 0);
+            place(help, qx, 0);
+            push(std::move(help));
+        }
     } else if (choice) {
         // select (width 100%), then Default wrapped onto the next line (row gap 10)
         Style cs{Face::Body, 14, C("ink")};
@@ -1559,6 +1584,7 @@ void RequestValues(bool all) {
         if (!queued) Send(r, [r](const std::string& reply) { ReadInto(r, reply); });
     }
     nextRead = Now() + 1000;  // the desktop app polls every second
+    if (win.shown && win.pages[win.page].id == "crafting") CraftTabAutoLoad(win.pages[win.page].tab);
 }
 
 // ----------------------------------------------------------------------------- the changes
@@ -1747,6 +1773,16 @@ int dragCard = -1;
 bool mouseDown = false;
 enum class Drag { None, Main, Side } scrollDrag = Drag::None;
 float dragStartY = 0, dragStartScroll = 0;
+// A scrollbar held and moved: the content follows the bar at once (the easing in Input sees no change to show).
+void ScrollDrag(float py) {
+    if (scrollDrag == Drag::Main) {
+        const float next = std::clamp(dragStartScroll + (py - dragStartY) * win.pages[win.page].height / (kMainH - 2 * kBar), 0.f, MaxMain());
+        if (next != win.mainScroll) { win.mainTarget = win.mainScroll = next; Move(win.mainContent.Get(), 0, -next); CloseList(); }
+    } else if (scrollDrag == Drag::Side) {
+        const float next = std::clamp(dragStartScroll + (py - dragStartY) * win.sideHeight / (kH - 2 - 2 * kBar), 0.f, MaxSide());
+        if (next != win.sideScroll) { win.sideTarget = win.sideScroll = next; Move(win.sideContent.Get(), 0, -next); }
+    }
+}
 // Moving the window by its top bar, or resizing it by the corner dots (screen px).
 enum class WindowDrag { None, Move, Resize } windowDrag = WindowDrag::None;
 float dragScreenX = 0, dragScreenY = 0, dragLeft = 0, dragTop = 0, dragW = 0, dragH = 0, dragNewW = 0, dragNewH = 0;
@@ -1941,14 +1977,21 @@ void ScrollDialog(float target) {
     win.dialogScroll = next; Move(win.dialogContent.Get(), 0, -next);
     for (auto& h : win.dialogHits) h.y += delta;
 }
+#ifdef EPOCHPACT_TESTING
+bool testFaultInInput = false;
+#endif
 void Input(float dt) {
+#ifdef EPOCHPACT_TESTING
+    if (testFaultInInput) { testFaultInInput = false; (void)GameObjectOf(nullptr); }
+#endif
     float px = -1, py = -1;
     const bool inside = Cursor(&px, &py);
     for (int id : win.pages[win.page].sections) {
         auto& s = Sec(id);
         for (auto& region : s.hideRegions) {
             const bool on = inside && !win.dialogOpen && !s.hidden && Inside(id, region.bounds, px, py);
-            if (on != region.shown) { SetActive(GameObjectOf(region.node.Get()), on); region.shown = on; }
+            // a hide button whose card was built again is gone: nothing to show, and asking it would be a fault
+            if (on != region.shown) { if (region.node && game::IsAlive(region.node.Get())) SetActive(GameObjectOf(region.node.Get()), on); region.shown = on; }
             if (region.hit >= 0 && region.hit < static_cast<int>(s.hits.size())) s.hits[region.hit].visible = on;
         }
     }
@@ -1981,10 +2024,7 @@ void Input(float dt) {
         if (windowDrag != WindowDrag::None) DragWindow();
         if (dragCard >= 0) DragSlider(dragCard, px);
         if (dragHit.index >= 0) DragHit(px);
-        if (scrollDrag == Drag::Main)
-            win.mainTarget = win.mainScroll = std::clamp(dragStartScroll + (py - dragStartY) * win.pages[win.page].height / (kMainH - 2 * kBar), 0.f, MaxMain());
-        else if (scrollDrag == Drag::Side)
-            win.sideTarget = win.sideScroll = std::clamp(dragStartScroll + (py - dragStartY) * win.sideHeight / (kH - 2 - 2 * kBar), 0.f, MaxSide());
+        ScrollDrag(py);
     } else if (!down && mouseDown) {
         if (windowDrag != WindowDrag::None) EndWindowDrag();
         const Hit* p = HitAt(pressed);
@@ -2616,7 +2656,7 @@ std::string State() {
         << ",\"inFront\":" << Boolean(GameInFront()) << ",\"lastPress\":" << Json(lastPress)
         << ",\"placement\":{\"mode\":" << Json(win.placement) << ",\"left\":" << win.left << ",\"top\":" << win.top << ",\"w\":" << kW << ",\"h\":" << kH << '}' 
         << ",\"screen\":[" << screenW << ',' << screenH << ']' << ",\"scaleStatic\":" << Boolean(scaleStatic) << ",\"opens\":" << opens.load()
-        << ",\"closes\":" << closes.load() << ",\"faults\":" << faults.load() << ",\"broken\":" << Boolean(broken) << ",\"error\":" << Json(lastError)
+        << ",\"closes\":" << closes.load() << ",\"faults\":" << faults.load() << ",\"softFaults\":" << softFaultsTotal.load() << ",\"broken\":" << Boolean(broken) << ",\"error\":" << Json(lastError)
         << ",\"scroll\":" << win.mainScroll << ",\"sideScroll\":" << win.sideScroll << ",\"pending\":" << pending.size() << ",\"drafts\":" << drafts.size()
         << ",\"errors\":" << errors.size() << ",\"sending\":" << Json(sendingId) << ",\"dialog\":" << Boolean(win.dialogOpen) << ",\"list\":" << Boolean(win.listOpen)
         << ",\"toast\":" << Boolean(win.toastUntil != 0) << ",\"connection\":" << Json((offlinePlay ? "offline " : "online ") + sessionState)
@@ -3605,9 +3645,21 @@ void Frame() {
     } else if (win.built && jobs.empty() && cost > timing.idleCostMax) { timing.idleCostMax = cost; timing.slowestIdleStage = stage; }
     if (!safe || !ours.empty()) {
         if (!ours.empty()) why = ours;
-        ++faults;
         lastError = why;
-        Log("in-game window fault: %s", why.c_str());
+        // While it only runs (input, animation, a page's tick), one fault loses that frame. It stays open; starting over is for a window
+        // half built, or a fault that keeps coming back.
+        const bool building = stage.rfind("build", 0) == 0 || stage.rfind("card", 0) == 0 || stage.rfind("section", 0) == 0 || stage.rfind("rebuild", 0) == 0 ||
+                              stage.rfind("tail", 0) == 0 || stage.rfind("fonts", 0) == 0;
+        static uint64_t softFrom = 0;
+        static int softFaults = 0;
+        if (Now() - softFrom > 10000) { softFrom = Now(); softFaults = 0; }
+        if (win.shown && win.built && !building && ++softFaults <= 20) {
+            ++softFaultsTotal;
+            Log("in-game window: a fault during %s, the window stays open: %s", stage.c_str(), why.c_str());
+            return;
+        }
+        ++faults;
+        Log("in-game window fault during %s: %s", stage.c_str(), why.c_str());
         // start over from nothing: a half-built window is never shown
         game::Guarded([] { if (win.shown && win.rootCanvas.Get()) Show(false); }, nullptr);
         game::Guarded([] { Destroy(); }, nullptr);
@@ -3661,6 +3713,27 @@ std::string Panel(const std::string& action) {
         const auto name = action.substr(3);
         RequireQaClone(name.rfind("click:craft_", 0) == 0 || name.rfind("confirm:", 0) == 0);
         if (!win.built || !win.shown || !view::Eligible()) throw std::runtime_error("Open the ready isolated UI first");
+        if (name == "test-fault") { testFaultInInput = true; return State(); }
+        if (name.rfind("scrolldrag-", 0) == 0) {
+            // the main or side scrollbar moved by a share of its track, in percent (scrolldrag-main-50), by the code a held mouse runs
+            const bool side = name[11] == 's';
+            const float share = std::stof(name.substr(side ? 16 : 16)) / 100.f;
+            scrollDrag = side ? Drag::Side : Drag::Main;
+            dragStartY = 0; dragStartScroll = 0;
+            ScrollDrag(share * (side ? kH - 2 - 2 * kBar : kMainH - 2 * kBar));
+            scrollDrag = Drag::None;
+            return State();
+        }
+        if (name == "test-dead-hide") {
+            // the first hide button on this page is destroyed, as a rebuilt card leaves it, and the next frame has to change it
+            for (int id : win.pages[win.page].sections) for (auto& region : Sec(id).hideRegions) {
+                void* d[]{GameObjectOf(region.node.Get())};
+                Invoke(U("Object", "Destroy", 1), nullptr, d);
+                region.shown = true;
+                return State();
+            }
+            throw std::runtime_error("no hide button on this page");
+        }
         if (name == "details:advanced") {
             for(int id:win.pages[win.page].sections) {
                 auto& s=Sec(id);
@@ -3735,13 +3808,16 @@ std::string Panel(const std::string& action) {
         }
         if (name.rfind("click:", 0) == 0) {
             const auto control=name.substr(6);
-            const bool save=control=="craft_materials" || control=="craft_forge" || control=="craft_custom" || control=="craft_tiers" || control=="campaign_complete";
-            const bool view=control=="craft_custom_catalog" || control=="spawn_list" || control=="spawn_item" || control.rfind("spawn-",0)==0 || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0 || control.rfind("tiers-",0)==0 || control=="campaign_complete-level_mode"
+            const bool save=control=="craft_materials" || control=="craft_forge" || control=="craft_custom" || control=="craft_tiers" || control=="item_lp" || control=="campaign_complete";
+            const bool view=control.rfind("help-",0)==0 || control=="inventory_pages" || control=="inventory_idolslots" || control=="loot_autoshatter" || control=="loot_shatterquiet" || control=="monolith_questskip" || control=="monolith_bossdoors" || control=="monolith_noblessing" || control=="craft_custom_catalog" || control=="item_lp_read" || control.rfind("lp-item",0)==0 || control=="spawn_list" || control=="spawn_item" || control.rfind("spawn-",0)==0 || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0 || control.rfind("tiers-",0)==0 || control=="campaign_complete-level_mode"
                 || control=="transmog_read" || control.rfind("transmog-",0)==0 || control.rfind("mirror-",0)==0 || control.rfind("wardrobe-",0)==0;
             if (!save && !view) throw std::runtime_error("Control not in QA allowlist");
             if (win.dialogOpen || win.listOpen) throw std::runtime_error("Dismiss the current dialog first");
             for(int id:win.pages[win.page].sections) if(!Sec(id).hidden) for(const auto& h:Sec(id).hits)
-                if(h.name==control && h.enabled && h.visible && h.action) {
+                if(h.name==control && h.enabled && h.visible && h.kind==HitKind::Toggle) {
+                    const Control& toggled=*win.cards[h.a].c; Change(toggled, Shown(toggled)!=0?0:1);
+                    return State();
+                } else if(h.name==control && h.enabled && h.visible && h.action) {
                     const auto act=h.action; qaLastCommand.clear(); qaLastReply.clear(); act();
                     if(save && win.dialogOpen){qaPendingAction=control;qaConfirmToken=win.dialogToken;}
                     return State();

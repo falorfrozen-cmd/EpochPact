@@ -273,6 +273,18 @@
       "Stability gain multiplier",
       "Multiplies positive natural Stability gains. Losses and manually set absolute values are unchanged."
     ],
+    "monolith_noblessing": [
+      "No blessing choice",
+      "The blessing choice does not open after a timeline boss, on every boss while this is on. You get no new blessing from those kills; the blessings you have stay. Drops and the way out are as usual."
+    ],
+    "monolith_bossdoors": [
+      "Boss doors and Boss Rush",
+      "A rock next to the waypoint in the Monolith Hub takes you to the Boss Hall. Ten doors there start a timeline's boss straight away, even a locked one. One switches Normal, Empowered (with your corruption) and Empowered with its Harbinger. One runs all ten in turn: the portal that opens after a kill starts the next boss, a town portal only takes you to town, and the same door goes on later. Bosses drop as usual. Go to the Monolith Hub from the map."
+    ],
+    "monolith_questskip": [
+      "Skip quest echoes before the boss",
+      "When a Normal timeline's Stability bar is full, its quest echoes before the boss count as completed, so the timeline offers the boss echo next. Turned on with a full bar already, it applies at once in End of Time, Monolith Hub or Traveler's Rest (with a recovery backup). The skipped quest echoes give no rewards of their own; the boss and the timeline completion give theirs as usual. Empowered timelines only have the boss echo."
+    ],
     "cof_read": [
       "Circle of Fortune overview",
       "Reads rank, Favor, Reputation, prophecy slots, lenses, reward eligibility and active tuning."
@@ -490,8 +502,8 @@
       "Extend player-owned summon expiry timers and slow native health decay, including Wraith/Abomination paths. AI, attacks and combat damage remain normal. Permanent minions remain permanent."
     ],
     "build_minionextra": [
-      "Extra minions per skill",
-      "Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies and other minions. Cast the skill again to fill the new places. Totems, ballistas, forged weapons and companions have their own settings."
+      "Extra minions and companions per skill",
+      "Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies, other minions and companions, for example three Bears. Your companion limit rises with it. Cast the skill again to fill the new places. Totems, ballistas and forged weapons have their own settings."
     ],
     "build_totemextra": [
       "Extra totems per skill",
@@ -507,7 +519,7 @@
     ],
     "build_companionextra": [
       "Extra companions",
-      "Raise your companion limit by this many. The game's other companion rules still apply, such as one of each kind."
+      "Raise your companion limit by this many, for more kinds at once. For more of the same companion use Extra minions and companions per skill."
     ],
     "build_immortalminions": [
       "Immortal minions",
@@ -532,6 +544,14 @@
     "craft_tiers": [
       "Change affix tiers",
       "Change the tiers of the affixes already on the item in the game's forge (T1-T8; any of them can be T8), without making a new item. Rolls and the rest of the item stay. Creates a recovery backup."
+    ],
+    "item_lp_read": [
+      "Load items with Legendary Potential",
+      "Read the Uniques in your inventory that can have Legendary Potential. Changes nothing."
+    ],
+    "item_lp": [
+      "Change Legendary Potential",
+      "Change the Legendary Potential of Uniques in your inventory, from 0 to 4, without making a new item. Rolls and the rest of the item stay. Sets, Legendaries and Uniques the game gives no Legendary Potential are not listed. Creates a recovery backup."
     ],
     "spawn_list": [
       "Load spawnable items",
@@ -629,6 +649,10 @@
       "Toggle stash",
       "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory."
     ],
+    "inventory_eternity": [
+      "Open Eternity Cache",
+      "Open the game's own Eternity Cache wherever you are, without running the Temporal Sanctum: put in a Unique with Legendary Potential and an Exalted item, choose the affixes to keep (one choice per Legendary Potential; with 4 all go over) and Seal; the game makes the legendary. Works as a Tier 4 cache (Uniques of any level) and as often as you like. With a legendary waiting in the cache, it opens the cache to take it out."
+    ],
     "inventory_vendor": [
       "Toggle vendor",
       "Use the game's normal inventory interface and transactions. Stash all creates a recovery backup and leaves items that cannot be moved in your inventory."
@@ -657,6 +681,18 @@
       "Sell all keeps",
       "Which items Sell all leaves in your inventory. Remembered by EpochPact."
     ],
+    "inventory_pages": [
+      "Inventory and idol pages",
+      "Buttons 1 to 4 on the left of the items and 1 to 3 over the idols. Each page keeps its own items, or its own idols and altar; only the page shown counts for your character. When the inventory page shown is full, items you pick up go to the next page with room. Waiting pages are kept in a file for each character. An item on the cursor comes with you, so you can carry it to another page. Remembered by EpochPact."
+    ],
+    "inventory_idolslots": [
+      "All idol slots open",
+      "Every idol slot is open, locked and closed ones too, with any idol altar or with none. Idols that sit in an extra slot need this setting: turn it off or remove EpochPact only after you move them. Remembered by EpochPact."
+    ],
+    "inventory_pagesstash": [
+      "Move waiting pages to the stash",
+      "Every item waiting on another page goes to your stash, for when you stop using the pages or remove EpochPact. Items that do not fit keep waiting. The page shown stays where it is."
+    ],
     "inventory_sorttab": [
       "Sort a stash tab automatically",
       "Sort this stash tab each time it is shown, with the game's own Sort. Remembered by EpochPact."
@@ -684,6 +720,18 @@
     "craft_corrupted": [
       "Craft corrupted items",
       "Craft a corrupted item in the forge as before it was corrupted. It has no Forging Potential left, so a craft costs none (the forge shows 1), and the item stays corrupted."
+    ],
+    "loot_autoshatter": [
+      "Shatter what the filter hides",
+      "Items your loot filter hides on the ground are shattered at once, with the game's own Rune of Shattering rule and without using a rune: their shards go to your materials. Uniques, Sets, Legendaries, idols and items without affixes are left alone. Nothing happens without an active filter."
+    ],
+    "loot_shatterquiet": [
+      "Hide shatter notices",
+      "No notice on the left for the shards of items shattered automatically. Shards you pick up yourself keep theirs."
+    ],
+    "craft_exalted": [
+      "Add new affixes to Exalted items",
+      "Let a shard add a new affix to an Exalted item that has a free place, as on a Rare item. The game's limits stay: two prefixes, two suffixes, Forging Potential and level. The item stays Exalted and the new affix starts at T1."
     ],
     "pickup_interval": [
       "Auto pickup interval",
@@ -724,14 +772,6 @@
     "map_minimapopacity": [
       "Minimap opacity",
       "Opacity of the corner minimap, its frame and icons. 0 keeps the game's own value."
-    ],
-    "map_overlayopacity": [
-      "Overlay map opacity",
-      "Opacity of the full-screen overlay map, beyond the game's slider range. 0 keeps your game setting."
-    ],
-    "map_overlayzoom": [
-      "Overlay map zoom",
-      "Below 1 zooms the overlay map in, above 1 shows more. Extends the game's overlay zoom limits."
     ],
     "tier_icons": [
       "Affix tiers on item icons",
@@ -840,6 +880,14 @@
     "rage_blood": [
       "Blood forging potential share",
       "Every Rage of Morditas reward item gets Ice or Blood forging potential; this is how many get Blood. The game's own share is 50 %. The Rituals of Ice and Blood still give their own type."
+    ],
+    "rage_lizards": [
+      "Loot Lizard chance",
+      "Multiplies how many Loot Lizards the game places in a zone; 0 places none. It applies from the next zone you enter."
+    ],
+    "rage_nemesis": [
+      "Nemesis chance",
+      "Multiplies the chance of a Nemesis encounter in a zone; 0 places none. Your level must still reach the game's minimum. It applies from the next zone you enter."
     ],
     "death_recap_read": [
       "Death recap",

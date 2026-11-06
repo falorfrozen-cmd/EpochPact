@@ -12,6 +12,8 @@ struct Range{double low,high,neutral;};
 // charges and buffs: share of the kills needed; blood: percent of the encounter's items with Blood
 // rather than Ice forging potential (-1: the game's own share).
 constexpr Range kSpawn{1,5,1},kHuntTime{1,5,1},kCharges{0.2,1,1},kBuffs{0.2,1,1},kBlood{0,100,-1};
+// lizards, nemesis: how often those encounters are placed; 0 places none.
+constexpr Range kLizards{0,20,1},kNemesis{0,20,1};
 inline bool InRange(const Range& r,double v){return std::isfinite(v)&&(v==r.neutral||(v>=r.low&&v<=r.high));}
 // The Blood share as the game's chance: the game's own, or the chosen percent.
 inline float BloodChance(float original,double percent){return percent<0?original:static_cast<float>(std::min(100.0,percent)/100.0);}
@@ -19,6 +21,16 @@ inline float BloodChance(float original,double percent){return percent<0?origina
 inline float ScaleRate(float original,double multiplier){
     if(!std::isfinite(original)||original<=0)return original;
     return static_cast<float>(static_cast<double>(original)*multiplier);
+}
+// The game's "increased" form, a rate r that counts as (1 + r): the whole factor times the multiplier.
+inline float ScaleIncreased(float original,double multiplier){
+    if(!std::isfinite(original))return original;
+    return static_cast<float>((1.0+static_cast<double>(original))*multiplier-1.0);
+}
+// The extra chance of none at all: above normal it falls with the multiplier, so a high setting is not cancelled by it.
+inline float ScaleZeroChance(float original,double multiplier){
+    if(!std::isfinite(original)||original<=0||multiplier<=1)return original;
+    return static_cast<float>(static_cast<double>(original)/multiplier);
 }
 // A chance (0..1) times a multiplier, never above 100 %.
 inline float ScaleChance(float original,double multiplier){

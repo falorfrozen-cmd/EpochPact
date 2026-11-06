@@ -28,6 +28,12 @@ std::atomic<bool> preserveShards{false};
 std::atomic<bool> preserveRunes{false}, preserveGlyphs{false}, bypassLevel{false};
 std::atomic<bool> allowT7{false};
 std::atomic<bool> allowCorrupted{false};
+std::atomic<bool> allowExalted{false};
+std::atomic<bool> autoShatter{false};
+uint64_t autoShattered=0;
+std::atomic<bool> shatterQuiet{false};
+std::atomic<uint64_t> shatterQuietUntil{0};
+uint64_t shatterNoticesHidden=0;
 std::set<int> sevenTierAffixes;
 std::atomic<uint64_t> refundedRunes{0}, refundedGlyphs{0}, levelChecks{0};
 std::atomic<uint64_t> crafts{0}, fpChanges{0}, hopeChanges{0}, sealChanges{0}, refunded{0}, faults{0}, corruptedCrafts{0};
@@ -50,6 +56,9 @@ game::MethodRef rowVisuals;  // optional: without it T5/T6 upgrades need their s
 game::MethodRef itemInfo;    // CraftingSlotManager.UpdateItemInfo: the forge window's item, rows and buttons
 using ItemInfoFn=void(*)(void*,const il2cpp::Method*);
 ItemInfoFn originalItemInfo=nullptr;
+game::MethodRef populateShards;  // CraftingMaterialsPanelUI.PopulateShards: which shards the panel offers for the forge's item
+using PopulateFn=void(*)(void*,const il2cpp::Method*);
+PopulateFn originalPopulate=nullptr;
 using ItemConstructorFn=void(*)(void*,void*,const il2cpp::Method*);
 ItemConstructorFn originalItemConstructor=nullptr;
 using ForgeFn=void (*)(void*,const il2cpp::Method*);
@@ -156,6 +165,27 @@ struct Uncorrupt {
     ~Uncorrupt() { if(item) { Corrupted(item,true); if(fp==0) Potential(item,0); } }
     Uncorrupt(const Uncorrupt&)=delete; Uncorrupt& operator=(const Uncorrupt&)=delete;
 };
+// Exalted items. The shard panel greys out every new affix on an item of rarity 4 to 6 (PopulateShards: "rarity >= 4 is
+// incompatible"); the forge itself has no such rule. While the panel decides, the forge's Exalted item counts as a Rare, so
+// its own prefix and suffix limits apply. A new affix makes the game count the item's rarity from its affixes
+// (setRarityFromAffixesForNormalMagicOrRareItem), so the forge puts the Exalted rarity back after the craft.
+constexpr bool ExaltedRarity(int rarity) { return rarity>=4 && rarity<=6; }
+struct NotExalted {
+    void* item=nullptr; uint8_t rarity=0;
+    explicit NotExalted(void* forgeItem) {
+        if(!forgeItem || !ExaltedRarity(Get<uint8_t>(forgeItem,itemRarity))) return;
+        item=forgeItem; rarity=Get<uint8_t>(item,itemRarity);
+        *reinterpret_cast<uint8_t*>(static_cast<char*>(item)+itemRarity)=2;
+    }
+    ~NotExalted() { if(item) *reinterpret_cast<uint8_t*>(static_cast<char*>(item)+itemRarity)=rarity; }
+    NotExalted(const NotExalted&)=delete; NotExalted& operator=(const NotExalted&)=delete;
+};
+void PopulateDetour(void* self,const il2cpp::Method* method) {
+    void* item=nullptr;
+    if(allowExalted.load() && game::IsOfflinePlay()) Checked([&]{item=Current().main;});
+    NotExalted plain(item);
+    originalPopulate(self,method);
+}
 void SyncItems(const Context& c);
 // the forge window of the local player's forge
 void ItemInfoDetour(void* self,const il2cpp::Method* method) {
@@ -182,11 +212,26 @@ void ForgeDetour(void* self,const il2cpp::Method* method) {
     })) scope.owned=false;
     Binding bind(&scope);
     void* lent=nullptr; int lentFP=0; uint32_t lentId=0;
+    uint8_t exaltedRarity=0; uint32_t exaltedId=0;
+    if(scope.owned && allowExalted.load() && game::IsOfflinePlay() && scope.c.modifier) Checked([&] {
+        if(!Value<bool>(shardCheck,scope.c.modifier) || !ExaltedRarity(Get<uint8_t>(scope.c.main,itemRarity))) return;
+        exaltedRarity=Get<uint8_t>(scope.c.main,itemRarity); exaltedId=Get<uint32_t>(scope.c.main,individualId);
+    });
     {
         Uncorrupt plain(scope.owned && game::IsOfflinePlay() ? scope.c.main : nullptr);
         if(plain.item) { lent=plain.item; lentFP=plain.fp; lentId=Get<uint32_t>(lent,individualId); }
         originalForge(self,method); // Execute precisely one normal craft, including all native eligibility checks.
     }
+    if(exaltedRarity) Checked([&] {
+        // the craft may have left a new copy of the item in the forge
+        const auto now=Current(); bool restored=false;
+        for(void* item:{scope.c.main,now.main}) if(item && Get<uint32_t>(item,individualId)==exaltedId && Get<uint8_t>(item,itemRarity)<exaltedRarity) {
+            *reinterpret_cast<uint8_t*>(static_cast<char*>(item)+itemRarity)=exaltedRarity; Invoke(rebuild,item); restored=true;
+        }
+        if(!restored || now.actor!=scope.c.actor || now.craft!=self) return;
+        SyncItems(now); Invoke(Method(now.manager,"DirtyCharacter",0),now.manager);
+        Invoke(Method(now.manager,"UpdateCraftingSlotManagerItemInfo",0),now.manager);
+    });
     if(lent) Checked([&] {
         // corrupted again (the craft may have left a new copy of the item in the forge), the saved forms rebuilt
         ++corruptedCrafts;
@@ -349,7 +394,7 @@ bool RollDetour(void* rng,float probability,const il2cpp::Method* method) {
 struct Hook { game::MethodRef m; void* detour; void** original; };
 std::vector<Hook> Hooks() {
     std::vector<Hook> result;
-    if(fpFactor.load()!=1 || hope.load()>=0 || despair.load()>=0 || preserveShards.load() || preserveRunes.load() || preserveGlyphs.load() || allowT7.load() || allowCorrupted.load())
+    if(fpFactor.load()!=1 || hope.load()>=0 || despair.load()>=0 || preserveShards.load() || preserveRunes.load() || preserveGlyphs.load() || allowT7.load() || allowCorrupted.load() || allowExalted.load())
         result.push_back({forge,reinterpret_cast<void*>(&ForgeDetour),reinterpret_cast<void**>(&originalForge)});
     if(fpFactor.load()!=1) {
         result.push_back({cost,reinterpret_cast<void*>(&CostDetour),reinterpret_cast<void**>(&originalCost)});
@@ -368,6 +413,7 @@ std::vector<Hook> Hooks() {
         if(rowVisuals)result.push_back({rowVisuals,reinterpret_cast<void*>(&RowVisualsDetour),reinterpret_cast<void**>(&originalRowVisuals)});
     }
     if(allowCorrupted.load()) result.push_back({itemInfo,reinterpret_cast<void*>(&ItemInfoDetour),reinterpret_cast<void**>(&originalItemInfo)});
+    if(allowExalted.load()) result.push_back({populateShards,reinterpret_cast<void*>(&PopulateDetour),reinterpret_cast<void**>(&originalPopulate)});
     return result;
 }
 void Reconcile() {
@@ -377,7 +423,7 @@ void Reconcile() {
             if(!hook::Install(h.m.code,h.detour,h.original,&why)) throw std::runtime_error(why);
             installed.push_back(h.m.code);
         }
-        for(const auto& m:{forge,cost,setFP,seal,roll,capability,requiredLevel,maxCraftTier,addTier,rowVisuals,itemInfo}) if(m.code && std::none_of(required.begin(),required.end(),[&](const Hook& h){return h.m.code==m.code;}) &&
+        for(const auto& m:{forge,cost,setFP,seal,roll,capability,requiredLevel,maxCraftTier,addTier,rowVisuals,itemInfo,populateShards}) if(m.code && std::none_of(required.begin(),required.end(),[&](const Hook& h){return h.m.code==m.code;}) &&
             hook::IsInstalled(m.code) && !hook::Remove(m.code,&why)) throw std::runtime_error(why);
     } catch(...) { for(void* ptr:installed) hook::Remove(ptr,nullptr); throw; }
 }
@@ -392,7 +438,8 @@ std::string Settings() {
         << ",\"despairPercent\":" << (despair.load()<0?"null":std::to_string(despair.load()))
         << ",\"preserveShards\":" << Boolean(preserveShards.load())
         << ",\"preserveRunes\":" << Boolean(preserveRunes.load()) << ",\"preserveGlyphs\":" << Boolean(preserveGlyphs.load())
-        << ",\"allowT7\":" << Boolean(allowT7.load()) << ",\"allowCorrupted\":" << Boolean(allowCorrupted.load())
+        << ",\"allowT7\":" << Boolean(allowT7.load()) << ",\"allowCorrupted\":" << Boolean(allowCorrupted.load()) << ",\"allowExalted\":" << Boolean(allowExalted.load())
+        << ",\"autoShatter\":" << Boolean(autoShatter.load()) << ",\"autoShattered\":" << autoShattered << ",\"autoShatterQuiet\":" << Boolean(shatterQuiet.load()) << ",\"shatterNoticesHidden\":" << shatterNoticesHidden
         << ",\"bypassLevel\":" << Boolean(bypassLevel.load()) << ",\"hooks\":{\"forge\":" << Boolean(hook::IsInstalled(forge.code))
         << ",\"cost\":" << Boolean(hook::IsInstalled(cost.code)) << ",\"setFP\":" << Boolean(hook::IsInstalled(setFP.code))
         << ",\"seal\":" << Boolean(hook::IsInstalled(seal.code)) << ",\"rng\":" << Boolean(hook::IsInstalled(roll.code))
@@ -462,7 +509,7 @@ bool Init() {
         requiredLevel=Resolve("ItemData","CalculateLevelRequirementAfterShard",2);
         maxCraftTier=Resolve("ItemData","AffixIsAtMaxCraftableTierOrAbove",1);addTier=Resolve("ItemData","AddAffixTier",9);
         rowVisuals=game::FindMethod("LE.dll","","AffixSlotForge","SetVisuals",5);
-        itemInfo=Resolve("CraftingSlotManager","UpdateItemInfo",0);
+        itemInfo=Resolve("CraftingSlotManager","UpdateItemInfo",0);populateShards=Resolve("CraftingMaterialsPanelUI","PopulateShards",0);
         affixStats=Resolve("ItemData","AddAffixValueToStatList",3);shardCost=Resolve("ItemData","applyForgingPotentialCostFromShard",4);
         rebuild=Resolve("ItemData","RebuildID",0);rarityFromAffixes=Resolve("ItemData","setRarityFromAffixesForNormalMagicOrRareItem",0);
         randomByte=game::FindMethod("LE.Core.dll","LE.Core","RngElement","RandomByte",0);
@@ -508,12 +555,12 @@ std::string Set(const std::string& key,double value) {
     return Run([=] {
         if(!ready) throw std::runtime_error("crafting metadata unavailable");
         const double oldFP=fpFactor.load(),oldHope=hope.load(),oldDespair=despair.load(); const bool oldShards=preserveShards.load();
-        const bool oldRunes=preserveRunes.load(),oldGlyphs=preserveGlyphs.load(),oldLevel=bypassLevel.load(),oldT7=allowT7.load(),oldCorrupted=allowCorrupted.load();
-        if(key=="reset") { fpFactor=1; hope=-1; despair=-1; preserveShards=false; preserveRunes=false; preserveGlyphs=false; bypassLevel=false; allowT7=false; allowCorrupted=false; }
+        const bool oldRunes=preserveRunes.load(),oldGlyphs=preserveGlyphs.load(),oldLevel=bypassLevel.load(),oldT7=allowT7.load(),oldCorrupted=allowCorrupted.load(),oldExalted=allowExalted.load();
+        if(key=="reset") { fpFactor=1; hope=-1; despair=-1; preserveShards=false; preserveRunes=false; preserveGlyphs=false; bypassLevel=false; allowT7=false; allowCorrupted=false; allowExalted=false; }
         else {
             if(key=="fp" && !Factor(value)) throw std::runtime_error("FP cost factor 0..1");
             if((key=="hope"||key=="despair") && !Chance(value)) throw std::runtime_error("glyph chance 0..100/reset");
-            const bool toggle=key=="shards"||key=="runes"||key=="glyphs"||key=="level"||key=="t7"||key=="corrupted";
+            const bool toggle=key=="shards"||key=="runes"||key=="glyphs"||key=="level"||key=="t7"||key=="corrupted"||key=="exalted";
             if(toggle && value!=0 && value!=1) throw std::runtime_error("crafting toggles use 0 or 1");
             if(key!="fp"&&key!="hope"&&key!="despair"&&!toggle) throw std::runtime_error("unknown crafting setting");
             if((key=="fp"&&value!=1)||((key=="hope"||key=="despair")&&value>=0)||(toggle&&value==1)) (void)Current();
@@ -527,13 +574,18 @@ std::string Set(const std::string& key,double value) {
             }
             if(key=="fp") fpFactor=value; else if(key=="hope") hope=value; else if(key=="despair") despair=value;
             else if(key=="shards") preserveShards=value!=0; else if(key=="runes") preserveRunes=value!=0;
-            else if(key=="glyphs") preserveGlyphs=value!=0; else if(key=="t7")allowT7=value!=0;else if(key=="corrupted")allowCorrupted=value!=0;else bypassLevel=value!=0;
+            else if(key=="glyphs") preserveGlyphs=value!=0; else if(key=="t7")allowT7=value!=0;else if(key=="corrupted")allowCorrupted=value!=0;else if(key=="exalted")allowExalted=value!=0;else bypassLevel=value!=0;
         }
         try { Reconcile(); } catch(...) { fpFactor=oldFP; hope=oldHope; despair=oldDespair; preserveShards=oldShards;
-            preserveRunes=oldRunes; preserveGlyphs=oldGlyphs; bypassLevel=oldLevel;allowT7=oldT7;allowCorrupted=oldCorrupted;
+            preserveRunes=oldRunes; preserveGlyphs=oldGlyphs; bypassLevel=oldLevel;allowT7=oldT7;allowCorrupted=oldCorrupted;allowExalted=oldExalted;
             try {Reconcile();} catch(...) {Log("crafting rollback failed");} throw; }
         // an open forge window redraws its rows with or without the T5/T6 upgrade buttons
         if(allowT7.load()!=oldT7 || allowCorrupted.load()!=oldCorrupted) game::Guarded([]{const auto c=Current();Invoke(Method(c.manager,"UpdateCraftingSlotManagerItemInfo",0),c.manager);},nullptr);
+        // the shard panel fills its lists as it opens, so an open one closes; opened again it offers the new affixes
+        if(allowExalted.load()!=oldExalted) game::Guarded([]{
+            void* ui=game::StaticObject(game::FindStaticField("LE.dll","","UIBase","instance"));
+            if(ui&&Value<bool>(Method(ui,"IsCraftingMaterialsPanelOpen",0),ui))Invoke(Method(ui,"closeCraftingMaterialsPanel",0),ui);
+        },nullptr);
         return Settings();
     });
 }
@@ -631,14 +683,23 @@ bool BuildAffixes(void* item,const std::vector<rules::AffixChoice>& choices,bool
     // "Physical Damage"). Loading the item does the same, so such a choice is refused, never saved.
     uint8_t base=Get<uint8_t>(item,itemType);Root catalog(Invoke(Resolve("AffixList","get",0)));
     const auto name=[&](int affix){void* args[]{&affix};void* a=Invoke(Method(catalog.Get(),"GetAffix",1),catalog.Get(),args);return a?Text(Invoke(Method(a,"getAffixDisplayName",0),a)):"affix "+std::to_string(affix);};
-    int primordial=-1;
+    int primordial=-1;bool corrupted=false;
     for(const auto& choice:choices) {
         uint16_t id=static_cast<uint16_t>(choice.id);uint8_t tier=static_cast<uint8_t>(choice.tier-1),affixRoll=rules::RollByte(choice.roll,perfect,static_cast<uint8_t>(random()&0xff));int sealed=0;
+        // A corruption affix (AffixList.SpecialAffixType 6) is the game's sealed type 3 on a corrupted item, one to an item.
+        {int wanted=choice.id;void* lookup[]{&wanted};void* known=Invoke(Method(catalog.Get(),"GetAffix",1),catalog.Get(),lookup);
+            if(known&&Get<int>(known,Offset("AffixList.Affix","specialAffixType"))==6){
+                if(corrupted)throw std::runtime_error("an item can hold one corrupted affix; nothing was applied");
+                if(choice.tier==rules::kPrimordialTier)throw std::runtime_error("a corrupted affix goes up to T7; nothing was applied");
+                corrupted=true;sealed=3;}}
         Root affix(il2cpp::api().object_new(game::FindClass("LE.dll","","ItemAffix")));void* args[]{&id,&tier,&affixRoll,&base,&sealed};Invoke(Method(affix.Get(),".ctor",5),affix.Get(),args);
         if(const int made=Get<uint16_t>(affix.Get(),affixId);made!=choice.id)throw std::runtime_error(name(choice.id)+" cannot be on this item type: the game turns it into "+name(made)+". Nothing was applied.");
-        void* add[]{affix.Get()};Invoke(Method(list,"Add",1),list,add);
+        // The game loads a sealed corruption affix first (setValuesFromSerialisation: index 0, or 1 after a sealed regular one).
+        if(sealed==3){int first=0;void* insert[]{&first,affix.Get()};Invoke(Method(list,"Insert",2),list,insert);}
+        else{void* add[]{affix.Get()};Invoke(Method(list,"Add",1),list,add);}
         if(choice.tier==rules::kPrimordialTier && primordial<0)primordial=choice.id;
     }
+    if(corrupted){uint8_t yes=1;Assign(item,"hasSealedAffixFromCorruption",&yes);Invoke(Method(item,"SetAsCorrupted",0),item);}
     // T8 is the game's primordial tier: the game's own method seals the first T8 affix (tier index 7, sealed type
     // 2) and marks the item primordial, keeping the chosen roll. Further T8 affixes stay regular affixes at tier
     // index 7. Without a T8 the item is not primordial.
@@ -660,12 +721,12 @@ void* CustomItem(void* original,int templateId,const std::string& input,bool per
     bool primordial=false;size_t regular=0;
     if(input!="keep"||recipe>=0) {
         primordial=BuildAffixes(copy.Get(),choices,perfect);
-        regular=choices.size()-(primordial?1:0);
+        regular=choices.size()-(primordial?1:0)-(Get<bool>(copy.Get(),Offset("ItemData","hasSealedAffixFromCorruption"))?1:0);
         list=Get<void*>(copy.Get(),affixList);
     } else if(perfect)for(void* a:Entries(list))if(a)*reinterpret_cast<uint8_t*>(static_cast<char*>(a)+Offset("ItemAffix","affixRoll"))=255;
     // An item with a sealed primordial affix gets its rarity from the game
     // (ItemData.setValuesFromSerialisation): the regular affixes, at most 4.
-    uint16_t unique=templateId<0?0:static_cast<uint16_t>(templateId);uint8_t rarity=primordial?static_cast<uint8_t>(std::min<size_t>(regular,4)):4;
+    uint16_t unique=templateId<0?0:static_cast<uint16_t>(templateId);uint8_t rarity=primordial||Get<bool>(copy.Get(),Offset("ItemData","hasSealedAffixFromCorruption"))?static_cast<uint8_t>(std::min<size_t>(regular,4)):4;
     if(templateId>=0) {
         void* args[]{&unique};void* found=Invoke(Resolve("UniqueList","getUnique",1),nullptr,args);if(!found)throw std::runtime_error("Unique/Set template is unavailable in this game version");Root entry(found);
         if(Get<uint16_t>(entry.Get(),Offset("UniqueList.Entry","uniqueID"))!=unique||Get<bool>(entry.Get(),Offset("UniqueList.Entry","hideFromPlayers")))throw std::runtime_error("select a public Unique/Set template");
@@ -778,7 +839,7 @@ void SetAffixes(void* item,const std::string& affixes,bool perfect) {
     if(choices.empty())throw std::runtime_error("choose affixes");
     const bool primordial=BuildAffixes(item,choices,perfect);
     // the item's rarity from its regular affixes, at most 4 (as the game sets it for a primordial item)
-    uint8_t rarity=static_cast<uint8_t>(std::min<size_t>(choices.size()-(primordial?1:0),4));
+    uint8_t rarity=static_cast<uint8_t>(std::min<size_t>(choices.size()-(primordial?1:0)-(Get<bool>(item,Offset("ItemData","hasSealedAffixFromCorruption"))?1:0),4));
     Assign(item,"rarity",&rarity);
 }
 std::string Tiers(const std::string& id,const std::string& input) {
@@ -786,6 +847,91 @@ std::string Tiers(const std::string& id,const std::string& input) {
         if(!prepared.main)throw std::runtime_error("select a forge item first");
         return TierItem(prepared.main,input);
     });
+}
+namespace {
+// A Unique the game can give Legendary Potential: not a Set, Legendary, idol or Weaver's Will item
+// (isLegendaryPotentialItem), and not one of those whose legendary level is 200 (Cocooned items and a few others).
+bool CanHaveLegendaryPotential(void* item) {
+    if(!item||Get<uint8_t>(item,itemRarity)!=7||!Value<bool>(Method(item,"isLegendaryPotentialItem",0),item))return false;
+    uint16_t unique=Get<uint16_t>(item,Offset("ItemData","uniqueID"));void* args[]{&unique};
+    Root entry(Invoke(Resolve("UniqueList","getUnique",1),nullptr,args));
+    if(!entry.Get())return false;
+    auto sub=static_cast<uint8_t>(Get<uint16_t>(item,itemSubtype));void* levelArgs[]{&sub};
+    return Value<uint8_t>(Method(entry.Get(),"getEffectiveLevelForLegendaryPotential",1),entry.Get(),levelArgs)<200;
+}
+struct LegendaryEntry { void* item; std::string id; };
+std::vector<LegendaryEntry> InventoryLegendary(const Context& c) {
+    struct XY { int x,y; };
+    std::vector<LegendaryEntry> out;
+    void* inventory=Get<void*>(c.manager,Offset("ItemContainersManager","inventory"));
+    if(!inventory)throw std::runtime_error("local inventory not ready");
+    for(void* e:Entries(Invoke(Method(inventory,"GetContent",0),inventory))){
+        void* item=e?Get<void*>(e,entryData):nullptr;
+        if(!CanHaveLegendaryPotential(item))continue;
+        const auto at=Get<XY>(e,Offset("ItemContainerEntry","<Position>k__BackingField"));
+        out.push_back({item,std::to_string(at.x)+"."+std::to_string(at.y)+"."+std::to_string(Get<uint16_t>(item,Offset("ItemData","uniqueID")))});
+    }
+    return out;
+}
+std::string LegendaryList(const Context& c) {
+    Root itemList(Invoke(Resolve("ItemList","get",0)));
+    std::ostringstream out;out<<"{\"id\":"<<Json(c.id)<<",\"name\":"<<Json(c.name)<<"},\"items\":[";bool first=true;
+    for(const auto& l:InventoryLegendary(c)){
+        if(!first)out<<',';first=false;
+        uint16_t unique=Get<uint16_t>(l.item,Offset("ItemData","uniqueID"));bool display=true;void* nameArgs[]{&unique,&display};
+        int type=Get<uint8_t>(l.item,itemType);void* baseArgs[]{&type};
+        out<<"{\"id\":"<<Json(l.id)<<",\"name\":"<<Json(Text(Invoke(Resolve("UniqueList","getUniqueName",2),nullptr,nameArgs)))
+           <<",\"baseType\":"<<Json(Text(Invoke(Method(itemList.Get(),"GetBaseTypeDisplayName",1),itemList.Get(),baseArgs)))
+           <<",\"lp\":"<<int(Get<uint8_t>(l.item,Offset("ItemData","legendaryPotential")))<<'}';
+    }
+    return out.str()+"]";
+}
+}
+std::string LegendaryItems() {
+    return Run([] {
+        if(!game::IsOfflinePlay())throw std::runtime_error("offline characters only");
+        return "{\"ok\":true,\"player\":"+LegendaryList(Current())+"}";
+    });
+}
+std::string SetLegendary(const std::string& id,const std::string& changes) {
+    std::map<std::string,int> wanted;
+    size_t start=0;
+    while(start<=changes.size()){
+        const size_t end=(std::min)(changes.find(',',start),changes.size());
+        const std::string token=changes.substr(start,end-start);start=end+1;
+        const size_t colon=token.rfind(':');
+        if(colon==std::string::npos||colon==0||colon+2!=token.size()||token[colon+1]<'0'||token[colon+1]>'4'||!wanted.emplace(token.substr(0,colon),token[colon+1]-'0').second)
+            return "{\"ok\":false,\"error\":\"use setlp save-id x.y.uniqueID:0-4,...\"}";
+    }
+    if(wanted.empty()||wanted.size()>64)return "{\"ok\":false,\"error\":\"use setlp save-id x.y.uniqueID:0-4,...\"}";
+    // Every item is found first, so a moved item changes nothing.
+    const auto find=[&](const Context& c){
+        std::vector<std::pair<void*,int>> found;
+        for(const auto& l:InventoryLegendary(c)){const auto it=wanted.find(l.id);if(it!=wanted.end())found.push_back({l.item,it->second});}
+        if(found.size()!=wanted.size())throw std::runtime_error("An item has moved or left the inventory. Refresh the items; nothing was changed.");
+        return found;
+    };
+    progression::SnapshotData snapshot;
+    const auto captured=Run([&]{
+        if(!game::IsOfflinePlay())throw std::runtime_error("offline characters only");
+        const auto c=Current();if(c.id!=id)throw std::runtime_error("character changed; refresh the items");
+        (void)find(c);SyncItems(c);snapshot=progression::CaptureSnapshotCurrent(id,"inventory-legendary-potential");
+        return std::string("{\"ok\":true}");
+    });
+    if(captured!="{\"ok\":true}")return captured;
+    std::string backup;
+    try{backup=progression::WriteCapturedSnapshot(snapshot);}catch(const std::exception& e){return "{\"ok\":false,\"error\":"+Json(e.what())+"}";}
+    auto result=Run([&]{
+        const auto c=Current();if(c.id!=id)throw std::runtime_error("character changed; refresh the items");
+        const auto found=find(c);
+        for(const auto& [item,lp]:found){
+            *reinterpret_cast<uint8_t*>(static_cast<char*>(item)+Offset("ItemData","legendaryPotential"))=static_cast<uint8_t>(lp);
+            Invoke(rebuild,item);Invoke(Method(item,"setValuesFromSerialisation",0),item);
+        }
+        SyncItems(c);progression::SaveCurrent(id);
+        return "{\"ok\":true,\"changed\":"+std::to_string(found.size())+",\"player\":"+LegendaryList(c)+"}";
+    });
+    result.pop_back();return result+",\"backup\":"+Json(backup)+"}";
 }
 namespace {
 struct MaterialInfo { int type, id, count; std::string name; };
@@ -864,6 +1010,93 @@ const il2cpp::Method* AddMaterialMethod(void* materials) {
     }
     throw std::runtime_error("native material storage method unavailable");
 }
+}
+// Automatic shatter: equipment on the ground that the active loot filter hides goes through the game's own CraftingManager.Shatter
+// (the shards of a Rune of Shattering, no rune used), then leaves the ground as a picked up item does (poolGroundItemVisuals,
+// removeItemFromList). Shatter ends by looking at a forge slot's Unique, so it waits while one lies there.
+namespace {
+constexpr int kShatterPerTick=12;
+constexpr uint64_t kShatterTickMs=400, kShatterSaveMs=15000, kShatterSeenMs=5000;
+uint64_t shatterTick=0, shatterSaved=0, shatterSeenAt=0;
+bool shatterDirty=false;
+std::set<uint32_t> shatterSeen;
+bool ShatterWanted(void* data) {
+    int type=Get<uint8_t>(data,Offset("ItemData","itemType")); void* a[]{&type};
+    if(!Value<bool>(game::FindMethod("LE.dll","","ItemList","isEquipment",1),nullptr,a)) return false;
+    if(Value<bool>(Method(data,"isIdol",0),data) || Value<bool>(Method(data,"isUniqueSetOrLegendary",0),data)) return false;
+    return !Entries(Get<void*>(data,Offset("ItemData","affixes"))).empty();
+}
+void ShatterStep() {
+    const auto c=Current();
+    const uint64_t now=GetTickCount64();
+    void* ground=game::StaticObject(game::FindStaticField("LE.dll","","GroundItemManager","instance"));
+    void* list=ground?Get<void*>(ground,Offset("GroundItemManager","offlineItems")):nullptr;
+    void* filters=game::StaticObject(game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","Instance"));
+    void* filter=filters?Get<void*>(filters,Offset("ItemFilterManager","<Filter>k__BackingField","ItemFiltering")):nullptr;
+    if(autoShatter.load() && list && filter) {
+        bool forgeFree=true;
+        for(void* slot:{c.main,c.modifier,c.support}) if(slot && Value<bool>(Method(slot,"isUniqueSetOrLegendary",0),slot)) forgeFree=false;
+        if(now-shatterSeenAt>kShatterSeenMs) { shatterSeen.clear(); shatterSeenAt=now; }
+        Root filterPin(filter);
+        int done=0;
+        for(void* record:Entries(Get<void*>(list,Offset("GroundItemManager.GroundItemList","items")))) {
+            if(!forgeFree || done>=kShatterPerTick) break;
+            void* data=record?Get<void*>(record,Offset("GroundItemManager.GroundItem","itemData")):nullptr;
+            if(!data) continue;
+            uint32_t id=Get<uint32_t>(record,Offset("GroundItemManager.GroundItem","id"));
+            if(!shatterSeen.insert(id).second) continue;
+            Root recordPin(record), pin(data);
+            if(!ShatterWanted(data)) continue;
+            void* unpackedItem=Invoke(Method(data,"getAsUnpacked",0),data);
+            if(!unpackedItem) continue;
+            Root unpacked(unpackedItem);
+            alignas(8) unsigned char color[8]{},emphasize[8]{}; int rule=-1,sound=0,icon=0,beamSize=0; bool beam=false; float beamColor[4]{};
+            void* match[]{unpacked.Get(),color,emphasize,&rule,&sound,&icon,&beam,&beamSize,beamColor};
+            if(Value<int>(Method(filter,"Match",9),filter,match)!=1) continue;  // 1: the rule outcome Hide
+            shatterQuietUntil=now+1000;
+            int result=-1; void* shatter[]{data,&result};
+            Invoke(Method(c.craft,"Shatter",2),c.craft,shatter);
+            void* pool[]{c.actor,&id}; Invoke(Method(ground,"poolGroundItemVisuals",2),ground,pool);
+            void* remove[]{list,record}; Invoke(Method(ground,"removeItemFromList",2),ground,remove);
+            ++done; ++autoShattered; shatterDirty=true;
+        }
+    }
+    if(shatterDirty && now-shatterSaved>kShatterSaveMs) { shatterDirty=false; shatterSaved=now; progression::SaveCurrent(c.id); }
+}
+}
+void AutoShatterFrame() {
+    if(!autoShatter.load() && !shatterDirty) return;
+    const uint64_t now=GetTickCount64();
+    if(now-shatterTick<kShatterTickMs) return;
+    shatterTick=now;
+    std::string why;
+    static std::string lastWhy;
+    if(!game::Guarded([]{ ShatterStep(); },&why) && why!=lastWhy) { lastWhy=why; Log("auto shatter: %s",why.c_str()); }
+}
+// The notices on the left that the shatter's shards raise. Only those: a shard picked up by hand keeps its notice.
+namespace {
+using ShardNoticeFn=void(*)(void*,int,int,const il2cpp::Method*);
+ShardNoticeFn originalShardNotice=nullptr;
+void ShardNoticeDetour(void* self,int id,int quantity,const il2cpp::Method* method) {
+    if(shatterQuiet.load() && GetTickCount64()<shatterQuietUntil.load()) { ++shatterNoticesHidden; return; }
+    originalShardNotice(self,id,quantity,method);
+}
+}
+std::string SetShatterQuiet(bool on) {
+    return Run([=]() -> std::string {
+        if(on && !game::IsOfflinePlay()) throw std::runtime_error(game::GateText());
+        const auto m=game::FindMethod("LE.dll","","CraftingMaterialsNotificationsBuffers","AddVerboseNotificationToBuffer",2);
+        std::string why;
+        if(on && !hook::IsInstalled(m.code) && !hook::Install(m.code,reinterpret_cast<void*>(&ShardNoticeDetour),reinterpret_cast<void**>(&originalShardNotice),&why)) throw std::runtime_error(why);
+        if(!on && hook::IsInstalled(m.code) && !hook::Remove(m.code,&why)) throw std::runtime_error(why);
+        shatterQuiet=on;
+        return std::string("{\"ok\":true,\"autoShatterQuiet\":")+Boolean(on)+"}";
+    });
+}
+std::string SetAutoShatter(bool on) {
+    if(on && !game::IsOfflinePlay()) return "{\"ok\":false,\"error\":\"offline only\"}";
+    autoShatter=on;
+    return std::string("{\"ok\":true,\"autoShatter\":")+Boolean(on)+"}";
 }
 std::string MaterialsRead() {
     return Run([]{const auto c=Current();(void)Owner(c);return MaterialsJson(c,MaterialCatalog(c));});
@@ -1042,6 +1275,55 @@ std::string Test(const std::string& id,const std::string& action) {
         if(action=="corrupt" || action=="uncorrupt"){
             // the forge item's ItemData.corrupted flag, as a corruption leaves it
             if(!c.main)throw std::runtime_error("test forge item required");*reinterpret_cast<bool*>(static_cast<char*>(c.main)+Offset("ItemData","corrupted"))=action=="corrupt";Invoke(rebuild,c.main);return "{\"ok\":true,\"preview\":"+Preview()+"}";
+        }
+        if(action=="exalted"){
+            // the forge item as the owner's ring was: Exalted with one T6 affix left, the other places free
+            if(!c.main)throw std::runtime_error("test forge item required");
+            void* list=Get<void*>(c.main,affixList);int count=static_cast<int>(Entries(list).size());
+            for(int i=count-1;i>=1;--i){void* a[]{&i};Invoke(Method(list,"RemoveAt",1),list,a);}
+            for(void* a:Entries(list))if(a)*reinterpret_cast<uint8_t*>(static_cast<char*>(a)+affixTier)=5;
+            *reinterpret_cast<uint8_t*>(static_cast<char*>(c.main)+itemRarity)=4;
+            int fp=63;void* fpArgs[]{&fp};Invoke(setFP,c.main,fpArgs);Invoke(rebuild,c.main);
+            bool back=true;void* emptyArgs[]{&back};Invoke(Method(c.manager,"EmptyCraftingModifierSlot",1),c.manager,emptyArgs);
+            Invoke(Method(c.manager,"UpdateCraftingSlotManagerItemInfo",0),c.manager);
+            return "{\"ok\":true,\"rarity\":"+std::to_string(int(Get<uint8_t>(c.main,itemRarity)))+",\"preview\":"+Preview()+"}";
+        }
+        if(action=="rarity"){
+            return "{\"ok\":true,\"rarity\":"+std::to_string(c.main?int(Get<uint8_t>(c.main,itemRarity)):-1)+",\"preview\":"+Preview()+"}";
+        }
+        if(action.rfind("addshard-",0)==0){
+            int shardId=std::stoi(action.substr(9)),amount=20;bool notify=false;void* a[]{&shardId,&amount,&notify};Invoke(Method(c.storage,"AddShard",3),c.storage,a);
+            return std::string("{\"ok\":true}");
+        }
+        if(action=="shardpanel"){
+            // the forge and its shard panel, as the forge's modifier slot opens them
+            void* ui=game::StaticObject(game::FindStaticField("LE.dll","","UIBase","instance"));
+            if(!ui)throw std::runtime_error("game interface unavailable");
+            bool no=false;void* openArgs[]{&no};Invoke(Method(ui,"openCraftingPanel",1),ui,openArgs);
+            int context=1;bool tutorial=false;void* materialArgs[]{&context,&tutorial};Invoke(Method(ui,"openCraftingMaterialsPanel",2),ui,materialArgs);
+            return std::string("{\"ok\":true}");
+        }
+        if(action=="shardclose"){
+            void* ui=game::StaticObject(game::FindStaticField("LE.dll","","UIBase","instance"));
+            if(!ui)throw std::runtime_error("game interface unavailable");
+            Invoke(Method(ui,"closeCraftingMaterialsPanel",0),ui);
+            return std::string("{\"ok\":true}");
+        }
+        if(action=="shards"){
+            // what the shard panel offers for the forge's item, by the states it gave each shard
+            const auto find=game::FindMethod("UnityEngine.CoreModule.dll","UnityEngine","Object","FindObjectsOfType",2);
+            Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll","","CraftingMaterialsPanelUI"))));
+            bool inactive=true;void* findArgs[]{type.Get(),&inactive};Root found(Invoke(find,nullptr,findArgs));
+            if(!found.Get()||!Get<uintptr_t>(found.Get(),0x18))throw std::runtime_error("no shard panel");
+            void* panel=Get<void*>(found.Get(),0x20);
+            std::map<int,std::vector<std::pair<int,int>>> states;
+            for(void* e:Entries(Get<void*>(panel,Offset("CraftingMaterialsPanelUI","_allShardAffixes"))))if(e){
+                void* affix=Get<void*>(e,Offset("ShardAffixListElementData","<Affix>k__BackingField"));
+                states[Get<int>(e,Offset("ShardAffixListElementData","<AffixState>k__BackingField"))].push_back({affix?Get<int>(affix,Offset("AffixList.Affix","affixId")):-1,affix?int(Get<uint8_t>(affix,0x5C)):-1});
+            }
+            std::ostringstream out;out<<"{\"ok\":true,\"rarity\":"<<(c.main?int(Get<uint8_t>(c.main,itemRarity)):-1)<<",\"states\":{";bool first=true;
+            for(const auto& [state,list]:states){if(!first)out<<',';first=false;out<<'"'<<state<<"\":[";bool f=true;for(const auto& [id,kind]:list){if(!f)out<<',';f=false;out<<'['<<id<<','<<kind<<']';}out<<']';}
+            out<<"}}";return out.str();
         }
         if(action=="zerofp"){
             if(!c.main)throw std::runtime_error("test forge item required");int fp=0;void* args[]{&fp};Invoke(setFP,c.main,args);Invoke(rebuild,c.main);return "{\"ok\":true,\"preview\":"+Preview()+"}";

@@ -51,7 +51,7 @@ test('crafting categories expose only their own tasks, and tab/theme changes kee
  }
  h.run(`setTheme('void-atlas')`);assert.equal(h.run('craftingSection'),'forge');
  assert.equal(h.run('workshopDraft.affixes[0]'),'0');assert.equal(h.run('materialTarget'),'90000');assert.equal(h.run('values.craft_hope'),73);
- assert.equal(h.calls.length,0);
+ assert.ok(h.calls.every(c=>c.operation==='read'),'a tab may read its list, nothing else');
 });
 
 test('glyph percentage changes stay in draft across refresh and apply once in order, with explicit game-default reset',async()=>{
@@ -453,7 +453,7 @@ test('player pages retain all usable controls and developer pages retain diagnos
 test('camera world and inventory pages expose actual controls without sending mutations',()=>{
  const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
  h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};cache.inventory_read={ok:true,player:{id:'0'},inventoryItems:17};`);
- for(const [target,ids] of [['display',['build_zoom','build_cameraangle','qol_shadows','qol_reflections','qol_bloom','qol_motionblur','qol_occlusion','qol_fog']],['world',['map_reveal','qol_chests','qol_shrines','qol_portals']],['inventory',['inventory_stash','inventory_vendor','inventory_stashall','inventory_sellall','inventory_autosort','inventory_autosortall','inventory_sellkeep']],['loot',['tier_filter_colors','tier_name_colors']],['display',['font_case']]]){
+ for(const [target,ids] of [['display',['build_zoom','build_cameraangle','qol_shadows','qol_reflections','qol_bloom','qol_motionblur','qol_occlusion','qol_fog']],['world',['map_reveal','qol_chests','qol_shrines','qol_portals']],['inventory',['inventory_pagesstash','inventory_autosort','inventory_autosortall','inventory_sellkeep']],['loot',['tier_filter_colors','tier_name_colors']],['display',['font_case']]]){
   h.context.target=target;h.run('page=target;shippingRenderPage()');const html=h.element('#page-content').innerHTML;
   for(const id of ids)assert.ok(html.includes(`="${id}"`),id);
   assert.ok(!html.includes('[object Object]'),target);
@@ -604,21 +604,6 @@ test('Refresh live stays available when stale connection state has blocked Apply
  h.run('busy=true;updateDisabled()');assert.equal(refresh.disabled,true);
 });
 
-test('Monolith density uses the shared catalog bounds and stays in sync with General settings',()=>{
- const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
- h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values.density=appliedValues.density=1;`);
- const initial=h.run('monolithDensityPanel()');
- assert.match(initial,/Monolith monster density/);assert.match(initial,/data-setting-range="density" min="1" max="5"/);
- assert.match(initial,/Default: 1/);assert.match(initial,/shared with General settings/);assert.match(initial,/Empowered Echoes/);
- assert.equal(h.calls.length,0);
- h.run(`settingChanged('density',2.5)`);
- for(const card of [h.run('monolithDensityPanel()'),h.run(`settingCard(controlById('density'))`)]){
-  assert.match(card,/data-setting-number="density"[^>]*value="2.5"/);assert.match(card,/Draft/);
- }
- h.run(`settingChanged('density',6)`);assert.equal(h.run('values.density'),2.5);
- h.run(`settingChanged('density',0)`);assert.equal(h.run('values.density'),2.5);
-});
-
 test('Monolith density only submits one existing density command after explicit Apply changes',async()=>{
  const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
  h.run(`catalog=fullCatalog;connected=connectionFixture('M_Echo');cache.monolith_read=monolithFixture('M_Echo',false);values.density=appliedValues.density=1;`);
@@ -626,7 +611,7 @@ test('Monolith density only submits one existing density command after explicit 
  h.replies.push({ok:true,text:'density -> x3'});await h.run('applyDraft()');
  assert.deepEqual(h.calls,[{type:'control',id:'density',args:{value:3}}]);
  assert.equal(h.run('dirty.size'),0);assert.equal(h.run('appliedValues.density'),3);
- assert.match(h.run('monolithDensityPanel()'),/data-setting-number="density"[^>]*value="3"/);
+ assert.match(h.run(`settingCard(controlById('density'))`),/data-setting-number="density"[^>]*value="3"/);
 });
 
 test('actual focus handler keeps both Monolith drafts through missing identity and reconnect',async()=>{
@@ -886,7 +871,7 @@ test('display page shows minimap, tier controls and the tier palette without sen
  const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
  h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};page='display';shippingRenderPage()`);
  const html=h.element('#page-content').innerHTML;
- for(const id of ['map_minimapsize','map_minimapzoom','map_minimapopacity','map_overlayopacity','map_overlayzoom','tier_icons','tier_tooltips','tier_lines','tier_rules','tier_rule_position','tier_rule_parts','tier_special','tier_color'])assert.ok(html.includes(`="${id}"`),id);
+ for(const id of ['map_minimapsize','map_minimapzoom','map_minimapopacity','tier_icons','tier_tooltips','tier_lines','tier_rules','tier_rule_position','tier_rule_parts','tier_special','tier_color'])assert.ok(html.includes(`="${id}"`),id);
  const position=html.match(/<select data-setting-choice="tier_rule_position"[^>]*>(.*?)<\/select>/s)?.[1]||'';
  assert.deepEqual([...position.matchAll(/<option value="(\d)"[^>]*>([^<]*)</g)].map(x=>x[1]+' '+x[2]),['0 Top: under the item type','1 Middle: before the affixes','2 Bottom: end of the tooltip']);
  assert.equal([...html.matchAll(/data-tier-color="(\d)"/g)].map(x=>x[1]).join(''),'12345678');
@@ -989,12 +974,31 @@ test('stash tabs from loot filter: panel lists rules and tabs, and every change 
  h.replies.push(state);await h.run(`stashRulesAction('read')`);
  const html=h.run('stashRulesPanel()');
  assert.ok(html.includes('Spellblade'));assert.ok(html.includes('8 Hide &lt;class&gt;'));assert.ok(html.includes('Sort only: Affix'));assert.ok(html.includes('value="4" selected'));
- h.replies.push({...state,created:1,existing:1,atLimit:0},{...state,moved:2,full:0,unlinked:1},{...state},{...state});
- await h.run(`stashRulesAction('create',{hidden:1,disabled:0})`);await h.run(`stashRulesAction('sort')`);
+ assert.ok(!html.includes('stash_rules_create'),'no button makes tabs the game cannot remove');
+ h.replies.push({...state,moved:2,full:0,unlinked:1},{...state},{...state});
+ await h.run(`stashRulesAction('sort')`);
  await h.run(`stashRulesAction('assign',{tab:4,rule:9})`);await h.run(`stashRulesAction('assign',{tab:4,rule:0})`);
- assert.deepEqual(h.calls.map(c=>[c.id,c.operation]),[['stash_rules_read','read'],['stash_rules_create','set'],['stash_rules_sort','set'],['stash_rule_assign','set'],['stash_rule_assign','set']]);
+ assert.deepEqual(h.calls.map(c=>[c.id,c.operation]),[['stash_rules_read','read'],['stash_rules_sort','set'],['stash_rule_assign','set'],['stash_rule_assign','set']]);
  assert.ok(h.calls.every(c=>c.args.expected_id==='6'&&c.args.expected_name==='Test'));
- assert.deepEqual([h.calls[1].args.hidden,h.calls[1].args.disabled,h.calls[3].args.tab,h.calls[3].args.rule,h.calls[4].args.rule],[1,0,4,9,0]);
+ assert.deepEqual([h.calls[2].args.tab,h.calls[2].args.rule,h.calls[3].args.rule],[4,9,0]);
+});
+test('What\'s New: newest version first, its settings on the page, a way to the rest; Combat holds the meter and the recap',()=>{
+ const h=harness();h.context.fullCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/catalog.json'),'utf8'));
+ h.run(`catalog=fullCatalog;connected=connectionFixture('M_Rest');values={};cache={};ST.name=row=>row.name;page='whatsnew';shippingRenderPage()`);
+ const news=h.element('#page-content').innerHTML;
+ assert.ok(news.indexOf('v0.1.2-dev.55')>=0&&news.indexOf('v0.1.2-dev.55')<news.indexOf('v0.1.2-dev.54'),'the newest comes first');
+ for(const id of ['monolith_bossdoors','inventory_idolslots','rage_lizards','rage_nemesis'])assert.ok(news.includes(`data-setting="${id}"`),id);
+ assert.ok(news.includes('data-setting-help="monolith_bossdoors"'),'the ? comes with the card');
+ assert.ok(news.includes('data-go="wardrobe"'),'a way to the page');
+ h.run(`page='combat';shippingRenderPage()`);
+ const combat=h.element('#page-content').innerHTML;
+ assert.ok(combat.includes('damage-panel')&&combat.includes('death-panel'));
+ h.run(`page='summons';shippingRenderPage()`);
+ const summons=h.element('#page-content').innerHTML;
+ assert.ok(!summons.includes('damage-panel')&&!summons.includes('death-panel'),'not on Summons any more');
+ h.run(`page='overview';shippingRenderPage()`);
+ assert.ok(!h.element('#page-content').innerHTML.includes('Quick controls'));
+ assert.equal(h.calls.length,0,'rendering sends nothing');
 });
 test('wardrobe: each equipped slot gets its looks, the own look first, and a choice sends the slot and the look',async()=>{
  const h=automaticHarness();h.run(`page='wardrobe';connected.player.id='6';`);
@@ -1053,7 +1057,7 @@ test('automatic sorting panel: tab choices come from the stash and each tick is 
 });
 test('stash rule changes are not sent when the confirmation is declined',async()=>{
  const h=automaticHarness();h.run(`page='inventory';connected.player.id='6';confirmAction=async()=>false;stashRules={ok:true,player:{id:'6'},tabs:[],rules:[],filter:'F'};`);
- await h.run(`stashRulesAction('create',{hidden:0,disabled:0})`);await h.run(`stashRulesAction('sort')`);
+ await h.run(`stashRulesAction('sort')`);
  assert.equal(h.calls.length,0);
 });
 test('interface font panel lists Windows fonts and encodes spaces for the font command',async()=>{

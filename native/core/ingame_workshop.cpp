@@ -1417,6 +1417,122 @@ void MakeTiers(Section& s) {
     };
 }
 
+// ------------------------------------------------------------------- Change Legendary Potential (setlp)
+// The inventory's Uniques that can have Legendary Potential, an LP select for each. Its own panel below Change affix tiers.
+std::map<std::string, int>& LpDraft() {
+    static std::map<std::string, int> m;
+    return m;
+}
+struct LpRow { std::string id, name; int lp = 0; };
+std::vector<LpRow> LpRows() {
+    std::vector<LpRow> rows;
+    const JValue* d = Cached("lpread");
+    if (!d) return rows;
+    for (const auto& i : (*d)["items"].items) {
+        LpRow r;
+        r.id = i["id"].Str();
+        r.name = Clean(i["name"].Str(r.id));
+        const std::string base = Clean(i["baseType"].Str());
+        if (!base.empty()) r.name += " \xC2\xB7 " + base;
+        r.lp = static_cast<int>(i["lp"].Num(0));
+        rows.push_back(std::move(r));
+    }
+    return rows;
+}
+std::string LpSpec() {
+    std::string out;
+    for (const auto& r : LpRows()) {
+        const auto it = LpDraft().find(r.id);
+        if (it != LpDraft().end() && it->second != r.lp) out += (out.empty() ? "" : ",") + r.id + ":" + std::to_string(it->second);
+    }
+    return out;
+}
+std::string LpShown() {
+    const JValue* d = Cached("lpread");
+    std::string s = d ? IdOf(d->Path("player.id")) : "";
+    for (const auto& r : LpRows()) s += "|" + r.id + ":" + std::to_string(r.lp);
+    return s;
+}
+std::string LpReason() {
+    std::string reason;
+    if (!Eligible(&reason)) return reason;
+    if (!Cached("lpread")) return Tr("Load your items.");
+    if (LpRows().empty()) return Tr("No Unique that can have Legendary Potential in your inventory.");
+    if (LpSpec().empty()) return Tr("Choose a new Legendary Potential for an item.");
+    return "";
+}
+void ApplyLp() {
+    const std::string reason = LpReason();
+    if (!reason.empty()) { Toast(reason, true); return; }
+    const JValue* d = Cached("lpread");
+    ActionRun run;
+    run.command = "setlp {save_id} " + LpSpec();
+    run.expectId = d ? IdOf(d->Path("player.id")) : "";
+    const std::string name = d ? (*d)["player"]["name"].Str() : "";
+    run.confirmTitle = Tr("Change Legendary Potential?");
+    run.confirmMessage = Fmt("Character: {0}", {name.empty() ? Tr("Loaded offline character") : name}) + "\n" +
+                         Tr("Changes only the Legendary Potential of these Uniques in your inventory. A recovery backup is created.");
+    run.success = [](const JValue&) { return Tr("Legendary Potential changed."); };
+    run.reread = {"lpread"};
+    run.done = [](const JValue&) { LpDraft().clear(); };
+    RunAction(run);
+}
+void MakeLp(Section& s) {
+    s.reads.insert("lpread");
+    s.build = [](Section& sec, const Ctx& c) {
+        sec.state["shown"] = LpShown();
+        const int sid = sec.id;
+        Panel p = OpenPanel(c.parent, kPadX, 0, kPanelW);
+        const Ctx in = c.At(p.rt.Get(), kPadX, 0);
+        Style h2{Face::Serif, 27, C("ink")};
+        const float lh = LineHeight(h2);
+        Button load = AddButton(in, kPanelPad + kPanelInner, kPanelPad, Tr("Refresh items"), Look::Normal, [] { Read("lpread"); }, true, "item_lp_read");
+        const float row = std::max(lh, load.h);
+        PlaceButton(in, load, kPanelPad + kPanelInner - load.w, kPanelPad + (row - load.h) / 2);
+        TextBox(in.parent, "Title", kPanelPad, kPanelPad + (row - lh) / 2, kPanelInner - load.w - 15, lh, h2, Tr("Change Legendary Potential"));
+        float y = kPanelPad + row + 16;
+        y += Muted(in.parent, kPanelPad, y, kPanelInner,
+                   Tr("Change the Legendary Potential of Uniques in your inventory, from 0 to 4, without making a new item. Rolls and the rest of "
+                      "the item stay. Take off a worn item first. A recovery backup is created.")) + 16;
+        const auto rows = LpRows();
+        for (const auto& r : rows) {
+            const float rowH = 27.6f + 12 + 2, cy = y + 1 + 6;
+            Fill(in.parent, "Item row", kPanelPad, y, kPanelInner, rowH, Hex("#0a121080"), 3);
+            Outline(in.parent, "Item row border", kPanelPad, y, kPanelInner, rowH, C("line"), 3);
+            TextBox(in.parent, "Item name", kPanelPad + 9, cy, kPanelInner - 150, 27.6f, Style{Face::Body, 12, C("ink"), 0, 0, kLeft}, r.name);
+            std::vector<std::string> options;
+            for (int lp = 0; lp <= 4; ++lp) options.push_back(std::to_string(lp));
+            const auto it = LpDraft().find(r.id);
+            const int chosen = it != LpDraft().end() ? it->second : r.lp;
+            const float selW = 64, sx = kPanelPad + kPanelInner - 9 - selW, sy = cy + (27.6f - 26) / 2;
+            const std::string label = "LP";
+            const float labelW = std::ceil(TextAdvance(Face::Body, 11, label)) + 4;
+            TextBox(in.parent, "LP", sx - 6 - labelW, cy, labelW, 27.6f, Style{Face::Body, 11, C("muted"), 0, 0, kLeft}, label);
+            const std::string id = r.id;
+            SelectBox(in, sx, sy, selW, 26, 11, std::to_string(chosen), "lp-item#" + id, [in, sx, sy, selW, options, chosen, id, sid] {
+                OpenBelow(in, sx, sy, selW, 26, options, chosen, [id, sid](int i) {
+                    LpDraft()[id] = i;
+                    Rebuild(sid);
+                });
+            });
+            y += rowH + 8;
+        }
+        y += 10;
+        const std::string reason = LpReason();
+        if (!reason.empty()) y += StepText(in, y, reason) + 12;
+        Button b = AddButton(in, kPanelPad + kPanelInner, y, Tr("Apply Legendary Potential"), Look::Primary, [] { ApplyLp(); }, true, "item_lp");
+        if (!reason.empty()) SetEnabled(in, b, false);
+        const float h = y + b.h + kPanelPad;
+        ClosePanel(p, kPanelW, h);
+        return h;
+    };
+    s.onData = [](Section& sec, const std::string&) {
+        if (sec.state["shown"] == LpShown()) return;
+        LpDraft().clear();
+        Rebuild(sec.id);
+    };
+}
+
 // ------------------------------------------------------------------------------- Spawn Items
 struct SpawnEntry { std::string id, name, meta, lower, kind; bool weaver = false, lp = true; int maxAffixes = 4, group = 0; };
 struct SpawnState {
@@ -1978,6 +2094,15 @@ bool SpawnPick(const std::string& id) {
 }
 #endif
 
+// A tab that needs its list reads it when it is shown; the button stays for a refresh. A refusal (the character
+// is not ready) is tried again a minute later, not every second.
+void CraftTabAutoLoad(const std::string& tab) {
+    static uint64_t nextCustom = 0, nextSpawn = 0;
+    if (!Eligible()) return;
+    const uint64_t now = GetTickCount64();
+    if (tab == "custom" && !Loaded() && !W().loading && now >= nextCustom) { nextCustom = now + 60000; LoadCatalog(); }
+    if (tab == "spawn" && !SpawnLoaded() && now >= nextSpawn) { nextSpawn = now + 60000; Read("spawnlist"); }
+}
 void RegisterWorkshopSections() {
     RegisterSection("ws_head", MakeHead);
     RegisterSection("ws_item", MakeItem);
@@ -1995,6 +2120,7 @@ void RegisterWorkshopSections() {
     RegisterSection("spawn_affix_list", MakeSpawnAffixList);
     RegisterSection("spawn_options", MakeSpawnOptions);
     RegisterSection("ws_tiers", MakeTiers);
+    RegisterSection("ws_lp", MakeLp);
 }
 std::string WorkshopState() {
     const State& w = W();

@@ -218,6 +218,8 @@ class BridgeTests(unittest.TestCase):
         self.live['spawnitem 42 u5 0 0 1 1'] = {'ok':True,'name':"Isadora's Revenge",'spawned':1,'items':[]}
         self.live['spawncustom 42 b0.13 1:8:100 1 1'] = {'ok':True,'name':'Burial Mask','spawned':1,'items':[]}
         self.live['crafttiers 42 1:8'] = {'ok':True,'backup':'test-only-snapshot','preview':{'hasItem':True}}
+        self.live['lpread'] = {'ok':True,'player':dict(self.player),'items':[{'id':'0.0.5','name':"Isadora's Revenge",'baseType':'Ring','lp':1}]}
+        self.live['setlp 42 0.0.5:4'] = {'ok':True,'changed':1,'backup':'test-only-snapshot','player':dict(self.player),'items':[]}
         self.live['setlevel 42 2'] = {'ok':True,'backup':'test-only-snapshot','levels':1}
         for t in self.live['monolithread']['timelines']:
             for d in t['difficulties']:
@@ -261,9 +263,9 @@ class BridgeTests(unittest.TestCase):
             return 'statraw: EpochPact added=0 increased=0.5 more=0 attached=1'
         if command.split()[0] in {'questscomplete', 'waypointsunlock', 'monolithunlock', 'monolithselect', 'corruption', 'stability', 'cofjoin', 'cofrank', 'coffavor', 'cofreputation', 'coflenses', 'cofprophecy', 'cofcharges'}:
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
-        if command.startswith(('cof', 'stabilitymult', 'loot', 'craft', 'map')):
+        if command.startswith(('cof', 'stabilitymult', 'questskip', 'bossdoors', 'noblessing', 'autoshatter', 'itempages', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','damageicon ','deathrecap','rageread','rageset ','invread','invset ','invsorttab ','summonread','inventoryread','inventoryaction ','affixinfo ','transmog')):
+        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','damageicon ','deathrecap','rageread','rageset ','invread','invset ','invsorttab ','summonread','inventoryread','inventoryaction ','eternitycache ','affixinfo ','transmog')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})
@@ -366,6 +368,8 @@ class BridgeTests(unittest.TestCase):
                         args[name] = 'b0.13' if cid == 'spawn_custom' else 'u5'
                     elif name == 'tiers':
                         args[name] = '1:8'
+                    elif name == 'changes':
+                        args[name] = '0.0.5:4'
                     elif name == 'look':
                         args[name] = 'u5'
                     elif name == 'affixes':
@@ -958,6 +962,17 @@ class BridgeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.bridge.execute('campaign_complete', {'expected_id':'42','level_mode':'lower'})
         self.assertFalse(any(x.startswith('questscomplete') for x in self.commands))
+
+    def test_quest_echo_skip_sends_on_and_off_only(self):
+        self.bridge.execute('monolith_questskip', {'value': 1})
+        self.assertIn('questskip 1', self.commands)
+        self.bridge.execute('monolith_questskip', {'value': 0})
+        self.assertIn('questskip 0', self.commands)
+        self.commands.clear()
+        for bad in (2, -1, 0.5, True):
+            with self.assertRaises(ValueError):
+                self.bridge.execute('monolith_questskip', {'value': bad})
+        self.assertFalse(any(x.startswith('questskip') for x in self.commands))
 
     def test_stale_character_cannot_receive_save_mutation(self):
         with self.assertRaisesRegex(RuntimeError, 'character has changed'):

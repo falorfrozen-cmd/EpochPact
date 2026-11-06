@@ -12,7 +12,7 @@ namespace ep::convenience::rules {
 // A dedicated action row below the item grid, above the native footer.
 // Transfer/Sort and currencies never share the EpochPact button row.
 struct Rect { float x,y,w,h; };
-struct Toolbar { bool visible=false; Rect rect{}; std::array<Rect,4> buttons{}; Rect grid{}; };
+struct Toolbar { bool visible=false; Rect rect{}; std::array<Rect,5> buttons{}; Rect grid{}; };
 inline bool Overlaps(Rect a,Rect b) {
     return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
 }
@@ -28,7 +28,7 @@ inline float CurrencyScale(Rect footer,Rect left,float fullWidth) {
 }
 inline Toolbar PlaceToolbar(Rect menu,Rect available,Rect grid,Rect footer,Rect left,Rect currencies) {
     if(!Valid(menu)||!Valid(available)||!Valid(grid)||!Valid(footer)||!Valid(left)||!Valid(currencies))return {};
-    constexpr float gap=4,height=32,width=436;  // Stash 100, Stash all 118, Vendor 100, Sell all 100, 6 apart
+    constexpr float gap=4,height=32,width=582;  // Stash 100, Stash all 118, Vendor 100, Sell all 100, Eternity Cache 140, 6 apart
     const float bottom=std::max({footer.y+footer.h,left.y+left.h,currencies.y+currencies.h})+gap;
     Rect row{grid.x+(grid.w-width)/2,bottom,width,height};
     // Uniform scaling preserves square cells, item hit targets and the matching
@@ -39,7 +39,7 @@ inline Toolbar PlaceToolbar(Rect menu,Rect available,Rect grid,Rect footer,Rect 
     if(!Inside(row,menu)||!Inside(row,available)||!Inside(fitted,menu)||!Inside(fitted,available)||
        Overlaps(row,left)||Overlaps(row,currencies)||Overlaps(row,fitted))return {};
     Toolbar result{true,row,{},fitted};float next=row.x;
-    for(size_t i=0;i<result.buttons.size();++i){float w=i==1?118.f:100.f;result.buttons[i]={next,row.y,w,height};next+=w+6;}
+    for(size_t i=0;i<result.buttons.size();++i){float w=i==1?118.f:i==4?140.f:100.f;result.buttons[i]={next,row.y,w,height};next+=w+6;}
     return result;
 }
 // Time and item limits both apply: a large scene never receives an unbounded

@@ -66,6 +66,7 @@ sayısının garantisi değildir.
 | `craftrunes 0\|1` | Normal tüketim / gerçekten tüketilen bir rune'u geri ver |
 | `craftglyphs 0\|1` | Normal tüketim / gerçekten tüketilen bir glyph'i geri ver |
 | `craftcorrupted 0\|1` | Normal / bozulmuş (corrupted) eşya Forge'da corrupted olmadan önceki gibi craft edilir; FP harcamaz, corrupted kalır |
+| `craftexalted 0\|1` | Normal / boş yeri olan Exalted eşyaya shard ile yeni affix eklenir; prefix/suffix, FP ve seviye sınırları kalır, eşya Exalted kalır |
 | `craftt7 0\|1` | Normal T5 cap / opt-in shard upgrades of existing T5/T6 affixes to T6/T7; plain shards or Basic Hope, other glyphs retain native limits |
 | `craftlevel 0\|1` | Normal affix yükseltme seviye sınırı / sadece yerel Forge uygunluk kontrolünde sınırı kaldır |
 | `craftforge <offline save id>` | Seçili eşya ve materyalle bir normal Forge işlemi; öncesinde canlı eşya/kayıt yedeği |
@@ -160,3 +161,11 @@ IPC veya kayıt kullanmaz. Kanıt: `research/live/loot-crafting-ui-check.json` v
 Available and selected lists support double-click/Enter transfers, name/ID search and A–Z/Z–A sorting. Search never removes selections. Apply selection sends all selected IDs, not only the highlighted row. Empty selection is `lootaffixes none`. Drafts survive reads and failed requests; a verified character change clears the previous owner’s draft.
 
 See [T7 validation](t7-affixes-validation-2026-10-12.md) for real-game, compiled UI and scoped test evidence.
+
+## Filtrenin gizlediklerini shatter (`autoshatter 0|1`, sahip isteği 2026-11-05)
+
+Açıkken yerdeki ekipmanlar aktif loot filtresinden geçirilir (`ItemFilter.Match`, sonuç 1 = Hide). Gizlenen ve affix'i olan eşya, oyunun
+kendi `CraftingManager.Shatter` işlevinden geçer (Rune of Shattering'in shard kuralı, rune harcanmaz) ve toplanan eşya gibi yerden kalkar
+(`poolGroundItemVisuals`, `removeItemFromList`). Unique, Set, Legendary, idol ve affix'siz eşyalara dokunulmaz; filtre yoksa bir şey olmaz.
+`Shatter` sonunda forge yuvasındaki Unique'e baktığı için yuvada böyle bir eşya varken bekler.
+

@@ -183,6 +183,12 @@ and switches itself off after use. This prevents immediate return-portal loops.
 Generic portals and the Primal Hunt cave entrance use their existing game
 interaction; no destination, key, quest condition or reward is fabricated.
 
+### Loot Lizards and Nemesis (owner request 2026-11-06)
+
+World -> Rare encounters, `rageset lizards|nemesis 0-20`, session, only in memory like the Rage values and restored the same way. Lizards: `RandomEncounterPlacer.HandleEncountersCalculations` multiplies
+`lootLizardSpawnRateModifier` (counted as 1 + r, so `ScaleIncreased`) into a count, then `extraChanceForZeroLootLizards` can make it none; that chance falls above 1. Nemesis: `RandomNemesisSpawner.ExecuteSpawn` rolls
+base + per level + per corruption, all three multiplied. The minimum levels stay.
+
 ### Rage of Morditas (Season 5)
 
 Five settings scale the values the game loaded for the Rage of Morditas
@@ -847,6 +853,29 @@ Every change writes a recovery backup of the saves first (the same history as
 Stash all). An open stash panel is rebuilt so new folders and tabs appear at
 once.
 
+## Inventory and idol pages (owner request 2026-11-05)
+
+Four pages for the inventory and four for the idols with their altar, with buttons 1-4 down the left of the item grid and 1-3 over the idols' grid (button 4 stays only while idol page 4 is shown or holds something). One page is in the game's own
+containers and counts for the character; the others wait in `%LOCALAPPDATA%\EpochPact\item-pages\<character id>.txt`, with a `.bak` of the previous state.
+
+A switch (`itempages switch inv|idol 1-4`, `native/core/item_pages.cpp`) goes in order: the file gets both pages and a `pending` line, the items leave by the game's own
+`TryRemoveItem`, the other page's items arrive by `TryAddItem` (the altar first, its slots decide where idols fit), the file drops `pending`, then the game saves. After a crash the
+signature of what the game loaded says which side of the swap it is on: the old page clears the file's copy, the new page finishes, and anything else keeps the copy, so the worst
+case is a duplicate. Items go in as `ItemDataUnpacked` (`getAsUnpacked`): the idols' container refuses the plain form without saying why. An item a container refuses keeps waiting on
+that page. A file whose name line is another character's (the id was reused) is kept aside as `.other`.
+
+A pickup the game refuses for lack of room (`ItemContainersManager.attemptToPickupItem` false) goes to the next inventory page with room, in the file, and the hook answers true so the game takes it off the ground. The shown page does not change. Gear, idols and altars only; with every page full the game's own refusal stands.
+
+`itempages tostash` moves all waiting items to the stash, for leaving the feature or the mod. An item on the cursor stays there through a switch, so a player can carry it to another page; because the game's save leaves out the hand, the file notes it under `held` until it is put down, and after a crash an item found nowhere comes back. Pages are not active at the same time: stats come from
+the shown page only.
+
+
+## All idol slots open (owner request 2026-11-06)
+
+`invset idolslots 1` opens every idol slot, locked and closed ones too, with any altar or none. `IdolsItemContainer.GetSlotState` reads the active grid's `unlockMatrix`: 99 is closed, 100 and
+over is refracted, the rest modulo 100 is the rank that unlocks the cell. While the setting is on, every grid's cells ask for rank 0 (a refracted cell stays refracted); off restores the game's values.
+
+
 ## In-game report and app
 
 - **In-game report:** while the game window is in front, **F8** (Settings →
@@ -1037,6 +1066,25 @@ Three player requests:
   with the setting on (affix T1 → T3), corrupted with 0 FP in memory, in its saved form and after a
   restart; switched off, the forge refuses it again.
 
+- **Add new affixes to Exalted items** (`craftexalted 0|1`, Crafting → Forge Settings, owner request 2026-11-04). The shard
+  panel greys out every new affix on an Exalted item (`CraftingMaterialsPanelUI.PopulateShards`: rarity 4 or above is
+  incompatible), even with all its other places free; the forge has no such rule. With the setting on, the Exalted item counts
+  as a Rare while the panel decides, so its prefix and suffix limits apply, and the forge puts the Exalted rarity back after a
+  shard craft (the game counts a new affix's item rarity from its affixes). Uniques, Sets and Legendaries are not affected.
+  The panel fills its lists as it opens, and a second fill would add to them, so changing the setting closes an open panel.
+  Live (`builds\exalted-live6`, EpCraftTest clone, an Exalted helmet with one T6 prefix): off, no shard offered; on, 46 offered
+  (prefixes and suffixes); with a second prefix only suffixes; three shard crafts to four affixes, each new one at T1, Forging
+  Potential 63 to 32, rarity 4 throughout and after a restart; a fifth refused; off again, none offered.
+
+- **Change Legendary Potential** (`lpread`, `setlp <save id> x.y.uniqueID:lp,...`, Crafting → Custom Items, owner request
+  2026-11-04). The inventory's Uniques that can have Legendary Potential, an LP from 0 to 4 for each. Only the item's
+  `legendaryPotential` changes and its saved form is rebuilt (`RebuildID`, `setValuesFromSerialisation`, as Spawn Items does).
+  Sets, Legendaries, idols, Weaver's Will items and Uniques with legendary level 200 are refused
+  (`isLegendaryPotentialItem`, `getEffectiveLevelForLegendaryPotential`). A moved item changes nothing. A recovery backup first.
+  Live (`builds\item-lp-live2`, EpCraftTest clone): a Ravenous Void with LP 1 raised to 4 through the F6 panel, its rolls and
+  Forging Potential unchanged; in the Eternity Cache all four affixes of the Exalted went over at T7; another raised to 3 kept it
+  after a restart; a Weaver's Will Unique, a Set and an Exalted not listed; LP 5, an unknown place and another character refused.
+
 ### Custom Items: affixes the game converts (2026-10-30)
 
 A player chose Dexterity T1 and Throwing Damage T7 and the forge showed Physical Damage T7. The game builds an
@@ -1091,6 +1139,42 @@ Four player requests:
   and 17, group 2) also rolls the Huge and Adorned Idols' affixes, a Grand Omen Idol (type 29, group 1) the Ornate and
   Adorned Idols'. `lootread` gives each affix its `groups`, `spawnlist` each Omen base its `group`
   (`GetSubTypeGroup`), and the affix list offers an affix when `rollsOn` has the type or `groups` has the base's group.
+
+## Eternity Cache anywhere (0.1.2-dev.55, owner request 2026-11-04)
+
+The game's inventory panel has an **Eternity Cache** button, the last of the row under the footer (Stash, Stash all, Vendor,
+Sell all): the same `eternitycache <save id>` as the F6 and desktop Inventory pages, so the cache needs no F6. Live
+(`builds\button-live1`, EpFeedbackTest clone): the row fits inside the panel with the inventory, the stash and the shop, overlaps
+nothing, and the button opens the cache beside the inventory; pressed again with the cache open it stays open.
+
+Inventory → **Open Eternity Cache** (`eternitycache <save id>`, `eternity_cache.cpp`) opens the game's own Eternity Cache
+panel (`UIBase.OpenEternityCachePanel`) wherever the offline character is: the past cache to put in a Unique with
+Legendary Potential and an Exalted item and Seal, or, with a legendary waiting in the `after` container, the future cache
+to take it out. The game's own seal makes the legendary (`tryToSealEternityCache`: `RollLegendaryProperties`,
+`absorb4ModExaltedItemToBecomeLegendary`).
+
+What the Temporal Sanctum normally decides (1.5.3): `EternityCacheZoneManager` exists only there, and
+`ActorCanUseEternityCacheInThisZone` (not used in this run yet) and `clientSideCanUseEternityCacheCheck` gate the seal;
+the dungeon run's Tier (0-based) caps the Unique's level (`Item.getMaxUniqueLevelRequirementForDungeonTier`: Tier 1 50,
+Tier 2 65, Tier 3 75, Tier 4 200) and allows choosing the affix to keep from Tier 2 up
+(`dungeonTierAllowsSelectingAffixInEternityCache`: Tier >= 1). From the first open until the game closes the two gates
+answer true (no Sanctum, no once-per-run), and while the cache's own checks run (`canSealEternityCache`, the Unique slot's
+`CanReceiveItem`, the panel's `Open`, `ShowUniqueError`, `canSeal`, `isSelectedAffixValid`, `getSelectedAffix`,
+`updateAffixSelectionVisibility`) with no dungeon run of the player, `ClientDungeonService.ActiveRun` is a Tier 4 Temporal
+Sanctum run (Tier 3, DungeonID 0) and is null again right after each call. A real dungeon run is left alone.
+
+One affix choice per Legendary Potential (owner's idea, same day): the game's panel guarantees one affix and the rest of the
+LP is random. With LP 2 or 3 the panel shows that many choices instead: copies of its own dropdown under it (`TMP_Dropdown`,
+`Instantiate`), the game's own hidden on Let fate decide (option 5) so its checks pass. An affix chosen in one is not offered in
+the others, every choice also offers Let fate decide, and the Seal stays off until each is made (`canSeal`). LP 4 shows a line
+instead: all four go over. LP 1 keeps the game's own dropdown. The game's `absorb4ModExaltedItemToBecomeLegendary` needs a
+Unique with LP (rarity 7) and the Exalted's four affixes (which it does not change), takes the guaranteed affix first, then
+random ones up to the LP, and makes the item a Legendary (rarity 9). So the seal runs it once per affix with rarity 7, LP 1 and
+that affix guaranteed: the chosen ones, then random ones up to the rolled LP (a critical seal's higher LP from
+`RollLegendaryProperties` adds random ones), and the LP is put back. Live `builds\eternity-multi4` (test clone, level 91 Unique,
+four T7 affixes): LP 3 three chosen, exactly those at T7; LP 2 one chosen + fate, that one and one random; LP 4 all four; the Seal
+off with two of three chosen and the items kept; the legendary kept after a restart. Slots are read through `HasContent` and the
+manager's getters: those throw on an empty slot, and the slot's `getItem` is not current while its change event runs.
 
 ## MelonLoader installation
 

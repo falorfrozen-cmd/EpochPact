@@ -80,7 +80,7 @@ int Integer(const std::string& s) {
     if (error!=std::errc{} || end!=s.data()+s.size()) throw std::runtime_error("expected integer");
     return v;
 }
-struct CatalogAffix { int id; std::string name; size_t tiers; int classes; bool idol; int convertTo; std::vector<int> rollsOn, groups; };
+struct CatalogAffix { int id; std::string name; size_t tiers; int classes; bool idol; int convertTo; std::vector<int> rollsOn, groups; bool corrupted = false; };
 // AffixList.Affix.canRollOn: the EquipmentTypes the affix rolls on.
 std::vector<int> RollsOn(void* affix, size_t rollsOn) {
     void* rolls = Get<void*>(affix, rollsOn);
@@ -137,7 +137,7 @@ std::vector<CatalogAffix> AffixCatalog() {
         const int target = Get<bool>(a, converts) ? Get<uint16_t>(a, convertTo) : -1;
         const bool idol = IdolOnly(types);
         result.push_back({Get<int>(a,id), Text(Invoke(Method(a,"getAffixDisplayName",0),a)), Entries(Get<void*>(a,tiers)).size(), Get<int>(a,classes), idol, target,
-                          std::move(types), Groups(a, rollsOn)});
+                          std::move(types), Groups(a, rollsOn), Get<int>(a, Offset("AffixList.Affix", "specialAffixType")) == 6});
     }
     return result;
 }
@@ -241,7 +241,7 @@ std::string Read() {
         std::string state=State(); state.pop_back(); state+=" ,\"affixes\":[";
         bool first=true;
         if (ready) for (const auto& a:AffixCatalog()) { if(!first) state+=','; first=false;
-            state+="{\"id\":"+std::to_string(a.id)+",\"name\":"+Json(a.name)+",\"tiers\":"+std::to_string(a.tiers)+",\"classes\":"+ClassNames(a.classes)+",\"idol\":"+Boolean(a.idol);
+            state+="{\"id\":"+std::to_string(a.id)+",\"name\":"+Json(a.name)+",\"tiers\":"+std::to_string(a.tiers)+",\"classes\":"+(a.corrupted?std::string("[\"Corrupted\"]"):ClassNames(a.classes))+",\"idol\":"+Boolean(a.idol);
             // the item types it rolls on (Spawn Items lists an idol's or altar's own affixes); for an affix the game
             // converts on the other types, the affix it becomes
             state+=",\"rollsOn\":"+Ints(a.rollsOn);

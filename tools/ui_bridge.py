@@ -275,6 +275,12 @@ class UiBridge:
                     raise ValueError("Choose an item from the list.")
                 if control["id"] == "spawn_custom" and name == "item" and not re.fullmatch(r"b\d{1,2}\.\d{1,5}", value):
                     raise ValueError("Choose a base item to give it affixes.")
+                if control["id"] == "item_lp" and name == "changes":
+                    # Each change: x.y.uniqueID:LP 0-4, each item once.
+                    tokens = value.split(",")
+                    ids = [t.split(":")[0] for t in tokens]
+                    if not all(re.fullmatch(r"\d{1,3}\.\d{1,3}\.\d{1,5}:[0-4]", t) for t in tokens) or len(tokens) > 64 or len(set(ids)) != len(ids):
+                        raise ValueError("Choose a new Legendary Potential for an item.")
                 if control["id"] == "craft_tiers" and name == "tiers":
                     # Each change: affix ID:tier 1-8, each affix once.
                     tokens = value.split(",")
@@ -597,6 +603,11 @@ class UiBridge:
             "corruption": lambda: mono.corruption(save_id, a["timeline"], a["difficulty"] == "empowered", value),
             "stability": lambda: mono.stability(save_id, a["timeline"], a["difficulty"] == "empowered", value),
             "stability_multiplier": lambda: mono.multiplier(value),
+            "monolith_questskip": lambda: mono.quest_skip(value),
+            "monolith_bossdoors": lambda: mono.boss_doors(value),
+            "monolith_noblessing": lambda: mono.no_blessing(value),
+            "loot_autoshatter": lambda: crafting.auto_shatter(value),
+            "loot_shatterquiet": lambda: crafting.shatter_quiet(value),
             "cof_join": lambda: cof.join(save_id, switch_from_merchant=supplied.get("switch_from_merchant", False)),
             "cof_rank": lambda: cof.rank(save_id, value), "cof_favor": lambda: cof.favor(save_id, value),
             "cof_reputation_grant": lambda: cof.reputation(save_id, value),
@@ -653,6 +664,8 @@ class UiBridge:
             raise RuntimeError("Load an offline character to spawn items. Preview does not create items.")
         if cid in ("craft_materials", "craft_materials_read"):
             raise RuntimeError("Load an offline character to read or stock real crafting materials. Preview does not change material quantities.")
+        if cid in ("item_lp", "item_lp_read"):
+            raise RuntimeError("Preview cannot change a real item. Load an offline character.")
         if cid in ("craft_forge", "craft_custom", "craft_tiers", "craft_custom_catalog"):
             raise RuntimeError("Preview cannot forge a real item. Load an offline character and select an item in the game forge.")
         if cid in ("map_read", "map_reveal"):
@@ -667,7 +680,7 @@ class UiBridge:
                 state.update(mode="all", minimumLP=2, minimumWW=0, t7=True, respectFilter=True,
                              materials=True, affixIds=[], categories={x: True for x in state["categories"]})
             elif cid == "craft_reset":
-                state.update(fpFactor=1, hopePercent=None, despairPercent=None, preserveShards=False, preserveRunes=False, preserveGlyphs=False, bypassLevel=False, allowT7=False, allowCorrupted=False)
+                state.update(fpFactor=1, hopePercent=None, despairPercent=None, preserveShards=False, preserveRunes=False, preserveGlyphs=False, bypassLevel=False, allowT7=False, allowCorrupted=False, allowExalted=False)
             elif cid == "loot_mode":
                 state["mode"] = "all" if operation == "reset" else a["mode"]
             elif cid == "loot_affixes":
@@ -682,14 +695,14 @@ class UiBridge:
                 else: state["categories"][a["category"]] = value
             else:
                 fields = {"loot_lp": "minimumLP", "loot_ww": "minimumWW", "loot_t7": "t7", "loot_filter": "respectFilter",
-                          "craft_t7": "allowT7", "craft_corrupted": "allowCorrupted", "craft_fp": "fpFactor", "craft_shards": "preserveShards", "craft_runes": "preserveRunes", "craft_glyphs": "preserveGlyphs", "craft_level": "bypassLevel",
+                          "craft_t7": "allowT7", "craft_corrupted": "allowCorrupted", "craft_exalted": "allowExalted", "craft_fp": "fpFactor", "craft_shards": "preserveShards", "craft_runes": "preserveRunes", "craft_glyphs": "preserveGlyphs", "craft_level": "bypassLevel",
                           "craft_hope": "hopePercent", "craft_despair": "despairPercent"}
                 value = control["default"] if operation == "reset" else a["value"]
                 if control["widget"] == "toggle": value = bool(value)
                 state[fields[cid]] = None if value == "reset" else value
             sources = {"loot_lp": ("lootread", "minimumLP"), "loot_ww": ("lootread", "minimumWW"), "loot_t7": ("lootread", "t7"),
                        "loot_filter": ("lootread", "respectFilter"), "craft_fp": ("craftread", "fpFactor"),
-                       "craft_t7": ("craftread", "allowT7"), "craft_corrupted": ("craftread", "allowCorrupted"), "craft_shards": ("craftread", "preserveShards"), "craft_runes": ("craftread", "preserveRunes"), "craft_glyphs": ("craftread", "preserveGlyphs"), "craft_level": ("craftread", "bypassLevel")}
+                       "craft_t7": ("craftread", "allowT7"), "craft_corrupted": ("craftread", "allowCorrupted"), "craft_exalted": ("craftread", "allowExalted"), "craft_shards": ("craftread", "preserveShards"), "craft_runes": ("craftread", "preserveRunes"), "craft_glyphs": ("craftread", "preserveGlyphs"), "craft_level": ("craftread", "bypassLevel")}
             for name, (source, field) in sources.items(): self.demo_values[name] = self.demo[source].get(field, self.controls[name]["default"])
             return self._demo_result(key, state)
         if cid == "weaver_affixes":

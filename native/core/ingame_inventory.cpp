@@ -61,7 +61,7 @@ void MakeInventoryShortcuts(Section& s) {
     s.reads.insert("inventoryread");
     s.build = [](Section&, const Ctx& c) {
         return InPanel(c, [](const Ctx& in, float y) {
-            y += HeadWithButton(in, y, Tr("Inventory shortcuts"), Tr("Refresh inventory"), [] { Read("inventoryread"); }, "inventory_read", true) + 16;
+            y += HeadWithButton(in, y, Tr("Inventory pages"), Tr("Refresh inventory"), [] { Read("inventoryread"); }, "inventory_read", true) + 16;
             const JValue* r = Cached("inventoryread");
             const JValue* items = r ? r->Find("inventoryItems") : nullptr;
             y += NoteBox(in.parent, kPanelPad, y, kPanelInner,
@@ -69,51 +69,26 @@ void MakeInventoryShortcuts(Section& s) {
                              ? Fmt("{0} inventory items. Stash all uses the game's placement: tabs whose stash priority matches an item first, otherwise the selected "
                                    "tab; items that do not fit stay in your inventory.", {Num(items->number)})
                              : Tr("Refresh inventory for the loaded character.")) + 18;
-            const auto card = [](const std::string& id) -> CardMaker {
-                return [id](const Ctx& cc, float x, float yy, float w) {
-                    const Control& ctl = Ctl(id);
-                    const bool save = ctl.lifetime == "game_save";
-                    const std::string action = id.substr(id.find('_') + 1);
-                    ActionRun run;
-                    run.command = "inventoryaction {save_id} " + action;
-                    run.snapshot = save ? "inventoryread" : "";
-                    if (save) {
-                        run.confirmTitle = Tr(ctl.label);
-                        run.confirmMessage = SaveMessage(ctl);
-                    }
-                    run.success = [action](const JValue& v) -> std::string {
-                        const bool opened = v["opened"].IsBool() && v["opened"].boolean;
-                        if (action == "stash") return Tr(opened ? "Stash opened in the game." : "Stash closed in the game.");
-                        if (action == "vendor") return Tr(opened ? "Vendor opened in the game." : "Vendor closed in the game.");
-                        if (action == "stashall") {
-                            const double remaining = v["remaining"].Num(0);
-                            return remaining > 0 ? Fmt("Moved {0} items to your stash. {1} items stayed in your inventory: the stash had no room for them. Free stash "
-                                                       "space or add a stash tab, then try again.", {Num(v["moved"].Num(0)), Num(remaining)})
-                                                 : Fmt("Moved {0} items to your stash. Your inventory is empty; equipped items were not moved.", {Num(v["moved"].Num(0))});
-                        }
-                        // sellall
-                        const long long gold = std::llround(v["gold"].Num(0));
-                        std::string grouped;
-                        const std::string digits = std::to_string(gold < 0 ? -gold : gold);
-                        for (size_t i = 0; i < digits.size(); ++i) {
-                            if (i && (digits.size() - i) % 3 == 0) grouped += ',';
-                            grouped += digits[i];
-                        }
-                        const double refused = v["refused"].Num(0);
-                        return Fmt("Sold {0} items for {1} gold. {2} items kept{3}. Sold items are in the vendor's buyback list.",
-                                   {Num(v["sold"].Num(0)), grouped, Num(v["kept"].Num(0)), refused > 0 ? ", " + Num(refused) + " the vendor does not buy" : ""});
-                    };
-                    return ActionCard(cc, x, yy, w, ctl, ActionCaption(ctl), save, [run] { RunAction(run); }, save ? SaveReason("inventoryread") : ViewReason());
+            const CardMaker waiting = [](const Ctx& cc, float x, float yy, float w) {
+                const Control& ctl = Ctl("inventory_pagesstash");
+                ActionRun run;
+                run.command = "itempages tostash";
+                run.snapshot = "inventoryread";
+                run.confirmTitle = Tr(ctl.label);
+                run.confirmMessage = SaveMessage(ctl);
+                run.success = [](const JValue& v) -> std::string {
+                    return Fmt("Moved {0} waiting items to your stash. {1} did not fit and keep waiting.", {Num(v["moved"].Num(0)), Num(v["noRoom"].Num(0))});
                 };
+                return ActionCard(cc, x, yy, w, ctl, ActionCaption(ctl), true, [run] { RunAction(run); }, SaveReason("inventoryread"));
             };
-            return y + CardGrid(in, kPanelPad, y, kPanelInner, {card("inventory_stash"), card("inventory_vendor"), card("inventory_stashall"), card("inventory_sellall")});
+            return y + CardGrid(in, kPanelPad, y, kPanelInner, {waiting});
         });
     };
 }
 
 // ---------------------------------------------------------------- stash tabs from loot filter
 // The last stashrules reply (any stash rules command answers with the whole state), for its player.
-struct StashRules { JValue state; bool loaded = false; bool hidden = false, disabled = false; int section = -1, sortSection = -1; } stash;
+struct StashRules { JValue state; bool loaded = false; int section = -1, sortSection = -1; } stash;
 std::string StashOwner() { return IdOf(stash.state.Path("player.id")); }
 // For the loaded character only (the inventory read names the character the page shows).
 const JValue* CurrentRules() {
@@ -162,7 +137,7 @@ void MakeStashRules(Section& s) {
                 bool on = true;
                 void* ra[]{&on};
                 managed::Invoke(T("set_richText", 1), t, ra);
-                SetText(t, Tr("One stash tab per loot filter rule, free of gold, in a folder named after the filter. Each tab gets the rule's rarity, type, class, "
+                SetText(t, Tr("Link a stash tab to a loot filter rule. Each tab gets the rule's rarity, type, class, "
                               "item level, potential, faction, unique and corruption conditions as its stash priority, so the game's own stashing puts matching "
                               "items there. Rules with affix or character-level conditions match more broadly in the tab priority;") +
                            " <b>" + Tr("Sort inventory by filter rule") + "</b> " + Tr("uses the exact filter match. Every change creates a recovery backup."));
@@ -295,13 +270,6 @@ void MakeStashRules(Section& s) {
                 Solid(in.parent, "Row border", kPanelPad, y + rowH - 1, kPanelInner, 1, Hex("#6c755144"));
                 y += rowH;
             }
-            // .actions: Include Hide rules, Include disabled rules (label.inline-check: margin-top 14)
-            y += 18 + 14;
-            float w1 = 0;
-            CheckField(in, kPanelPad, y, Tr("Include Hide rules"), stash.hidden, [](bool on) { stash.hidden = on; StashChanged(); }, "stash-rules-hidden", 12, 8, &w1);
-            CheckField(in, kPanelPad + w1 + 10, y, Tr("Include disabled rules"), stash.disabled, [](bool on) { stash.disabled = on; StashChanged(); },
-                       "stash-rules-disabled");
-            y += 18;
             // .actions: the primary (margin-left auto) and Sort, at the right
             y += 18;
             const std::string name = Cached("inventoryread") ? Cached("inventoryread")->Path("player.name") ? Cached("inventoryread")->Path("player.name")->Str() : "" : "";
@@ -320,29 +288,10 @@ void MakeStashRules(Section& s) {
                                 return out + ".";
                             });
             }, true, "stash_rules_sort");
-            const std::string filter = st["filter"].Str();
-            Button create = AddButton(in, kPanelPad + kPanelInner - sort.w - 10, y, Tr("Create tabs for rules without a tab"), Look::Primary, [filter] {
-                StashAction("create", "stashrulescreate {save_id} " + std::string(stash.hidden ? "1" : "0") + " " + (stash.disabled ? "1" : "0"),
-                            Tr(Ctl("stash_rules_create").label),
-                            stash.hidden ? Fmt("Create one free stash tab for each rule of \xE2\x80\x9C{0}\xE2\x80\x9D that has no tab yet, in a folder named after the filter. "
-                                               "A recovery backup is created first.", {filter})
-                                         : Fmt("Create one free stash tab for each Show/Highlight rule of \xE2\x80\x9C{0}\xE2\x80\x9D that has no tab yet, in a folder named "
-                                               "after the filter. A recovery backup is created first.", {filter}),
-                            [](const JValue& v) {
-                                std::vector<std::string> parts{Counted(v["created"].Num(0), "1 tab created", "{0} tabs created")};
-                                if (v["existing"].Num(0)) parts.push_back(Fmt("{0} already linked", {Num(v["existing"].Num(0))}));
-                                if (v["atLimit"].Num(0)) parts.push_back(Fmt("{0} over the game's tab limit", {Num(v["atLimit"].Num(0))}));
-                                std::string out;
-                                for (const auto& p : parts) out += (out.empty() ? "" : ", ") + p;
-                                return out + ".";
-                            });
-            }, true, "stash_rules_create");
-            if (!eligible) { SetEnabled(in, sort, false); SetEnabled(in, create, false); }
-            const float row = std::max(sort.h, create.h);
-            Move(sort.node.rt, kPanelPad + kPanelInner - sort.w, y + (row - sort.h) / 2);
-            Move(create.node.rt, kPanelPad + kPanelInner - sort.w - 10 - create.w, y + (row - create.h) / 2);
-            (*in.hits)[sort.hit].y = in.oy + y + (row - sort.h) / 2;
-            (*in.hits)[create.hit].y = in.oy + y + (row - create.h) / 2;
+            if (!eligible) SetEnabled(in, sort, false);
+            const float row = sort.h;
+            Move(sort.node.rt, kPanelPad + kPanelInner - sort.w, y);
+            (*in.hits)[sort.hit].y = in.oy + y;
             return y + row;
         });
     };

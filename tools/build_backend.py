@@ -26,6 +26,11 @@ def tiers(save_id, tiers):
     return ipc.request(f"crafttiers {save_id} {tiers}")
 
 
+def set_legendary_potential(save_id, changes):
+    # New Legendary Potential for inventory Uniques: "x.y.uniqueID:lp,..." (native code checks them again).
+    return ipc.request(f"setlp {save_id} {changes}")
+
+
 def spawn_list():
     # The spawnable items and, for Spawn with chosen affixes, the affixes with the item types they roll on.
     with ipc._ipc_lock:

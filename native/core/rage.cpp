@@ -21,20 +21,21 @@
 namespace ep::rage {
 namespace {
 using namespace managed;
-enum Key { Spawn, HuntTime, Charges, Buffs, Blood, Count };
+enum Key { Spawn, HuntTime, Charges, Buffs, Blood, Lizards, Nemesis, Count };
 struct Setting { const char* name; rules::Range range; std::atomic<double> value; };
 Setting settings[Count]{{"spawn", rules::kSpawn, 1}, {"hunttime", rules::kHuntTime, 1}, {"charges", rules::kCharges, 1},
-    {"buffs", rules::kBuffs, 1}, {"blood", rules::kBlood, -1}};
+    {"buffs", rules::kBuffs, 1}, {"blood", rules::kBlood, -1}, {"lizards", rules::kLizards, 1}, {"nemesis", rules::kNemesis, 1}};
 struct Fields {
     size_t data, campaign, monolith, minimumLevel, configs, chargeKills, buffKills, blood, iceIfNotBlood, iceRitual, bloodRitual;
     size_t type, minLevel, maxLevel, initial, perKill, champion;
     size_t state, kills, charges, elapsed, finalTime, buffs;
+    size_t lizardRate, lizardZero, nemesisBase, nemesisLevel, nemesisCorruption;
 } f{};
 game::MethodRef encounterData, componentTransform, transformPosition;
 const il2cpp::Field* runningInstance = nullptr;
-bool ready = false;
+bool ready = false, encounterRates = false;  // encounterRates: Loot Lizard and Nemesis fields found in this build
 // The game's own values, as first seen per object.
-struct EncounterOriginal { std::unique_ptr<Root> object; float campaign = 0, monolith = 0; } encounter;
+struct EncounterOriginal { std::unique_ptr<Root> object; float campaign = 0, monolith = 0, lizardRate = 0, lizardZero = 0, nemesisBase = 0, nemesisLevel = 0, nemesisCorruption = 0; } encounter;
 struct DataOriginal { std::unique_ptr<Root> object; std::vector<int> charges, buffs; std::array<float, 4> forging{}; } data;
 struct ConfigOriginal { std::unique_ptr<Root> object; float initial = 0, champion = 0; std::array<float, 3> perKill{}; std::array<bool, 3> hasKill{}; };
 std::vector<ConfigOriginal> configs;
@@ -91,7 +92,13 @@ void* Capture() {
     void* red = Invoke(encounterData);
     if (!red || !game::IsAlive(red)) throw std::runtime_error("Random encounter data unavailable.");
     if (!encounter.object || encounter.object->Get() != red)
+    {
         encounter = {std::make_unique<Root>(red), Get<float>(red, f.campaign), Get<float>(red, f.monolith)};
+        if (encounterRates) {
+            encounter.lizardRate = Get<float>(red, f.lizardRate); encounter.lizardZero = Get<float>(red, f.lizardZero);
+            encounter.nemesisBase = Get<float>(red, f.nemesisBase); encounter.nemesisLevel = Get<float>(red, f.nemesisLevel); encounter.nemesisCorruption = Get<float>(red, f.nemesisCorruption);
+        }
+    }
     void* d = Get<void*>(red, f.data);
     if (!d || !game::IsAlive(d)) throw std::runtime_error("Rage of Morditas data unavailable.");
     if (!data.object || data.object->Get() != d) {
@@ -127,6 +134,15 @@ void Apply() {
         buffs = settings[Buffs].value, blood = settings[Blood].value;
     Put(red, f.campaign, spawn == 1 ? encounter.campaign : rules::ScaleRate(encounter.campaign, spawn));
     Put(red, f.monolith, spawn == 1 ? encounter.monolith : rules::ScaleRate(encounter.monolith, spawn));
+    if (encounterRates) {
+        const double lizards = settings[Lizards].value, nemesis = settings[Nemesis].value;
+        Put(red, f.lizardRate, lizards == 1 ? encounter.lizardRate : rules::ScaleIncreased(encounter.lizardRate, lizards));
+        Put(red, f.lizardZero, rules::ScaleZeroChance(encounter.lizardZero, lizards));
+        // the game adds base + per level + per corruption, then rolls it
+        Put(red, f.nemesisBase, nemesis == 1 ? encounter.nemesisBase : static_cast<float>(encounter.nemesisBase * nemesis));
+        Put(red, f.nemesisLevel, nemesis == 1 ? encounter.nemesisLevel : static_cast<float>(encounter.nemesisLevel * nemesis));
+        Put(red, f.nemesisCorruption, nemesis == 1 ? encounter.nemesisCorruption : static_cast<float>(encounter.nemesisCorruption * nemesis));
+    }
     WriteThresholds(Get<void*>(d, f.chargeKills), data.charges, charges);
     WriteThresholds(Get<void*>(d, f.buffKills), data.buffs, buffs);
     // Blood share: only the chance an item gets Blood rather than Ice (the rituals keep forcing their own).
@@ -146,7 +162,13 @@ void Restore() {
     if (!encounter.object || !data.object) { applied = false; return; }
     void* red = encounter.object->Get();
     void* d = data.object->Get();
-    if (red && game::IsAlive(red)) { Put(red, f.campaign, encounter.campaign); Put(red, f.monolith, encounter.monolith); }
+    if (red && game::IsAlive(red)) {
+        Put(red, f.campaign, encounter.campaign); Put(red, f.monolith, encounter.monolith);
+        if (encounterRates) {
+            Put(red, f.lizardRate, encounter.lizardRate); Put(red, f.lizardZero, encounter.lizardZero);
+            Put(red, f.nemesisBase, encounter.nemesisBase); Put(red, f.nemesisLevel, encounter.nemesisLevel); Put(red, f.nemesisCorruption, encounter.nemesisCorruption);
+        }
+    }
     if (d && game::IsAlive(d)) {
         WriteThresholds(Get<void*>(d, f.chargeKills), data.charges, 1);
         WriteThresholds(Get<void*>(d, f.buffKills), data.buffs, 1);
@@ -161,6 +183,16 @@ void Restore() {
     }
     applied = false;
 }
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+// How many of a game component are in the scene now (test builds).
+int CountInScene(const char* className) {
+    const auto* cls = game::FindClass("LE.dll", "", className);
+    Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(cls)));
+    bool inactive = false; void* args[]{type.Get(), &inactive};
+    Root found(Invoke(game::FindMethod("UnityEngine.CoreModule.dll", "UnityEngine", "Object", "FindObjectsOfType", 2), nullptr, args));
+    return found.Get() ? static_cast<int>(Get<uintptr_t>(found.Get(), 0x18)) : 0;
+}
+#endif
 void Write(std::ostream& out, const std::vector<int>& v) { out << '['; for (size_t i = 0; i < v.size(); ++i) out << (i ? "," : "") << v[i]; out << ']'; }
 }  // namespace
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
@@ -174,6 +206,29 @@ std::string State() {
     out << "},\"applied\":" << Boolean(applied) << ",\"writes\":" << writes << ",\"faults\":" << faults << ",\"error\":" << Json(lastError);
     if (ready && game::IsOfflinePlay()) {
         void* d = Capture(); void* red = encounter.object->Get();
+        if (encounterRates) {
+            out << ",\"encounters\":{\"lizardRate\":" << Get<float>(red, f.lizardRate) << ",\"lizardZero\":" << Get<float>(red, f.lizardZero) << ",\"nemesisBase\":" << Get<float>(red, f.nemesisBase)
+                << ",\"nemesisLevel\":" << Get<float>(red, f.nemesisLevel) << ",\"nemesisCorruption\":" << Get<float>(red, f.nemesisCorruption)
+                << ",\"original\":{\"lizardRate\":" << encounter.lizardRate << ",\"lizardZero\":" << encounter.lizardZero << ",\"nemesisBase\":" << encounter.nemesisBase
+                << ",\"nemesisLevel\":" << encounter.nemesisLevel << ",\"nemesisCorruption\":" << encounter.nemesisCorruption << "}";
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+            out << ",\"lizardsInScene\":" << CountInScene("LootLizardFleeing") << ",\"nemesisInScene\":" << CountInScene("NemesisEncounterInteractableObject");
+            {   // the game's switches for these encounters
+                void* features = game::StaticObject(game::FindStaticField("LE.dll", "", "Features", "RandomEncounters"));
+                const auto Feature = [features](const char* name) { return features && Value<bool>(Method(features, name, 0), features); };
+                out << ",\"featureNemesis\":" << Boolean(Feature("GetNemesisEncounters")) << ",\"featureLizards\":" << Boolean(Feature("GetLootLizards"))
+                    << ",\"minimumNemesisLevel\":" << Get<float>(red, Offset("RandomEncounterData", "minimumLevelForNemesisEncounters"));
+            }
+            {   // the zone's own decision: RandomEncounterTypes.Context.totalLizards
+                void* manager = nullptr; void* args[]{&manager};
+                const bool got = Value<bool>(game::FindMethod("LE.dll", "", "EncounterSpotsManager", "TryGetFirstManager", 1), nullptr, args);
+                void* placement = got && manager ? Invoke(Method(manager, "get_EncounterPlacementData", 0), manager) : nullptr;
+                void* context = placement ? Get<void*>(placement, Offset("RandomEncounterTypes.EncounterPlacementData", "<Context>k__BackingField")) : nullptr;
+                if (context) out << ",\"totalLizards\":" << Get<int>(context, Offset("RandomEncounterTypes.Context", "totalLizards")) << ",\"remainingLizards\":" << Get<int>(context, Offset("RandomEncounterTypes.Context", "remainingLizards"));
+            }
+#endif
+            out << '}';
+        }
         out << ",\"game\":{\"minimumLevel\":" << Get<float>(red, f.minimumLevel) << ",\"campaignRate\":" << Get<float>(red, f.campaign) << ",\"monolithRate\":" << Get<float>(red, f.monolith)
             << ",\"chargeKills\":"; Write(out, Copy(Ints(Get<void*>(d, f.chargeKills))));
         out << ",\"buffKills\":"; Write(out, Copy(Ints(Get<void*>(d, f.buffKills))));
@@ -227,6 +282,13 @@ bool Init() {
         f.state = Offset("RageOfMorditasLogic", "_encounterState"); f.kills = Offset("RageOfMorditasLogic", "_currentHuntKillCount"); f.charges = Offset("RageOfMorditasLogic", "_bloodrageChargeCount");
         f.elapsed = Offset("RageOfMorditasLogic", "_huntElapsedTime"); f.finalTime = Offset("RageOfMorditasLogic", "_huntFinalTime"); f.buffs = Offset("RageOfMorditasLogic", "_activeBuffs");
         ready = encounterData && componentTransform && transformPosition && runningInstance;
+        // Apart: an older build without them keeps the Rage settings.
+        try {
+            f.lizardRate = Offset("RandomEncounterData", "lootLizardSpawnRateModifier"); f.lizardZero = Offset("RandomEncounterData", "extraChanceForZeroLootLizards");
+            f.nemesisBase = Offset("RandomEncounterData", "baseNemesisEncounterSpawnRate"); f.nemesisLevel = Offset("RandomEncounterData", "nemesisEncounterSpawnRatePerLevel");
+            f.nemesisCorruption = Offset("RandomEncounterData", "nemesisEncounterSpawnRatePerCorruption");
+            encounterRates = true;
+        } catch (const std::exception& e) { encounterRates = false; Log("rage: Loot Lizard and Nemesis settings unavailable: %s", e.what()); }
     } catch (const std::exception& e) { ready = false; lastError = e.what(); }
     Log("rage: Rage of Morditas settings %s%s%s", ready ? "ready" : "unavailable", lastError.empty() ? "" : ": ", lastError.c_str());
     return ready;
@@ -247,12 +309,13 @@ std::string Read() { return Run([] { return State(); }); }
 std::string Set(const std::string& key, double value) {
     int k = 0;
     while (k < Count && key != settings[k].name) ++k;
-    if (k == Count) return "{\"ok\":false,\"error\":\"use rageset spawn|hunttime|charges|buffs|blood value\"}";
+    if (k == Count) return "{\"ok\":false,\"error\":\"use rageset spawn|hunttime|charges|buffs|blood|lizards|nemesis value\"}";
     if (!rules::InRange(settings[k].range, value)) {
         std::ostringstream e; e << "{\"ok\":false,\"error\":\"" << settings[k].name << " must be " << settings[k].range.low << " to " << settings[k].range.high << "\"}";
         return e.str();
     }
     if (!ready) return "{\"ok\":false,\"error\":\"Rage of Morditas data is unavailable in this game build.\"}";
+    if ((k == Lizards || k == Nemesis) && !encounterRates) return "{\"ok\":false,\"error\":\"This setting is unavailable in this game build.\"}";
     return Run([k, value] {
         const double previous = settings[k].value.exchange(value);
         try { if (game::IsOfflinePlay()) Apply(); else if (applied) Restore(); }
@@ -300,6 +363,29 @@ void ProbeSpawn(void* self, void* placement, const il2cpp::Method* m) {
 }
 void ProbePlace(void* self, void* placement, void* at, const il2cpp::Method* m) { ++placeCalls; originalPlace(self, placement, at, m); }
 void ProbePlayerSpawn(void* self, void* player, void* placement, const il2cpp::Method* m) { ++playerSpawnCalls; originalPlayerSpawn(self, player, placement, m); }
+// The same for the Nemesis spawner.
+CheckFn nemesisFeature = nullptr, nemesisCan = nullptr;
+SpawnFn nemesisSpawn = nullptr;
+using NemesisPlaceFn = void (*)(uint64_t, void*, uint64_t, uint64_t, const il2cpp::Method*);
+NemesisPlaceFn nemesisPlace = nullptr;
+std::atomic<int> nFeature{0}, nFeatureTrue{0}, nCan{0}, nCanTrue{0}, nSpawn{0}, nPlace{0};
+bool ProbeNemesisFeature(void* self, void* placement, const il2cpp::Method* m) { const bool r = nemesisFeature(self, placement, m); ++nFeature; if (r) ++nFeatureTrue; return r; }
+bool ProbeNemesisCan(void* self, void* placement, const il2cpp::Method* m) { const bool r = nemesisCan(self, placement, m); ++nCan; if (r) ++nCanTrue; return r; }
+void ProbeNemesisSpawn(void* self, void* placement, const il2cpp::Method* m) { ++nSpawn; nemesisSpawn(self, placement, m); }
+std::array<float, 3> nAt{};
+void ProbeNemesisPlace(uint64_t scene, void* at, uint64_t type, uint64_t flag, const il2cpp::Method* m) { ++nPlace; if (at) nAt = *static_cast<std::array<float, 3>*>(at); nemesisPlace(scene, at, type, flag, m); }
+void InstallNemesisProbe() {
+    std::string why;
+    const auto install = [&](const char* cls, const char* name, int arity, void* detour, void** original) {
+        auto m = game::FindMethod("LE.dll", "", cls, name, arity);
+        if (!m) throw std::runtime_error(std::string("missing ") + name);
+        if (!hook::IsInstalled(m.code) && !hook::Install(m.code, detour, original, &why)) throw std::runtime_error(why);
+    };
+    install("RandomNemesisSpawner", "IsFeatureEnabled", 1, reinterpret_cast<void*>(&ProbeNemesisFeature), reinterpret_cast<void**>(&nemesisFeature));
+    install("RandomNemesisSpawner", "CanSpawn", 1, reinterpret_cast<void*>(&ProbeNemesisCan), reinterpret_cast<void**>(&nemesisCan));
+    install("RandomNemesisSpawner", "ExecuteSpawn", 1, reinterpret_cast<void*>(&ProbeNemesisSpawn), reinterpret_cast<void**>(&nemesisSpawn));
+    install("NemesisEncounter", "PlaceEncounter", 4, reinterpret_cast<void*>(&ProbeNemesisPlace), reinterpret_cast<void**>(&nemesisPlace));
+}
 void InstallProbe() {
     std::string why;
     const auto install = [&](const char* name, int arity, void* detour, void** original) {
@@ -366,6 +452,12 @@ std::string Test(const std::string& expectedId, const std::string& action) {
             return out.str();
         }
         if (action == "probe") { InstallProbe(); return "{\"ok\":true,\"probe\":true}"; }
+        if (action == "nemesisprobe") { InstallNemesisProbe(); return "{\"ok\":true}"; }
+        if (action == "nemesisread") {
+            std::ostringstream out;
+            out << "{\"ok\":true,\"feature\":[" << nFeature << ',' << nFeatureTrue << "],\"canSpawn\":[" << nCan << ',' << nCanTrue << "],\"spawn\":" << nSpawn << ",\"placed\":" << nPlace << ",\"at\":[" << nAt[0] << ',' << nAt[1] << ',' << nAt[2] << "]}";
+            return out.str();
+        }
         if (action == "curve") {
             // Read only: the hunt's escalation curve (each kill adds its time divided by this, at the hunt's end time).
             if (!running || !game::IsAlive(running)) running = SceneEncounter();

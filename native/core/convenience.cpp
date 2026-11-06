@@ -1,3 +1,7 @@
+#include "monolith.hpp"
+#include "crafting.hpp"
+#include "item_pages.hpp"
+#include "report.hpp"
 #include "convenience.hpp"
 #include "stash_rules.hpp"
 #include "transmog.hpp"
@@ -54,7 +58,9 @@ uint64_t lastScan=0,portalGrace=0,faults=0,openedChests=0,usedShrines=0,usedPort
 game::Handle owner;
 std::map<std::string,std::unique_ptr<Root>> typeRoots;
 struct Saved {std::unique_ptr<Root> value;std::unique_ptr<Root> volume;const il2cpp::Field* field;bool before;Setting* setting;};
-struct Shortcut{std::unique_ptr<Root> button;std::unique_ptr<Root> object;const char* action;const char* label;std::vector<std::unique_ptr<Root>> labels;rules::Rect placed{};};
+struct Vec2i{int x,y;};
+struct Shortcut{std::unique_ptr<Root> button;std::unique_ptr<Root> object;const char* action;const char* label;std::vector<std::unique_ptr<Root>> labels;rules::Rect placed{};int pageLook=-1;};
+constexpr size_t kToolbarButtons=5;  // the row under the grid; after them the page buttons, four of the inventory, four of the idols
 std::vector<Shortcut> shortcuts;
 game::Handle inventoryPanel;
 std::atomic<bool> shortcutBusy{false};
@@ -419,7 +425,15 @@ bool ShortcutClick(void* button){
     }
     std::string why;game::Guarded([&]{const auto c=Current();const char* action=it->action;
         shortcutBusy=true;
-        if(!commands::SubmitUi("inventoryaction "+c.id+" "+action,[](const std::string& result){Log("inventory shortcut: %s",result.c_str());shortcutBusy=false;}))shortcutBusy=false;
+        // the Eternity Cache has its own command; the others are the game's inventory actions
+        const bool inventoryPage=std::strncmp(action,"invpage",7)==0,idolPage=std::strncmp(action,"idolpage",8)==0;
+        const std::string line=inventoryPage?std::string("itempages switch inv ")+action[7]:idolPage?std::string("itempages switch idol ")+action[8]:
+            std::strcmp(action,"eternity")==0?"eternitycache "+c.id:"inventoryaction "+c.id+" "+action;
+        if(!commands::SubmitUi(line,[inventoryPage,idolPage](const std::string& result){Log("inventory shortcut: %s",result.c_str());shortcutBusy=false;
+            if((inventoryPage||idolPage)&&result.find("\"ok\":false")!=std::string::npos){
+                report::Notice("EpochPact","The page could not be changed. Nothing was moved.");
+            }
+        }))shortcutBusy=false;
     },&why);if(!why.empty())Log("inventory shortcut refused: %s",why.c_str());
     return true;
 }
@@ -596,6 +610,52 @@ void FitCurrencyRow(void* menu){
     void* pa[]{&pos};Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),currency,pa);
     CenterY(currency,menu,footer.y+footer.h/2);
 }
+// The 1-2-3-4 buttons: down the free space on the left of the item grid, and just over the idols' grid on the left of the altar.
+rules::Rect IdolGridRect(void* menu){
+    for(void* ui:Entries(Get<void*>(inventoryPanel.Get(),F("InventoryPanelUI","inventoryAndIdolContainerUIs")))){
+        if(!ui||std::strcmp(il2cpp::api().class_get_name(il2cpp::api().object_get_class(ui)),"IdolsContainerUI"))continue;
+        Root tr(Invoke(M("Component","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),ui));
+        return RectIn(tr.Get(),menu);
+    }
+    return {};
+}
+void PaintPageButton(Shortcut& b,int look){
+    if(b.pageLook==look)return;
+    b.pageLook=look;
+    // look: 0 an empty page, 1 a page holding items, 2 the page shown
+    struct Color{float r,g,b,a;};
+    Color text=look==2?Color{1.f,.84f,.42f,1.f}:look==1?Color{1.f,1.f,1.f,1.f}:Color{.55f,.55f,.55f,1.f};
+    for(auto& label:b.labels)if(label->Get()&&game::IsAlive(label->Get())){void* a[]{&text};Invoke(Method(label->Get(),"set_color",1),label->Get(),a);}
+    void* graphic=Invoke(Method(b.button->Get(),"get_targetGraphic",0),b.button->Get());
+    if(graphic){Color tint=look==2?Color{1.f,.78f,.32f,1.f}:Color{1.f,1.f,1.f,1.f};void* a[]{&tint};Invoke(Method(graphic,"set_color",1),graphic,a);}
+}
+void PlacePageButtons(void* menu,const rules::Rect& bounds,bool visible){
+    if(shortcuts.size()<=kToolbarButtons)return;
+    const bool on=visible&&invtools::PagesOn();
+    const int current[2]{on?itempages::Current(itempages::kInventory):0,on?itempages::Current(itempages::kIdols):0};
+    const rules::Rect areas[2]{gridTransform.Get()?RectIn(gridTransform.Get(),menu):rules::Rect{},on?IdolGridRect(menu):rules::Rect{}};
+    constexpr float kW=30,kH=26,kGap=4,kAbove=5,kBeside=8;
+    for(size_t i=kToolbarButtons;i<shortcuts.size();++i){
+        auto& b=shortcuts[i];
+        const int kind=i<kToolbarButtons+itempages::kPages?0:1,page=static_cast<int>((i-kToolbarButtons)%itempages::kPages)+1;
+        const auto& area=areas[kind];
+        bool show=on&&current[kind]>0&&rules::Valid(area);
+        // The idols show pages 1 to 3 (owner request): button 4 stays only while that page is shown or still holds something.
+        if(show&&kind==1&&page==4&&current[1]!=4&&itempages::Count(itempages::kIdols,4)==0)show=false;
+        void* a[]{&show};
+        if(Value<bool>(Method(b.object->Get(),"get_activeSelf",0),b.object->Get())!=show)Invoke(Method(b.object->Get(),"SetActive",1),b.object->Get(),a);
+        if(!show)continue;
+        const rules::Rect r=kind==0?rules::Rect{area.x-kW-kBeside,area.y+area.h-page*kH-(page-1)*kGap,kW,kH}:rules::Rect{area.x+(page-1)*(kW+kGap),area.y+area.h+kAbove,kW,kH};
+        if(b.placed.x!=r.x||b.placed.y!=r.y||b.placed.w!=r.w||b.placed.h!=r.h){
+            Root tr(Invoke(M("GameObject","get_transform",0,"UnityEngine","UnityEngine.CoreModule.dll"),b.object->Get()));
+            Vec2 pos{r.x-bounds.x,r.y-bounds.y},size{r.w,r.h};void* p[]{&pos},*s[]{&size};
+            Invoke(M("RectTransform","set_sizeDelta",1,"UnityEngine","UnityEngine.CoreModule.dll"),tr.Get(),s);
+            Invoke(M("RectTransform","set_anchoredPosition",1,"UnityEngine","UnityEngine.CoreModule.dll"),tr.Get(),p);b.placed=r;
+        }
+        const auto which=kind?itempages::kIdols:itempages::kInventory;
+        PaintPageButton(b,page==current[kind]?2:itempages::Count(which,page)>0?1:0);
+    }
+}
 void PlaceShortcuts(){
     void* menu=menuTransform.Get();if(!menu||shortcuts.empty())return;
     Root ct(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("UnityEngine.UIModule.dll","UnityEngine","Canvas"))));bool includeInactive=true;void* ca[]{ct.Get(),&includeInactive};
@@ -627,7 +687,8 @@ void PlaceShortcuts(){
             }
         }
     }
-    for(size_t i=0;i<shortcuts.size();++i){auto& b=shortcuts[i];bool show=placement.visible;void* a[]{&show};
+    PlacePageButtons(menu,bounds,placement.visible);
+    for(size_t i=0;i<shortcuts.size()&&i<kToolbarButtons;++i){auto& b=shortcuts[i];bool show=placement.visible;void* a[]{&show};
         if(Value<bool>(Method(b.object->Get(),"get_activeSelf",0),b.object->Get())!=show)Invoke(Method(b.object->Get(),"SetActive",1),b.object->Get(),a);
         if(show){const auto r=placement.buttons[i];
             if(b.placed.x!=r.x||b.placed.y!=r.y||b.placed.w!=r.w||b.placed.h!=r.h){
@@ -699,7 +760,8 @@ void InventoryButtons(){
     Root templateObject(Invoke(M("Component","get_gameObject",0,"UnityEngine","UnityEngine.CoreModule.dll"),source));
     const auto* instantiate=Signature("Object","Instantiate",{"UnityEngine.Object","UnityEngine.Transform","System.Boolean"});
     phase("template");
-    for(auto pair:std::array<std::pair<const char*,const char*>,4>{{{"stash","Stash"},{"stashall","Stash all"},{"vendor","Vendor"},{"sellall","Sell all"}}}){
+    for(auto pair:std::array<std::pair<const char*,const char*>,kToolbarButtons+2*itempages::kPages>{{{"stash","Stash"},{"stashall","Stash all"},{"vendor","Vendor"},{"sellall","Sell all"},{"eternity","Eternity Cache"},
+        {"invpage1","1"},{"invpage2","2"},{"invpage3","3"},{"invpage4","4"},{"idolpage1","1"},{"idolpage2","2"},{"idolpage3","3"},{"idolpage4","4"}}}){
         bool world=false;void* a[]{templateObject.Get(),parent,&world};Root object(Invoke(instantiate,nullptr,a));
         bool off=false;void* offArgs[]{&off};Invoke(Method(object.Get(),"SetActive",1),object.Get(),offArgs);
         void* bargs[]{bt.Get()};Root button(Invoke(Signature("GameObject","GetComponent",{"System.Type"}),object.Get(),bargs));
@@ -1380,7 +1442,7 @@ void Frame(){
     if(lifecycle::Stopping())return;
     effects::Frame();
     rage::Frame();invtools::Frame();ingame::Frame();
-    transmog::Frame();stashrules::Frame();
+    transmog::Frame();stashrules::Frame();monolith::BossFrame();crafting::AutoShatterFrame();itempages::Frame();
     if(pendingStashPanel.Get()&&!game::Guarded([]{RestoreStashTab();},nullptr)){pendingStashPanel.Reset();++stashRestoreFailures;}
     if(pendingLegacyStash.Get()&&!game::Guarded([]{RestoreLegacyStashTab();},nullptr)){pendingLegacyStash.Reset();++stashRestoreFailures;}
     const auto clock=GetTickCount64();
@@ -1808,6 +1870,64 @@ std::string Test(const std::string& id,const std::string& action){
             if(comma)out<<',';comma=true;out<<"{\"action\":"<<Json(b.action)<<",\"visible\":"<<Boolean(Value<bool>(Method(b.object->Get(),"get_activeInHierarchy",0),b.object->Get()))<<",\"insideInventory\":"<<Boolean(rules::Inside(r,menuRect))<<",\"insideFooter\":"<<Boolean(rules::Inside(r,footerRect))<<",\"vanillaControlsOverlap\":"<<Boolean(rules::Overlaps(r,leftRect))<<",\"currencyOverlap\":"<<Boolean(rules::Overlaps(r,currencies))<<",\"labels\":[";
             bool next=false;for(auto& label:b.labels){if(next)out<<',';next=true;out<<Json(Text(Invoke(Method(label->Get(),"get_text",0),label->Get())));}out<<"],\"rect\":["<<r.x<<','<<r.y<<','<<r.w<<','<<r.h<<"]}";}
         return out.str()+"]}";}
+    if(action=="inventory-to-cursor"){
+        // Test: the inventory's first item in the player's hand.
+        void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
+        Root list(Invoke(Method(inventory,"GetContent",0),inventory));
+        const auto entries=Entries(list.Get());if(entries.empty())throw std::runtime_error("The inventory is empty.");
+        Vec2i at=Value<Vec2i>(Method(entries[0],"get_Position",0),entries[0]);int from=1;void* a[]{&from,&at};
+        return std::string("{\"ok\":true,\"picked\":")+Boolean(Value<bool>(Method(c.manager,"pickupItemToCursor",2),c.manager,a))+"}";
+    }
+    if(action=="idols-cells"){
+        void* idols=Get<void*>(c.manager,F("ItemContainersManager","idols"));
+        std::ostringstream out;out<<"{\"ok\":true,\"rows\":[";
+        for(int y=4;y>=0;--y){out<<(y<4?",":"")<<'"';for(int x=0;x<5;++x){bool refracted=false;int ax=x,ay=y;void* a[]{&ax,&ay,&refracted};out<<Value<int>(Method(idols,"GetSlotState",3),idols,a)<<(refracted?'r':' ');}out<<'"';}
+        Root list(Invoke(Method(idols,"GetContent",0),idols));
+        out<<"],\"idols\":[";bool comma=false;
+        for(void* entry:Entries(list.Get())){const auto at=Value<Vec2i>(Method(entry,"get_Position",0),entry);out<<(comma?",":"")<<'['<<at.x<<','<<at.y<<']';comma=true;}
+        return out.str()+"]}";
+    }
+    if(action.rfind("idols-put-",0)==0){
+        // Test: the inventory's first idol into one cell of the idols' grid, by the game's own move (idols-put-x-y).
+        const int x=action[10]-'0',y=action[12]-'0';
+        void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
+        Root list(Invoke(Method(inventory,"GetContent",0),inventory));
+        for(void* entry:Entries(list.Get())){void* data=Get<void*>(entry,F("ItemContainerEntry","data"));const int type=Get<uint8_t>(data,F("ItemData","itemType"));
+            if(type<25||type>33)continue;
+            int from=1,to=29,quantity=1;Vec2i source=Value<Vec2i>(Method(entry,"get_Position",0),entry),target{x,y};void* a[]{&from,&source,&to,&target,&quantity};
+            return std::string("{\"ok\":true,\"type\":")+std::to_string(type)+",\"moved\":"+Boolean(Value<bool>(Method(c.manager,"MoveFromContainerToContainer",5),c.manager,a))+"}";
+        }
+        throw std::runtime_error("No idol in the inventory.");
+    }
+    if(action=="cursor-state"){
+        void* cursor=Get<void*>(c.manager,F("ItemContainersManager","cursor"));Root list(Invoke(Method(cursor,"GetContent",0),cursor));
+        return "{\"ok\":true,\"held\":"+std::to_string(Entries(list.Get()).size())+"}";
+    }
+    if(action=="cursor-return")return std::string("{\"ok\":true,\"returned\":")+Boolean(Value<bool>(Method(c.manager,"ReturnCursorItemToSource",0),c.manager))+"}";
+    if(action.rfind("cursor-drop-",0)==0){
+        const int x=action[12]-'0',y=action[14]-'0';int to=1;Vec2i at{x,y};void* a[]{&to,&at};
+        return std::string("{\"ok\":true,\"dropped\":")+Boolean(Value<bool>(Method(c.manager,"DropItemFromCursor",2),c.manager,a))+"}";
+    }
+    if(action=="idols-equip"){
+        // Test: the inventory's altar and idols go where a player would put them, by the game's own move.
+        void* inventory=Get<void*>(c.manager,F("ItemContainersManager","inventory"));
+        std::ostringstream out;out<<"{\"ok\":true,\"moved\":[";bool comma=false;
+        Root list(Invoke(Method(inventory,"GetContent",0),inventory));
+        std::vector<std::tuple<int,Vec2i>> found;
+        for(void* entry:Entries(list.Get())){void* data=Get<void*>(entry,F("ItemContainerEntry","data"));
+            found.emplace_back(Get<uint8_t>(data,F("ItemData","itemType")),Value<Vec2i>(Method(entry,"get_Position",0),entry));}
+        std::stable_sort(found.begin(),found.end(),[](const auto& a,const auto& b){return (std::get<0>(a)==41)>(std::get<0>(b)==41);});
+        for(const auto& [type,at]:found){
+            if(type!=41&&(type<25||type>33))continue;
+            int from=1,to=type==41?123:29,quantity=1;bool moved=false;
+            for(int y=0;y<5&&!moved;++y)for(int x=0;x<5&&!moved;++x){
+                Vec2i source=at,target{type==41?0:x,type==41?0:y};void* a[]{&from,&source,&to,&target,&quantity};
+                moved=Value<bool>(Method(c.manager,"MoveFromContainerToContainer",5),c.manager,a);
+            }
+            if(comma)out<<',';comma=true;out<<"["<<type<<","<<Boolean(moved)<<"]";
+        }
+        return out.str()+"]}";
+    }
     if(action.rfind("shortcut-press-",0)==0){
         // Test: our inventory button pressed as a click does (Sell all asks first); the labels after it.
         InventoryButtons();const std::string wanted=action.substr(15);
@@ -2445,7 +2565,7 @@ std::string Test(const std::string& id,const std::string& action){
         const int weaversWill=weaver?std::stoi(action.substr(affixDash+2)):-1;
         if(weaver&&(rarity!=7||weaversWill<1||weaversWill>255))throw std::runtime_error("use drop-item-<distance>-7-w<1..255>");
         if((rolledWeaver||anyUnique)&&rarity!=7)throw std::runtime_error("use drop-item-<distance>-7-ww or -7-any");
-        if(distance<1||distance>80||rarity<0||rarity>7||(typed&&(rarity==7||baseType<0||baseType>40)))throw std::runtime_error("Unsupported item fixture.");
+        if(distance<1||distance>80||rarity<0||rarity>7||(typed&&(rarity==7||baseType<0||baseType>41)))throw std::runtime_error("Unsupported item fixture.");
         void* generator=Get<void*>(c.actor,F("Actor","generateItems"));if(!generator)throw std::runtime_error("Item generator unavailable.");
         bool no=false,requireType=rolledWeaver;int level=rolledWeaver||anyUnique?50:20,location=0,type=rarity==7?-1:baseType,subtype=rarity==7?-1:0,sockets=0,unique=rarity==7&&!rolledWeaver&&!anyUnique?1:-1,lp=0,rank=0,legendaryType=rolledWeaver?1:0,corrupt=0;
         alignas(8) unsigned char faction[8]{},replacement[8]{},corruption[8]{},effectiveness[8]{},special[8]{},minSpecial[8]{},overrideLP[8]{};
@@ -2485,6 +2605,27 @@ std::string Test(const std::string& id,const std::string& action){
         Vec3 at=Position(c.actor);at.x+=static_cast<float>(distance);uint8_t type=1;uint32_t value=10;
         void* args[]{&type,c.actor,&at,&value};Invoke(M("PickupableObjectsManager","CreatePickupableObjectForPlayer",4,"LE.Factions"),manager,args);
         return "{\"ok\":true,\"amber\":10,\"distance\":"+std::to_string(distance)+"}";
+    }
+    if(action=="ground-list"){
+        void* manager=game::StaticObject(game::FindStaticField("LE.dll","","GroundItemManager","instance"));
+        if(!manager)throw std::runtime_error("Ground item manager unavailable.");
+        void* offline=Get<void*>(manager,F("GroundItemManager","offlineItems"));if(!offline)throw std::runtime_error("Ground item list unavailable.");
+        void* filterManager=game::StaticObject(game::FindStaticField("LE.dll","ItemFiltering","ItemFilterManager","Instance"));
+        void* filter=filterManager?Get<void*>(filterManager,F("ItemFilterManager","<Filter>k__BackingField","ItemFiltering")):nullptr;
+        std::ostringstream out;out<<"{\"ok\":true,\"filter\":"<<Json(filter?Text(Get<void*>(filter,F("ItemFilter","name","ItemFiltering"))):std::string())<<",\"items\":[";bool comma=false;
+        for(void* record:Entries(Get<void*>(offline,F("GroundItemManager.GroundItemList","items")))){
+            void* data=record?Get<void*>(record,F("GroundItemManager.GroundItem","itemData")):nullptr;if(!data)continue;Root pin(data);
+            int outcome=-1;
+            if(filter){if(void* u=Invoke(Method(data,"getAsUnpacked",0),data)){Root unpacked(u);
+                alignas(8) unsigned char color[8]{},emphasize[8]{};int rule=-1,sound=0,icon=0,beamSize=0;bool beam=false;float beamColor[4]{};
+                void* args[]{unpacked.Get(),color,emphasize,&rule,&sound,&icon,&beam,&beamSize,beamColor};
+                outcome=Value<int>(Method(filter,"Match",9),filter,args);}}
+            if(comma)out<<',';comma=true;
+            out<<"{\"id\":"<<Get<uint32_t>(record,F("GroundItemManager.GroundItem","id"))<<",\"type\":"<<static_cast<int>(Get<uint8_t>(data,F("ItemData","itemType")))
+               <<",\"rarity\":"<<static_cast<int>(Get<uint8_t>(data,F("ItemData","rarity")))<<",\"affixes\":"<<Entries(Get<void*>(data,F("ItemData","affixes"))).size()
+               <<",\"unique\":"<<Boolean(Value<bool>(Method(data,"isUniqueSetOrLegendary",0),data))<<",\"idol\":"<<Boolean(Value<bool>(Method(data,"isIdol",0),data))<<",\"outcome\":"<<outcome<<'}';
+        }
+        return out.str()+"]}";
     }
     if(action=="ground-count"){
         // Disposable test character only (read only): drops on the ground (equipment, affix shards, other
@@ -2610,6 +2751,15 @@ std::string Test(const std::string& id,const std::string& action){
             }
             out<<'}';
         }
+        return out.str()+"]}";
+    }
+    if(action.rfind("ability-find-",0)==0){
+        const auto wanted=action.substr(13);std::ostringstream out;out<<"{\"ok\":true,\"abilities\":[";bool comma=false;
+        for(int id=1;id<1500;++id){uint16_t abilityId=static_cast<uint16_t>(id);void* a[]{&abilityId};void* ability=nullptr;
+            if(!game::Guarded([&]{ability=Invoke(Signature("Ability","getAbility",{"System.UInt16"},"","LE.dll"),nullptr,a);},nullptr)||!ability)continue;
+            void* nameObject=Get<void*>(ability,F("Ability","abilityName"));if(!nameObject)continue;
+            const auto name=Text(nameObject);if(name.find(wanted)==std::string::npos)continue;
+            if(comma)out<<',';comma=true;out<<"{\"id\":"<<id<<",\"name\":"<<Json(name)<<'}';}
         return out.str()+"]}";
     }
     if(action=="summon-counts"){

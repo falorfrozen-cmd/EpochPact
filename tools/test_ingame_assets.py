@@ -33,6 +33,8 @@ def app_panel_ids(title):
         return re.findall(r'"(\w+)"', re.search(r'const weaverSettings=\[([^\]]*)\];', APP)[1])
     if title == "Automatic sorting and Sell all":  # autoSortPanel(): inventoryTools
         return re.findall(r'"(\w+)"', re.search(r'const inventoryTools=\[([^\]]*)\];', APP)[1])
+    if title.startswith("v0.1.2-dev."):  # What's New: the whatsNew table of app.js
+        return re.findall(r'"(\w+)"', re.search(r'title:"' + re.escape(title) + r'",ids:\[([^\]]*)\]', APP)[1])
     if title == "Death recap":  # deathPanel(): settingCard(controlById("death_recap"))
         return re.findall(r'controlById\("(\w+)"\)', re.search(r'function deathPanel\(\)\{\s*const c=(controlById\("\w+"\))', APP)[1])
     if title == "Rage of Morditas (Season 5)":
@@ -58,8 +60,6 @@ def app_panel_ids(title):
     calls = re.match(r'\[((?:controlById\("\w+"\),?)+)\]', rest)
     if calls:
         return re.findall(r'controlById\("(\w+)"\)', calls[1])
-    if rest.startswith("[density,controlById(\"stability_multiplier\")]"):
-        return ["density", "stability_multiplier"]
     # The filters, as app.js writes them; ingame_pages applies the same ones.
     filters = {
         'catalog.controls.filter(c=>c.group==="general"&&["number","toggle"].includes(c.widget)&&!c.id.startsWith("loot_")'

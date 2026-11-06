@@ -220,6 +220,9 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `craft_fp` — FP maliyet katsayısı | `craftfp {value}` | value: 0…1 | 1 | Oturum |
 | `craft_t7` — Craft affixes up to T7 | `craftt7 {value}` | value: 0…1 | 0 | Oturum |
 | `craft_corrupted` — Craft corrupted items | `craftcorrupted {value}` | value: 0…1 | 0 | Oturum |
+| `loot_autoshatter` — Shatter what the filter hides | `autoshatter {value}` | value: 0…1 | 0 | Oturum |
+| `loot_shatterquiet` — Hide shatter notices | `autoshatterquiet {value}` | value: 0…1 | 0 | Oturum |
+| `craft_exalted` — Add new affixes to Exalted items | `craftexalted {value}` | value: 0…1 | 0 | Oturum |
 | `craft_hope` — Glyph of Hope FP koruma ihtimali | `crafthope {value}` | value: 0…100/reset | — | Oturum |
 | `craft_despair` — Glyph of Despair seal ihtimali | `craftdespair {value}` | value: 0…100/reset | — | Oturum |
 | `craft_shards` — Craft sırasında affix shard koru | `craftshards {value}` | value: 0…1 | 0 | Oturum |
@@ -230,6 +233,8 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `craft_custom_catalog` — Load workshop templates | `craftmods` | — | — | Okuma |
 | `craft_custom` — Create custom gear | `craftmix {save_id} {template_id} {affixes} {perfect} {modifiers}` | template_id: -1…65535; affixes: single_token; perfect: 0…1; modifiers: optional_single_token | — | Oyun kaydı |
 | `craft_tiers` — Change affix tiers | `crafttiers {save_id} {tiers}` | tiers: single_token | — | Oyun kaydı |
+| `item_lp_read` — Load items with Legendary Potential | `lpread` | — | — | Okuma |
+| `item_lp` — Change Legendary Potential | `setlp {save_id} {changes}` | changes: single_token | — | Oyun kaydı |
 | `spawn_list` — Load spawnable items | `spawnlist` | — | — | Okuma |
 | `spawn_item` — Spawn item | `spawnitem {save_id} {item} {rarity} {lp} {item_level} {count}` | item: single_token; rarity: 0…3; lp: -1…4; item_level: 1…100; count: 1…20 | — | Yüklü aktör |
 | `spawn_custom` — Spawn with chosen affixes | `spawncustom {save_id} {item} {affixes} {item_level} {count}` | item: single_token; affixes: single_token; item_level: 1…100; count: 1…20 | — | Yüklü aktör |
@@ -241,6 +246,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **FP maliyet katsayısı:** 0 ücretsiz, 1 normal; örnek 0.5 yarı maliyet, yukarı yuvarlanır. FP üretmez, native eligibility korunur. API: `tools.loot_crafting_backend.fp_factor(value)`. Reset: `craftfp 1`.
 - **Craft affixes up to T7:** Upgrade existing unsealed T5 and T6 affixes one tier at a time with their shards. Stops at T7. T6/T7 upgrades use plain shards or Basic Glyph of Hope; other glyphs retain normal limits. Material, FP and level requirements remain. API: `tools.loot_crafting_backend.allow_t7(value)`. Reset: `craftt7 0`.
 - **Craft corrupted items:** Craft a corrupted item in the forge as before it was corrupted. It has no Forging Potential left, so a craft costs none (the forge shows 1), and the item stays corrupted. API: `tools.loot_crafting_backend.allow_corrupted(value)`. Reset: `craftcorrupted 0`.
+- **Add new affixes to Exalted items:** Let a shard add a new affix to an Exalted item that has a free place, as on a Rare item. The game's limits stay: two prefixes, two suffixes, Forging Potential and level. The item stays Exalted and the new affix starts at T1. API: `tools.loot_crafting_backend.allow_exalted(value)`. Reset: `craftcorrupted 0`.
 - **Glyph of Hope FP koruma ihtimali:** Yüzde 0–100 veya reset; native glyph/affix uygunluğu gerekir. Despair T1–T4; Greater Hope ayrı desteklenmez. API: `tools.loot_crafting_backend.glyph_chance("hope", value)`. Reset: `crafthope reset`.
 - **Glyph of Despair seal ihtimali:** Yüzde 0–100 veya reset; native glyph/affix uygunluğu gerekir. Despair T1–T4; Greater Hope ayrı desteklenmez. API: `tools.loot_crafting_backend.glyph_chance("despair", value)`. Reset: `craftdespair reset`.
 - **Craft sırasında affix shard koru:** Gerçekten tüketilen bir shardı normal AddShard API ile geri verir. API: `tools.loot_crafting_backend.preserve_shards(value)`. Reset: `craftshards 0`.
@@ -286,6 +292,9 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `corruption` — Corruption | `corruption {save_id} {timeline} {difficulty} {value}` | timeline: 1…254; difficulty: normal/empowered; value: 0…65535 (runtime sınırı) | — | Oyun kaydı |
 | `stability` — Stability | `stability {save_id} {timeline} {difficulty} {value}` | timeline: 1…254; difficulty: normal/empowered; value: 0…2147483647 (runtime sınırı) | — | Oyun kaydı |
 | `stability_multiplier` — Stability kazanım çarpanı | `stabilitymult {value}` | value: 1…100 | 1 | Oturum |
+| `monolith_noblessing` — Boss'tan önceki görev echo'larını atla | `noblessing {value}` | value: 0…1 | 0 | Oturum |
+| `monolith_bossdoors` — Boss'tan önceki görev echo'larını atla | `bossdoors {value}` | value: 0…1 | 0 | Oturum |
+| `monolith_questskip` — Boss'tan önceki görev echo'larını atla | `questskip {value}` | value: 0…1 | 0 | Oturum |
 
 - **Blessing choices:** Choose Normal, 3, 4 or 5 options for newly generated Monolith boss rewards. This does not change existing rewards. Reset: `buildset blessingoptions 0`.
 - **Maximum blessing rolls:** Use the upper roll limit on newly generated boss blessing options. Existing blessings are kept. Reset: `buildset blessingrolls 0`.
@@ -297,6 +306,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Corruption:** Seçili run/difficulty için mutlak değer; UI sınırlarını runtime asset'ten al. Python empowered bool. API: `tools.monolith_backend.corruption(save_id, timeline, empowered, value)`.
 - **Stability:** Seçili run/difficulty için mutlak değer; UI sınırlarını runtime asset'ten al. Python empowered bool. API: `tools.monolith_backend.stability(save_id, timeline, empowered, value)`.
 - **Stability kazanım çarpanı:** Pozitif doğal kazanç; kayıpları/elle mutlak değer ayarını çarpmaz. API: `tools.monolith_backend.multiplier(value)`. Reset: `stabilitymult 1`.
+- **Boss'tan önceki görev echo'larını atla:** Normal timeline'da Stability dolunca boss'tan önceki görev echo'ları tamamlanmış sayılır (MonolithRun.questCompletion boss'un sırasına); açılırken dolu run'lara EoT/Hub/Rest'te yedekle hemen uygulanır. API: `tools.monolith_backend.quest_skip(value)`.
 
 ## Circle of Fortune
 
@@ -463,7 +473,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | Kontrol ID / adı | Komut | Aralık / seçenek | Başlangıç | Kalıcılık |
 |---|---|---|---|---|
 | `build_summonduration` — Summon lifetime multiplier | `buildset summonduration {value}` | value: 1…10 | 1 | Oturum |
-| `build_minionextra` — Extra minions per skill | `buildset minionextra {value}` | value: 0…20 | 0 | Oturum |
+| `build_minionextra` — Extra minions and companions per skill | `buildset minionextra {value}` | value: 0…20 | 0 | Oturum |
 | `build_totemextra` — Extra totems per skill | `buildset totemextra {value}` | value: 0…10 | 0 | Oturum |
 | `build_ballistaextra` — Extra ballistas | `buildset ballistaextra {value}` | value: 0…10 | 0 | Oturum |
 | `build_forgedextra` — Extra forged weapons | `buildset forgedextra {value}` | value: 0…20 | 0 | Oturum |
@@ -478,11 +488,11 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `summons_read` — Live summoned allies | `summonread` | — | — | Okuma |
 
 - **Summon lifetime multiplier:** Extend player-owned summon expiry timers and slow native health decay, including Wraith/Abomination paths. AI, attacks and combat damage remain normal. Permanent minions remain permanent. Reset: `buildset summonduration 1`.
-- **Extra minions per skill:** Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies and other minions. Cast the skill again to fill the new places. Totems, ballistas, forged weapons and companions have their own settings. Reset: `buildset minionextra 0`.
+- **Extra minions and companions per skill:** Raise each summon skill's own limit by this many: skeletons, skeletal mages, wraiths, golems, zombies, other minions and companions, for example three Bears. Your companion limit rises with it. Cast the skill again to fill the new places. Totems, ballistas and forged weapons have their own settings. Reset: `buildset minionextra 0`.
 - **Extra totems per skill:** Raise each totem skill's own limit by this many (Thorn Totem, Storm Totem, Warcry Totem and other totems). Reset: `buildset totemextra 0`.
 - **Extra ballistas:** Raise the Ballista limit by this many. Reset: `buildset ballistaextra 0`.
 - **Extra forged weapons:** Raise the forged weapon limit by this many. Reset: `buildset forgedextra 0`.
-- **Extra companions:** Raise your companion limit by this many. The game's other companion rules still apply, such as one of each kind. Reset: `buildset companionextra 0`.
+- **Extra companions:** Raise your companion limit by this many, for more kinds at once. For more of the same companion use Extra minions and companions per skill. Reset: `buildset companionextra 0`.
 - **Immortal minions:** Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back. Reset: `buildset immortalminions 0`.
 - **Damage session:** Read the damage session: per ally type and your character, DPS over 10 s, 60 s, 10 min and 60 min, averages, totals and hits.
 - **Damage session control:** Start, stop or reset the damage session. Damage is only recorded while it runs; stopped values stay until reset.
@@ -507,8 +517,6 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `map_minimapsize` — Minimap size | `mapset minimapsize {value}` | value: 0.5…2.5 | 1 | Oturum |
 | `map_minimapzoom` — Minimap zoom | `mapset minimapzoom {value}` | value: 0.25…4 | 1 | Oturum |
 | `map_minimapopacity` — Minimap opacity | `mapset minimapopacity {value}` | value: 0…1 | 0 | Oturum |
-| `map_overlayopacity` — Overlay map opacity | `mapset overlayopacity {value}` | value: 0…1 | 0 | Oturum |
-| `map_overlayzoom` — Overlay map zoom | `mapset overlayzoom {value}` | value: 0.25…4 | 1 | Oturum |
 | `tier_icons` — Affix tiers on item icons | `tierset icons {value}` | value: 0…1 | 0 | Oturum |
 | `tier_tooltips` — Tier tags in tooltips | `tierset tooltips {value}` | value: 0…1 | 0 | Oturum |
 | `tier_lines` — Colour affix lines by tier | `tierset lines {value}` | value: 0…1 | 0 | Oturum |
@@ -586,6 +594,8 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `rage_charges` — Kills for Bloodrage charges | `rageset charges {value}` | value: 0.2…1 | 1 | Oturum |
 | `rage_buffs` — Kills for hunt buffs | `rageset buffs {value}` | value: 0.2…1 | 1 | Oturum |
 | `rage_blood` — Blood forging potential share | `rageset blood {value}` | value: -1/0/25/50/75/100 | -1 | Oturum |
+| `rage_lizards` — Loot Lizard chance | `rageset lizards {value}` | value: 0…20 | 1 | Oturum |
+| `rage_nemesis` — Nemesis chance | `rageset nemesis {value}` | value: 0…20 | 1 | Oturum |
 | `map_reveal` — Reveal zone map | `mapreveal {value}` | value: 0…1 | 0 | Oturum |
 | `map_read` — Map display status | `mapread` | — | — | Okuma |
 
@@ -614,11 +624,15 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `inventory_stash` — Toggle stash | `inventoryaction {save_id} stash` | — | — | Görünüm |
 | `inventory_vendor` — Toggle vendor | `inventoryaction {save_id} vendor` | — | — | Görünüm |
 | `inventory_stashall` — Stash all inventory items | `inventoryaction {save_id} stashall` | — | — | Oyun kaydı |
+| `inventory_eternity` — Open Eternity Cache | `eternitycache {save_id}` | — | — | Görünüm |
 | `inventory_sellall` — Sell all inventory items | `inventoryaction {save_id} sellall` | — | — | Oyun kaydı |
 | `inventory_tools_read` — Sorting and selling settings | `invread` | — | — | Okuma |
 | `inventory_autosort` — Sort the inventory automatically | `invset autosort {value}` | value: 0…1 | 0 | Oturum |
 | `inventory_autosortall` — Sort every stash tab automatically | `invset autosortall {value}` | value: 0…1 | 0 | Oturum |
 | `inventory_sellkeep` — Sell all keeps | `invset sellkeep {value}` | value: 0/1/2 | 1 | Oturum |
+| `inventory_pages` — Inventory and idol pages | `invset pages {value}` | value: 0…1 | 1 | Oturum |
+| `inventory_idolslots` — All idol slots open | `invset idolslots {value}` | value: 0…1 | 0 | Oturum |
+| `inventory_pagesstash` — Move waiting pages to the stash | `itempages tostash` | — | — | Oyun kaydı |
 | `inventory_sorttab` — Sort a stash tab automatically | `invsorttab {tab} {value}` | tab: 0…999999; value: 0…1 | — | Oturum |
 | `stash_rules_read` — Stash tabs from loot filter | `stashrules {save_id}` | — | — | Okuma |
 | `stash_rules_create` — Create tabs from loot filter | `stashrulescreate {save_id} {hidden} {disabled}` | hidden: 0…1; disabled: 0…1 | — | Oyun kaydı |

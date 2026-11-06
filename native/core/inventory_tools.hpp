@@ -4,6 +4,7 @@
 //   invset autosortall 0|1                     sort every stash tab each time it is shown
 //   invset sellkeep 0|1|2                      Sell all: 0 sells everything, 1 keeps Unique/Set/Legendary,
 //                                              2 also keeps Exalted items
+//   invset idolslots 0|1                       every idol slot open, with any altar or none
 //   invsorttab <tab ID> 0|1                    sort this stash tab each time it is shown
 // The settings are kept in <game>\EpochPact\auto-sort.txt.
 #pragma once
@@ -14,6 +15,7 @@ bool Init();
 void Frame();  // from the convenience frame callback
 std::string Read();
 std::string Set(const std::string& key, int value);
+bool PagesOn();  // the 1-2-3-4 buttons of the inventory and the idols
 std::string SetTab(int tabId, bool on);
 // Sell all keeps this item (the sellkeep setting).
 bool KeepWhenSelling(void* itemData);

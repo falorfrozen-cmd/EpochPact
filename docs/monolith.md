@@ -15,6 +15,9 @@ All persistent actions require the loaded save id reported by `monolithread`.
 | `corruption <id> <timeline> normal\|empowered <integer>` | Set that run's corruption and recalculate its corruption mod/shared progression. Does not regenerate the echo web. |
 | `stability <id> <timeline> normal\|empowered <integer>` | Set stability through `MonolithRun.AddStability`, independent of the gain multiplier. |
 | `stabilitymult <1–100>` | Scale positive stability gains for runs owned by the loaded offline character. Losses remain unchanged; x1 removes the hook. |
+| `noblessing <0|1>` | No blessing choice after a timeline boss, see below |
+| `bossdoors <0|1>` | Boss doors and Boss Rush in the Monolith Hub, see below |
+| `questskip <0|1>` | Skip quest echoes before the boss: once a Normal run's Stability is full, its quest echoes before the boss count as completed (see below). Session setting; turned on, a full run changes at once in EoT/Hub/Rest with a recovery backup, the others when their Stability fills. |
 | `factionread` | Read faction ranks, current membership/favor/reputation, prophecy slots and lens data. No faction writes. |
 | `sessionread` | Read the client state and whether a transition is in progress. |
 
@@ -115,3 +118,77 @@ An instantiated character preview in Login is not evidence of a loaded game zone
 ## 2026-10-09 panel entry correction
 
 `select` and `focus_echo` prepare Traveler's Rest on an explicit button action, wait for its live manager and recheck the loaded save id before opening the panel. Direct native selection/focus refuses when this context is absent. Read/refresh, unlock, corruption and stability edits never travel automatically. This prevents bypassing the rest scene needed by native completion rewards and return placement.
+
+## Skip quest echoes before the boss (0.1.2-dev.55, owner request 2026-11-03)
+
+The owner: when the Stability bar is full, the side quest echoes should already be done and only the boss echo open.
+How the game does it (1.5.3): `MonolithTimeline.questZones` lists a timeline's quest echoes in order, the last one is
+the boss (`MonolithRun.IsBossQuestEcho`: index == Count - 1). `MonolithRun.questCompletion` counts the finished ones:
+quest echo i is completed while questCompletion > i (`IsQuestEchoCompleted`), `nextQuestEcho` returns the zone whose
+`requiredQuestCompletion` equals questCompletion (and its branch, for a zone that requires one), and finishing a quest
+echo adds 1 (`MonolithZoneManager.OnQuestCompleted`). Empowered runs offer only the boss (`QuestEcho.GetAvailability`
+answers Unavailable for the others).
+
+`questskip 1` (control `monolith_questskip`, Monolith → Echo modifiers): after every Stability gain of a run of the
+loaded offline character (the AddStability hook, shared with the Stability multiplier and installed while either needs
+it), a Normal run whose Stability is at its maximum and whose boss needs more completed quest echoes gets
+questCompletion = the boss's requiredQuestCompletion; the change is kept only if `nextQuestEcho` then returns the boss
+zone. A route that is not linear (boss requiredQuestCompletion != Count - 1) or a boss that requires another branch is
+left to the game. The game saves the run with its other progress; turned on with a full run already, the change is
+made at once in EoT, Monolith Hub or Traveler's Rest through the Monolith mutation path (recovery backup, save).
+`monolithread` gives `questSkip`, each timeline's `questEchoes` (before the boss) and each run's `questCompletion`.
+The skipped quest echoes give none of their own rewards; the boss, its loot and the timeline completion are unchanged.
+
+## The Boss Hall (owner request 2026-11-06)
+
+With `bossdoors 1` the doors stand in a place of our own, in the Hub's scene around 1400, 1, 1400. It is no copied place. The ground is a mesh made at run time in the outline we choose, flat on top, falling into rock at its edge, in a material of the game (`kHallMaterialFrom`; sand now; red sand, snow, grass and plain rock also tried). The parts come one by one from `kHallParts` (a named object of the scene, its place, a turn, a size), made inside an inactive holder so their scripts never start, scripts off. `NavMeshSurface.BuildNavMesh` from the ground's and the parts' colliders says where one can walk; clicks find the ground on the same collider (`MouseManager.WalkablePoint`). A rock by the Hub's waypoint goes in, a rock in the hall comes back, the way out of a door's boss returns to the hall. Three stations open the game's panels through the mod's own commands: Stash, Vendor, Eternity Cache. If it cannot be built the doors stay in the Hub as before. Nothing is saved; a scene change removes it and the next visit rebuilds it.
+
+## Boss doors and Boss Rush (owner request 2026-11-05)
+
+The setting has a small ? beside its switch (F6 and desktop, owner request 2026-11-06): it tells the player to go to Fall of the Outcasts in the Monolith Hub, what the boss and Empowered doors do, and that Boss Rush is in the same area.
+
+`bossdoors 1` puts twelve copies of the Hub's own Monolith rock (`MonolithObject`, smaller, without its quest pulses and map
+icon) around the Monolith Hub's centre: ten start a timeline's boss echo, one switches Normal and Empowered, one runs all ten in
+turn. The click is taken at `WorldObjectClickListener.ObjectClick`, so the rock's own event chain and timeline panel do not run.
+
+Start: the run from `GetRun` or `getNewRun`, `questCompletion` at the boss, Stability full, then the game's own
+`MonolithGameplayManager.AttemptStartQuestAsync(player, user, timeline, difficulty, last quest echo, false)`. It refuses inside
+an echo, and an echo started outside M_Rest's scene (Forgotten Knight) loses its run, so a next boss waits for the player's portal
+out and for M_Rest. A locked timeline starts too; `MonolithProgressManager.timelineUnlocked` answers true for the door's own
+boss because `MovePlayer` looks the run up through it. `Notifications.TimelineUnlockedNotification` is skipped during a door's boss:
+it throws on a repeated name, which ended `TimelineBossDied` before the loot and the completion.
+
+The doors are free of the timeline's own progress. `questCompletion`, `questBranch`, Stability, the previous-echo flags and the Gaze of
+Orobyss are kept before the start (also in `bossdoors-borrowed.txt`, so a game closed during a boss gets them back at the next
+start) and written back once the player is outside the echo, whatever happened inside. Corruption is not touched: a door's boss
+uses the run's own corruption, which is the minimum on a timeline never played.
+
+A kill counts only for what the game counts it for, nothing is added for quests: the bosses drop as usual, repeated kills too.
+Bosses wake when someone comes near, and a few have conditions: the player is placed before the strongest fighter of the scene
+when it is more than 15 units away, or at a known place (1 arena, 3 before the guards, because its boss sleeps until they fall, 4, 8, 9).
+
+Live (EpFeedbackTest clones, kills by test command with damage off): all ten bosses through the door path in order, from
+Rush start to the hall, including locked 8 to 10 and Forgotten Knight arrivals; Empowered 1 and 2 at corruption 100.
+
+## No blessing choice (owner request 2026-11-05)
+
+`noblessing 1` leaves out `UIBase.OpenBlessingOptions`, the panel that opens after a timeline boss's kill, on every boss, through a
+door or not. The game still rolls its options into the timeline's option slot; only `selectBlessing` from the panel gives one,
+so those kills give no new blessing and the next roll clears the slot. Blessings already held stay.
+
+## Boss doors: the way on, town portals, Harbingers (owner request 2026-11-05)
+
+A door's boss ending in `completeRun` (questCompletion leaves the boss's value) opens a portal of type Echo next to the player
+(`IPortalService.CreatePortalAsync`, one portal per player, so the player's own portal key replaces it). Only that type goes on
+(`PortalLogicController.OnAttemptUse`): a Rush's next boss, or the hall. Leaving any other way is a town portal: nothing starts, the player stays where the game puts them, and the Rush door continues from the next boss, or the same
+one if it lives.
+
+The difficulty door switches Normal, Empowered and Empowered + Harbinger. The game's rule (`SetUpHarbingerBossEncounter`) makes the boss
+echo a Harbinger fight with no Forgotten Knights rank, or with the opt-in and enough corruption. For a door the choice decides: Empowered
+leaves that setup out, Empowered + Harbinger passes the opt-in and `ShouldBossfightBeGuarenteedHarbinger` answers true.
+
+`noblessing` also closes a blessing window it finds open (`PanelSystem.ClosePanelInternal` on `ChooseBlessingPanel`), for one opened
+before the setting or by another way.
+
+A door's boss opens no Quest Completed window (`QuestRewardPanel.OpenImmediate`, `Notifications.ShowQuestRewardNotification`), also for 20 seconds
+after leaving, because the window can wait for the scene change. `StatefulQuestList.onQuestCompletion` gives the rewards before it, so they still arrive.

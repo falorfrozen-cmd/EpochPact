@@ -38,6 +38,10 @@ int main() {
     check(ScaleThresholds({0, 10}, 0.5) == std::vector<int>({0, 5}), "a zero threshold is left alone");
     check(ScaleThresholds(charges, 0.5).size() == charges.size(), "same number of thresholds (the game draws one orb per charge)");
 
+    check(kLizards.low == 0 && kLizards.neutral == 1 && kNemesis.low == 0 && kNemesis.neutral == 1, "encounter ranges include off and normal");
+    check(ScaleIncreased(0.0f, 1) == 0.0f && ScaleIncreased(0.0f, 3) == 2.0f && ScaleIncreased(0.5f, 2) == 2.0f, "the whole factor is multiplied");
+    check(ScaleIncreased(0.5f, 0) == -1.0f, "0 makes the factor 0");
+    check(ScaleZeroChance(0.5f, 1) == 0.5f && ScaleZeroChance(0.5f, 0.5) == 0.5f && ScaleZeroChance(0.5f, 5) == 0.1f, "the chance of none falls only above normal");
     std::printf("%s %d/%d rage of morditas rules: ranges, rates, chances, Blood share, durations, kill thresholds\n", failed ? "FAIL" : "PASS", total - failed, total);
     return failed ? 1 : 0;
 }

@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <fstream>
 #include <map>
+#include <memory>
+#include <vector>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -47,6 +49,8 @@ struct Pending { bool active = false; int checks = 0, ready = 0, tab = -1; };
 Pending inventoryPending, tabPending;
 constexpr int kReadyTicks = 2, kNoWindowTicks = 8;
 
+bool pagesOn = true;
+bool idolSlots = false;
 std::wstring Path() { return PluginDir() + L"auto-sort.txt"; }
 void Load() {
     std::ifstream in(Path());
@@ -54,6 +58,8 @@ void Load() {
     long long value = 0;
     while (in >> key >> value) {
         if (key == "inventory") inventoryOn = value != 0;
+        else if (key == "pages") pagesOn = value != 0;
+        else if (key == "idolslots") idolSlots = value != 0;
         else if (key == "all") allTabs = value != 0;
         else if (key == "sellkeep" && value >= 0 && value <= 2) sellKeep = static_cast<int>(value);
         else if (key == "tab" && value >= 0 && value < 1000000 && tabs.size() < 1000) tabs.insert(static_cast<int>(value));
@@ -61,7 +67,7 @@ void Load() {
 }
 void Save() {
     std::ofstream out(Path(), std::ios::trunc);
-    out << "inventory " << (inventoryOn ? 1 : 0) << "\nall " << (allTabs ? 1 : 0) << "\nsellkeep " << sellKeep << "\n";
+    out << "inventory " << (inventoryOn ? 1 : 0) << "\nall " << (allTabs ? 1 : 0) << "\nsellkeep " << sellKeep << "\npages " << (pagesOn ? 1 : 0) << "\nidolslots " << (idolSlots ? 1 : 0) << "\n";
     for (int tab : tabs) out << "tab " << tab << "\n";
     if (!out) throw std::runtime_error("The automatic sorting settings could not be saved.");
 }
@@ -252,18 +258,67 @@ int RedrawStale() {
 }
 
 // Runs on the convenience frame callback (the game's UI update), at most every 250 ms.
+// All idol slots open. IdolsItemContainer.GetSlotState reads a cell of the active grid's unlockMatrix: 99 is closed, 100 and
+// over is refracted, and the rest modulo 100 is the rank that unlocks it. Every grid asks for rank 0 while this is on, so every
+// way the game looks at a slot agrees; the cells go back to the game's own values when it is turned off.
+struct GridCells { std::unique_ptr<Root> matrix; std::vector<int> original; };
+std::vector<GridCells> gridCells;
+bool cellsOpen = false;
+void* cellsManager = nullptr;
+int* Cells(void* matrix) { return reinterpret_cast<int*>(static_cast<char*>(matrix) + 0x20); }
+void CollectGrids() {
+    if (!gridCells.empty()) return;
+    void* list = Invoke(game::FindMethod("LE.dll", "", "IdolsContainerGridDataList", "Get", 0));
+    if (!list) return;
+    std::vector<void*> grids{Get<void*>(list, F("IdolsContainerGridDataList", "defaultData"))};
+    for (void* grid : Entries(Get<void*>(list, F("IdolsContainerGridDataList", "data")))) grids.push_back(grid);
+    for (void* grid : grids) {
+        void* matrix = grid ? Get<void*>(grid, F("IdolsContainerGridData", "unlockMatrix")) : nullptr;
+        if (!matrix) continue;
+        GridCells g;
+        g.matrix = std::make_unique<Root>(matrix);
+        const auto count = Get<uintptr_t>(matrix, 0x18);
+        g.original.assign(Cells(matrix), Cells(matrix) + count);
+        gridCells.push_back(std::move(g));
+    }
+}
+void IdolSlotsFrame() {
+    if (!idolSlots && !cellsOpen) return;
+    game::Guarded([] {
+        CollectGrids();
+        if (gridCells.empty()) return;
+        const bool changed = cellsOpen != idolSlots;
+        if (changed) {
+            for (const auto& g : gridCells) {
+                int* cells = Cells(g.matrix->Get());
+                for (size_t i = 0; i < g.original.size(); ++i) cells[i] = idolSlots ? (g.original[i] >= 100 ? 100 : 0) : g.original[i];
+            }
+            cellsOpen = idolSlots;
+            Log("idol slots: %s, %zu grids", idolSlots ? "all open" : "the game's own", gridCells.size());
+        }
+        void* manager = game::StaticObject(game::FindStaticField("LE.dll", "", "ItemContainersManager", "_instance"));
+        if (!manager || !Value<bool>(Method(manager, "get_IsFullyInitializedAndLoaded", 0), manager)) return;
+        if (!changed && manager == cellsManager) return;
+        cellsManager = manager;
+        // the picture of the slots, and the idols' own check of where they sit
+        void* idols = Get<void*>(manager, F("ItemContainersManager", "idols"));
+        Invoke(Method(idols, "RefreshUnlockIndex", 0), idols);
+        Invoke(Method(idols, "ValidateAllIdols", 0), idols);
+    }, nullptr);
+}
 void Frame() {
     if (lifecycle::Stopping()) return;
     const auto now = GetTickCount64();
     if (now < nextTick) return;
     nextTick = now + 250;
+    IdolSlotsFrame();
     std::string why;
     if (!game::Guarded([now] { Tick(now); }, &why)) { ++faults; lastError = why; nextTick = now + 5000; }
 }
 namespace {
 std::string State() {
     std::ostringstream out;
-    out << "{\"ok\":true,\"autosort\":" << Boolean(inventoryOn) << ",\"autosortAll\":" << Boolean(allTabs) << ",\"sellKeep\":" << sellKeep << ",\"tabs\":[";
+    out << "{\"ok\":true,\"autosort\":" << Boolean(inventoryOn) << ",\"autosortAll\":" << Boolean(allTabs) << ",\"sellKeep\":" << sellKeep << ",\"pages\":" << Boolean(pagesOn) << ",\"idolSlots\":" << Boolean(idolSlots) << ",\"tabs\":[";
     bool comma = false;
     for (int tab : tabs) { if (comma) out << ','; comma = true; out << tab; }
     out << "],\"inventorySorts\":" << inventorySorts << ",\"tabSorts\":" << tabSorts << ",\"lastSortedTab\":" << lastSortedTab
@@ -297,6 +352,8 @@ std::string Set(const std::string& key, int value) {
     return Run([=] {
         if ((key == "autosort" || key == "autosortall") && (value == 0 || value == 1)) (key == "autosort" ? inventoryOn : allTabs) = value == 1;
         else if (key == "sellkeep" && value >= 0 && value <= 2) sellKeep = value;
+        else if (key == "pages" && (value == 0 || value == 1)) pagesOn = value == 1;
+        else if (key == "idolslots" && (value == 0 || value == 1)) idolSlots = value == 1;
         else throw std::runtime_error("use invset autosort|autosortall 0|1 or invset sellkeep 0|1|2");
         Save();
         // Switched on while the inventory or stash is open: sorted at the next check.
@@ -304,6 +361,7 @@ std::string Set(const std::string& key, int value) {
         return State();
     });
 }
+bool PagesOn() { return pagesOn; }
 std::string SetTab(int tabId, bool on) {
     return Run([=] {
         if (tabId < 0 || tabId >= 1000000) throw std::runtime_error("use invsorttab <tab ID> 0|1");

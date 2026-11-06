@@ -1012,8 +1012,11 @@ std::string PickupNow(){
     if(!smartloot::CanCollect())return "{\"ok\":false,\"error\":\"Load an offline character first.\"}";
     g_inventoryFull=false;g_inventoryWasOpen=false;
     int picked=0,steps=0,skipped=0,idle=0,stalled=0,lastCandidates=-1;std::string why;
+    uint64_t waitingSince=0;bool cardOpen=false;
     const bool ran=mainthread::RunSteps([&]{
-        if(InspectingItem())return false;
+        // A card under the cursor pauses the sweep, for a while only: the command channel waits on this job.
+        if(InspectingItem()){const uint64_t now=GetTickCount64();if(!waitingSince)waitingSince=now;if(now-waitingSince<5000)return false;cardOpen=true;return true;}
+        waitingSince=0;
         const auto r=PickAll(32,true);picked+=r.calls;skipped+=r.skippedFull;++steps;
         // Picked objects leave the lists over the next frames; stop after two
         // sweeps without a new pickup, after three sweeps in which nothing left
@@ -1023,6 +1026,7 @@ std::string PickupNow(){
         return idle>=2||stalled>=3||steps>=240;
     },5000,&why);
     if(!ran)return std::string("{\"ok\":false,\"error\":\"")+(why.find("pick the job up")!=std::string::npos?"The game is not updating. Return to the game window and try again.":"Close the item card in the game, then try again.")+"\",\"picked\":"+std::to_string(picked)+"}";
+    if(cardOpen&&!picked)return "{\"ok\":false,\"error\":\"Close the item card in the game, then try again.\"}";
     return "{\"ok\":true,\"picked\":"+std::to_string(picked)+",\"steps\":"+std::to_string(steps)+",\"inventoryFull\":"+(g_inventoryFull.load()?"true":"false")+",\"skippedWhileFull\":"+std::to_string(skipped)+"}";
 }
 std::string SetRadius(double radius){

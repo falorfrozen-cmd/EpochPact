@@ -201,3 +201,10 @@ The skill a mastery gives when it is chosen (`getMasteryAbility`, such as Holy A
 Switching it on or off runs the game's `LocalTreeData.RecalculateKnownAbilitiesAndUnequipUnlearnedOnes`:
 the known skills follow at once and a skill no longer known leaves the bar. Other classes' skills are
 not included (owner's choice). Offline only.
+
+## Companions per skill (owner request 2026-11-05)
+
+`minionextra` also raises companion skills' own limits: three Bears at +2. The game has two limits, the skill's and the companion total, so the total
+rises with it (`Stats.getMaximumCompanions`, by the setting times the eight companion skills, at most 20), else the new ones push other kinds out, and
+`SummonTracker.CanSummonMoreOfCompanionType` answers yes while it is on. `companionextra` still raises the total alone.
+

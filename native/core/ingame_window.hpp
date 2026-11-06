@@ -105,6 +105,7 @@ void RegisterCofSections();              // ingame_cof.cpp
 void RegisterMonolithSections();         // ingame_monolith.cpp
 void RegisterCraftSections();            // ingame_craft.cpp
 void RegisterWorkshopSections();         // ingame_workshop.cpp
+void CraftTabAutoLoad(const std::string& tab);  // ingame_workshop.cpp
 void RegisterStatSections();             // ingame_stats.cpp
 struct Control;
 void RegisterCollectionSections();       // ingame_collection.cpp

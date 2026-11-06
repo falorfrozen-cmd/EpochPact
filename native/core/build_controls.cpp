@@ -31,7 +31,7 @@ std::array<Setting*,26> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&
 game::MethodRef getActor, offline, xpRef, skillRef, passiveRef, weaverRef, zoomRef, projectileRef, blessingRef, populateRef, optionsRef;
 game::MethodRef summonRef, slotRef, alternateSlotRef, linkedRef, invalidRef, enforceRef, mainRestrictionRef, offRestrictionRef, equipRef;
 game::MethodRef constructionRef, drainRef, summonedTickRef;
-game::MethodRef sedSummonRef, maxCompanionsRef, summonedInitRef, maxPrimordialsRef, receiveRef;
+game::MethodRef moreCompanionsRef, sedSummonRef, maxCompanionsRef, summonedInitRef, maxPrimordialsRef, receiveRef;
 game::MethodRef skillUnspentRef, passiveUnspentRef, weaverUnspentRef;
 game::MethodRef requirementRef, requirementPreviewRef, passiveRequirementRef, uiRequirementRef, reachableRef,
     globalNodeRef, passiveSpendRef, passiveBulkRef, masteryRef, masteryUpdateRef, respecCostRef;
@@ -396,12 +396,12 @@ void SedSummonDetour(void* self,M method){
         if(!refs||!local||Get<void*>(refs,F("CreationReferences","creator"))!=local)return;
         void* ability=Get<void*>(refs,F("CreationReferences","thisAbility"));if(!ability)return;
         const std::string name=Text(Get<void*>(ability,F("Ability","abilityName")));
-        // Companions keep the game's one-of-each-kind skill limits; their count is the companion limit.
+        // Companions rise with the minions' setting: the companion limit rises with it (CompanionsDetour), else the new ones push others out.
         const bool companion=Get<bool>(self,F("SummonEntityOnDeath","companion"))||Get<bool>(ability,F("Ability","companion"));
         const auto kind=rules::KindOf(companion,name=="Ballista",name.find("Forged Weapon")!=std::string::npos,
             Value<uint32_t>(Method(ability,"getTagsWithFakeTags",0),ability),  // as SummonTracker counts totems
             Get<bool>(self,F("SummonEntityOnDeath","countsAsTotemEvenIfAbilityIsNotTotemAbility")));
-        if(kind==rules::SummonKind::Companion){lastSummonAbility=name;lastSummonKind=KindName(kind);lastSummonNative=lastSummonLimit=Get<int>(self,F("SummonEntityOnDeath","limit"));return;}
+        if(kind==rules::SummonKind::Companion&&minionExtra.value<=0){lastSummonAbility=name;lastSummonKind=KindName(kind);lastSummonNative=lastSummonLimit=Get<int>(self,F("SummonEntityOnDeath","limit"));return;}
         const double extra=kind==rules::SummonKind::Totem?totemExtra.value.load():kind==rules::SummonKind::Ballista?ballistaExtra.value.load():
             kind==rules::SummonKind::Forged?forgedExtra.value.load():minionExtra.value.load();
         int* limit=reinterpret_cast<int*>(static_cast<char*>(self)+F("SummonEntityOnDeath","limit"));
@@ -411,10 +411,16 @@ void SedSummonDetour(void* self,M method){
     });
     originalSedSummon(self,method);
 }
+// The game's check before a companion skill: "one of this kind is out already". The skill's own limit decides while the setting is on.
+using MoreCompanionsFn=bool(*)(void*,void*,M);MoreCompanionsFn originalMoreCompanions=nullptr;
+bool MoreCompanionsDetour(void* self,void* info,M method){
+    if(minionExtra.value>0)return true;
+    return originalMoreCompanions(self,info,method);
+}
 int CompanionsDetour(void* self,M method){
     const int native=originalCompanions(self,method);
     int result=native;
-    if(companionExtra.value>0)Checked([&]{void* local=Actor();if(local&&self==Get<void*>(local,F("Actor","stats")))result=rules::RaisedCompanions(native,static_cast<int>(companionExtra.value));});
+    if(companionExtra.value>0||minionExtra.value>0)Checked([&]{void* local=Actor();if(local&&self==Get<void*>(local,F("Actor","stats")))result=rules::RaisedCompanions(native,static_cast<int>(companionExtra.value)+static_cast<int>(minionExtra.value)*rules::CompanionSkills);});
     if(result!=native)++raisedCompanionReads;
     return result;
 }
@@ -701,6 +707,7 @@ Hook xpHook{&xpRef,reinterpret_cast<void*>(&XpDetour),reinterpret_cast<void**>(&
     summonedTickHook{&summonedTickRef,reinterpret_cast<void*>(&SummonedTickDetour),reinterpret_cast<void**>(&originalSummonedTick)},
     sedSummonHook{&sedSummonRef,reinterpret_cast<void*>(&SedSummonDetour),reinterpret_cast<void**>(&originalSedSummon)},
     companionsHook{&maxCompanionsRef,reinterpret_cast<void*>(&CompanionsDetour),reinterpret_cast<void**>(&originalCompanions)},
+    moreCompanionsHook{&moreCompanionsRef,reinterpret_cast<void*>(&MoreCompanionsDetour),reinterpret_cast<void**>(&originalMoreCompanions)},
     summonedInitHook{&summonedInitRef,reinterpret_cast<void*>(&SummonedInitDetour),reinterpret_cast<void**>(&originalSummonedInit)},
     constructionHook{&constructionRef,reinterpret_cast<void*>(&ConstructionDetour),reinterpret_cast<void**>(&originalConstruction)},
     slotHook{&slotRef,reinterpret_cast<void*>(&SlotDetour),reinterpret_cast<void**>(&originalSlot)},
@@ -753,6 +760,7 @@ std::vector<Hook*> Hooks(const Setting& s) {
     if(&s==&summonDuration)return {&summonHook,&drainHook,&summonedTickHook};
     if(&s==&offhand)return {&slotHook,&alternateSlotHook,&linkedHook,&invalidHook,&enforceHook,&mainRestrictionHook,&offRestrictionHook};
     if(&s==&skills)return {&skillHook,&skillUnspentHook};
+    if(&s==&minionExtra)return {&sedSummonHook,&companionsHook,&moreCompanionsHook};
     if(&s==&masterySkills)return {&unlockedHook,&unlockedMasteryHook,&lockedMasteryHook};
     if(&s==&blessings)return {&blessingHook,&populateHook,&optionsHook};
     if(&s==&freeSkills||&s==&freePassives||&s==&freeWeaver)return {&requirementHook,&requirementPreviewHook,&passiveRequirementHook,&uiRequirementHook,&reachableHook,&globalNodeHook,&passiveSpendHook,&passiveBulkHook,&masteryHook,&masteryUpdateHook,&respecCostHook};
@@ -827,6 +835,7 @@ bool Init() {
         summonedTickRef=game::FindMethod("LE.dll","","Summoned","OnUpdateTick",1);
         sedSummonRef=game::FindMethod("LE.dll","","SummonEntityOnDeath","Summon",0);
         maxCompanionsRef=game::FindMethod("LE.dll","","Stats","getMaximumCompanions",0);
+        moreCompanionsRef=game::FindMethod("LE.dll","","SummonTracker","CanSummonMoreOfCompanionType",1);
         maxPrimordialsRef=game::FindMethod("LE.dll","","CharacterMutator","GetMaxPrimordialItems",0);
         receiveRef=game::FindMethod("LE.dll","","OneSlotItemContainerWithCharacterRequirements","CanReceiveItem",2);
         lastReason=Offset("OneSlotItemContainerWithCharacterRequirements","lastReason");

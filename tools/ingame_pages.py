@@ -9,6 +9,7 @@ calls in ui/app.js, so the two cannot drift apart unnoticed.
 # id, navigation label, symbol, hero title, hero subtitle: the `pages` table of app.js.
 PAGES = [
     ("overview", "Overview", "◈", "Your timeline. Your rules.", "Shape your journey, your loot and your character."),
+    ('whatsnew', "What's New", '✦', 'See what changed.', 'The newest version first, with its settings right here.'),
     ("game_setup", "Game setup", "⌁", "Connect your game.", "Choose Last Epoch.exe, install the player mod and launch offline."),
     ("general", "General settings", "⚙", "Your journey. Your rules.", "Experience, loot, enemies and everyday conveniences."),
     ("loot", "Loot & Pickup", "▣", "Keep what matters.", "Automatic collection, loot filters and crafting material pickup."),
@@ -18,9 +19,10 @@ PAGES = [
     ("equipment", "Equipment", "⚔", "Equip your imagination.", "Offhand combinations, set bonuses, primordial items and level requirements."),
     ("wardrobe", "Wardrobe", "♛", "Dress the legend.", "Try every look on your character before you wear it."),
     ("summons", "Summons", "♧", "Command your companions.", "Minion bonuses and temporary summon duration."),
+    ("combat", "Combat", "⚔", "Read every fight.", "Damage meter and death recap."),
     ("display", "Display & Camera", "◉", "See Eterra your way.", "Camera pitch, zoom and temporary graphics overrides."),
     ("world", "World & Exploration", "⌖", "Explore without friction.", "Map visibility and nearby chest, shrine and portal interactions."),
-    ("inventory", "Inventory", "▤", "Your workshop, anywhere.", "Open your stash or vendor and transfer inventory items safely."),
+    ("inventory", "Inventory", "▤", "Your workshop, anywhere.", "Extra pages, sorting and stash tabs from your loot filter."),
     ("atlas", "Unique Atlas", "✦", "Every relic has a story.", "Your collection, missing treasures and the next item to chase."),
     ("stash", "Stash Assistant", "▤", "Find the keeper.", "Compare your copies and mark what matters."),
     ("campaign", "Campaign", "⌘", "Begin a new chapter.", "Quests, their normal rewards and waypoints across the world."),
@@ -30,6 +32,17 @@ PAGES = [
     ("settings", "Settings", "☷", "Make this workshop yours.", "Themes, saved profiles and recovery backups."),
 ]
 
+# What's New, newest first: (version, what changed, setting cards shown right there, pages for the rest).
+# A new release adds its row at the top, here and in app.js whatsNew. Only settings that apply at once.
+WHATS_NEW = [
+    ('v0.1.2-dev.55', 'A Boss Hall of its own with boss doors and Boss Rush, with Empowered and Harbinger. Quest echo skip, no blessing window. Eternity Cache anywhere, with one affix choice per Legendary Potential. New affixes on Exalted items, Legendary Potential of your Uniques, corrupted affixes in Custom Items. Inventory and idol pages, all idol slots open, shatter what the filter hides. Loot Lizard and Nemesis chance, more companions, a Combat page. Works on Last Epoch 1.5.4.', ['monolith_bossdoors', 'monolith_questskip', 'monolith_noblessing', 'inventory_pages', 'inventory_idolslots', 'loot_autoshatter', 'rage_lizards', 'rage_nemesis'], ['monolith', 'crafting', 'inventory', 'combat']),
+    ('v0.1.2-dev.54', "Campaign at your current level. Omen idols' affixes in Spawn Items.", [], ['campaign', 'crafting']),
+    ('v0.1.2-dev.53', 'T8 on any affix, affix tiers changed in place, character level, Spawn with chosen affixes.', [], ['crafting', 'campaign']),
+    ('v0.1.2-dev.52', 'Custom Items keeps affixes the game would convert from being chosen.', [], ['crafting']),
+    ('v0.1.2-dev.51', 'Class tags on affixes, gear above your level, crafting corrupted items.', ['build_anylevel'], ['crafting']),
+    ('v0.1.2-dev.50', 'Wardrobe: a click wears the look and keeps it at once.', [], ['wardrobe']),
+    ('v0.1.2-dev.49', 'The Wardrobe page, skills of your other masteries, always the most idol affixes.', ['build_masteryskills'], ['wardrobe', 'general']),
+]
 WEAVER_SETTINGS = ["weaverswill", "weaversdrop", "weaversupgrades"]
 # app.js nameTagExamples: shown as written in the Loot filter window note
 NAME_TAG_EXAMPLES = ["<color=#FF4040>red</color>", "<color=yellow>yellow</color>", "<b>bold</b>", "<i>italic</i>", "<u>underlined</u>"]
@@ -89,15 +102,11 @@ WEAVER_TEXT = ("Weaver's Will Uniques: how much Weaver's Will they roll, how oft
                "choose below which affixes it should prefer. Minimum Weaver's Will for auto pickup is under Loot & Pickup → Quality rules.")
 RAGE_TEXT = ("These change only the values the game loaded, while you play offline; nothing is saved to your character. "
              "1 (or the game's own) puts the game's values back.")
-MONOLITH_DENSITY = {"label": "Monolith monster density",
-                    "description": "Increases the average size of new regular enemy packs in Normal and Empowered Echoes. "
-                                   "Apply before entering the next Echo; existing packs and bosses are unchanged."}
 EFFECTS_NOTE = ("Uses live game icons and descriptions. Effects with no readable timer show —. The panels let clicks pass through "
                 "and only show effects exposed by the game's native UI.")
 GRAPHICS_NOTE = ("Graphics overrides last for this character session. Turning them off restores the previous renderer values. "
                  "Your saved graphics preferences are kept.")
-MONOLITH_NOTE = ("Monster density is shared with General settings and applies to eligible packs in other combat areas too. "
-                 "×1 uses normal pack sizes. Apply before entering the next Echo; restarting the game resets these session settings.")
+MONOLITH_NOTE = "Apply before entering the next Echo; restarting the game resets these session settings."
 
 
 # Crafting (app.js renderCrafting): three tabs; Apply changes belongs to Forge Settings.
@@ -131,9 +140,13 @@ def sections(page, controls, counts):
         return [
             {"kind": "summary", "items": [[str(len(player)), "Available tools"], [str(counts["sheetRows"]), "Character bonuses"],
                                           [str(counts["timelines"]), "Monolith timelines"], [str(counts["statAliases"]), "Common stats"]]},
-            settings("Quick controls", ["xp", "speed", "drops", "gold"]),
-            {"kind": "links", "title": "Explore your workshop", "pages": ["stats", "loot", "crafting", "campaign", "monolith", "cof"]},
         ]
+    if page == "whatsnew":
+        out = []
+        for version, text, ids, links in WHATS_NEW:
+            out.append(settings(version, ids, text=text, head=None if ids else "none"))
+            out.append({"kind": "links", "title": "Where to find it", "pages": links})
+        return out
     if page == "general":
         return [settings("General game settings", general_ids(controls)),
                 settings("Weaver's Will", WEAVER_SETTINGS, text=WEAVER_TEXT, head="refresh", tail="weaver_affixes",
@@ -152,6 +165,7 @@ def sections(page, controls, counts):
         return [settings("Automatic collection", ["autopickup", "pickup_radius", "pickup_interval"]),
                 settings("Pick up from afar", ["remotepickup"]),
                 settings("Stash tabs on pickup", ["stashpickup"]),
+                settings("Hidden items", ["loot_autoshatter", "loot_shatterquiet"]),
                 native("recent_pickups", controls=["loot_log", "loot_log_clear"]), native("collect_now", controls=["pickup_now"]),
                 settings("Quality rules", ["loot_lp", "loot_ww", "loot_t7", "loot_filter"]),
                 native("filter_files"),
@@ -163,7 +177,7 @@ def sections(page, controls, counts):
         return [settings("Buffs & debuffs in game", ["effects_enabled", "effects_player", "effects_target", "effects_descriptions", "effects_scale", "effects_rows"],
                          note=EFFECTS_NOTE),
                 settings("Camera", ["build_zoom", "build_cameraangle"]),
-                settings("Minimap and overlay", ["map_minimapsize", "map_minimapzoom", "map_minimapopacity", "map_overlayopacity", "map_overlayzoom"]),
+                settings("Minimap", ["map_minimapsize", "map_minimapzoom", "map_minimapopacity"]),
                 settings("Item tiers", ["tier_icons", "tier_tooltips", "tier_lines", "tier_special", "tier_rules", "tier_rule_position", "tier_rule_parts"]),
                 native("tier_colours", controls=["tier_color", "tier_rule_color"]),
                 native("interface_font", controls=["font_family", "font_read"]),
@@ -174,7 +188,8 @@ def sections(page, controls, counts):
                 settings("Nearby interactions", ["qol_chests", "qol_shrines", "qol_portals", "qol_arearadius", "qol_areashape", "qol_areashow"]),
                 native("area_colour", controls=["qol_areacolor"]),
                 settings("Rage of Morditas (Season 5)", ["rage_spawn", "rage_hunttime", "rage_charges", "rage_buffs", "rage_blood"], text=RAGE_TEXT,
-                         facts="rage")]
+                         facts="rage"),
+                settings("Rare encounters", ["rage_lizards", "rage_nemesis"])]
     if page == "skills":
         return [native("cached_summary", read="buildread"), native("skill_budgets"),
                 settings("Experience and skill points", ["build_skillxp", "build_skillpoints", "build_passivepoints"]),
@@ -188,16 +203,17 @@ def sections(page, controls, counts):
     if page == "wardrobe":
         return [native("wardrobe", controls=["transmog_read", "transmog_set"])]
     if page == "summons":
-        return [native("damage_meter", controls=["damage_session", "damage_session_read"]),
-                settings("Death recap", ["death_recap"], text=DEATH_TEXT, head="tail", tail="death_recap",
-                         tail_controls=["death_recap_read", "death_recap_clear"]),
-                native("summon_allies", controls=["summons_read"]),
+        return [native("summon_allies", controls=["summons_read"]),
                 settings("Summon lifetime", ["build_summonduration"]),
                 settings("Minion counts", ["build_minionextra", "build_totemextra", "build_ballistaextra", "build_forgedextra", "build_companionextra", "build_immortalminions"]),
                 native("minion_bonuses", controls=["stat_alias"])]
+    if page == "combat":
+        return [native("damage_meter", controls=["damage_session", "damage_session_read"]),
+                settings("Death recap", ["death_recap"], text=DEATH_TEXT, head="tail", tail="death_recap",
+                         tail_controls=["death_recap_read", "death_recap_clear"])]
     if page == "monolith":
         return [native("cached_summary", read="monolithread"),
-                settings("Echo modifiers", ["density", "stability_multiplier"], note=MONOLITH_NOTE, overrides={"density": MONOLITH_DENSITY}),
+                settings("Echo modifiers", ["stability_multiplier", "monolith_questskip", "monolith_bossdoors", "monolith_noblessing"], note=MONOLITH_NOTE),
                 settings("Boss blessing rewards", ["build_blessingoptions", "build_blessingrolls"]),
                 native("monolith_management", controls=["monolith_read", "monolith_unlock", "monolith_select", "corruption", "stability"]),
                 native("echo_head", group="navigator", controls=["echo_read"]),
@@ -206,10 +222,11 @@ def sections(page, controls, counts):
         return [native("cached_summary", read="progressread"),
                 native("campaign", controls=["campaign_complete", "waypoints_unlock", "character_level"]), native("mastery", controls=["mastery_choose"])]
     if page == "inventory":
-        return [native("inventory_shortcuts", controls=["inventory_read", "inventory_stash", "inventory_vendor", "inventory_stashall", "inventory_sellall"]),
+        return [native("inventory_shortcuts", controls=["inventory_read", "inventory_pagesstash"]),
+                settings("Extra pages", ["inventory_pages", "inventory_idolslots"], head="none"),
                 settings("Automatic sorting and Sell all", ["inventory_autosort", "inventory_autosortall", "inventory_sellkeep"], text=AUTOSORT_TEXT,
                          head="none", tail="sort_tabs", tail_controls=["inventory_tools_read", "inventory_sorttab", "stash_rules_read"]),
-                native("stash_rules", controls=["stash_rules_read", "stash_rules_create", "stash_rule_assign", "stash_rules_sort"])]
+                native("stash_rules", controls=["stash_rules_read", "stash_rule_assign", "stash_rules_sort"])]
     if page == "cof":
         return [native("cached_summary", read="cofread"),
                 native("cof_main", controls=["cof_read", "cof_join", "cof_rank", "cof_favor", "cof_reputation_grant", "cof_lenses_unlock"]),
@@ -225,6 +242,7 @@ def sections(page, controls, counts):
                 native("craft_note", tab="forge"),
                 settings("Affix upgrade limit", ["craft_t7"], **forge),
                 settings("Corrupted items", ["craft_corrupted"], **forge),
+                settings("Exalted items", ["craft_exalted"], **forge),
                 settings("Preserve materials", ["craft_shards", "craft_runes", "craft_glyphs"], overrides=over("craft_shards", "craft_runes", "craft_glyphs"), **forge),
                 settings("Forging Potential cost", ["craft_fp"], overrides=over("craft_fp"), **forge),
                 native("glyph_chances", tab="forge", controls=["craft_hope", "craft_despair"]),
@@ -238,6 +256,7 @@ def sections(page, controls, counts):
                 native("ws_extra_head", **ws), native("ws_mod_list", **ws), native("ws_mod_rows", **ws),
                 native("ws_review", controls=["craft_custom"], **ws),
                 native("ws_tiers", tab="custom", group="tiers", controls=["craft_tiers"]),
+                native("ws_lp", tab="custom", group="lp", controls=["item_lp_read", "item_lp"]),
                 # Spawn Items: one panel in three sections (typing builds only the results again)
                 native("spawn_head", tab="spawn", group="spawn", controls=["spawn_list"]),
                 native("spawn_list", tab="spawn", group="spawn"),

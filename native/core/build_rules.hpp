@@ -56,6 +56,7 @@ inline int RaisedLimit(int native, int extra) {
 }
 // The companion limit (the game multiplies it by 60 for each companion's share).
 constexpr int MaximumCompanions = 20;
+constexpr int CompanionSkills = 8;  // the game's companion skills: "per skill" gives the limit room for all of them
 inline int RaisedCompanions(int native, int extra) {
     if (native < 0 || extra <= 0 || native >= MaximumCompanions) return native;
     return std::min(MaximumCompanions, native + extra);
