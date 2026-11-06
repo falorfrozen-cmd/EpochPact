@@ -1,0 +1,51 @@
+{
+  "version": "0.1.2-dev.55",
+  "observed": "2026-11-06 (UTC+03:00), fresh uploads through the VirusTotal web interface",
+  "build": "rel55 branch release55 commit e72c99b (player flavor; build-info loaderSha256 = version.dll below); the desktop edition from the same player files",
+  "files": {
+    "version.dll": {
+      "sha256": "426554390c1c26d1e97c206f25ed5346019f0630b3818a83fefe1589446394be",
+      "bytes": 9015296,
+      "in": [
+        "EpochPact-0.1.2-dev.55-InGame.zip",
+        "EpochPact-0.1.2-dev.55.zip"
+      ],
+      "virusTotal": "0/69",
+      "report": "https://www.virustotal.com/gui/file/426554390c1c26d1e97c206f25ed5346019f0630b3818a83fefe1589446394be"
+    },
+    "EpochPact.Core.dll": {
+      "sha256": "0de9a00d4ccb95ec3530ce1a9da57cbc9461c1d3c2a1c039f3738858237ac5c7",
+      "bytes": 9006080,
+      "in": [
+        "EpochPact-0.1.2-dev.55.zip (MelonLoader path)"
+      ],
+      "virusTotal": "not uploaded (desktop edition only; not on Nexus)"
+    },
+    "EpochPact.exe": {
+      "sha256": "f76dd91ab338af2ef3c495f9141c9e8ff09ea8c6a2818ef79ae377a672fc876c",
+      "bytes": 372347,
+      "in": [
+        "EpochPact-0.1.2-dev.55.zip"
+      ],
+      "virusTotal": "not uploaded (desktop edition only; not on Nexus)"
+    }
+  },
+  "packages": {
+    "EpochPact-0.1.2-dev.55-InGame.zip": {
+      "sha256": "84b2d4520136e2386088464185dfb6421d5c0460203af1987963a13b484f1853",
+      "bytes": 3868015,
+      "virusTotal": "0/62",
+      "report": "https://www.virustotal.com/gui/file/84b2d4520136e2386088464185dfb6421d5c0460203af1987963a13b484f1853",
+      "localDefender": "No threats found"
+    },
+    "EpochPact-0.1.2-dev.55.zip": {
+      "sha256": "1864afbf69d9791ec69bd9116b167d6a3c0a328526e930bac672f626c4168e67",
+      "bytes": 37273009,
+      "virusTotal": "not uploaded (over the 10 MB browser upload limit)",
+      "localDefender": "No threats found (folder and ZIP)"
+    }
+  },
+  "localDefender": "signatures 1.463.155.0: the InGame package folder, the desktop folder and the desktop ZIP found no threats",
+  "checks": "package_ingame_player and package_player_folder verified; verify_player_package and verify_connection_package passed; Python 398, JavaScript 246; clones on the test build: Boss Hall 8, door clicks 8, boss quests 13, Boss Rush 22; the player DLL on a clone: hall up, F6 pages, no faults",
+  "note": "Scan counts describe these exact bytes on this date only; they are not a safety certification."
+}

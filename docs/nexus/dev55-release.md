@@ -13,7 +13,7 @@ Files (C:\Users\falor\EpochPactLab\builds):
 Both ZIPs carry the same `version.dll` (`42655439…`); `EpochPact.Core.dll` `0de9a00d…`,
 `EpochPact.exe` `f76dd91a…`. Built from e72c99b, branch release55 from b9d531e (dev.54 published). Package checks passed
 (desktop verify, connection test); Microsoft Defender (signatures 1.463.155.0) found nothing. Tests: Python 398, JavaScript 246; clones on the test build: Boss Hall 8, door clicks 8, boss quests 13, Boss Rush 22, no failures; the player DLL on a clone: hall up, F6 pages, no faults.
-VirusTotal (6 November 2026): version.dll (scan pending), InGame ZIP (scan pending).
+VirusTotal (6 November 2026): version.dll 0/69, InGame ZIP 0/62.
 Not proven: whether the Nemesis chance really brings more Nemesis encounters (the setting changes the game's rate; the owner will try it).
 
 ## GitHub release
@@ -38,7 +38,7 @@ Both contain the same `version.dll`, so both have the in-game window.
 - **Combat page:** more companions, Loot Lizard and Nemesis chance. The Nemesis chance is lightly tested: tell us how it behaves.
 - **What's New page:** each version's changes with their settings right there. Overview and the pages lost controls the game already has.
 
-Last Epoch 1.5.4 (Steam), offline only. VirusTotal: version.dll (scan pending), InGame ZIP (scan pending).
+Last Epoch 1.5.4 (Steam), offline only. VirusTotal: version.dll 0/69, InGame ZIP 0/62.
 Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 ```
 
@@ -67,3 +67,10 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
 > **Desktop app (EXE):** in EpochPact open *What's new → Install update*, or download it here:
 > https://github.com/falorfrozen-cmd/EpochPact/releases/tag/v0.1.2-dev.55
 > **Manual install, no EXE:** download the main file from Nexus (https://www.nexusmods.com/lastepoch/mods/44?tab=files) or `EpochPact-0.1.2-dev.55-InGame.zip` from the GitHub link above, and copy the new `version.dll` over the old one.
+
+## Published 2026-11-06 (owner: "hideout dışında zip yapmıştık ya, onu release yapalım"; "virustotal scan yap, 0 çıkarsa nexusmodsa at")
+
+- GitHub: release `v0.1.2-dev.55` (Latest, not a prerelease) with both ZIPs; target and `main` = 0448a3d (fast-forward from b9d531e). Published before the scans, the notes' VirusTotal line added after them.
+- VirusTotal (Chrome, fresh uploads): version.dll 0/69, InGame ZIP 0/62.
+- Nexus mod 44: main file "EpochPact - in-game edition (manual install)" updated to 0.1.2-dev.55 with the InGame ZIP (dev.54 archived), mod version 0.1.2-dev.55, the six changelog lines above, the file description above (251 of 255 characters). Short description 1.5.4; description lines changed (version, Made for, Loot, Crafting, Boss Hall, Inventory, Monolith, Safety). The public page shows the new version and description; the file was in Nexus's own scan right after upload.
+- Discord: the owner sends the announcement (draft above).
