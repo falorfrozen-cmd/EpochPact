@@ -1,0 +1,50 @@
+{
+  "version": "0.1.2-dev.66",
+  "observed": "2026-11-08 (UTC+03:00), a fresh upload through the VirusTotal web interface",
+  "build": "rel66 branch release66 commit 7eb3fa6 (player flavor); the desktop edition from the same player files",
+  "files": {
+    "version.dll": {
+      "sha256": "a962b1d2f4a170c816c1d097805315454dcd7e0fdba8add0426e13bed28e720f",
+      "bytes": 10394112,
+      "in": [
+        "EpochPact-0.1.2-dev.66-InGame.zip",
+        "EpochPact-0.1.2-dev.66.zip"
+      ],
+      "virusTotal": "0/71",
+      "report": "https://www.virustotal.com/gui/file/a962b1d2f4a170c816c1d097805315454dcd7e0fdba8add0426e13bed28e720f"
+    },
+    "EpochPact.Core.dll": {
+      "sha256": "fd6d323437914edb2b33002e55f2da471ab2fe8148285fe5910dd9cf07accb36",
+      "bytes": 10385408,
+      "in": [
+        "EpochPact-0.1.2-dev.66.zip (MelonLoader path)"
+      ],
+      "virusTotal": "not uploaded (desktop edition only; not on Nexus)"
+    },
+    "EpochPact.exe": {
+      "sha256": "dd14797888568a25a58e92f59d19f65856a1f61718373abecab3e73beda9cb46",
+      "bytes": 372347,
+      "in": [
+        "EpochPact-0.1.2-dev.66.zip"
+      ],
+      "virusTotal": "not uploaded (desktop edition only; not on Nexus)"
+    }
+  },
+  "packages": {
+    "EpochPact-0.1.2-dev.66-InGame.zip": {
+      "sha256": "e029b15134f6ac125f0c7bb6f5468bf77c80093c9c0f481f510aa5201b6e9003",
+      "bytes": 4452308,
+      "virusTotal": "not uploaded (VirusTotal asked for a CAPTCHA on the second upload); it holds the version.dll above and text files",
+      "localDefender": "No threats found"
+    },
+    "EpochPact-0.1.2-dev.66.zip": {
+      "sha256": "cbd5ca62ec06ac6eb4540d1b22da302753fd860aebb2ea246189f1136f1e7afd",
+      "bytes": 39024893,
+      "virusTotal": "not uploaded (over the 10 MB browser upload limit)",
+      "localDefender": "No threats found (folder and ZIP)"
+    }
+  },
+  "localDefender": "signatures 1.463.184.0: the InGame package folder, the desktop folder and the desktop ZIP found no threats",
+  "checks": "package_ingame_player and package_player_folder verified; verify_player_package and verify_connection_package passed; Python 407, JavaScript 246; release player DLL on a clone: quad, ailment, hideout and build reads, F6 built with no faults",
+  "note": "Scan counts describe these exact bytes on this date only; they are not a safety certification."
+}
