@@ -90,7 +90,7 @@ def start(folder, loader, *, hud_running=False, test_name="EpFeedbackTest", save
     backup.mkdir(exist_ok=True)
     real = Path(os.environ["LOCALAPPDATA"]) / "EpochPact/preferences.json"
     records = []
-    for relative in ("version.dll", "EpochPact/EpochPact.Core.dll", "EpochPact/installed-build.json", "EpochPact/workshop-recipes.txt"):
+    for relative in ("version.dll", "EpochPact/EpochPact.Core.dll", "EpochPact/installed-build.json", "EpochPact/workshop-recipes.txt", "EpochPact/bossdoors-borrowed.txt"):
         target = game / relative
         if target.is_symlink():
             raise RuntimeError("Runtime links are not supported by this test helper.")
@@ -173,6 +173,7 @@ def start(folder, loader, *, hud_running=False, test_name="EpFeedbackTest", save
 def restart(folder):
     """Reload the same disposable save from disk; keep the restoration anchor intact."""
     global PROCESS
+    folder=folder.resolve(strict=True)
     path=folder/'session.json'; state=json.loads(path.read_text())
     if state['phase']!='running' or le.game_pids()!=[state['pid']] or le.process_identity(state['pid'])!=state['process']:
         raise UnsafeTestState('Only the owned, unchanged test process can be restarted.')

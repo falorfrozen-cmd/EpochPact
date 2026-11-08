@@ -866,9 +866,47 @@ that page. A file whose name line is another character's (the id was reused) is 
 
 A pickup the game refuses for lack of room (`ItemContainersManager.attemptToPickupItem` false) goes to the next inventory page with room, in the file, and the hook answers true so the game takes it off the ground. The shown page does not change. Gear, idols and altars only; with every page full the game's own refusal stands.
 
-`itempages tostash` moves all waiting items to the stash, for leaving the feature or the mod. An item on the cursor stays there through a switch, so a player can carry it to another page; because the game's save leaves out the hand, the file notes it under `held` until it is put down, and after a crash an item found nowhere comes back. Pages are not active at the same time: stats come from
-the shown page only.
+`itempages tostash` moves all waiting items to the stash, for leaving the feature or the mod. An item on the cursor stays there through a switch, so a player can carry it to another page; because the game's save leaves out the hand, the file notes it under `held` until it is put down, and after a crash an item found nowhere comes back. With `invset idolsall 0` stats come from the shown
+page only.
 
+### Every idol page counts (owner request 2026-11-08)
+
+A player expected more idol room from the pages, not set-ups. `invset idolsall 1` (on by default) gives the idols of every waiting idol page their stats too:
+each is made from its saved bytes (`ItemData(byte[])`, `getAsUnpacked`) and goes through `ItemEquipManager.UpdateStats(item, true, false, 0, 0, 0, 0)`, the call
+`IdolsItemContainer.ValidateIdolAndUpdateStats` makes for an idol it accepts (it takes one off with `false, true, 0, 0, 0, 0`). The altar of a waiting page gives its stats the same way (`ItemContainersManager.IdolsInventoryContainer.OnItemAdded` applies an altar by that call).
+Before a switch or a move to the stash they come off by the same call; every 2 s the set is checked against the character, the shown page and the waiting idols, and put on
+again when the game dropped them (`ItemIsEquippedWithStatsApplied` says the first is no longer in its list). Nothing of it is saved. Live test on a clone: the stats change
+when page 1's idols wait behind an empty page 2, stay the same over time, off takes them away exactly, on gives the same again, and switching back and forth ends where it began.
+
+
+## Quad stash tabs (owner request 2026-11-08)
+
+A quad tab holds 24 x 34 cells instead of 12 x 17. `native/core/quad_stash.cpp`; `quadread`, `quadstash <tab index|shown> 0|1`; F6 Inventory, Quad stash tabs, one
+check per tab. The game makes every stash tab's `ItemContainer` 12 x 17 (`StashItemContainer..ctor`, `ItemContainersManager.AddNewStashTab`) and then loads the saved items
+(`StashItemContainer.LoadItems`), refusing an item outside the container with only a log line. A hook before `LoadItems` makes the chosen tabs 24 x 34: `size` and a new
+`bool[24, 34]` for `slotOccupied` (through `field_set_value`), the items already in it marked again with `SetSlotsOccupied`. Placing, sorting, tab priority and search read the
+container's own size. The window divides its panel by the size once (`ItemContainerUI.slotSize` from `CalculateSlotSize`); a hook before `ReDrawWholeContainer` works it out
+again for the stash window, so the cells of a quad tab are drawn at half size. The choice is kept by the tab's own id in `%LOCALAPPDATA%\EpochPact\quad-stash.txt`
+(test builds `quad-stash-test.txt`). A tab goes back to normal only when everything in it fits in the top-left 12 x 17. Item positions are plain ints in the save, so far
+places are kept in memory. The save stays readable without EpochPact: each quad tab has three companion tabs in a folder "EpochPact quad" (made with
+`ServerStashCommands.ServerAddNewCategory` and `ItemContainersManager.AddNewStashTab`, kept in the file as `pair <quad id> <1-3> <tab id>`). A hook after
+`GlobalDataTracker.SaveStash` (the only place that rebuilds `StashTab.SavedItems`; the disk write comes later, every 20 s) splits a rebuilt quad tab's list: x 12-23
+into companion 1, y 17-33 into companion 2, both into 3, shifted into 12 x 17 (new `ItemLocationPair`s; `ItemInventoryPosition` is a struct of two ints); an item
+across a quarter line goes, in the save only, to the first free place of any quarter. `StashTab.MarkDirty` on each. Before `LoadItems` the companions' items join
+the quad tab's list again (shifted back) and the companions load empty; the lists on disk are put back after. `ItemContainer.DoBoundsFitContainer` says no for a
+companion while its tab is quad, so nothing goes into one. Without EpochPact the player sees the quad tab's quarter and the three companions as normal tabs.
+Live test on a clone: items at (15,3), (2,25), (20,30) and one across the middle; on disk afterwards no position outside 12 x 17 in any tab, every item in some
+tab; after a restart the quad tab holds all four again and the companions are empty in play.
+
+### Ailment stack cap and duration (owner request 2026-11-08)
+
+`ailmentset stacks <1-30>` multiplies `Ailment.maxInstances` of every ailment the player's side applies that has a hard cap (Time Rot 12 becomes 360 at 30; 0 or 1000 and above count as no cap and
+stay), `ailmentset duration <1-10>` multiplies `Ailment.duration`, buffs included (`native/core/ailments.cpp`, `ailmentread`). The assets are shared, so they are not
+changed for good: hooks on `AilmentReceiver.ApplyAilment` and `ApplyAilmentWithDamageStats` (every application goes through them; the first limits the stacks asked
+for, the second drops the oldest stack at the cap and sets the new stack's `totalDuration` = (1 + increased duration) x duration) write the multiplied values for
+that call only when its `Alignment` (or, without one, the creator's) is the player's, and put the game's back after. Enemies' ailments keep the game's values. A
+DoT's damage is spread over its `totalDuration`, as for the game's own increased duration. F6 Combat, Ailments.
+Live test on a clone: Damage Boost (cap 10) stacks to 10 at normal and to 300 at 30, and is still on after its own 3 s at 5 times the duration.
 
 ## All idol slots open (owner request 2026-11-06)
 

@@ -15,6 +15,7 @@ bool Init();
 void Frame();  // from the convenience frame callback
 std::string Read();
 std::string Set(const std::string& key, int value);
+bool IdolPagesAll();  // the idols of the waiting idol pages give their stats too
 bool PagesOn();  // the 1-2-3-4 buttons of the inventory and the idols
 std::string SetTab(int tabId, bool on);
 // Sell all keeps this item (the sellkeep setting).

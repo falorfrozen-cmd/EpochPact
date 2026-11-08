@@ -44,6 +44,7 @@ using Type = void;
     X(class_get_fields, const Field*, (const Class*, void**))                             \
     X(class_get_properties, const Property*, (const Class*, void**))                      \
     X(class_from_name, const Class*, (const Image*, const char*, const char*))            \
+    X(class_from_type, const Class*, (const Type*))                                       \
     X(class_get_method_from_name, const Method*, (const Class*, const char*, int))        \
     X(method_get_name, const char*, (const Method*))                                      \
     X(method_get_param_count, uint32_t, (const Method*))                                  \

@@ -36,6 +36,7 @@ struct Hit {
     std::function<void(float x)> drag;   // HitKind::Track of a native section: pressed and dragged, x from the hit's left edge
     Action release;                      // ... and let go (input type=range: its change event)
     std::string name;                    // for tests ("panel read"): a control id or a short label
+    Action enter, leave;                 // non-mutating hover previews; never rebuild hits here
 };
 void AddHover(Hit& h, void* graphic, Color normal, Color hover, float seconds = 0.15f);
 
@@ -105,6 +106,16 @@ void RegisterCofSections();              // ingame_cof.cpp
 void RegisterMonolithSections();         // ingame_monolith.cpp
 void RegisterCraftSections();            // ingame_craft.cpp
 void RegisterWorkshopSections();         // ingame_workshop.cpp
+void RegisterHideoutSections();          // ingame_hideout.cpp
+void HideoutHudFrame();
+void ReleaseHideoutHud();
+void HideoutHudInit(void* parent, int width, int height);
+#ifdef EPOCHPACT_TESTING
+std::string HideoutHudAudit();
+std::string HideoutHudMenuTest(const std::string& action);
+#endif
+bool SectionSliceVisible(int section, float y, float h);
+bool WindowOpen();                       // the F6 window is on the screen
 void CraftTabAutoLoad(const std::string& tab);  // ingame_workshop.cpp
 void RegisterStatSections();             // ingame_stats.cpp
 struct Control;
@@ -118,7 +129,7 @@ void HudStep(bool mainWindowOpen);
 bool HudActive();
 bool HudShown(const std::string& name);
 void ToggleHud(const std::string& name);
-void ReleaseHud();
+void ReleaseHud(bool destroy=false); // false at shutdown: release roots without Unity calls
 std::string HudState();
 #ifdef EPOCHPACT_TESTING
 bool HudFixture(const std::string& style);
@@ -275,6 +286,13 @@ inline constexpr int kCustomDialogSection = -4;
 void CloseDialog();
 using DialogDraw = std::function<float(const Ctx&, float width)>;
 void ShowCustomDialog(float width, const DialogDraw& draw);
+// A dedicated task window: shares modal fields/popups without the F6 shell.
+void ShowStandaloneCustomDialog(float width, const DialogDraw& draw);
+bool StandaloneDialogOpen();
+void CloseStandaloneDialog();
+bool DialogSliceVisible(float y, float height);
+void InvalidateDialogHits(size_t first);
+Action SuspendHideoutBuilderForLayout();
 uint64_t DialogToken();                  // invalidates asynchronous replies when closed/replaced
 // #result-dialog: a note and a summary (dt/dd rows), closed with ×.
 void ShowResult(const std::string& title, const std::string& note, const std::vector<std::pair<std::string, std::string>>& rows);

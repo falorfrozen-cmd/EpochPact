@@ -18,6 +18,7 @@ PAGES = [
     ("skills", "Skills & Trees", "✧", "Build beyond the branches.", "Skill experience, point budgets, tree connections and projectiles."),
     ("equipment", "Equipment", "⚔", "Equip your imagination.", "Offhand combinations, set bonuses, primordial items and level requirements."),
     ("wardrobe", "Wardrobe", "♛", "Dress the legend.", "Try every look on your character before you wear it."),
+    ('hideout', 'Hideout', '♜', 'Make it yours.', 'A place of your own, with anything of the game in it.'),
     ("summons", "Summons", "♧", "Command your companions.", "Minion bonuses and temporary summon duration."),
     ("combat", "Combat", "⚔", "Read every fight.", "Damage meter and death recap."),
     ("display", "Display & Camera", "◉", "See Eterra your way.", "Camera pitch, zoom and temporary graphics overrides."),
@@ -35,6 +36,7 @@ PAGES = [
 # What's New, newest first: (version, what changed, setting cards shown right there, pages for the rest).
 # A new release adds its row at the top, here and in app.js whatsNew. Only settings that apply at once.
 WHATS_NEW = [
+    ('v0.1.2-dev.66', "Your own hideout (alpha): anything of the game placed where you want it, an editor, ready designs, templates and its own minimap. Quad stash tabs: four times the items, chosen in the game's Configure Tab window, safe without EpochPact. Every idol page counts. Ailment stack cap and duration for your own ailments. Minions without acceleration.", ['inventory_idolsall', 'ailment_stacks', 'ailment_duration', 'build_minionsnap'], ['hideout', 'inventory', 'combat', 'summons']),
     ('v0.1.2-dev.55', 'A Boss Hall of its own with boss doors and Boss Rush, with Empowered and Harbinger. Quest echo skip, no blessing window. Eternity Cache anywhere, with one affix choice per Legendary Potential. New affixes on Exalted items, Legendary Potential of your Uniques, corrupted affixes in Custom Items. Inventory and idol pages, all idol slots open, shatter what the filter hides. Loot Lizard and Nemesis chance, more companions, a Combat page. Works on Last Epoch 1.5.4.', ['monolith_bossdoors', 'monolith_questskip', 'monolith_noblessing', 'inventory_pages', 'inventory_idolslots', 'loot_autoshatter', 'rage_lizards', 'rage_nemesis'], ['monolith', 'crafting', 'inventory', 'combat']),
     ('v0.1.2-dev.54', "Campaign at your current level. Omen idols' affixes in Spawn Items.", [], ['campaign', 'crafting']),
     ('v0.1.2-dev.53', 'T8 on any affix, affix tiers changed in place, character level, Spawn with chosen affixes.', [], ['crafting', 'campaign']),
@@ -110,7 +112,7 @@ MONOLITH_NOTE = "Apply before entering the next Echo; restarting the game resets
 
 
 # Crafting (app.js renderCrafting): three tabs; Apply changes belongs to Forge Settings.
-PAGE_EXTRA = {"crafting": {"tab": "forge", "draftTab": "forge", "hero": "compact"}}
+PAGE_EXTRA = {"crafting": {"tab": "forge", "draftTab": "forge", "hero": "compact"}, "hideout": {"tab": "templates", "hero": "compact"}}
 CRAFT_OVERRIDES = {
     "craft_shards": {"label": "Keep affix shards", "description": "Keep the shard used for a craft. You need at least one to begin."},
     "craft_runes": {"label": "Keep runes", "description": "Keep the rune used for a craft. You need at least one to begin."},
@@ -121,6 +123,8 @@ CRAFT_OVERRIDES = {
 }
 
 
+AILMENT_TEXT = ("These change the ailments you and your minions apply, while you play offline; nothing is saved to your character. "
+               "Enemies' ailments, also those on you, keep the game's own values.")
 DEATH_TEXT = ("When your character dies, the hits of the 10 seconds before it are kept: who hit, with which skill or ailment, the damage by type and the "
               "health left after each hit, with the buffs and debuffs you had. Kept until the game closes; the damage window shows it under ☠.")
 
@@ -205,10 +209,13 @@ def sections(page, controls, counts):
     if page == "summons":
         return [native("summon_allies", controls=["summons_read"]),
                 settings("Summon lifetime", ["build_summonduration"]),
-                settings("Minion counts", ["build_minionextra", "build_totemextra", "build_ballistaextra", "build_forgedextra", "build_companionextra", "build_immortalminions"]),
+                settings("Minion counts", ["build_minionextra", "build_totemextra", "build_ballistaextra", "build_forgedextra", "build_companionextra", "build_immortalminions", "build_minionsnap"]),
                 native("minion_bonuses", controls=["stat_alias"])]
+    if page == "hideout":
+        return [native("hideout_main", read="hideoutread"), native("hideout_tabs"), native("hideout_templates", read="hideoutread",tab="templates"), native("hideout_ground", read="hideoutread",tab="ground"), native("hideout_add",tab="library"), native("hideout_results",tab="library"), native("hideout_items", read="hideoutread",tab="placed")]
     if page == "combat":
         return [native("damage_meter", controls=["damage_session", "damage_session_read"]),
+                settings("Ailments", ["ailment_stacks", "ailment_duration"], text=AILMENT_TEXT),
                 settings("Death recap", ["death_recap"], text=DEATH_TEXT, head="tail", tail="death_recap",
                          tail_controls=["death_recap_read", "death_recap_clear"])]
     if page == "monolith":
@@ -223,7 +230,8 @@ def sections(page, controls, counts):
                 native("campaign", controls=["campaign_complete", "waypoints_unlock", "character_level"]), native("mastery", controls=["mastery_choose"])]
     if page == "inventory":
         return [native("inventory_shortcuts", controls=["inventory_read", "inventory_pagesstash"]),
-                settings("Extra pages", ["inventory_pages", "inventory_idolslots"], head="none"),
+                native("inventory_quad", read="quadread"),
+                settings("Extra pages", ["inventory_pages", "inventory_idolsall", "inventory_idolslots"], head="none"),
                 settings("Automatic sorting and Sell all", ["inventory_autosort", "inventory_autosortall", "inventory_sellkeep"], text=AUTOSORT_TEXT,
                          head="none", tail="sort_tabs", tail_controls=["inventory_tools_read", "inventory_sorttab", "stash_rules_read"]),
                 native("stash_rules", controls=["stash_rules_read", "stash_rule_assign", "stash_rules_sort"])]

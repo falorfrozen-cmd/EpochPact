@@ -1,4 +1,5 @@
 #include "monolith.hpp"
+#include "hideout.hpp"
 #include "crafting.hpp"
 #include "item_pages.hpp"
 #include "report.hpp"
@@ -18,6 +19,9 @@
 #include "effects.hpp"
 #include "ingame_panel.hpp"
 #include "rage.hpp"
+#include "ailments.hpp"
+#include "quad_stash.hpp"
+#include "build_controls.hpp"
 #include <array>
 #include <deque>
 #include <cstring>
@@ -1441,8 +1445,8 @@ void Frame(){
 #endif
     if(lifecycle::Stopping())return;
     effects::Frame();
-    rage::Frame();invtools::Frame();ingame::Frame();
-    transmog::Frame();stashrules::Frame();monolith::BossFrame();crafting::AutoShatterFrame();itempages::Frame();
+    rage::Frame();ailments::Frame();quadstash::Frame();builds::Frame();invtools::Frame();ingame::Frame();
+    transmog::Frame();stashrules::Frame();monolith::BossFrame();hideout::Frame();crafting::AutoShatterFrame();itempages::Frame();
     if(pendingStashPanel.Get()&&!game::Guarded([]{RestoreStashTab();},nullptr)){pendingStashPanel.Reset();++stashRestoreFailures;}
     if(pendingLegacyStash.Get()&&!game::Guarded([]{RestoreLegacyStashTab();},nullptr)){pendingLegacyStash.Reset();++stashRestoreFailures;}
     const auto clock=GetTickCount64();

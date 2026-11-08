@@ -86,6 +86,41 @@ void MakeInventoryShortcuts(Section& s) {
     };
 }
 
+// ------------------------------------------------------------------------- quad stash tabs
+void MakeQuadStash(Section& s) {
+    s.reads.insert("quadread");
+    s.build = [](Section& sec, const Ctx& c) {
+        const int id = sec.id;
+        return InPanel(c, [id](const Ctx& in, float y) {
+            y += HeadWithButton(in, y, Tr("Quad stash tabs"), Tr("Refresh"), [] { Read("quadread"); }, "quad_read", true) + 16;
+            y += NoteBox(in.parent, kPanelPad, y, kPanelInner, Tr("A quad tab holds 24 × 34 cells instead of 12 × 17: four times the items, drawn at half size. Open your stash before you change one. "
+                "Its other three quarters are also kept in three storage tabs in the folder EpochPact quad, so without EpochPact you find every item there. "
+                "A tab goes back to normal only when everything in it fits in the top-left 12 × 17.")) + 8;
+            const JValue* r = Cached("quadread");
+            const auto* tabs = r ? r->Find("tabs") : nullptr;
+            if (!tabs || tabs->items.empty()) return y + EmptyText(in.parent, kPanelPad, y, kPanelInner, Tr("Open your stash, then press Refresh to see its tabs.")) + 10;
+            for (const auto& t : tabs->items) {
+                if (t["storage"].IsBool() && t["storage"].boolean) continue;  // a quad tab's storage for when EpochPact is removed
+                const int index = static_cast<int>(t["index"].Num(0));
+                const std::string name = t["name"].Str().empty() ? Fmt("Tab {0}", {std::to_string(index + 1)}) : t["name"].Str();
+                const bool on = t["quad"].IsBool() && t["quad"].boolean;
+                y += 14;
+                CheckField(in, kPanelPad, y, Fmt("{0} — {1} × {2}, {3} items", {name, Num(t["width"].Num(12)), Num(t["height"].Num(17)), Num(t["items"].Num(0))}), on,
+                    [index](bool want) {
+                        Send("quadstash " + std::to_string(index) + " " + (want ? "1" : "0"), [](const std::string& reply) {
+                            std::string why;
+                            if (Refused(reply, &why)) Toast(PlayerError(why), true);
+                            Read("quadread");
+                        });
+                    }, "quad-tab-" + std::to_string(index));
+                y += 18;
+            }
+            (void)id;
+            return y + 6;
+        });
+    };
+}
+
 // ---------------------------------------------------------------- stash tabs from loot filter
 // The last stashrules reply (any stash rules command answers with the whole state), for its player.
 struct StashRules { JValue state; bool loaded = false; int section = -1, sortSection = -1; } stash;
@@ -352,6 +387,7 @@ void RegisterSortTabsTail() {
 
 void RegisterInventorySections() {
     RegisterSection("inventory_shortcuts", MakeInventoryShortcuts);
+    RegisterSection("inventory_quad", MakeQuadStash);
     RegisterSection("stash_rules", MakeStashRules);
     RegisterSortTabsTail();
 }

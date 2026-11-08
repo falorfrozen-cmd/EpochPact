@@ -423,6 +423,10 @@ std::string WithBackup(std::string result, const std::string& backup) { result.p
 }  // namespace
 
 std::string Read(const std::string& id) { return Run([=] { return State(Current(id)); }); }
+void RefreshTabs() {
+    void* manager = game::StaticObject(game::FindStaticField("LE.dll", "", "ItemContainersManager", "_instance"));
+    if (manager) Refresh(manager, View(manager));
+}
 
 std::string Create(const std::string& id, bool hidden, bool disabled) {
     std::string backup;

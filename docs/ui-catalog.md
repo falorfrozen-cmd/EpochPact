@@ -479,6 +479,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `build_forgedextra` — Extra forged weapons | `buildset forgedextra {value}` | value: 0…20 | 0 | Oturum |
 | `build_companionextra` — Extra companions | `buildset companionextra {value}` | value: 0…10 | 0 | Oturum |
 | `build_immortalminions` — Immortal minions | `buildset immortalminions {value}` | value: 0…1 | 0 | Oturum |
+| `build_minionsnap` — Minions without acceleration | `buildset minionsnap {value}` | value: 0…1 | 0 | Oturum |
 | `damage_session_read` — Damage session | `damagesession` | — | — | Okuma |
 | `damage_session` — Damage session control | `damagesession {action}` | action: start/stop/reset | — | Görünüm |
 | `damage_icon` — Damage window icon | `damageicon {key}` | key: single_token | — | Okuma |
@@ -596,6 +597,8 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `rage_blood` — Blood forging potential share | `rageset blood {value}` | value: -1/0/25/50/75/100 | -1 | Oturum |
 | `rage_lizards` — Loot Lizard chance | `rageset lizards {value}` | value: 0…20 | 1 | Oturum |
 | `rage_nemesis` — Nemesis chance | `rageset nemesis {value}` | value: 0…20 | 1 | Oturum |
+| `ailment_stacks` — Ailment stack cap | `ailmentset stacks {value}` | value: 1…30 | 1 | Oturum |
+| `ailment_duration` — Ailment duration | `ailmentset duration {value}` | value: 1…10 | 1 | Oturum |
 | `map_reveal` — Reveal zone map | `mapreveal {value}` | value: 0…1 | 0 | Oturum |
 | `map_read` — Map display status | `mapread` | — | — | Okuma |
 
@@ -631,6 +634,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `inventory_autosortall` — Sort every stash tab automatically | `invset autosortall {value}` | value: 0…1 | 0 | Oturum |
 | `inventory_sellkeep` — Sell all keeps | `invset sellkeep {value}` | value: 0/1/2 | 1 | Oturum |
 | `inventory_pages` — Inventory and idol pages | `invset pages {value}` | value: 0…1 | 1 | Oturum |
+| `inventory_idolsall` — Every idol page counts | `invset idolsall {value}` | value: 0…1 | 1 | Oturum |
 | `inventory_idolslots` — All idol slots open | `invset idolslots {value}` | value: 0…1 | 0 | Oturum |
 | `inventory_pagesstash` — Move waiting pages to the stash | `itempages tostash` | — | — | Oyun kaydı |
 | `inventory_sorttab` — Sort a stash tab automatically | `invsorttab {tab} {value}` | tab: 0…999999; value: 0…1 | — | Oturum |

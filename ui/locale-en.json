@@ -525,6 +525,10 @@
       "Immortal minions",
       "Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back."
     ],
+    "build_minionsnap": [
+      "Minions without acceleration",
+      "Your minions, companions and other summons reach their full speed at once and stop at once, turning at once too, instead of speeding up and sliding to a stop. Fast minions then stay on their targets instead of running past them. The game's own values come back when it is off."
+    ],
     "build_blessingoptions": [
       "Blessing choices",
       "Choose Normal, 3, 4 or 5 options for newly generated Monolith boss rewards. This does not change existing rewards."
@@ -683,7 +687,11 @@
     ],
     "inventory_pages": [
       "Inventory and idol pages",
-      "Buttons 1 to 4 on the left of the items and 1 to 3 over the idols. Each page keeps its own items, or its own idols and altar; only the page shown counts for your character. When the inventory page shown is full, items you pick up go to the next page with room. Waiting pages are kept in a file for each character. An item on the cursor comes with you, so you can carry it to another page. Remembered by EpochPact."
+      "Buttons 1 to 4 on the left of the items and 1 to 3 over the idols. Each page keeps its own items, or its own idols and altar. Only the inventory page shown counts; every idol page counts while Every idol page counts is on. When the inventory page shown is full, items you pick up go to the next page with room. Waiting pages are kept in a file for each character. An item on the cursor comes with you, so you can carry it to another page. Remembered by EpochPact."
+    ],
+    "inventory_idolsall": [
+      "Every idol page counts",
+      "The idols and altars on your other idol pages give their bonuses too, as if they were all equipped at once. Turn it off to have only the idol page shown count. Remembered by EpochPact."
     ],
     "inventory_idolslots": [
       "All idol slots open",
@@ -888,6 +896,18 @@
     "rage_nemesis": [
       "Nemesis chance",
       "Multiplies the chance of a Nemesis encounter in a zone; 0 places none. Your level must still reach the game's minimum. It applies from the next zone you enter."
+    ],
+    "ailment_read": [
+      "Ailment settings",
+      "Read every ailment's stack cap and base duration, the game's own and the ones used now. Reading it does not change the game."
+    ],
+    "ailment_stacks": [
+      "Ailment stack cap",
+      "Multiplies the most stacks of every ailment you and your minions apply that has a hard cap: Time Rot's 12 becomes 24 at 2 and 360 at 30. Ailments without a cap stay without one. Enemies' ailments keep the game's values."
+    ],
+    "ailment_duration": [
+      "Ailment duration",
+      "Multiplies the base duration of every ailment you and your minions apply, your buffs included: Time Rot's 3 seconds become 4.5 at 1.5 and 15 at 5. Your own increased duration still adds on top. Enemies' ailments keep the game's values."
     ],
     "death_recap_read": [
       "Death recap",

@@ -24,6 +24,7 @@ const pages = {
  skills: ["Skills & Trees", "✧", "Build beyond the branches.", "Skill experience, point budgets, tree connections and projectiles."],
  equipment: ["Equipment", "⚔", "Equip your imagination.", "Offhand combinations, set bonuses, primordial items and level requirements."],
  wardrobe: ["Wardrobe", "♛", "Dress the legend.", "Try every look on your character before you wear it."],
+ hideout: ["Hideout", "♜", "Make it yours.", "A place of your own, with anything of the game in it."],
  summons: ["Summons", "♧", "Command your companions.", "Minion bonuses and temporary summon duration."],
  combat: ["Combat", "⚔", "Read every fight.", "Damage meter and death recap."],
  display: ["Display & Camera", "◉", "See Eterra your way.", "Camera pitch, zoom and temporary graphics overrides."],
@@ -211,7 +212,7 @@ async function restoreBonuses(){
  const n=Number(/^statrestore: restored (\d+) /.exec(result?.text||"")?.[1]||0);
  if(n)notify(n===1?"1 character bonus restored.":`${n} character bonuses restored.`);
 }
-function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|qolset|qolarea|pickupradius|pickupinterval|autopickup|remotepickup|stashpickup|mapreveal|mapset|tierset|fontset|effectsset|deathrecap|rageset|invset|questskip|bossdoors|noblessing|autoshatter|autoshatterquiet) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
+function automaticSetting(c){return Boolean(((["general","overview"].includes(page)&&c?.group==="general")||/^(buildset|ailmentset|qolset|qolarea|pickupradius|pickupinterval|autopickup|remotepickup|stashpickup|mapreveal|mapset|tierset|fontset|effectsset|deathrecap|rageset|invset|questskip|bossdoors|noblessing|autoshatter|autoshatterquiet) /.test(c?.commandTemplate||""))&&["number","toggle"].includes(c?.widget)&&["session","actor"].includes(c.lifetime));}
 function automaticOwner(){
  if(preview)return "preview";
  const p=connected.player;
@@ -533,6 +534,7 @@ function showSettingHelp(id){
 }
 // Newest first; a new release adds its row at the top, here and in tools/ingame_pages.py WHATS_NEW.
 const whatsNew=[
+ {title:"v0.1.2-dev.66",ids:["inventory_idolsall", "ailment_stacks", "ailment_duration", "build_minionsnap"],text:"Your own hideout (alpha): anything of the game placed where you want it, an editor, ready designs, templates and its own minimap. Quad stash tabs: four times the items, chosen in the game's Configure Tab window, safe without EpochPact. Every idol page counts. Ailment stack cap and duration for your own ailments. Minions without acceleration.",links:["hideout", "inventory", "combat", "summons"]},
  {title:"v0.1.2-dev.55",ids:["monolith_bossdoors", "monolith_questskip", "monolith_noblessing", "inventory_pages", "inventory_idolslots", "loot_autoshatter", "rage_lizards", "rage_nemesis"],text:"A Boss Hall of its own with boss doors and Boss Rush, with Empowered and Harbinger. Quest echo skip, no blessing window. Eternity Cache anywhere, with one affix choice per Legendary Potential. New affixes on Exalted items, Legendary Potential of your Uniques, corrupted affixes in Custom Items. Inventory and idol pages, all idol slots open, shatter what the filter hides. Loot Lizard and Nemesis chance, more companions, a Combat page. Works on Last Epoch 1.5.4.",links:["monolith", "crafting", "inventory", "combat"]},
  {title:"v0.1.2-dev.54",ids:[],text:"Campaign at your current level. Omen idols' affixes in Spawn Items.",links:["campaign", "crafting"]},
  {title:"v0.1.2-dev.53",ids:[],text:"T8 on any affix, affix tiers changed in place, character level, Spawn with chosen affixes.",links:["crafting", "campaign"]},
@@ -814,6 +816,7 @@ async function openPage(){
  if(page==="combat"&&!preview&&connected.connected&&controlById("damage_session_read")){const r=await job({type:"control",id:"damage_session_read",operation:"read"}).catch(()=>null);if(r?.ok){cache.damage_session_read=r;renderDamage();if(Number.isInteger(r.deaths))deathCount=r.deaths;}await refreshDeaths();}
  if(page==="world")await refreshSection("map_read",{refreshConnectionFirst:false});
  if(page==="world"&&!preview&&controlById("rage_read")&&eligible(controlById("rage_read"))){await refreshSection("rage_read",{refreshConnectionFirst:false});for(const id of ["rage_spawn","rage_hunttime","rage_charges","rage_buffs","rage_blood","rage_lizards","rage_nemesis"])syncSettingUi(id);}
+ if(page==="combat"&&!preview&&controlById("ailment_read")&&eligible(controlById("ailment_read"))){await refreshSection("ailment_read",{refreshConnectionFirst:false});for(const id of ["ailment_stacks","ailment_duration"])syncSettingUi(id);}
  if(page==="wardrobe"&&!preview&&controlById("transmog_read")&&eligible(controlById("transmog_read")))await readLooks();
  if(page==="inventory"&&!preview&&controlById("inventory_tools_read")&&eligible(controlById("inventory_tools_read"))){await refreshSection("inventory_tools_read",{refreshConnectionFirst:false});syncInventoryTools(cache.inventory_tools_read);}
  if(page==="crafting"&&!preview&&eligible(controlById("craft_materials_read")))await refreshSection("craft_materials_read",{refreshConnectionFirst:false});
@@ -841,7 +844,7 @@ function renderPage(){
  }else if(page==="world"){
   content.innerHTML=settingPanel("Map visibility",[controlById("map_reveal")])+settingPanel("Nearby interactions",["qol_chests","qol_shrines","qol_portals","qol_arearadius","qol_areashape","qol_areashow"].map(controlById).filter(Boolean))+areaColorPanel()+ragePanel()+settingPanel("Rare encounters",["rage_lizards","rage_nemesis"].map(controlById));
  }else if(page==="inventory"){
-  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory pages</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the game's placement: tabs whose stash priority matches an item first, otherwise the selected tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_pagesstash"].map(controlById).filter(Boolean).map(c=>actionCard(c)).join("")}</div></section>`+settingPanel("Extra pages",[controlById("inventory_pages"),controlById("inventory_idolslots")].filter(Boolean))+autoSortPanel()+stashRulesPanel();
+  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Inventory pages</h2><button data-refresh="inventory_read" data-control-id="inventory_read">Refresh inventory</button></div><p class="note">${esc(cache.inventory_read?.inventoryItems!=null?`${cache.inventory_read.inventoryItems} inventory items. Stash all uses the game's placement: tabs whose stash priority matches an item first, otherwise the selected tab; items that do not fit stay in your inventory.`:"Refresh inventory for the loaded character.")}</p><div class="control-grid">${["inventory_pagesstash"].map(controlById).filter(Boolean).map(c=>actionCard(c)).join("")}</div></section>`+settingPanel("Extra pages",[controlById("inventory_pages"),controlById("inventory_idolsall"),controlById("inventory_idolslots")].filter(Boolean))+autoSortPanel()+stashRulesPanel();
  }else if(page==="loot"){
   content.innerHTML=settingPanel("Automatic collection",[controlById("autopickup"),controlById("pickup_radius"),controlById("pickup_interval")])+settingPanel("Pick up from afar",[controlById("remotepickup")])+settingPanel("Stash tabs on pickup",[controlById("stashpickup")])+settingPanel("Hidden items",[controlById("loot_autoshatter"),controlById("loot_shatterquiet")])+lootPanel()+`<section class="panel"><h2>Collect now</h2>${cache.pickup_radius_read?.inventoryFull?`<p class="note">Your inventory is full. Equipment pickup is paused until you open and close your inventory; gold, potions, tomes, bones and materials are still collected.</p>`:""}<div class="control-grid">${actionCard(controlById("pickup_now"))}</div></section>`+settingPanel("Quality rules",["loot_lp","loot_ww","loot_t7","loot_filter"].map(controlById).filter(Boolean))+filterFilesPanel()+settingPanel("Loot filter window",["tier_filter_colors","tier_name_colors"].map(controlById).filter(Boolean))+(controlById("tier_name_colors")?`<p class="note">${esc(tr("Rule name examples"))}: <code>${esc(nameTagExamples.join("   "))}</code></p>`:"")+`<section class="panel"><h2>Pickup selections</h2><div class="control-grid">${["loot_mode","loot_category","loot_affixes"].map(id=>actionCard(controlById(id))).join("")}</div></section><section class="panel"><div class="section-head"><h2>Pickup rules</h2><button data-refresh="loot_read" data-control-id="loot_read">Refresh rules</button></div><div class="note">Current selection: ${esc({all:"All items",filter:"Game loot filter",quality:"LP and T7 quality rules",materials:"Crafting materials"}[cache.loot_read?.mode]||"Refresh to read your rules")}.</div>${developer?actionCard(controlById("loot_read"))+actionCard(controlById("pickup_radius_read")):""}${actionCard(controlById("loot_reset"))}</section>`;
  }else if(page==="crafting"){
@@ -853,12 +856,14 @@ function renderPage(){
   content.innerHTML=cachedSummary("build_read")+settingPanel("Equipment rules",["offhand","fullsets","primordials","anylevel"].map(key=>controlById("build_"+key)));
  }else if(page==="wardrobe"){
   content.innerHTML=looksPanel();
+ }else if(page==="hideout"){
+  content.innerHTML=`<section class="panel"><h2>Your hideout</h2><p class="muted">The hideout is designed in the game: press F6 and open this page there. Turn on Boss doors in the Monolith page and go to the Monolith Hub first.</p></section>`;
  }else if(page==="combat"){
-  content.innerHTML=damagePanel()+deathPanel();
+  content.innerHTML=damagePanel()+ailmentPanel()+deathPanel();
  }else if(page==="summons"){
   const aliases=catalog.characterStats.aliases;
   const summonStats=aliases.map((row,index)=>({row,index})).filter(x=>/^minion|^maxcompanions/.test(x.row.name));
-  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Live summoned allies</h2><button data-refresh="summons_read" data-control-id="summons_read">Refresh allies</button></div>${summonColumnPicker()}<div class="actions"><button id="summon-baseline">Save damage baseline</button><button id="summon-baseline-clear">Clear baseline</button></div><div id="summon-live">${summonTable()}</div></section>`+settingPanel("Summon lifetime",[controlById("build_summonduration")])+settingPanel("Minion counts",["minionextra","totemextra","ballistaextra","forgedextra","companionextra","immortalminions"].map(key=>controlById("build_"+key)).filter(Boolean))+`<section class="panel"><h2>Minion and companion bonuses</h2><p class="muted">These controls use the existing character stat editor. Minion tags keep these bonuses separate from your own damage and health.</p><div class="control-grid">${summonStats.map(x=>`<button class="settings-card" data-summon-stat="${x.index}"><h3>${esc(ST.name(x.row,"aliases"))}</h3><p class="muted">Edit bonus →</p></button>`).join("")}</div></section>`;
+  content.innerHTML=`<section class="panel"><div class="section-head"><h2>Live summoned allies</h2><button data-refresh="summons_read" data-control-id="summons_read">Refresh allies</button></div>${summonColumnPicker()}<div class="actions"><button id="summon-baseline">Save damage baseline</button><button id="summon-baseline-clear">Clear baseline</button></div><div id="summon-live">${summonTable()}</div></section>`+settingPanel("Summon lifetime",[controlById("build_summonduration")])+settingPanel("Minion counts",["minionextra","totemextra","ballistaextra","forgedextra","companionextra","immortalminions","minionsnap"].map(key=>controlById("build_"+key)).filter(Boolean))+`<section class="panel"><h2>Minion and companion bonuses</h2><p class="muted">These controls use the existing character stat editor. Minion tags keep these bonuses separate from your own damage and health.</p><div class="control-grid">${summonStats.map(x=>`<button class="settings-card" data-summon-stat="${x.index}"><h3>${esc(ST.name(x.row,"aliases"))}</h3><p class="muted">Edit bonus →</p></button>`).join("")}</div></section>`;
  }else if(page==="stats")renderStats();
  else if(page==="campaign"){
   const mastery=window.EpochSession.current(cache.progress_read,connected,preview)?cache.progress_read?.mastery:null;
@@ -1069,7 +1074,9 @@ function syncLootCraft(id,result){
   return true;
  }
  if(["craft_materials","craft_materials_read"].includes(id)){cache.craft_materials_read=result;return true;}
- if(id==="inventory_tools_read"||inventoryTools.includes(id)||id==="inventory_pages"||id==="inventory_idolslots"||id==="inventory_sorttab"){syncInventoryTools(result);return true;}
+ if(id==="inventory_tools_read"||inventoryTools.includes(id)||id==="inventory_pages"||id==="inventory_idolsall"||id==="inventory_idolslots"||id==="inventory_sorttab"){syncInventoryTools(result);return true;}
+ if(id==="ailment_read"||id.startsWith("ailment_")){cache.ailment_read={...cache.ailment_read,...result};
+  for(const [key,item] of Object.entries(result.settings||{})){const cid="ailment_"+key;if(!controlById(cid)||item.value==null)continue;appliedValues[cid]=item.value;if(!dirty.has(cid)&&!autoManaged(cid))values[cid]=item.value;}}
  if(id==="rage_read"||id.startsWith("rage_")){cache.rage_read={...cache.rage_read,...result};
   for(const [key,item] of Object.entries(result.settings||{})){const cid="rage_"+key;if(!controlById(cid)||item.value==null)continue;appliedValues[cid]=item.value;if(!dirty.has(cid)&&!autoManaged(cid))values[cid]=item.value;}
   const facts=$("#rage-facts");if(facts)facts.textContent=rageFacts();
@@ -1211,7 +1218,7 @@ function autoSortPanel(){
 }
 function syncInventoryTools(r){
  if(!r?.ok||!("autosort" in r))return;cache.inventory_tools_read=r;
- for(const [id,v] of [["inventory_autosort",r.autosort?1:0],["inventory_autosortall",r.autosortAll?1:0],["inventory_sellkeep",r.sellKeep],["inventory_pages",r.pages===false?0:1],["inventory_idolslots",r.idolSlots?1:0]]){appliedValues[id]=v;if(!dirty.has(id)&&!autoManaged(id))values[id]=v;syncSettingUi(id);}
+ for(const [id,v] of [["inventory_autosort",r.autosort?1:0],["inventory_autosortall",r.autosortAll?1:0],["inventory_sellkeep",r.sellKeep],["inventory_pages",r.pages===false?0:1],["inventory_idolslots",r.idolSlots?1:0],["inventory_idolsall",r.idolsAll===false?0:1]]){appliedValues[id]=v;if(!dirty.has(id)&&!autoManaged(id))values[id]=v;syncSettingUi(id);}
  const node=$("#sort-tabs");if(node)node.innerHTML=autoSortTabs();
 }
 const ruleTypes=["Show","Hide","Highlight"];
@@ -1417,6 +1424,8 @@ function ragePanel(){
 function takenTable(s){const D=window.EpochDamage,R=window.EpochDeathRecap;return D&&R?D.table(R.takenState(s),{compact:true,taken:true}):"";}
 // ---- Death recap: the deaths since the game started (newest first), each with the 10 s before it.
 let deathIndex=0,deathCount=null;
+// Ailments: the game's own stack caps and durations, scaled while offline play runs.
+function ailmentPanel(){return settingPanel("Ailments",[controlById("ailment_stacks"),controlById("ailment_duration")].filter(Boolean)).replace(`<div class="control-grid">`,`<p class="muted">These change the ailments you and your minions apply, while you play offline; nothing is saved to your character. Enemies' ailments, also those on you, keep the game's own values.</p><div class="control-grid">`);}
 function deathPanel(){
  const c=controlById("death_recap");if(!c||!controlById("death_recap_read"))return "";
  return `<section class="panel" id="death-panel"><div class="section-head"><h2>Death recap</h2><div class="actions"><button data-death-refresh data-control-id="death_recap_read">Refresh</button><button data-death-clear data-control-id="death_recap_clear">Clear</button></div></div><p class="muted">When your character dies, the hits of the 10 seconds before it are kept: who hit, with which skill or ailment, the damage by type and the health left after each hit, with the buffs and debuffs you had. Kept until the game closes; the damage window shows it under ☠.</p><div class="control-grid">${settingCard(c)}</div><div id="death-live">${deathView()}</div></section>`;

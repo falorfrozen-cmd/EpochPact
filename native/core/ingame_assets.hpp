@@ -10,6 +10,7 @@
 #include <string_view>
 
 namespace ep::ingame::assets {
+std::string_view Bytes(const std::string& file);  // an embedded file as it is
 
 // Starts the background preparation; false if the embedded data is missing or broken.
 bool Start(std::string* why);

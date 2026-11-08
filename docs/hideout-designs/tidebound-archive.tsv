@@ -1,0 +1,61 @@
+ad	right	up	lift	yaw	size	not
+Stash	-6	-6	0	0	1	Functional stash
+Annya the Blacksmith	0	-7	0	0	1	Functional vendor
+Cache_of_Eternity_01	6	-6	0	0	0.3	Functional Eternity Cache; explicit scale 0.3
+DOOR_RETURN	0	-13	0	60	1	Return to the Monolith Hub; protected exit
+DOOR_1	-42.02820323027551	3.9999999999999996	0	60	1	Boss 1
+DOOR_2	-35.1	8.0	0	60	1	Boss 2
+DOOR_3	-28.17179676972449	3.9999999999999996	0	60	1	Boss 3
+DOOR_4	-28.171796769724494	-4.000000000000001	0	60	1	Boss 4
+DOOR_5	-35.1	-8.0	0	60	1	Boss 5
+DOOR_6	-42.02820323027551	-4.0000000000000036	0	60	1	Boss 6
+DOOR_7	42.02820323027551	3.9999999999999996	0	60	1	Boss 7
+DOOR_8	35.1	8.0	0	60	1	Boss 8
+DOOR_9	28.17179676972449	3.9999999999999996	0	60	1	Boss 9
+DOOR_10	28.171796769724494	-4.000000000000001	0	60	1	Boss 10
+DOOR_11	35.1	-8.0	0	60	1	Difficulty selector
+DOOR_12	42.02820323027551	-4.0000000000000036	0	60	1	Boss Rush
+Floor_Stone_Circle	0	0	0.04	0	1.819363	Measured scale and horizontal footprint; native textured model; no effects assumed
+Floor_Stone_Circle	-35.1	0	0.04	0	1.160043	Measured scale and horizontal footprint; native textured model; no effects assumed
+Floor_Stone_Circle	35.1	0	0.04	0	1.160043	Measured scale and horizontal footprint; native textured model; no effects assumed
+CouncilChamberFloor_Eterra_01	0	0	0.07	0	2.422986	Measured scale and horizontal footprint; native textured model; no effects assumed
+CouncilChamberFloor_Eterra_01	-35.1	0	0.07	0	1.599526	Measured scale and horizontal footprint; native textured model; no effects assumed
+CouncilChamberFloor_Eterra_01	35.1	0	0.07	0	1.599526	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_RedFlower_01	-30	-3	0.03	0	1.009733	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_RedFlower_01	30	-3	0.03	0	1.009733	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_RedFlower_01	-40	1	0.03	0	1.009733	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_RedFlower_01	40	1	0.03	0	1.009733	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_RedFlower_01	-10	-9	0.03	0	1.009733	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_RedFlower_01	10	-9	0.03	0	1.009733	Measured scale and horizontal footprint; native textured model; no effects assumed
+Circle_Statue	0	10	-0.152478	0	0.245961	Measured scale and horizontal footprint; native textured model; no effects assumed
+Circle_Statue	-35	2	-0.048559	0	0.140549	Measured scale and horizontal footprint; native textured model; no effects assumed
+Circle_Statue	35	2	-0.048559	0	0.140549	Measured scale and horizontal footprint; native textured model; no effects assumed
+LagonPillar_Thick	-7	8	0	0	0.896857	Measured scale and horizontal footprint; native textured model; no effects assumed
+LagonPillar_Thick	7	8	0	0	0.896857	Measured scale and horizontal footprint; native textured model; no effects assumed
+LagonPillar_Thick	-35	3	0	0	0.896857	Measured scale and horizontal footprint; native textured model; no effects assumed
+LagonPillar_Thick	35	3	0	0	0.896857	Measured scale and horizontal footprint; native textured model; no effects assumed
+LagonPillar_Thin	-11	4	0	0	0.886184	Measured scale and horizontal footprint; native textured model; no effects assumed
+LagonPillar_Thin	11	4	0	0	0.886184	Measured scale and horizontal footprint; native textured model; no effects assumed
+LagonPillar_Thin	-35	-4.5	0	0	0.886184	Measured scale and horizontal footprint; native textured model; no effects assumed
+LagonPillar_Thin	35	-4.5	0	0	0.886184	Measured scale and horizontal footprint; native textured model; no effects assumed
+CrystalCluster	0	10	0	0	0.948987	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_16_G1_BlueVSPro	-31	5	0.03	0	1.228083	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_16_G1_BlueVSPro	31	5	0.03	0	1.228083	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_16_G1_BlueVSPro	-39	-4	0.03	0	1.228083	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_16_G1_BlueVSPro	39	-4	0.03	0	1.228083	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_16_G1_BlueVSPro	-12	8	0.03	0	1.228083	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_16_G1_BlueVSPro	12	8	0.03	0	1.228083	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_16_G1_BlueVSPro	-39	4	0.03	0	1.228083	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_16_G1_BlueVSPro	39	4	0.03	0	1.228083	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 03	-32	-6	0	0	2.181564	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 03	32	-6	0	0	2.181564	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 03	-38	6	0	0	2.181564	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 03	38	6	0	0	2.181564	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 03	-8	-10	0	0	2.181564	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 03	8	-10	0	0	2.181564	Measured scale and horizontal footprint; native textured model; no effects assumed
+H_Temple_Railings_01	-8	-10	0	-90	1.306667	Measured scale and horizontal footprint; native textured model; no effects assumed
+H_Temple_Railings_01	8	-10	0	90	1.306667	Measured scale and horizontal footprint; native textured model; no effects assumed
+H_Temple_Railings_01	-11	11	0	-90	1.105602	Measured scale and horizontal footprint; native textured model; no effects assumed
+H_Temple_Railings_01	11	11	0	90	1.105602	Measured scale and horizontal footprint; native textured model; no effects assumed
+Astrolabe	0	14	0	0	16.451165	Measured scale and horizontal footprint; native textured model; no effects assumed
+Coral_RedFlower_01	0	12.5	0.03	0	0.776717	Measured scale and horizontal footprint; native textured model; no effects assumed

@@ -25,9 +25,9 @@ Setting skillXp{"skillxp",1,100,1}, passive{"passivepoints",1,10,1}, skills{"ski
     freeSkills{"skillnodes",0,1,0,true}, freePassives{"passivenodes",0,1,0,true}, freeWeaver{"weavernodes",0,1,0,true},
     minionExtra{"minionextra",0,20,0,true}, companionExtra{"companionextra",0,10,0,true}, totemExtra{"totemextra",0,10,0,true},
     ballistaExtra{"ballistaextra",0,10,0,true}, forgedExtra{"forgedextra",0,20,0,true}, immortal{"immortalminions",0,1,0,true},
-    masterySkills{"masteryskills",0,1,0,true}, anyLevel{"anylevel",0,1,0,true};
-std::array<Setting*,26> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&primordials,&freeSkills,&freePassives,&freeWeaver,
-    &minionExtra,&companionExtra,&totemExtra,&ballistaExtra,&forgedExtra,&immortal,&masterySkills,&anyLevel};
+    masterySkills{"masteryskills",0,1,0,true}, anyLevel{"anylevel",0,1,0,true}, snap{"minionsnap",0,1,0,true};
+std::array<Setting*,27> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&primordials,&freeSkills,&freePassives,&freeWeaver,
+    &minionExtra,&companionExtra,&totemExtra,&ballistaExtra,&forgedExtra,&immortal,&masterySkills,&anyLevel,&snap};
 game::MethodRef getActor, offline, xpRef, skillRef, passiveRef, weaverRef, zoomRef, projectileRef, blessingRef, populateRef, optionsRef;
 game::MethodRef summonRef, slotRef, alternateSlotRef, linkedRef, invalidRef, enforceRef, mainRestrictionRef, offRestrictionRef, equipRef;
 game::MethodRef constructionRef, drainRef, summonedTickRef;
@@ -472,6 +472,50 @@ void SetImmortal(bool on){
         }
     }
 }
+// ---- Minions without acceleration. A summon's NavMeshAgent gets its acceleration once, when it is made
+// (EntityAdapter.adaptAfterStatsApplied: acceleration x (1 + increased movement speed)); speed gained later is not followed,
+// so a fast minion overshoots and slides past its target. With minionsnap the player's summons get an acceleration and
+// a turning speed high enough to be at full speed, stopped or turned within a frame. Their own values come back when off.
+constexpr float kSnapAcceleration = 5000, kSnapAngular = 7200;
+struct AgentKept { std::unique_ptr<Root> agent; float acceleration, angular; bool braking; };
+std::map<void*, AgentKept> snapped;
+std::vector<void*> OwnedSummonActors() {
+    std::vector<void*> out;
+    void* local=Actor();if(!local)return out;
+    std::vector<void*> creators{local};std::set<void*> seen{local};
+    for(size_t i=0;i<creators.size()&&seen.size()<=256;++i){
+        void* tracker=Get<void*>(creators[i],F("Actor","summonTracker"));if(!tracker)continue;
+        for(void* summoned:Entries(Get<void*>(tracker,F("SummonTracker","summons")))){
+            if(!summoned||!game::IsAlive(summoned))continue;
+            void* actor=Get<void*>(summoned,F("Summoned","actor"));if(!actor||!game::IsAlive(actor)||!seen.insert(actor).second)continue;
+            creators.push_back(actor);out.push_back(actor);
+        }
+    }
+    return out;
+}
+void SnapAgents(bool on){
+    for(auto it=snapped.begin();it!=snapped.end();){
+        void* agent=it->second.agent->Get();
+        if(!agent||!game::IsAlive(agent)){it=snapped.erase(it);continue;}
+        if(!on){
+            float a=it->second.acceleration,r=it->second.angular;bool b=it->second.braking;void* aa[]{&a};void* ra[]{&r};void* ba[]{&b};
+            Checked([&]{Invoke(Method(agent,"set_acceleration",1),agent,aa);Invoke(Method(agent,"set_angularSpeed",1),agent,ra);Invoke(Method(agent,"set_autoBraking",1),agent,ba);});
+            it=snapped.erase(it);continue;
+        }
+        ++it;
+    }
+    if(!on)return;
+    for(void* actor:OwnedSummonActors()){
+        void* agent=Get<void*>(actor,F("Actor","navMeshAgent"));
+        if(!agent||!game::IsAlive(agent)||snapped.count(agent))continue;
+        Checked([&]{
+            AgentKept k{std::make_unique<Root>(agent),Value<float>(Method(agent,"get_acceleration",0),agent),Value<float>(Method(agent,"get_angularSpeed",0),agent),Value<bool>(Method(agent,"get_autoBraking",0),agent)};
+            float a=kSnapAcceleration,r=kSnapAngular;bool b=true;void* aa[]{&a};void* ra[]{&r};void* ba[]{&b};
+            Invoke(Method(agent,"set_acceleration",1),agent,aa);Invoke(Method(agent,"set_angularSpeed",1),agent,ra);Invoke(Method(agent,"set_autoBraking",1),agent,ba);
+            snapped.emplace(agent,std::move(k));
+        });
+    }
+}
 bool LocalSlot(void* self) {
     if(!self)return false;
     const char* cls=il2cpp::api().class_get_name(il2cpp::api().object_get_class(self));
@@ -756,6 +800,7 @@ Hook* For(const Setting& s) {
     return &blessingHook;
 }
 std::vector<Hook*> Hooks(const Setting& s) {
+    if(&s==&snap)return {};  // no hook: the agents are set in Frame
     if(&s==&projectile||&s==&projectileFlat)return {&projectileHook,&constructionHook};
     if(&s==&summonDuration)return {&summonHook,&drainHook,&summonedTickHook};
     if(&s==&offhand)return {&slotHook,&alternateSlotHook,&linkedHook,&invalidHook,&enforceHook,&mainRestrictionHook,&offRestrictionHook};
@@ -793,7 +838,8 @@ std::string State() {
     std::ostringstream out; out<<"{\"ok\":true,\"settings\":{"; bool comma=false;
     for(auto* s:settings){bool available=true;for(auto* h:Hooks(*s))available=available && static_cast<bool>(*h->ref);if(comma)out<<',';comma=true;out<<Json(s->key)<<":{\"value\":"<<s->value<<",\"available\":"<<Boolean(available)<<'}';}
     out<<"},\"counters\":{\"masterySkillsAdded\":"<<masterySkillsAdded<<",\"levelAllowed\":"<<levelAllowed<<",\"skillXp\":"<<xpCalls<<",\"projectiles\":"<<projectileCalls<<",\"projectileRetrofits\":"<<retrofits<<",\"summonDecayTicks\":"<<drainCalls<<",\"lastProjectileNative\":"<<lastProjectileNative<<",\"lastProjectileTotal\":"<<lastProjectileTotal<<",\"blessings\":"<<blessingCalls<<",\"faults\":"<<faults<<'}';
-    out<<",\"summons\":{\"limitsRaised\":"<<raisedSummons<<",\"companionLimitReads\":"<<raisedCompanionReads<<",\"immortal\":"<<immortalHealth.size()<<",\"immortalAdded\":"<<immortalAdded
+    out<<",\"summons\":{\"limitsRaised\":"<<raisedSummons<<",\"companionLimitReads\":"<<raisedCompanionReads<<",\"immortal\":"<<immortalHealth.size()<<",\"snapped\":"<<snapped.size()<<",\"agents\":"<<[]{std::string s="[";Checked([&]{int n=0;for(void* actor:OwnedSummonActors()){if(n>=8)break;void* agent=Get<void*>(actor,F("Actor","navMeshAgent"));if(!agent||!game::IsAlive(agent))continue;
+            s+=std::string(n++?",":"")+"{\"acceleration\":"+std::to_string(Value<float>(Method(agent,"get_acceleration",0),agent))+",\"speed\":"+std::to_string(Value<float>(Method(agent,"get_speed",0),agent))+",\"angular\":"+std::to_string(Value<float>(Method(agent,"get_angularSpeed",0),agent))+"}";}});return s+"]";}()<<",\"immortalAdded\":"<<immortalAdded
        <<",\"lastAbility\":"<<Json(lastSummonAbility)<<",\"lastKind\":"<<Json(lastSummonKind)<<",\"lastNative\":"<<lastSummonNative<<",\"lastLimit\":"<<lastSummonLimit<<'}';
     std::string worn;  // built whole: a failed read must not leave half an object in the reply
     Checked([&]{void* containers=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));if(!containers||!EquipManager())return;
@@ -876,10 +922,17 @@ bool Init() {
     } catch(const std::exception& e){Log("build controls unavailable: %s",e.what());return false;}
 }
 std::string Read(){return Run([]{return State();});}
-void ReleaseRoots(){componentTypes.clear();setEntries.clear();setStatsOwner.Reset();immortalHealth.clear();
+void ReleaseRoots(){snapped.clear();componentTypes.clear();setEntries.clear();setStatsOwner.Reset();immortalHealth.clear();
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
     testConstructed.Reset();
 #endif
+}
+void Frame(){
+    static uint64_t next=0;const uint64_t now=GetTickCount64();
+    if(now<next||(snap.value!=1&&snapped.empty()))return;
+    next=now+500;
+    if(!game::IsOfflinePlay()){Checked([&]{SnapAgents(false);});return;}
+    Checked([&]{SnapAgents(snap.value==1);});
 }
 std::string Set(const std::string& key,double value) {
     return Run([=]() -> std::string {
@@ -900,6 +953,7 @@ std::string Set(const std::string& key,double value) {
             if(s==&passive||s==&skills||s==&weaver||s==&weaverFlat||s==&freeSkills||s==&freePassives||s==&freeWeaver)RefreshBudgets();
             if(s==&zoom || s==&angle){void* camera=game::StaticObject(game::FindStaticField("LE.dll","","CameraManager","instance"));if(camera)Invoke(zoomRef,camera);}
             if(s==&immortal)SetImmortal(value!=0);
+            if(s==&snap)SnapAgents(value!=0);
             if(s==&fullSets){void* manager=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));if(manager)ReconcileSets(Get<void*>(manager,Offset("ItemContainersManager","itemEquipManager")));}
             if(s==&primordials)RefreshPrimordials();
             if(s==&masterySkills)RecalculateKnown();

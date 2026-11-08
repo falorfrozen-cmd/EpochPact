@@ -3,6 +3,7 @@
 namespace ep::builds {
 bool Init();
 void ReleaseRoots(); // Called before IL2CPP shutdown while GC handles are valid.
+void Frame();        // main thread: minions without acceleration
 std::string Read();
 std::string Set(const std::string& key, double value);
 std::string Respec(const std::string& expectedId, const std::string& kind);

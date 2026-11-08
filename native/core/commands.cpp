@@ -20,6 +20,7 @@
 #include "lifecycle.hpp"
 #include "managed.hpp"
 #include "monolith.hpp"
+#include "hideout.hpp"
 #include "player.hpp"
 #include "progression.hpp"
 #include "stat_editor.hpp"
@@ -33,6 +34,8 @@
 #include "convenience.hpp"
 #include "inventory_tools.hpp"
 #include "rage.hpp"
+#include "ailments.hpp"
+#include "quad_stash.hpp"
 #include "weaver.hpp"
 #include "idols.hpp"
 #include "enchanter.hpp"
@@ -129,6 +132,9 @@ std::string Execute(const std::string& line) {
     if(cmd=="reportread")return args.empty()?report::Read():"{\"ok\":false,\"error\":\"reportread expects no arguments\"}";
     if(cmd=="reportkey")return args.size()==1?report::SetKey(args[0]):"{\"ok\":false,\"error\":\"use reportkey F5-F12|off\"}";
     if(cmd=="reportnow")return args.empty()?report::Create("app"):"{\"ok\":false,\"error\":\"reportnow expects no arguments\"}";
+#ifdef EPOCHPACT_TESTING
+    if(cmd=="reportquiet")return args.empty()?report::Create("qa-silent"):"{\"ok\":false}";
+#endif
     if(cmd=="fontread")return args.empty()?fonts::Read():"{\"ok\":false,\"error\":\"fontread expects no arguments\"}";
     if(cmd=="fontset")return args.size()==2?fonts::Set(args[0],args[1]):"{\"ok\":false,\"error\":\"use fontset family <name|game> | fontset scale 0.7-1.5 | fontset case 0|1\"}";
     if(cmd=="stashrules")return args.size()==1?stashrules::Read(args[0]):"{\"ok\":false,\"error\":\"use stashrules save-id\"}";
@@ -288,6 +294,40 @@ std::string Execute(const std::string& line) {
         const double v = args.size() == 2 ? std::strtod(args[1].c_str(), &end) : 0;
         if (args.size() != 2 || end == args[1].c_str() || *end) return "{\"ok\":false,\"error\":\"use rageset spawn|hunttime|charges|buffs|forging <value>\"}";
         return rage::Set(args[0], v);
+    }
+    // Ailments: ailmentread; ailmentset stacks|duration <value> (stack cap 1-30x, base duration 1-10x).
+    // Quad stash tabs: quadstash read; quadstash <tab index|shown> 0|1.
+    if (cmd == "quadread") return args.empty() ? quadstash::Read() : "{\"ok\":false,\"error\":\"quadread expects no arguments\"}";
+    if (cmd == "quadstash") {
+        if (args.size() == 1 && args[0] == "read") return quadstash::Read();
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+        if (args.size() == 1 && args[0] == "look") return quadstash::Look();
+        if (args.size() == 1 && args[0] == "configopen") return quadstash::ConfigureOpen();
+        if (args.size() == 1 && args[0] == "configlook") return quadstash::ConfigureLook();
+        if (args.size() == 2 && args[0] == "shot") return quadstash::Shot(args[1]);
+        if (args.size() == 2 && args[0] == "configcheck") return quadstash::ConfigureCheck(args[1][0] - '0');
+        if ((args.size() == 3 || args.size() == 4) && args[0] == "testmove") { try { return quadstash::TestMove(std::stoi(args[1]), std::stoi(args[2]), args.size() == 4 ? std::stoi(args[3]) : -1); } catch (const std::exception& e) { return "{\"ok\":false,\"error\":" + managed::Json(e.what()) + "}"; } }
+#endif
+        if (args.size() == 2 && (args[1] == "0" || args[1] == "1")) {
+            int index = -1;
+            if (args[0] != "shown") { try { index = std::stoi(args[0]); } catch (...) { index = -2; } }
+            if (index < -1 || index > 999) return "{\"ok\":false,\"error\":\"use quadstash <tab index|shown> 0|1\"}";
+            return quadstash::Set(index, args[1] == "1");
+        }
+        return "{\"ok\":false,\"error\":\"use quadstash read or quadstash <tab index|shown> 0|1\"}";
+    }
+    if (cmd == "ailmentread") return args.empty() ? ailments::Read() : "{\"ok\":false,\"error\":\"ailmentread expects no arguments\"}";
+#if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
+    if (cmd == "ailmenttest") {
+        if (args.size() != 2 && !(args.size() == 3 && args[2] == "foe")) return "{\"ok\":false,\"error\":\"use ailmenttest <id> <stacks> [foe]\"}";
+        try { return ailments::Test(std::stoi(args[0]), std::stoi(args[1]), args.size() == 3); } catch (const std::exception& e) { return "{\"ok\":false,\"error\":" + managed::Json(e.what()) + "}"; }
+    }
+#endif
+    if (cmd == "ailmentset") {
+        char* end = nullptr;
+        const double v = args.size() == 2 ? std::strtod(args[1].c_str(), &end) : 0;
+        if (args.size() != 2 || end == args[1].c_str() || *end) return "{\"ok\":false,\"error\":\"use ailmentset stacks|duration <value>\"}";
+        return ailments::Set(args[0], v);
     }
     if (cmd == "weaverread") return args.empty() ? weaver::Read() : "{\"ok\":false,\"error\":\"weaverread expects no arguments\"}";
     if (cmd == "weaveraffixes") return args.size() == 1 ? weaver::SetAffixes(args[0]) : "{\"ok\":false,\"error\":\"use weaveraffixes <id,id,...|none>\"}";
@@ -462,6 +502,8 @@ std::string Execute(const std::string& line) {
         if (args.size() != 1 || (args[0] != "0" && args[0] != "1")) return "{\"ok\":false,\"error\":\"use noblessing 0|1\"}";
         return monolith::SetNoBlessing(args[0] == "1");
     }
+    if (cmd == "hideoutread") return hideout::Command({"read"});
+    if (cmd == "hideout") return hideout::Command(args);
     if (cmd == "bossdoors") {
         if (args.size() != 1 || (args[0] != "0" && args[0] != "1")) return "{\"ok\":false,\"error\":\"use bossdoors 0|1\"}";
         return monolith::BossDoors(args[0] == "1");

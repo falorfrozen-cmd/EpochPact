@@ -18,6 +18,21 @@ std::string BossDoors(bool on);
 std::string SetNoBlessing(bool on);
 std::string BossStatus();
 void BossFrame();
+// The place of our own, for hideout.cpp. Door actions: 1-10 a timeline's boss.
+constexpr int kHallDifficulty = 0, kHallRush = -1, kHallOut = -3, kHallStash = -4, kHallVendor = -5, kHallCache = -6;
+void HallWorld(float right, float up, float* x, float* z);
+void HallLocal(float x, float z, float* right, float* up);
+float HallGroundY();
+bool HallIsUp();
+void* HallPreviewDoor(); // read-only source; the preview strips scripts before activation
+void* HallDoorVisual(int action);
+void HallRebuildDoors();
+void HallRebuildNavMesh();
+void HallRebuildAll();
+void HallSetGroundMaterial(void* material);
+void HallSetLight(float intensity);
+void HallGoIn();
+void ReleaseHallRoots(); // shutdown only; never invokes Unity destruction
 std::string Status();
 #ifdef EPOCHPACT_TESTING
 }

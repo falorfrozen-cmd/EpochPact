@@ -21,6 +21,7 @@
 #define NOMINMAX
 #endif
 #include "ingame_panel.hpp"
+#include "hideout.hpp"
 #include "ingame_window.hpp"
 #include "ingame_preferences_rules.hpp"
 #include "commands.hpp"
@@ -166,7 +167,8 @@ struct Watched { int section = -1; Pin field; std::string last, name; std::funct
 struct Window {
     Pin rootGo, rootCanvas, windowRt, listener, mainContent, sideContent, mainThumb, sideThumb, crumb, connection, draftLabel, applyGroup, applyGo, discardGo,
         heroEyebrow, heroTitle, heroSub, heroArt, heroArtCompact, heroBorder, popup, toast, dialog, raycaster, applyLabel, navRoot, captionRoot, searchField, padFocus, dialogContent,
-        canvasRt, resizeFrame;
+        canvasRt, resizeFrame, shellImage;
+    std::vector<Pin> standaloneHidden;
     std::vector<Pin> navFill, navFrame, navBar;
     std::vector<Page> pages;
     std::vector<std::unique_ptr<Section>> sections;
@@ -175,6 +177,7 @@ struct Window {
     std::vector<Watched> inputs;
     int page = 0, applyHit = -1, discardHit = -1;
     bool built = false, shown = false, dialogOpen = false, listOpen = false;
+    bool standaloneDialog = false, standaloneEscape = false;
     float dialogX = 0, dialogY = 0;
     uint64_t dialogToken = 0;
     float dialogScroll = 0, dialogMaxScroll = 0, dialogWidth = 0, dialogHeight = 0;
@@ -190,6 +193,26 @@ struct Window {
     int padList = -1, padIndex = -1;
     bool padMode = false;
 } win;
+
+// Preserve the main page's visibility while a dedicated task window is open.
+// Dialog, popup and toast layers remain active; the F6 chrome is hidden.
+void HideStandaloneShell(bool hide) {
+    if (!win.windowRt || !game::IsAlive(win.windowRt.Get())) return;
+    if (hide) {
+        if (!win.standaloneHidden.empty()) return;
+        const int count=Value<int>(U("Transform","get_childCount",0),win.windowRt.Get());
+        for(int index=0;index<count;++index){void* a[]{&index};void* tr=Invoke(U("Transform","GetChild",1),win.windowRt.Get(),a);
+            if(tr==win.dialog.Get()||tr==win.popup.Get()||tr==win.toast.Get())continue;
+            void* go=GameObjectOf(tr);if(Value<bool>(U("GameObject","get_activeSelf",0),go)){
+                win.standaloneHidden.emplace_back(go);SetActive(go,false);
+            }
+        }
+        if(win.shellImage)Tint(win.shellImage.Get(),Alpha(C("bg"),0));
+    } else {
+        for(auto& node:win.standaloneHidden)if(node&&game::IsAlive(node.Get()))SetActive(node.Get(),true);
+        win.standaloneHidden.clear();if(win.shellImage)Tint(win.shellImage.Get(),C("bg"));
+    }
+}
 
 std::map<std::string, std::string>& RememberedTabs() {
     static std::map<std::string, std::string> tabs;  // page id -> tab (app.js craftingSection)
@@ -1081,6 +1104,7 @@ void BuildBase() {
     // one of its own panels: no clicks go through to the world, also over a text field.
     void* catcher = Add(w.go, "UnityEngine.UI.dll", "UnityEngine.UI", "Image");
     Tint(catcher, C("bg"));
+    win.shellImage.Set(catcher);
     Raycast(catcher, true);
     win.listener.Set(Add(w.go, "LE.dll", "", "UIMouseListener"));
     Enable(win.listener.Get(), false);
@@ -1836,9 +1860,12 @@ void EndWindowDrag() {
 
 void SetHover(HitRef r) {
     if (r == hovered) return;
-    if (Hit* old = HitAt(hovered)) for (auto& part : old->hover) Fade(part.graphic, part.normal, part.seconds);
+    Action leave, enter;
+    if (Hit* old = HitAt(hovered)) { for (auto& part : old->hover) Fade(part.graphic, part.normal, part.seconds); leave = old->leave; }
     hovered = r;
-    if (Hit* now = HitAt(hovered)) for (auto& part : now->hover) Fade(part.graphic, part.hover, part.seconds);
+    if (Hit* now = HitAt(hovered)) { for (auto& part : now->hover) Fade(part.graphic, part.hover, part.seconds); enter = now->enter; }
+    if (leave) leave();
+    if (enter) enter();
 }
 void ClearHover() { SetHover({kFixed, -1}); }
 void DragSlider(int cardIndex, float px) {
@@ -2288,9 +2315,10 @@ void Show(bool open) {
         ++opens;
         timing.framesSinceOpen = 0;
         timing.spikeAfterOpen = 0;
-        RequestValues(true);
+        if(!win.standaloneDialog)RequestValues(true);
         timing.openMs = Ms() - start;
     } else {
+        if(win.standaloneDialog){win.standaloneDialog=false;HideStandaloneShell(false);}
         CloseList();
         CloseDialog();
         ClearHover();
@@ -2319,7 +2347,7 @@ void Show(bool open) {
     }
 }
 void Destroy() {
-    ReleaseHud();
+    // Gameplay HUDs own a separate persistent root, surviving F6 rebuilds.
     ReleaseStatRoots();
     ReleaseMirror(true);
     ReleaseWardrobe(true);
@@ -2455,9 +2483,16 @@ void Step() {
     lastStep = now;
     if (reloadRequested && win.built) {
         reloadRequested = false;
-        const auto page = win.pages[win.page].id; const bool shown = win.shown;
+        const auto page = win.pages[win.page].id; const bool shown = win.shown&&!win.standaloneDialog;
+        const auto resume=win.standaloneDialog?SuspendHideoutBuilderForLayout():Action{};
         ReleaseKeyboard(); language = ReadLanguage(); Destroy(); QueueAll();
-        jobs.push_back([page, shown] { Navigate(page); if (shown) Show(true); });
+        After(0,[page, shown, resume] {
+            Navigate(page);
+            // Timers run only after QueueAll's recursively queued page jobs
+            // have finished. Destroy also clears the cached eligibility.
+            CheckEligibility();
+            if (resume) resume();else if (shown) Show(true);
+        });
         // a new window size: built in this frame (under a second), so the window is not gone meanwhile
         if (placementReload) { placementReload = false; RunJobs(1e9); }
     }
@@ -2469,8 +2504,14 @@ void Step() {
         if (!width) width = game::FindMethod("UnityEngine.CoreModule.dll", "UnityEngine", "Screen", "get_width", 0);
         if (!height) height = game::FindMethod("UnityEngine.CoreModule.dll", "UnityEngine", "Screen", "get_height", 0);
         if (!width || !height) throw std::runtime_error("Screen size unavailable");
-        screenW = reinterpret_cast<int (*)(const il2cpp::Method*)>(width.code)(width.info);
-        screenH = reinterpret_cast<int (*)(const il2cpp::Method*)>(height.code)(height.info);
+        const int w=reinterpret_cast<int (*)(const il2cpp::Method*)>(width.code)(width.info);
+        const int h=reinterpret_cast<int (*)(const il2cpp::Method*)>(height.code)(height.info);
+        const bool resized=screenW>0&&screenH>0&&(screenW!=w||screenH!=h);
+        screenW=w;screenH=h;
+        if(resized&&win.built&&!(toggle&&!win.shown)){
+            // Preserve page and visibility, including when F6 is closed.
+            reloadRequested=true;placementReload=win.shown;
+        }
         nextScreen = Now() + 1000;
     }
     if (toggle && !win.shown) {
@@ -2527,6 +2568,13 @@ void Step() {
     Record("commands", Ms() - t0);
     if (win.toastUntil && Now() >= win.toastUntil) HideToast();
     if (!win.shown) { if (HudActive()) PollInputs(); return; }
+    if(win.standaloneDialog){
+        if(!Eligible()){CloseStandaloneDialog();return;}
+        const bool escape=GameInFront()&&(GetAsyncKeyState(VK_ESCAPE)&0x8000)!=0;
+        if(escape&&!win.standaloneEscape){if(win.listOpen)CloseList();else CloseStandaloneDialog();}
+        win.standaloneEscape=escape;if(!win.standaloneDialog)return;
+        stage="dedicated dialog input";Input(dt);PadInput();PollInputs();return;
+    }
     if (searchDue && Now() >= searchDue) { searchDue = 0; SearchChanged(globalSearch); }
     t0 = Ms();
     FlushPending();
@@ -2659,6 +2707,7 @@ std::string State() {
         << ",\"closes\":" << closes.load() << ",\"faults\":" << faults.load() << ",\"softFaults\":" << softFaultsTotal.load() << ",\"broken\":" << Boolean(broken) << ",\"error\":" << Json(lastError)
         << ",\"scroll\":" << win.mainScroll << ",\"sideScroll\":" << win.sideScroll << ",\"pending\":" << pending.size() << ",\"drafts\":" << drafts.size()
         << ",\"errors\":" << errors.size() << ",\"sending\":" << Json(sendingId) << ",\"dialog\":" << Boolean(win.dialogOpen) << ",\"list\":" << Boolean(win.listOpen)
+        << ",\"standaloneDialog\":" << Boolean(win.standaloneDialog) << ",\"hiddenShellNodes\":" << win.standaloneHidden.size()
         << ",\"toast\":" << Boolean(win.toastUntil != 0) << ",\"connection\":" << Json((offlinePlay ? "offline " : "online ") + sessionState)
         << ",\"fonts\":" << assets::FontReport() << ",\"timing\":{\"openMs\":" << timing.openMs << ",\"closeMs\":" << timing.closeMs
         << ",\"pageMs\":" << timing.pageMs << ",\"buildMs\":" << timing.buildMs << ",\"rebuildMs\":" << timing.rebuildMs << ",\"firstBuildMs\":" << timing.firstBuildMs
@@ -2932,6 +2981,12 @@ void SetDraft(const std::string& id, double v) {
     PaintId(id);
 }
 std::map<std::string, double> ReadSettings(const std::string& read, const std::string& reply) { return ReadValues(read, reply); }
+bool WindowOpen() { return win.shown; }
+bool SectionSliceVisible(int section,float y,float h) {
+    if (!win.shown || section<0 || section>=static_cast<int>(win.sections.size())) return false;
+    const auto& s=Sec(section);
+    return s.page==win.page && !s.hidden && s.y+y+h>win.mainScroll && s.y+y<win.mainScroll+kMainH;
+}
 std::filesystem::path PreferencesFolder() { const auto path = PreferencesPath(); return path.empty() ? path : path.parent_path(); }
 bool AppliedValue(const std::string& id, double* v) {
     if (pending.count(id) || drafts.count(id) || sendingId == id) return false;
@@ -3236,12 +3291,40 @@ void CloseDialog() {
     win.dialogHits.clear();
     ClearLayer(win.dialog.Get());
     SetActive(GameObjectOf(win.dialog.Get()), false);
+    if(win.standaloneDialog)CloseStandaloneDialog();
+}
+// Redraws and confirmations retain their dedicated host rather than flashing
+// the main window or closing between asynchronous catalog responses.
+void PrepareDialog() {
+    CloseList();const bool standalone=win.standaloneDialog;
+    win.standaloneDialog=false;CloseDialog();win.standaloneDialog=standalone;
+}
+bool StandaloneDialogOpen(){return win.shown&&win.standaloneDialog&&win.dialogOpen;}
+void CloseStandaloneDialog(){if(win.standaloneDialog)Show(false);}
+bool DialogSliceVisible(float y,float height){
+    return win.shown&&win.dialogOpen&&y+height>win.dialogScroll&&y<win.dialogScroll+win.dialogHeight;
+}
+void InvalidateDialogHits(size_t first){
+    const auto replaced=[first](HitRef r){return r.list==kDialog&&r.index>=0&&static_cast<size_t>(r.index)>=first;};
+    if(replaced(hovered))ClearHover();
+    if(replaced(pressed))pressed={kFixed,-1};
+    if(replaced(dragHit))dragHit={kFixed,-1};
+    if(win.padList==kDialog&&win.padIndex>=0&&static_cast<size_t>(win.padIndex)>=first)win.padIndex=-1;
+    // Retain mouseDown: releasing a press on an old result cannot click the
+    // newly arrived row. Header inputs and their keyboard focus are untouched.
+}
+void ShowStandaloneCustomDialog(float width,const DialogDraw& draw){
+    if(!win.built||!win.windowRt||!Eligible())throw std::runtime_error("Load an offline character before opening the Hideout Builder.");
+    if(!win.standaloneDialog){
+        if(win.shown)Show(false);
+        win.standaloneDialog=true;win.standaloneEscape=false;HideStandaloneShell(true);Show(true);
+    }
+    ShowCustomDialog(width,draw);
 }
 // #confirm-dialog: a 690px dialog (gold border, panel colour, padding 27) over a #000a backdrop;
 // the title, ×, the message (line breaks kept), Cancel and the primary "Apply action".
 void Confirm(const std::string& title, const std::string& message, Action yes) {
-    CloseList();
-    CloseDialog();
+    PrepareDialog();
     void* layer = OpenLayer(win.dialog);
     Solid(layer, "Backdrop", 0, 0, kW, kH, Hex("#000000aa"));
     const float w = 690, pad = 27, inner = w - 2 * pad;
@@ -3285,8 +3368,7 @@ void Confirm(const std::string& title, const std::string& message, Action yes) {
 }
 uint64_t DialogToken() { return dialogCounter; }
 void ShowCustomDialog(float width, const DialogDraw& draw) {
-    CloseList();
-    CloseDialog();
+    PrepareDialog();
     win.dialogToken = ++dialogCounter;
     void* layer = OpenLayer(win.dialog);
     Solid(layer, "Backdrop", 0, 0, kW, kH, Hex("#000000aa"));
@@ -3313,8 +3395,7 @@ void ShowCustomDialog(float width, const DialogDraw& draw) {
 // #result-dialog (players see it for the prophecy preview): the head, p.note, then
 // dl.result-summary (grid: minmax(80px, .35fr) 1fr, gap 1rem, margin 1.5rem 0; dt #aebdb7).
 void ShowResult(const std::string& title, const std::string& note, const std::vector<std::pair<std::string, std::string>>& rows) {
-    CloseList();
-    CloseDialog();
+    PrepareDialog();
     void* layer = OpenLayer(win.dialog);
     Solid(layer, "Backdrop", 0, 0, kW, kH, Hex("#000000aa"));
     const float w = 690, pad = 27, inner = w - 2 * pad;
@@ -3626,7 +3707,7 @@ void Frame() {
     const bool toggle = toggleRequested.load(std::memory_order_relaxed);
     if (broken && !toggle) return;
     // closed and idle, or not in game yet and not time to look again: nothing to do this frame
-    if (!win.shown && !HudActive() && win.built && jobs.empty() && !toggle && commandQueue.empty() && !commandInFlight && !win.toastUntil && Now() < nextEligibleCheck && timers.empty()) return;
+    if (!win.shown && !HudActive() && win.built && jobs.empty() && !toggle && !reloadRequested && commandQueue.empty() && !commandInFlight && !win.toastUntil && Now() < nextEligibleCheck && timers.empty()) return;
     if (!win.rootGo && jobs.empty() && !toggle && Now() < nextBuildCheck) return;
     std::string why, ours;
     const double start = Ms();
@@ -3714,6 +3795,7 @@ std::string Panel(const std::string& action) {
         RequireQaClone(name.rfind("click:craft_", 0) == 0 || name.rfind("confirm:", 0) == 0);
         if (!win.built || !win.shown || !view::Eligible()) throw std::runtime_error("Open the ready isolated UI first");
         if (name == "test-fault") { testFaultInInput = true; return State(); }
+        if (name == "test-window-reset") { Destroy();broken=true;return State(); }
         if (name.rfind("scrolldrag-", 0) == 0) {
             // the main or side scrollbar moved by a share of its track, in percent (scrolldrag-main-50), by the code a held mouse runs
             const bool side = name[11] == 's';
@@ -3752,7 +3834,7 @@ std::string Panel(const std::string& action) {
         if (name.rfind("resolution:", 0) == 0) {
             int width=0, height=0, mode=0; char extra=0;
             if (std::sscanf(name.c_str()+11, "%d:%d:%d%c", &width, &height, &mode, &extra) != 3 ||
-                width < 1280 || width > 3840 || height < 720 || height > 2160 || mode < 0 || mode > 3)
+                width < 640 || width > 3840 || height < 480 || height > 2160 || mode < 0 || mode > 3)
                 throw std::runtime_error("Unsupported QA resolution");
             void* args[]{&width,&height,&mode};
             Invoke(Sig("UnityEngine.CoreModule.dll", "UnityEngine", "Screen", "SetResolution",
@@ -3764,13 +3846,20 @@ std::string Panel(const std::string& action) {
             const auto field = name.substr(6, eq-6);
             std::string value = name.substr(eq+1);  // %20: a space (the command line splits at spaces)
             for (size_t at; (at = value.find("%20")) != std::string::npos;) value.replace(at, 3, " ");
-            if (field != "craft_materials-value" && field != "spawn-search" && field != "spawn-level" && field != "wardrobe-search" && field != "workshop-affix-search" && field != "spawn-affix-search") throw std::runtime_error("Field not in QA allowlist");
+            const bool exact=field.rfind("hideout-exact-",0)==0&&field.size()==15&&field.back()>='0'&&field.back()<='4';
+            if (!exact&&field != "hideout-rename-name"&&field != "hideout-search" && field != "hideout-builder-search" && field != "hideout-template-name" && field != "craft_materials-value" && field != "spawn-search" && field != "spawn-level" && field != "wardrobe-search" && field != "workshop-affix-search" && field != "spawn-affix-search") throw std::runtime_error("Field not in QA allowlist");
             for (auto& input : win.inputs) if (input.name == field) {
                 managed::Root text(il2cpp::api().string_new(value.c_str())); void* args[]{text.Get()};
                 Invoke(Find("Unity.TextMeshPro.dll", "TMPro", "TMP_InputField", "set_text", 1), input.field.Get(), args);
                 input.last=value; if(input.onChange)input.onChange(value); return State();
             }
             throw std::runtime_error("QA field not built");
+        }
+        if(name.rfind("dialogclick:hideout-",0)==0){
+            if(!win.dialogOpen)throw std::runtime_error("Open the Hideout tools dialog first.");
+            const auto target=name.substr(12);
+            for(const auto& hit:win.dialogHits)if(hit.name==target&&hit.enabled&&hit.action){const Hit copy=hit;Click(kDialog,copy);return State();}
+            throw std::runtime_error("No enabled Hideout dialog control.");
         }
         if (name.rfind("caret:", 0) == 0) {
             // an input's keyboard state and what its text area holds (the caret is a child there)
@@ -3808,8 +3897,8 @@ std::string Panel(const std::string& action) {
         }
         if (name.rfind("click:", 0) == 0) {
             const auto control=name.substr(6);
-            const bool save=control=="craft_materials" || control=="craft_forge" || control=="craft_custom" || control=="craft_tiers" || control=="item_lp" || control=="campaign_complete";
-            const bool view=control.rfind("help-",0)==0 || control=="inventory_pages" || control=="inventory_idolslots" || control=="loot_autoshatter" || control=="loot_shatterquiet" || control=="monolith_questskip" || control=="monolith_bossdoors" || control=="monolith_noblessing" || control=="craft_custom_catalog" || control=="item_lp_read" || control.rfind("lp-item",0)==0 || control=="spawn_list" || control=="spawn_item" || control.rfind("spawn-",0)==0 || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0 || control.rfind("tiers-",0)==0 || control=="campaign_complete-level_mode"
+            const bool save=control=="craft_materials" || control=="craft_forge" || control=="craft_custom" || control=="craft_tiers" || control=="item_lp" || control=="campaign_complete" || control.rfind("hideout-ready-",0)==0||control.rfind("hideout-saved-load-",0)==0||control.rfind("hideout-saved-delete-",0)==0||control=="hideout-template-save";
+            const bool view=control.rfind("help-",0)==0 || control.rfind("hideout-",0)==0 || control=="inventory_pages" || control=="inventory_idolsall" || control=="inventory_idolslots" || control=="loot_autoshatter" || control=="loot_shatterquiet" || control=="monolith_questskip" || control=="monolith_bossdoors" || control=="monolith_noblessing" || control=="craft_custom_catalog" || control=="item_lp_read" || control.rfind("lp-item",0)==0 || control=="spawn_list" || control=="spawn_item" || control.rfind("spawn-",0)==0 || control=="echo_read" || control.rfind("echo-focus-",0)==0 || control.rfind("workshop-affix#",0)==0 || control.rfind("tiers-",0)==0 || control=="campaign_complete-level_mode"
                 || control=="transmog_read" || control.rfind("transmog-",0)==0 || control.rfind("mirror-",0)==0 || control.rfind("wardrobe-",0)==0;
             if (!save && !view) throw std::runtime_error("Control not in QA allowlist");
             if (win.dialogOpen || win.listOpen) throw std::runtime_error("Dismiss the current dialog first");
@@ -3898,6 +3987,7 @@ std::string SetKey(const std::string& key) {
 
 // Runtime shutdown has already stopped frames. Do not call Unity Destroy here.
 void ReleaseRoots() {
+    hideout::ReleaseRoots();
     view::ReleaseFilterFiles();
     view::ReleaseHud();
     view::ReleaseStatRoots();

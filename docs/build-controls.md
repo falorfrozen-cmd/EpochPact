@@ -94,6 +94,11 @@ profile or theme action invokes it.
   without dying; durations and unsummoning are unchanged. Switching it off
   removes exactly the sources EpochPact added and gives a minion at 0 health 1
   health back.
+- **Minions without acceleration** (`buildset minionsnap 0|1`, owner request 2026-11-08): a summon's `NavMeshAgent` gets its acceleration once, when it is made
+  (`EntityAdapter.adaptAfterStatsApplied`: acceleration x (1 + increased movement speed)), so later speed is not followed and a fast minion slides past its
+  target. With the setting the player's summons (the summon trackers from the character down) get acceleration 5000, angular speed 7200 and auto braking,
+  checked twice a second for new summons; each agent's own values come back when it is off or online. Clone test: Tide Elementals 45 → 5000 and 600 → 7200, back
+  to 45 and 600. Summon Tide Elemental (ability 923, limit 1) is raised by Extra minions per skill like any `SummonEntityOnDeath` summon: 4 at +3.
 - **Minion bonuses:** the Summons page reuses the character-stat editor for minion
   damage, health, attack/cast speed, critical stats, duration and companion limits.
   It does not introduce a second stat implementation.

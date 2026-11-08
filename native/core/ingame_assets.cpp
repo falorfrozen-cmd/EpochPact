@@ -459,4 +459,5 @@ void Release() {
     for (auto& f : fonts) f.Reset();
 }
 
+std::string_view Bytes(const std::string& file) { return Raw(file); }
 }  // namespace ep::ingame::assets

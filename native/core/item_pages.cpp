@@ -3,6 +3,7 @@
 #include "progression.hpp"
 #include "ingame_window.hpp"
 #include "inventory_tools.hpp"
+#include <memory>
 #include "report.hpp"
 #include "hook.hpp"
 #include <windows.h>
@@ -331,6 +332,61 @@ void InstallPickup() {
     if (!ref || !(hook::IsInstalled(ref.code) || hook::Install(ref.code, reinterpret_cast<void*>(&Pickup), reinterpret_cast<void**>(&originalPickup), &why)))
         Log("item pages: the pickup hook is out: %s", why.c_str());
 }
+// ---- Every idol page counts. The idols of the waiting idol pages give their stats through the game's own
+// ItemEquipManager.UpdateStats, the call the idol grid makes for an idol it accepts (modifiers 0: no refracted slot).
+// The altar of a waiting page gives its stats the same way (the game applies an altar by the same call); its slots do not matter. Nothing of it is saved: the stats are
+// put on again after a switch, a load, or a reset of the game's list of equipped items.
+struct Extra { std::unique_ptr<Root> item; };
+std::vector<Extra> extras;
+void* extrasEquip = nullptr;   // the ItemEquipManager they are on
+std::string extrasKey;         // character, current idol page and the waiting idols they were made from
+void UpdateItem(void* equip, void* item, bool adding) {
+    bool unequipping = !adding; float none = 0;
+    void* args[]{item, &adding, &unequipping, &none, &none, &none, &none};
+    Invoke(game::FindMethod("LE.dll", "", "ItemEquipManager", "UpdateStats", 7), equip, args);
+}
+void TakeOffExtras() {
+    if (extrasEquip && game::IsAlive(extrasEquip))
+        for (auto& e : extras) if (e.item && e.item->Get()) game::Guarded([&] { UpdateItem(extrasEquip, e.item->Get(), false); }, nullptr);
+    extras.clear(); extrasEquip = nullptr; extrasKey.clear();
+}
+std::string ExtrasKey(const Who& c) {
+    std::string key = c.id + "|" + std::to_string(book.current[kIdols]);
+    for (const auto& [page, items] : book.pages[kIdols]) {
+        if (page == book.current[kIdols]) continue;
+        for (const auto& s : items) key += "|" + std::to_string(page) + ":" + std::to_string(s.where) + ":" + s.data.substr(0, 64) + std::to_string(s.data.size());
+    }
+    return key;
+}
+bool ExtrasStillOn() {
+    if (extras.empty() || !extrasEquip || !game::IsAlive(extrasEquip)) return !extras.empty() ? false : true;
+    bool inList = false; void* args[]{extras.front().item->Get(), &inList};
+    Invoke(game::FindMethod("LE.dll", "", "ItemEquipManager", "ItemIsEquippedWithStatsApplied", 2), extrasEquip, args);
+    return inList;
+}
+size_t SyncExtras(const Who& c) {
+    void* equip = Get<void*>(c.manager, Offset("ItemContainersManager", "itemEquipManager"));
+    const bool on = invtools::IdolPagesAll() && equip && !book.pending;
+    const std::string key = on ? ExtrasKey(c) : std::string();
+    const bool still = equip == extrasEquip && ExtrasStillOn();
+    if (on && still && key == extrasKey) return extras.size();
+    if (still) TakeOffExtras();
+    else { extras.clear(); extrasEquip = nullptr; extrasKey.clear(); }  // another character, or the game dropped them itself
+    if (!on) return 0;
+    for (const auto& [page, items] : book.pages[kIdols]) {
+        if (page == book.current[kIdols]) continue;
+        for (const auto& s : items) {
+            game::Guarded([&] {
+                Extra e; e.item = std::make_unique<Root>(ItemFrom(s.data));
+                UpdateItem(equip, e.item->Get(), true);
+                extras.push_back(std::move(e));
+            }, nullptr);
+        }
+    }
+    extrasEquip = equip; extrasKey = key;
+    if (!extras.empty()) Log("item pages: %zu idols and altars of waiting idol pages give their stats", extras.size());
+    return extras.size();
+}
 }  // namespace
 
 std::string Switch(Kind kind, int page) {
@@ -340,6 +396,7 @@ std::string Switch(Kind kind, int page) {
         Open(c);
         const int from = book.current[kind];
         if (from == page) return "{\"ok\":true,\"kind\":" + std::to_string(kind) + ",\"page\":" + std::to_string(page) + ",\"moved\":0}";
+        if (kind == kIdols) TakeOffExtras();
         const auto containers = Containers(c, kind);
         const auto leaving = Snapshot(c, kind);
         Page arriving = book.pages[kind][page];
@@ -371,6 +428,7 @@ std::string Switch(Kind kind, int page) {
             book.pages[kind][from].clear();
             book.pending = false;
             Write(book);
+            if (kind == kIdols) SyncExtras(c);
             throw std::runtime_error(failure + "; nothing changed");
         }
         // 3. Into them: the altar first, because it makes the idols' slots.
@@ -388,9 +446,10 @@ std::string Switch(Kind kind, int page) {
         book.pending = false;
         Write(book);
         progression::SaveCurrent(c.id);
+        const size_t counting = kind == kIdols ? SyncExtras(c) : 0;
         Log("item pages: %s page %d -> %d, %zu out, %zu in, %zu waiting", kind == kInventory ? "inventory" : "idol", from, page, removed, arriving.size() - left.size(), left.size());
         std::ostringstream out;
-        out << "{\"ok\":true,\"kind\":" << kind << ",\"from\":" << from << ",\"page\":" << page << ",\"moved\":" << removed << ",\"in\":" << arriving.size() - left.size() << ",\"waiting\":" << left.size() << "}";
+        out << "{\"ok\":true,\"kind\":" << kind << ",\"from\":" << from << ",\"page\":" << page << ",\"moved\":" << removed << ",\"in\":" << arriving.size() - left.size() << ",\"waiting\":" << left.size() << ",\"idolsCounting\":" << counting << "}";
         return out.str();
     });
 }
@@ -408,7 +467,8 @@ std::string Read(bool full) {
             if (full) { out << ",\"stored\":{"; bool comma = false; for (const auto& [page, items] : book.pages[kind]) { out << (comma ? "," : "") << '"' << page << "\":\"" << Signature(items) << '"'; comma = true; } out << "}"; }
             out << "}";
         }
-        out << "],\"pending\":" << Boolean(book.pending) << ",\"held\":" << book.held.size() << "}";
+        out << "],\"pending\":" << Boolean(book.pending) << ",\"held\":" << book.held.size() << ",\"idolsAll\":" << Boolean(invtools::IdolPagesAll())
+            << ",\"idolsCounting\":" << (extrasKey.rfind(c.id + "|", 0) == 0 ? extras.size() : 0) << "}";
         return out.str();
     });
 }
@@ -416,6 +476,7 @@ std::string ToStash() {
     return Run([=]() -> std::string {
         const auto c = Loaded();
         Open(c);
+        TakeOffExtras();
         void* holder = Get<void*>(c.manager, Offset("ItemContainersManager", "stash"));
         void* stash = holder ? Invoke(Method(holder, "get_ActiveContainer", 0), holder) : nullptr;
         if (!stash) throw std::runtime_error("the stash is not ready");
@@ -440,6 +501,7 @@ std::string ToStash() {
         }
         Write(book);
         progression::SaveCurrent(c.id);
+        SyncExtras(c);
         Log("item pages: %zu waiting items went to the stash, %zu had no room", moved, left);
         return "{\"ok\":true,\"moved\":" + std::to_string(moved) + ",\"noRoom\":" + std::to_string(left) + "}";
     });
@@ -475,6 +537,7 @@ void Frame() {
             progression::SaveCurrent(c.id);
             Write(book);
         }
+        SyncExtras(c);
     }, nullptr);
 }
 }  // namespace ep::itempages

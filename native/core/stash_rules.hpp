@@ -12,6 +12,7 @@ std::string Read(const std::string& id);
 std::string Create(const std::string& id, bool hidden, bool disabled);
 std::string Assign(const std::string& id, int tabId, int ruleNumber);
 std::string Sort(const std::string& id);
+void RefreshTabs();  // main thread: the stash's folder and tab bar after tabs were added
 
 // Stash tabs on pickup (offline only): stashpickup <0|1>; a picked-up item a stash tab's priority (or its folder's)
 // matches goes straight to that tab, the one Ctrl+click and Stash all choose; other items stay in the inventory.

@@ -1071,6 +1071,7 @@ void RegisterNativeSections() {
     RegisterMonolithSections();
     RegisterCraftSections();
     RegisterWorkshopSections();
+    RegisterHideoutSections();
     RegisterStatSections();
     RegisterCollectionSections();
     RegisterSettingsSections();

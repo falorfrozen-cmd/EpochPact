@@ -97,6 +97,7 @@ def controls():
         ("forgedextra", "summons", "Extra forged weapons", 0, 20, 0, True, "Raise the forged weapon limit by this many."),
         ("companionextra", "summons", "Extra companions", 0, 10, 0, True, "Raise your companion limit by this many, for more kinds at once. For more of the same companion use Extra minions and companions per skill."),
         ("immortalminions", "summons", "Immortal minions", 0, 1, 0, True, "Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back."),
+        ("minionsnap", "summons", "Minions without acceleration", 0, 1, 0, True, "Your minions, companions and other summons reach their full speed at once and stop at once, turning at once too, instead of speeding up and sliding to a stop. Fast minions then stay on their targets instead of running past them. The game's own values come back when it is off."),
         ("blessingoptions", "monolith", "Blessing choices", 0, 5, 0, True, "Choose Normal, 3, 4 or 5 options for newly generated Monolith boss rewards. This does not change existing rewards."),
         ("blessingrolls", "monolith", "Maximum blessing rolls", 0, 1, 0, True, "Use the upper roll limit on newly generated boss blessing options. Existing blessings are kept."),
     ):
@@ -176,6 +177,15 @@ def controls():
     add("rage_nemesis","world","Nemesis chance","number","rageset nemesis {value}","session",
         "Multiplies the chance of a Nemesis encounter in a zone; 0 places none. Your level must still reach the game's minimum. It applies from the next zone you enter.",
         params=[parameter("value","number",0,20)],default=1,reset="rageset nemesis 1",current="liveState.rageread.settings.nemesis.value",doc="docs/player-conveniences.md")
+    # Ailments: the game's own Ailment data (stack cap, base duration), scaled in memory while offline play runs.
+    add("ailment_read","world","Ailment settings","read","ailmentread","read_only",
+        "Read every ailment's stack cap and base duration, the game's own and the ones used now. Reading it does not change the game.",doc="docs/player-conveniences.md")
+    add("ailment_stacks","world","Ailment stack cap","number","ailmentset stacks {value}","session",
+        "Multiplies the most stacks of every ailment you and your minions apply that has a hard cap: Time Rot's 12 becomes 24 at 2 and 360 at 30. Ailments without a cap stay without one. Enemies' ailments keep the game's values.",
+        params=[parameter("value","number",1,30)],default=1,reset="ailmentset stacks 1",current="liveState.ailmentread.settings.stacks.value",doc="docs/player-conveniences.md")
+    add("ailment_duration","world","Ailment duration","number","ailmentset duration {value}","session",
+        "Multiplies the base duration of every ailment you and your minions apply, your buffs included: Time Rot's 3 seconds become 4.5 at 1.5 and 15 at 5. Your own increased duration still adds on top. Enemies' ailments keep the game's values.",
+        params=[parameter("value","number",1,10)],default=1,reset="ailmentset duration 1",current="liveState.ailmentread.settings.duration.value",doc="docs/player-conveniences.md")
     add("death_recap_read","summons","Death recap","read","deathrecap","read_only",
         "The last deaths since the game started: the hits of the 10 seconds before each (attacker, skill or ailment, damage by type, health and ward after) and the buffs and debuffs shown at the death. Reading it does not change the game.",doc="docs/player-conveniences.md")
     add("death_recap","summons","Record deaths","toggle","deathrecap {value}","session",
@@ -210,11 +220,14 @@ def controls():
         params=[parameter("value","integer",0,2,choices=[0,1,2])],default=1,reset="invset sellkeep 1",doc="docs/player-conveniences.md")
     items[-1]["parameters"][0]["choiceLabels"]=['Sell everything', 'Keep Unique, Set and Legendary', 'Keep Unique, Set, Legendary and Exalted']
     add("inventory_pages","inventory","Inventory and idol pages","toggle","invset pages {value}","session",
-        "Buttons 1 to 4 on the left of the items and 1 to 3 over the idols. Each page keeps its own items, or its own idols and altar; only the page shown counts for your character. When the inventory page shown is full, items you pick up go to the next page with room. Waiting pages are kept in a file for each character. An item on the cursor comes with you, so you can carry it to another page. Remembered by EpochPact.",
+        "Buttons 1 to 4 on the left of the items and 1 to 3 over the idols. Each page keeps its own items, or its own idols and altar. Only the inventory page shown counts; every idol page counts while Every idol page counts is on. When the inventory page shown is full, items you pick up go to the next page with room. Waiting pages are kept in a file for each character. An item on the cursor comes with you, so you can carry it to another page. Remembered by EpochPact.",
         params=[parameter("value","integer",0,1)],default=1,reset="invset pages 1",doc="docs/player-conveniences.md")
     add("inventory_idolslots","inventory","All idol slots open","toggle","invset idolslots {value}","session",
         "Every idol slot is open, locked and closed ones too, with any idol altar or with none. Idols that sit in an extra slot need this setting: turn it off or remove EpochPact only after you move them. Remembered by EpochPact.",
         params=[parameter("value","integer",0,1)],default=0,reset="invset idolslots 0",doc="docs/player-conveniences.md")
+    add("inventory_idolsall","inventory","Every idol page counts","toggle","invset idolsall {value}","session",
+        "The idols and altars on your other idol pages give their bonuses too, as if they were all equipped at once. Turn it off to have only the idol page shown count. Remembered by EpochPact.",
+        params=[parameter("value","integer",0,1)],default=1,reset="invset idolsall 1",doc="docs/player-conveniences.md")
     add("inventory_pagesstash","inventory","Move waiting pages to the stash","button","itempages tostash","game_save",
         "Every item waiting on another page goes to your stash, for when you stop using the pages or remove EpochPact. Items that do not fit keep waiting. The page shown stays where it is.",
         doc="docs/player-conveniences.md")

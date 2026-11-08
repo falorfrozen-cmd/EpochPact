@@ -450,7 +450,7 @@ class UiBridge:
                 return progression.undo(Path(args["backup"]))
             save_id = None
             identity = None
-            if (control["group"] == "general" or (control["commandTemplate"] or "").startswith(("buildset ","qolset ","pickupradius ","pickupinterval ","mapset ","tierset ","fontset ","effectsset ","deathrecap ","rageset ","invset "))) and control["widget"] in ("number", "toggle") and "expected_id" in supplied:
+            if (control["group"] == "general" or (control["commandTemplate"] or "").startswith(("buildset ","qolset ","pickupradius ","pickupinterval ","mapset ","tierset ","fontset ","effectsset ","deathrecap ","rageset ","ailmentset ","invset "))) and control["widget"] in ("number", "toggle") and "expected_id" in supplied:
                 # Delayed auto-applies belong to the actor present at the edit,
                 # never to a character loaded while the request was queued.
                 expected_id = supplied["expected_id"]

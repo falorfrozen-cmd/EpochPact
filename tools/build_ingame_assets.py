@@ -46,7 +46,7 @@ LIFETIME = {"session": "Session", "actor": "Character", "game_save": "Game save"
 NO_UNIT = {"lprolls", "idolprefixes", "idolsuffixes", "craft_fp", "loot_ww", "build_weaverflat", "build_projectileflat", "build_blessingoptions", "build_minionextra", "build_totemextra",
            "build_ballistaextra", "build_forgedextra", "build_companionextra"}
 AUTOMATIC_TEMPLATES = ("buildset ", "qolset ", "qolarea ", "pickupradius ", "pickupinterval ", "autopickup ", "remotepickup ", "stashpickup ", "mapreveal ", "mapset ", "tierset ",
-                       "fontset ", "effectsset ", "deathrecap ", "rageset ", "invset ", "questskip ", "bossdoors ", "noblessing ", "autoshatter ", "autoshatterquiet ")
+                       "fontset ", "effectsset ", "deathrecap ", "rageset ", "ailmentset ", "invset ", "questskip ", "bossdoors ", "noblessing ", "autoshatter ", "autoshatterquiet ")
 # Values the catalog does not name a source for: where app.js reads them.
 EXTRA_SOURCES = {
     "pickup_radius": ("pickupradius", "radius"), "pickup_interval": ("pickupradius", "intervalSeconds"),
@@ -55,13 +55,94 @@ EXTRA_SOURCES = {
     "tier_filter_colors": ("tierread", "filterColors"), "tier_name_colors": ("tierread", "nameColors"), "tier_special": ("tierread", "special"),
     "map_minimapsize": ("mapsettings", "minimapSize"), "map_minimapzoom": ("mapsettings", "minimapZoom"),
     "map_minimapopacity": ("mapsettings", "minimapOpacity"),
-    "inventory_pages": ("invread", "pages"), "inventory_idolslots": ("invread", "idolSlots"), "inventory_autosort": ("invread", "autosort"), "inventory_autosortall": ("invread", "autosortAll"), "inventory_sellkeep": ("invread", "sellKeep"),
+    "inventory_pages": ("invread", "pages"), "inventory_idolslots": ("invread", "idolSlots"), "inventory_idolsall": ("invread", "idolsAll"), "inventory_autosort": ("invread", "autosort"), "inventory_autosortall": ("invread", "autosortAll"), "inventory_sellkeep": ("invread", "sellKeep"),
 }
 # Reads whose results are JSON objects the panel can follow a path into.
-JSON_READS = {"buildread", "qolread", "rageread", "effectsread", "deathrecap", "pickupradius", "tierread", "mapsettings", "invread", "fontread",
+JSON_READS = {"hideoutread", "buildread", "qolread", "rageread", "ailmentread", "quadread", "effectsread", "deathrecap", "pickupradius", "tierread", "mapsettings", "invread", "fontread",
               "craftread"}
 # Interface texts the desktop app does not have; translated here (the app's own strings come from ui/i18n-*.json).
 OWN_TEXTS = {
+    "Quad stash": {"tr": "Quad depo", "ru": "Четверной тайник"},
+    "24 × 34 cells, four times the items (EpochPact). Kept safe in three storage tabs for when EpochPact is removed.": {"tr": "24 × 34 kare, dört kat eşya (EpochPact). EpochPact kaldırılırsa diye üç saklama sekmesinde güvende tutulur.", "ru": "24 × 34 ячейки, в четыре раза больше предметов (EpochPact). Хранятся в трёх вкладках хранения на случай удаления EpochPact."},
+    "Items lie outside the normal 12 × 17 cells of this tab. Move them into the top-left part first.": {"tr": "Bu sekmede normal 12 × 17 karenin dışında eşyalar var. Önce onları sol üst kısma taşı.", "ru": "В этой вкладке есть предметы вне обычных 12 × 17 ячеек. Сначала переместите их в левую верхнюю часть."},
+    "Quad stash tabs": {"tr": "Quad depo sekmeleri", "ru": "Четверные вкладки тайника"},
+    "A quad tab holds 24 × 34 cells instead of 12 × 17: four times the items, drawn at half size. Open your stash before you change one. Its other three quarters are also kept in three storage tabs in the folder EpochPact quad, so without EpochPact you find every item there. A tab goes back to normal only when everything in it fits in the top-left 12 × 17.": {"tr": "Quad bir sekme 12 × 17 yerine 24 × 34 kare tutar: dört kat eşya, yarım boyutta çizilir. Değiştirmeden önce deponu aç. Diğer üç çeyreği EpochPact quad klasöründeki üç saklama sekmesinde de tutulur, böylece EpochPact olmadan her eşyayı orada bulursun. Bir sekme ancak içindeki her şey sol üstteki 12 × 17'ye sığınca normale döner.", "ru": "Четверная вкладка вмещает 24 × 34 ячейки вместо 12 × 17: в четыре раза больше предметов, нарисованных вдвое меньше. Откройте тайник, прежде чем менять вкладку. Остальные три четверти хранятся также в трёх вкладках хранения в папке EpochPact quad, так что без EpochPact все предметы будут там. Вкладка снова становится обычной, только когда всё в ней помещается в левые верхние 12 × 17."},
+    "Open your stash, then press Refresh to see its tabs.": {"tr": "Deponu aç, sonra sekmelerini görmek için Yenile'ye bas.", "ru": "Откройте тайник, затем нажмите «Обновить», чтобы увидеть вкладки."},
+    "{0} — {1} × {2}, {3} items": {"tr": "{0} — {1} × {2}, {3} eşya", "ru": "{0} — {1} × {2}, предметов: {3}"},
+    'Grey rubble': {"tr": 'Gri moloz', "ru": 'Серый щебень'},
+    'Mossy earth': {"tr": 'Yosunlu toprak', "ru": 'Мшистая земля'},
+    'Hive floor': {"tr": 'Kovan zemini', "ru": 'Пол улья'},
+    'Lava': {"tr": 'Lav', "ru": 'Лава'},
+    'Flesh': {"tr": 'Et', "ru": 'Плоть'},
+    'Templates': {"tr": 'Şablonlar', "ru": 'Шаблоны'},
+    'A template puts up a whole hideout at once. What you had can be brought back with Undo.': {"tr": 'Şablon, bütün bir saklanma yerini tek seferde kurar. Önceki halini Geri al ile getirebilirsin.', "ru": 'Шаблон сразу создаёт всё убежище. Прежний вид можно вернуть кнопкой «Отменить».'},
+    'Ready to use': {"tr": 'Hazır şablonlar', "ru": 'Готовые шаблоны'},
+    'Your templates': {"tr": 'Şablonların', "ru": 'Ваши шаблоны'},
+    'Save this hideout as a template': {"tr": 'Bu saklanma yerini şablon olarak kaydet', "ru": 'Сохранить это убежище как шаблон'},
+    'Name: letters, digits, spaces': {"tr": 'İsim: harf, rakam, boşluk', "ru": 'Имя: буквы, цифры, пробелы'},
+    'This replaces your hideout as it is now. Undo brings it back.': {"tr": 'Bu, saklanma yerinin şimdiki halinin yerine geçer. Geri al eski halini getirir.', "ru": 'Это заменит ваше убежище. «Отменить» вернёт его.'},
+    'This template goes for good.': {"tr": 'Bu şablon kalıcı olarak silinir.', "ru": 'Этот шаблон будет удалён навсегда.'},
+    'Undo': {"tr": 'Geri al', "ru": 'Отменить'},
+    'To share one, send a friend its file. It goes in this folder, and it shows up here:': {"tr": 'Paylaşmak için dosyasını arkadaşına gönder. Bu klasöre koyunca burada görünür:', "ru": 'Чтобы поделиться, отправьте файл другу. Положите его в эту папку, и он появится здесь:'},
+    'Mossy courtyard': {"tr": 'Yosunlu avlu', "ru": 'Мшистый двор'},
+    'Council hall': {"tr": 'Konsey salonu', "ru": 'Зал совета'},
+    'Lagon palace': {"tr": 'Lagon sarayı', "ru": 'Дворец Лагона'},
+    'Morditas ring': {"tr": 'Morditas halkası', "ru": 'Кольцо Мордитаса'},
+    'Crossroads': {"tr": 'Kavşak', "ru": 'Перекрёсток'},
+    'Cracked stone': {"tr": 'Çatlak taş', "ru": 'Треснувший камень'},
+    'Rocky ground': {"tr": 'Kayalık', "ru": 'Скалистая земля'},
+    'Ornate floor': {"tr": 'Süslü döşeme', "ru": 'Узорный пол'},
+    'The ground': {"tr": 'Zemin', "ru": 'Земля'},
+    'Shape': {"tr": 'Şekil', "ru": 'Форма'},
+    'Size': {"tr": 'Boyut', "ru": 'Размер'},
+    'Texture': {"tr": 'Doku', "ru": 'Текстура'},
+    'Round': {"tr": 'Yuvarlak', "ru": 'Круглая'},
+    'Long hall': {"tr": 'Uzun salon', "ru": 'Длинный зал'},
+    'Cross': {"tr": 'Haç', "ru": 'Крест'},
+    'Three islands': {"tr": 'Üç ada', "ru": 'Три острова'},
+    'Small': {"tr": 'Küçük', "ru": 'Маленькая'},
+    'Medium': {"tr": 'Orta', "ru": 'Средняя'},
+    'Large': {"tr": 'Büyük', "ru": 'Большая'},
+    'Huge': {"tr": 'Dev', "ru": 'Огромная'},
+    'Dunes': {"tr": 'Kum tepeleri', "ru": 'Дюны'},
+    'Council chamber': {"tr": 'Konsey odası', "ru": 'Зал совета'},
+    'Lagon': {"tr": 'Lagon', "ru": 'Lagon'},
+    'Morditas arena': {"tr": 'Morditas arenası', "ru": 'Арена Мордитаса'},
+    'Things that would fall off a smaller ground move in towards the middle.': {"tr": 'Küçük zeminden düşecek şeyler ortaya doğru kayar.', "ru": 'То, что упало бы с меньшей земли, сдвигается к центру.'},
+    'Your hideout': {"tr": 'Saklanma yerin', "ru": 'Ваше убежище'},
+    'A place of your own, with anything of the game in it. Turn on Boss doors in the Monolith page, go to the Monolith Hub, then come here. Whatever you change is remembered.': {"tr": "İçinde oyunun her şeyi olabilen kendi alanın. Monolith sayfasından Boss doors'u aç, Monolith Hub'a git, sonra buraya gel. Değiştirdiğin her şey hatırlanır.", "ru": 'Ваше собственное место, где может быть что угодно из игры. Включите Boss doors на странице Monolith, идите в Monolith Hub и вернитесь сюда. Все изменения запоминаются.'},
+    'The hideout is ready.': {"tr": 'Saklanma yeri hazır.', "ru": 'Убежище готово.'},
+    'The hideout opens in the Monolith Hub, with Boss doors on.': {"tr": "Saklanma yeri, Boss doors açıkken Monolith Hub'da açılır.", "ru": 'Убежище открывается в Monolith Hub при включённом Boss doors.'},
+    'Start again': {"tr": 'Baştan başla', "ru": 'Начать заново'},
+    'Your hideout goes back to how it was at first. Everything you placed goes.': {"tr": 'Saklanma yerin ilk haline döner. Yerleştirdiğin her şey gider.', "ru": 'Убежище вернётся к исходному виду. Всё, что вы поставили, исчезнет.'},
+    'Finish editing': {"tr": 'Düzenlemeyi bitir', "ru": 'Закончить'},
+    'Edit with the mouse': {"tr": 'Fareyle düzenle', "ru": 'Редактировать мышью'},
+    'Go to the hideout': {"tr": 'Saklanma yerine git', "ru": 'В убежище'},
+    'In the editor: left click picks a thing up and puts it down. Arrow keys left and right turn it, up and down size it, Page Up and Page Down lift it. Delete removes it. End finishes.': {"tr": 'Düzenleyicide: sol tık bir şeyi alır ve bırakır. Sol ve sağ ok döndürür, yukarı ve aşağı ok boyutlandırır, Page Up ve Page Down yükseltir. Delete kaldırır. End bitirir.', "ru": 'В редакторе: левый клик берёт и ставит предмет. Стрелки влево и вправо поворачивают, вверх и вниз меняют размер, Page Up и Page Down поднимают. Delete удаляет. End завершает.'},
+    'Add anything of the game': {"tr": 'Oyundan istediğini ekle', "ru": 'Добавить что угодно из игры'},
+    'Search: statue, wall, tree, chest, fountain...': {"tr": 'Ara: statue, wall, tree, chest, fountain...', "ru": 'Поиск: statue, wall, tree, chest, fountain...'},
+    'Everything': {"tr": 'Hepsi', "ru": 'Всё'},
+    'Buildings': {"tr": 'Yapılar', "ru": 'Постройки'},
+    'Nature': {"tr": 'Doğa', "ru": 'Природа'},
+    'Things': {"tr": 'Eşyalar', "ru": 'Предметы'},
+    'Creatures': {"tr": 'Yaratıklar', "ru": 'Существа'},
+    'Other': {"tr": 'Diğer', "ru": 'Другое'},
+    'This list was made for another game version. It comes with the next EpochPact update.': {"tr": 'Bu liste başka bir oyun sürümü için yapıldı. Sonraki EpochPact güncellemesiyle gelir.', "ru": 'Этот список сделан для другой версии игры. Он появится со следующим обновлением EpochPact.'},
+    'Showing {0} of {1}. Type more to narrow the list.': {"tr": '{1} sonuçtan {0} tanesi gösteriliyor. Daraltmak için daha fazla yaz.', "ru": 'Показано {0} из {1}. Уточните поиск.'},
+    '{0} found.': {"tr": '{0} sonuç bulundu.', "ru": 'Найдено: {0}.'},
+    'Add': {"tr": 'Ekle', "ru": 'Добавить'},
+    'What stands there': {"tr": 'Orada duranlar', "ru": 'Что там стоит'},
+    'Nothing read yet.': {"tr": 'Henüz bir şey okunmadı.', "ru": 'Пока ничего не прочитано.'},
+    'Boss door {0}': {"tr": 'Boss kapısı {0}', "ru": 'Дверь босса {0}'},
+    'Way out': {"tr": 'Çıkış', "ru": 'Выход'},
+    'Difficulty door': {"tr": 'Zorluk kapısı', "ru": 'Дверь сложности'},
+    'Boss Rush door': {"tr": 'Boss Rush kapısı', "ru": 'Дверь Boss Rush'},
+    '(not found)': {"tr": '(bulunamadı)', "ru": '(не найдено)'},
+    'Bring back': {"tr": 'Geri getir', "ru": 'Вернуть'},
+    '(taken away)': {"tr": '(kaldırıldı)', "ru": '(убрано)'},
+    'Pick up': {"tr": 'Eline al', "ru": 'Взять'},
+    'Here': {"tr": 'Buraya', "ru": 'Сюда'},
+    'Remove': {"tr": 'Kaldır', "ru": 'Убрать'},
     "This section is not in the in-game window yet. Use the EpochPact app for it.": {
         "tr": "Bu bölüm henüz oyun içi pencerede yok. Bunun için EpochPact uygulamasını kullanın.",
         "ru": "Этого раздела пока нет в игровом окне. Используйте для него приложение EpochPact."},
@@ -554,6 +635,7 @@ def texts_of(data):
     for c in data["controls"].values():
         texts |= {c["label"], c["description"], c["unit"].strip(), c.get("defaultText", ""), *c.get("choiceLabels", [])}
     texts |= native_texts()
+    texts |= {k for k in OWN_TEXTS}
     for rows in data.get("statBrowser", {}).values():
         for row in rows:
             texts |= {row["name"], row["category"], *row["shared"]}
@@ -678,6 +760,12 @@ def build(out: Path):
         (out / name).write_bytes(font)
         files[name] = out / name
         faces[face] = font
+
+    # what the hideout can place, as tools/build_hideout_catalog.py made it
+    (out / "hideout-catalog.tsv").write_bytes((ROOT / "ui/hideout-catalog.tsv").read_bytes())
+    files["hideout-catalog.tsv"] = out / "hideout-catalog.tsv"
+    (out / "hideout-designs.json").write_bytes((ROOT / "ui/hideout-designs.json").read_bytes())
+    files["hideout-designs.json"] = out / "hideout-designs.json"
 
     data = build_data()
     data["advances"] = text_advances(faces)

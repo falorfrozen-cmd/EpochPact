@@ -1,4 +1,7 @@
 #include "monolith.hpp"
+#include "hideout.hpp"
+#include "hideout_rules.hpp"
+#include "ingame_window.hpp"
 #include "monolith_rules.hpp"
 #include "managed.hpp"
 #include "progression.hpp"
@@ -690,20 +693,33 @@ std::string Status() {
 // next boss waits for the player's own portal out, and a Forgotten Knight arrival goes to the Rest first.
 namespace {
 struct DoorVec3 { float x, y, z; };
-struct Door { std::unique_ptr<Root> object, listener, label; int action; uint64_t lastClick = 0; };  // action: 1-10 timeline, 0 difficulty, -1 rush
+struct Door {
+    std::unique_ptr<Root> object,listener,label;int action;uint64_t lastClick=0;
+    std::unique_ptr<Root> stationBox;
+    float authoredX=0,authoredZ=0,yaw=0,size=1,lift=0;bool inHall=false,hasLook=false;
+    hideout::StationBounds stationBounds{};bool stationBoundsKnown=false;
+};  // action: 1-10 timeline, 0 difficulty, -1 rush
 constexpr uint64_t kDoorHeldMs = 350;  // the game repeats a click while the button is held: each repeat restarts this wait
 constexpr int kDifficultyDoor = 0, kRushDoor = -1, kHallDoor = -2, kHubDoor = -3, kStashStation = -4, kVendorStation = -5, kCacheStation = -6;
 constexpr uint64_t kBossTickMs = 400;
 std::vector<Door> doors;
+#ifdef EPOCHPACT_TESTING
+uint64_t hallBuildCount=0,doorBuildCount=0,doorSyncCount=0,doorPoseUpdateCount=0;
+#endif
 int bossDifficulty = 0, rushDifficulty = 0, rushAt = 1;
 bool rushOn = false;
 int pendingBoss = -1, pendingDifficulty = 0;
 bool bossDied = false, bossWarped = false, goToHall = false;
+std::string goToHallId,goToHallScene;uint64_t goToHallUntil=0;
 uint64_t bossArrived = 0, bossTravelAt = 0, bossReadySince = 0, bossLastTick = 0, doorLabelsAt = 0;
 uint64_t bossStarts = 0, bossFaults = 0;
 std::string bossError;
 using ObjectClickFn = void (*)(void*, void*, bool, const il2cpp::Method*);
 ObjectClickFn originalObjectClick = nullptr;
+#ifdef EPOCHPACT_TESTING
+void TraceDoorInput(void* listener,bool click);
+bool testDoorForeground=false;
+#endif
 int bossRunDifficulty = 0;
 bool bossStarting = false;
 bool bossHarbinger = false, rushHarbinger = false, pendingHarbinger = false, bossRunHarbinger = false;
@@ -799,9 +815,9 @@ bool SampleWalkable(DoorVec3 at, float range, DoorVec3* out) {
     if (!Value<bool>(sample, nullptr, a)) return false;
     *out = hit.position; return true;
 }
-void Warp(void* actor, DoorVec3 at) {
+bool Warp(void* actor, DoorVec3 at) {
     void* agent = Get<void*>(actor, Offset("Actor", "navMeshAgent"));
-    void* a[]{&at}; if (agent) (void)Value<bool>(Method(agent, "Warp", 1), agent, a);
+    void* a[]{&at}; return agent && Value<bool>(Method(agent, "Warp", 1), agent, a);
 }
 std::string DifficultyName(int difficulty) { return difficulty ? "Empowered" : "Normal"; }
 std::string ChoiceName() { return !bossDifficulty ? "Normal" : bossHarbinger ? "Empowered + Harbinger" : "Empowered"; }
@@ -837,8 +853,7 @@ bool DoorsAlive() { return doors.size() == doorsExpected && std::all_of(doors.be
 // parts' colliders says where one can walk; clicks find the ground on the same collider. Nothing of this is saved; a scene change takes
 // it away and the next visit builds it again.
 constexpr DoorVec3 kHallCentre{1400.f, 1.f, 1400.f};
-constexpr float kHallRadius = 38.f, kHallRock = 16.f;
-constexpr const char* kHallMaterialFrom = "Reality1MeshTerrain";  // the object whose material the ground wears
+constexpr float kHallRock = 16.f;
 constexpr DoorVec3 kHubSpot{-13.f, 2.f, 1039.f};
 // Places in the hall are written as the player sees them: right and up on the screen, from the middle. Those directions are the camera's, read when the hall is built.
 float hallRightX = 0.70710678f, hallRightZ = -0.70710678f, hallUpX = 0.70710678f, hallUpZ = 0.70710678f;
@@ -854,28 +869,168 @@ void HallReadCamera() {
     if (rightLength < .1f || forwardLength < .1f) return;
     hallRightX = right.x / rightLength; hallRightZ = right.z / rightLength; hallUpX = forward.x / forwardLength; hallUpZ = forward.z / forwardLength;
 }
-// A part: a named object of the scene, its place in the hall (right, up), a turn in degrees, a size.
-struct HallPart { const char* name; float x, z, yaw, scale; bool station = false; };  // a station's look: its door takes the clicks
-constexpr HallPart kHallParts[]{
-    {"TorchTri", -33, 12, 0, 1}, {"TorchTri", -33, -12, 0, 1}, {"TorchTri", 33, 12, 0, 1}, {"TorchTri", 33, -12, 0, 1},
-    {"TorchTri", -14, 32, 0, 1}, {"TorchTri", 14, 32, 0, 1}, {"TorchTri", -20, -32, 0, 1}, {"TorchTri", 20, -32, 0, 1},
-    {"Crystal_Skull (2)", 0, 33, 0, 1},
-    {"CATA_BonePileC", -29, 22, 40, 1.4f}, {"CATA_BonePileC", 29, 22, 200, 1.4f}, {"CATA_BonePileC", -30, -21, 120, 1.4f}, {"CATA_BonePileC", 30, -21, 300, 1.4f},
-    {"WoodenSculpt6 (12)", 26, 5, 0, 1}, {"WoodenSculpt6 (12)", 26, -5, 0, 1},
-    {"StoneBig_3", -35, 0, 0, 1}, {"StoneBig_3", -22, 29, 70, 1}, {"StoneBig_3", 22, 29, 150, 1},
-    {"Stash (Clone)", -11, -27, 0, 1, true}, {"Annya the Blacksmith", 0, -27, 0, 1, true},
-};
 std::unique_ptr<Root> hallRoot;
 bool hallBroken = false;  // it could not be built in this game: the doors stay in the Hub
-int hallMove = 0;         // 1 into the hall, 2 back to the Hub
+rules::HallMoveRequest hallMove; // 1 into the hall, 2 back to the Hub; never consumed before a successful warp
 std::string hallStation;  // a station clicked: the game's panel to open, for the next tick
-std::vector<std::unique_ptr<Root>> stationLooks;  // the copies that show a station
+std::unique_ptr<Root> hallSurface, hallGroundRenderer, hallLight, hallMesh;
 DoorVec3 HallCentre() { return {kHallCentre.x, kHallCentre.y + .5f, kHallCentre.z}; }
 bool HallAlive() { return hallRoot && hallRoot->Get() && game::IsAlive(hallRoot->Get()); }
 bool InHall(const DoorVec3& at) { return std::abs(at.x - kHallCentre.x) < 200 && std::abs(at.z - kHallCentre.z) < 200; }
+void QueueHallMove(const Context& c,int direction){
+    if(c.scene!="MonolithHub")throw std::runtime_error("Hideout movement requires the Monolith Hub.");
+    hallMove.Set(direction,c.id,c.scene,reinterpret_cast<uintptr_t>(c.actor),GetTickCount64());
+}
+// A cross-scene load can take much longer than the local NavMesh warmup.
+// Keep the character/scene guards, with enough time for slower storage.
+void QueueHallReturn(const Context& c){goToHall=true;goToHallId=c.id;goToHallScene=c.scene;goToHallUntil=GetTickCount64()+120000;}
+bool TryHallMove(const Context& c,uint64_t now){
+    if(!hallMove.direction)return false;
+    if(!hallMove.Valid(c.id,c.scene,reinterpret_cast<uintptr_t>(c.actor),now)){hallMove.Clear();return false;}
+    if(hallMove.direction==1&&!HallAlive())return false;
+    const auto to=hallMove.direction==1?HallCentre():kHubSpot;DoorVec3 snapped{};
+    if(!SampleWalkable(to,6.f,&snapped)||!Warp(c.actor,snapped))return false;
+    hallMove.Clear();return true;
+}
+DoorVec3 HallCentre();
+bool HallAlive();
+// ---- The hall's minimap. The Hub's map ends long before the hall, so there it is dark. The game makes maps for its generated areas with
+// MinimapGenerator.GetMinimapForTriangulation; our flat ground goes in instead of a nav mesh and a MinimapInformation of our own comes out,
+// all of it shown (black fog, in a texture the game can stamp into each frame, as MinimapManager.LoadFoW makes its own). Minimap.OnMapLoaded shows it while the player is in the hall and the Hub's outside.
+std::vector<DoorVec3> hallFlatVertices;
+std::vector<int> hallFlatIndices;
+std::unique_ptr<Root> hallMapInfo, hallMapTexture, hallMapFog, hallMapHubInfo, hallMapHubScene;
+bool hallMapShowing = false, hallMapFailed = false;
+std::vector<void*> Minimaps() {
+    std::vector<void*> out;
+    Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll", "LE.UI.Minimap", "Minimap"))));
+    bool inactive = true; void* args[]{type.Get(), &inactive};
+    Root found(Invoke(Unity("Object", "FindObjectsOfType", 2), nullptr, args));
+    for (uintptr_t i = 0, n = found.Get() ? Get<uintptr_t>(found.Get(), 0x18) : 0; i < n && i < 16; ++i) {
+        void* m = Get<void*>(found.Get(), 0x20 + 8 * i);
+        if (m && game::IsAlive(m)) out.push_back(m);
+    }
+    return out;
+}
+void ShowMap(void* minimap, void* info, void* scene) {
+    void* args[]{info, scene};
+    Invoke(Method(minimap, "OnMapLoaded", 2), minimap, args);
+}
+void BakeHallMap() {
+    auto& api = il2cpp::api();
+    if (hallFlatIndices.empty()) throw std::runtime_error("no ground to map");
+    const auto started = GetTickCount64();
+    Root vertices(api.array_new(game::FindClass("UnityEngine.CoreModule.dll", "UnityEngine", "Vector3"), hallFlatVertices.size()));
+    std::memcpy(static_cast<char*>(vertices.Get()) + 0x20, hallFlatVertices.data(), hallFlatVertices.size() * sizeof(DoorVec3));
+    Root indices(api.array_new(game::FindClass("mscorlib.dll", "System", "Int32"), hallFlatIndices.size()));
+    std::memcpy(static_cast<char*>(indices.Get()) + 0x20, hallFlatIndices.data(), hallFlatIndices.size() * sizeof(int));
+    Root areas(api.array_new(game::FindClass("mscorlib.dll", "System", "Int32"), hallFlatIndices.size() / 3));  // all area 0
+    struct { void* vertices; void* indices; void* areas; } triangulation{vertices.Get(), indices.Get(), areas.Get()};
+    const auto* make = game::FindMethod("LE.dll", "LE.UI.Minimap", "MinimapGenerator", "GetMinimapForTriangulation", 7).info;
+    // the middle is what the map keeps: a List<Vector3> of one
+    const auto* listClass = api.class_from_type(api.method_get_param(make, 1));
+    Root required(api.object_new(listClass));
+    Invoke(api.class_get_method_from_name(listClass, ".ctor", 0), required.Get());
+    DoorVec3 middle = HallCentre(); void* add[]{&middle};
+    Invoke(api.class_get_method_from_name(listClass, "Add", 1), required.Get(), add);
+    // the game's own materials for it
+    Root resourcesType(api.type_get_object(api.class_get_type(game::FindClass("LE.dll", "LE.UI.Minimap", "MinimapResources"))));
+    void* ra[]{resourcesType.Get()};
+    Root all(Invoke(game::FindMethod("UnityEngine.CoreModule.dll", "UnityEngine", "Resources", "FindObjectsOfTypeAll", 1), nullptr, ra));
+    void* resources = all.Get() && Get<uintptr_t>(all.Get(), 0x18) ? Get<void*>(all.Get(), 0x20) : nullptr;
+    if (!resources) throw std::runtime_error("the game's map resources are not loaded");
+    bool split = false; float separation = 0;
+    void* args[]{&triangulation, required.Get(), Get<void*>(resources, Offset("MinimapResources", "MinimapWhite", "LE.UI.Minimap")), Get<void*>(resources, Offset("MinimapResources", "MinimapSdf", "LE.UI.Minimap")),
+                 Get<void*>(resources, Offset("MinimapResources", "MinimapCombine", "LE.UI.Minimap")), &split, &separation};
+    Root result(Invoke(game::FindMethod("LE.dll", "LE.UI.Minimap", "MinimapGenerator", "GetMinimapForTriangulation", 7), nullptr, args));
+    if (!result.Get()) throw std::runtime_error("the game made no map");
+    // boxed ValueTuple<RenderTexture, Bounds, int>
+    void* texture = Get<void*>(result.Get(), 0x10);
+    if (!texture) throw std::runtime_error("the game made no map texture");
+    struct Bounds { float v[6]; };
+    const Bounds bounds = Get<Bounds>(result.Get(), 0x18);
+    const int downscale = Get<int>(result.Get(), 0x30);
+    hallMapTexture = std::make_unique<Root>(texture);
+    Root infoType(api.type_get_object(api.class_get_type(game::FindClass("LE.dll", "", "MinimapInformation"))));
+    void* ia[]{infoType.Get()};
+    void* info = Invoke(DoorSignature("ScriptableObject", "CreateInstance", {"System.Type"}), nullptr, ia);
+    hallMapInfo = std::make_unique<Root>(info);
+    auto* cls = game::FindClass("LE.dll", "", "MinimapInformation");
+    const auto set = [&](const char* field, void* value) { api.field_set_value(info, api.class_get_field_from_name(cls, field), value); };
+    void* black = Invoke(game::FindMethod("UnityEngine.CoreModule.dll", "UnityEngine", "Texture2D", "get_blackTexture", 0));
+    int fogWidth = Value<int>(Method(texture, "get_width", 0), texture), fogHeight = Value<int>(Method(texture, "get_height", 0), texture), noDepth = 0, snorm8 = 9;  // GraphicsFormat.R8_SNorm
+    Root fog(api.object_new(game::FindClass("UnityEngine.CoreModule.dll", "UnityEngine", "RenderTexture")));
+    void* fa[]{&fogWidth, &fogHeight, &noDepth, &snorm8};
+    Invoke(DoorSignature("RenderTexture", ".ctor", {"System.Int32", "System.Int32", "System.Int32", "UnityEngine.Experimental.Rendering.GraphicsFormat"}), fog.Get(), fa);
+    bool yes = true, no = false; int trilinear = 2, clamp = 1;
+    void* on[]{&yes}; void* off[]{&no}; void* filter[]{&trilinear}; void* wrap[]{&clamp};
+    Invoke(Method(fog.Get(), "set_enableRandomWrite", 1), fog.Get(), on);
+    Invoke(Method(fog.Get(), "set_useMipMap", 1), fog.Get(), on);
+    Invoke(Method(fog.Get(), "set_autoGenerateMips", 1), fog.Get(), off);
+    Invoke(Method(fog.Get(), "set_filterMode", 1), fog.Get(), filter);
+    Invoke(Method(fog.Get(), "set_wrapMode", 1), fog.Get(), wrap);
+    Invoke(Method(fog.Get(), "Create", 0), fog.Get());
+    void* blit[]{black, fog.Get()};
+    Invoke(DoorSignature("Graphics", "Blit", {"UnityEngine.Texture", "UnityEngine.RenderTexture"}), nullptr, blit);
+    hallMapFog = std::make_unique<Root>(fog.Get());
+    set("LiveSdf", texture); set("FoWSdf", fog.Get());
+    Bounds b = bounds; set("LevelBounds", &b);
+    bool runtime = true; set("Runtime", &runtime);
+    int factor = downscale; set("DownscaleFactor", &factor);
+    Log("boss hall: map made in %llu ms, %zu triangles", static_cast<unsigned long long>(GetTickCount64() - started), hallFlatIndices.size() / 3);
+}
+void HideHallMap() {
+    if (hallMapShowing) {
+        hallMapShowing = false;
+        void* hub = hallMapHubInfo ? hallMapHubInfo->Get() : nullptr;
+        void* scene = hallMapHubScene ? hallMapHubScene->Get() : nullptr;
+        for (void* m : Minimaps())
+            if (hallMapInfo && Get<void*>(m, Offset("Minimap", "minimapInformation", "LE.UI.Minimap")) == hallMapInfo->Get() && hub && game::IsAlive(hub)) ShowMap(m, hub, scene);
+    }
+}
+void DropHallMap() {
+    std::string why;
+    if (!game::Guarded([] {
+            HideHallMap();
+            if (hallMapTexture && hallMapTexture->Get() && game::IsAlive(hallMapTexture->Get())) {
+                Invoke(game::FindMethod("UnityEngine.CoreModule.dll", "UnityEngine", "RenderTexture", "Release", 0), hallMapTexture->Get());
+                void* gone[]{hallMapTexture->Get()}; Invoke(Unity("Object", "Destroy", 1), nullptr, gone);
+            }
+            if (hallMapFog && hallMapFog->Get() && game::IsAlive(hallMapFog->Get())) {
+                Invoke(game::FindMethod("UnityEngine.CoreModule.dll", "UnityEngine", "RenderTexture", "Release", 0), hallMapFog->Get());
+                void* gone[]{hallMapFog->Get()}; Invoke(Unity("Object", "Destroy", 1), nullptr, gone);
+            }
+            if (hallMapInfo && hallMapInfo->Get() && game::IsAlive(hallMapInfo->Get())) { void* gone[]{hallMapInfo->Get()}; Invoke(Unity("Object", "Destroy", 1), nullptr, gone); }
+        }, &why)) Log("boss hall: map not cleared: %s", why.c_str());
+    hallMapShowing = false; hallMapFailed = false;
+    hallMapInfo.reset(); hallMapTexture.reset(); hallMapFog.reset(); hallMapHubInfo.reset(); hallMapHubScene.reset();
+}
+// Every tick in the Hub: the map of where the player stands. A failure leaves the map as it was and the hall as it is.
+void SyncHallMap(const DoorVec3& me) {
+    const bool inside = HallAlive() && InHall(me);
+    if (inside == hallMapShowing || hallMapFailed) return;
+    std::string why;
+    const bool fine = game::Guarded([&] {
+        if (!inside) { HideHallMap(); return; }
+        if (!hallMapInfo) BakeHallMap();
+        const auto infoAt = Offset("Minimap", "minimapInformation", "LE.UI.Minimap"), sceneAt = Offset("Minimap", "sceneDetails", "LE.UI.Minimap");
+        const auto minimaps = Minimaps();
+        if (minimaps.empty()) return;
+        for (void* m : minimaps) {
+            void* hub = Get<void*>(m, infoAt); void* scene = Get<void*>(m, sceneAt);
+            if (!hallMapHubInfo) { hallMapHubInfo = std::make_unique<Root>(hub); hallMapHubScene = std::make_unique<Root>(scene); }
+            ShowMap(m, hallMapInfo->Get(), scene);
+        }
+        hallMapShowing = true;
+    }, &why);
+    if (!fine) { hallMapFailed = true; Log("boss hall: no map: %s", why.c_str()); }
+}
 void DestroyHall() {
+    DropHallMap();
+    hideout::Clear();
     if (HallAlive()) { void* a[]{hallRoot->Get()}; Invoke(Unity("Object", "Destroy", 1), nullptr, a); }
-    hallRoot.reset();
+    if (hallMesh && hallMesh->Get() && game::IsAlive(hallMesh->Get())) { void* gone[]{hallMesh->Get()}; Invoke(Unity("Object", "Destroy", 1), nullptr, gone); }
+    hallRoot.reset(); hallSurface.reset(); hallGroundRenderer.reset(); hallLight.reset(); hallMesh.reset();
 }
 void* NewGameObject(const char* name) {
     auto& api = il2cpp::api();
@@ -887,40 +1042,6 @@ void* NewGameObject(const char* name) {
 void* TypeObject(const char* image, const char* ns, const char* name) {
     return il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass(image, ns, name)));
 }
-struct HallQuat { float x, y, z, w; };
-HallQuat QuatTimes(const HallQuat& a, const HallQuat& b) {
-    return {a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y, a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
-            a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w, a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z};
-}
-// One part in the inactive holder, every script off before any of them can start. A part this game does not have is left out.
-bool HallAddPart(void* holder, const std::map<std::string, void*>& transforms, const HallPart& part) {
-    const auto it = transforms.find(part.name);
-    if (it == transforms.end()) return false;
-    void* sourceTransform = it->second;
-    void* source = Invoke(Unity("Component", "get_gameObject", 0), sourceTransform);
-    const HallQuat turned = Value<HallQuat>(Unity("Transform", "get_rotation", 0), sourceTransform);
-    const DoorVec3 scale = Value<DoorVec3>(Unity("Transform", "get_lossyScale", 0), sourceTransform);
-    Root parent(Invoke(Method(holder, "get_transform", 0), holder));
-    bool world = true; void* args[]{source, parent.Get(), &world};
-    void* copy = Invoke(DoorSignature("Object", "Instantiate", {"UnityEngine.Object", "UnityEngine.Transform", "System.Boolean"}), nullptr, args);
-    Root tr(Invoke(Method(copy, "get_transform", 0), copy));
-    DoorVec3 at = HallPlace(part.x, part.z); void* pa[]{&at};
-    Invoke(Unity("Transform", "set_position", 1), tr.Get(), pa);
-    const float half = part.yaw * 3.14159265f / 360.f;
-    HallQuat rotation = QuatTimes({0, std::sin(half), 0, std::cos(half)}, turned); void* ra[]{&rotation};
-    Invoke(Unity("Transform", "set_rotation", 1), tr.Get(), ra);
-    DoorVec3 sized{scale.x * part.scale, scale.y * part.scale, scale.z * part.scale}; void* sa[]{&sized};
-    Invoke(Unity("Transform", "set_localScale", 1), tr.Get(), sa);
-    bool all = true; Root behaviourType(TypeObject("UnityEngine.CoreModule.dll", "UnityEngine", "MonoBehaviour")); void* ca[]{behaviourType.Get(), &all};
-    Root behaviours(Invoke(DoorSignature("GameObject", "GetComponentsInChildren", {"System.Type", "System.Boolean"}), copy, ca));
-    const auto n = behaviours.Get() ? Get<uintptr_t>(behaviours.Get(), 0x18) : 0;
-    for (uintptr_t i = 0; i < n; ++i) {
-        void* b = Get<void*>(behaviours.Get(), 0x20 + 8 * i); if (!b) continue;
-        bool off = false; void* oa[]{&off}; Invoke(Unity("Behaviour", "set_enabled", 1), b, oa);
-    }
-    if (part.station) stationLooks.push_back(std::make_unique<Root>(copy));
-    return true;
-}
 // A component kind under an object, on or off: a station's rock shows nothing, a station's look takes no clicks.
 void SetChildrenEnabled(void* object, const char* image, const char* kind, bool enabled) {
     bool all = true; Root type(TypeObject(image, "UnityEngine", kind)); void* args[]{type.Get(), &all};
@@ -931,29 +1052,45 @@ void SetChildrenEnabled(void* object, const char* image, const char* kind, bool 
         bool on = enabled; void* a[]{&on}; Invoke(Method(c, "set_enabled", 1), c, a);
     }
 }
-// The ground: flat on top in a round outline, falling away into rock at its edge, unevenly so it is no compass circle.
+// The ground: a grid over the shape the player chose, flat inside, falling away into rock outside. The texture mirrors at each repeat, so its
+// cuts never show; for that a vertex lies on every fold (the grid's step divides the period).
 void HallGround(void* holder, void* material) {
     struct V2 { float u, v; };
-    constexpr int kSides = 64; constexpr float kUv = .08f, kPi = 3.14159265f;
-    struct Ring { float r, y; };
-    std::vector<Ring> rings;
-    for (int i = 1; i <= 8; ++i) rings.push_back({kHallRadius * i / 8.f, 0.f});
-    rings.push_back({kHallRadius * 1.01f, -kHallRock * .15f}); rings.push_back({kHallRadius * .95f, -kHallRock * .45f});
-    rings.push_back({kHallRadius * .7f, -kHallRock * .8f}); rings.push_back({kHallRadius * .3f, -kHallRock});
-    std::vector<DoorVec3> v{{0, 0, 0}}; std::vector<V2> uv{{0, 0}}; std::vector<int> ids;
-    for (const auto& ring : rings)
-        for (int s = 0; s < kSides; ++s) {
-            const float angle = 2 * kPi * s / kSides;
-            const float wobble = ring.y < 0 ? 1.f + .03f * std::sin(angle * 7) + .02f * std::sin(angle * 13) : 1.f;
-            const float x = std::cos(angle) * ring.r * wobble, z = std::sin(angle) * ring.r * wobble;
-            v.push_back({x, ring.y, z}); uv.push_back({x * kUv, (z + ring.y) * kUv});
+    const auto g = hideout::Ground();
+    const float reach = hideout::rules::MaxExtent(g.shape, g.size) + hideout::rules::kBand + (g.natural ? 28.f : 4.f);
+    constexpr float kStep = 2.f;
+    const int cells = static_cast<int>(std::ceil(reach / kStep)) * 2, side = cells + 1;
+    const float origin = -kStep * (cells / 2);
+    std::vector<float> distance(static_cast<size_t>(side) * side);
+    for (int iz = 0; iz < side; ++iz)
+        for (int ix = 0; ix < side; ++ix) {
+            const auto at = hideout::rules::GridPoint(origin + ix * kStep, origin + iz * kStep, g.natural);
+            distance[static_cast<size_t>(iz) * side + ix] = hideout::rules::Distance(g.shape, g.size, at.x, at.z);
         }
-    for (int s = 0; s < kSides; ++s) { ids.push_back(0); ids.push_back(1 + (s + 1) % kSides); ids.push_back(1 + s); }
-    for (size_t ring = 0; ring + 1 < rings.size(); ++ring)
-        for (int s = 0; s < kSides; ++s) {
-            const int a0 = 1 + int(ring) * kSides + s, a1 = 1 + int(ring) * kSides + (s + 1) % kSides, b0 = a0 + kSides, b1 = a1 + kSides;
-            ids.push_back(a0); ids.push_back(a1); ids.push_back(b0);
-            ids.push_back(a1); ids.push_back(b1); ids.push_back(b0);
+    std::vector<int> index(distance.size(), -1);
+    std::vector<DoorVec3> v; std::vector<V2> uv; std::vector<int> ids;
+    const auto vertex = [&](int ix, int iz) {
+        const size_t at = static_cast<size_t>(iz) * side + ix;
+        if (index[at] >= 0) return index[at];
+        index[at] = static_cast<int>(v.size());
+        const float a = origin + ix * kStep, b = origin + iz * kStep;
+        const auto spot = hideout::rules::GridPoint(a, b, g.natural);
+        // the grid is in hall coordinates: right and up
+        const float worldX = spot.x * hallRightX + spot.z * hallUpX, worldZ = spot.x * hallRightZ + spot.z * hallUpZ;
+        v.push_back({worldX, hideout::rules::Height(distance[at], kHallRock), worldZ});
+        uv.push_back({g.u0 + hideout::rules::Mirrored(a, g.period) * (g.u1 - g.u0), g.v0 + hideout::rules::Mirrored(b, g.period) * (g.v1 - g.v0)});
+        return index[at];
+    };
+    const float outside = -hideout::rules::kBand;
+    // winding as seen from above, whichever way the camera turns the grid
+    const bool flip = hallRightX * hallUpZ - hallRightZ * hallUpX < 0;
+    for (int iz = 0; iz < cells; ++iz)
+        for (int ix = 0; ix < cells; ++ix) {
+            const float d[]{distance[static_cast<size_t>(iz) * side + ix], distance[static_cast<size_t>(iz) * side + ix + 1], distance[static_cast<size_t>(iz + 1) * side + ix], distance[static_cast<size_t>(iz + 1) * side + ix + 1]};
+            if (*std::max_element(d, d + 4) < outside) continue;
+            const int a0 = vertex(ix, iz), a1 = vertex(ix + 1, iz), b0 = vertex(ix, iz + 1), b1 = vertex(ix + 1, iz + 1);
+            if (flip) { ids.insert(ids.end(), {a0, a1, b0, a1, b1, b0}); }
+            else { ids.insert(ids.end(), {a0, b0, a1, a1, b0, b1}); }
         }
     auto& api = il2cpp::api();
     Root vertexArray(api.array_new(game::FindClass("UnityEngine.CoreModule.dll", "UnityEngine", "Vector3"), v.size()));
@@ -968,9 +1105,49 @@ void HallGround(void* holder, void* material) {
     void* a1[]{vertexArray.Get()}; Invoke(DoorSignature("Mesh", "set_vertices", {"UnityEngine.Vector3[]"}), mesh.Get(), a1);
     void* a2[]{uvArray.Get()}; Invoke(DoorSignature("Mesh", "set_uv", {"UnityEngine.Vector2[]"}), mesh.Get(), a2);
     void* a3[]{indexArray.Get()}; Invoke(DoorSignature("Mesh", "set_triangles", {"System.Int32[]"}), mesh.Get(), a3);
+    // The falling sides are rock, not the floor pattern stretched down a wall.
+    int submeshes=2;void* sc[]{&submeshes};Invoke(Method(mesh.Get(),"set_subMeshCount",1),mesh.Get(),sc);
+    std::vector<int> surface,cliffs;
+    for(size_t t=0;t+2<ids.size();t+=3) {
+        auto& part=v[ids[t]].y<-.001f || v[ids[t+1]].y<-.001f || v[ids[t+2]].y<-.001f?cliffs:surface;
+        part.insert(part.end(),{ids[t],ids[t+1],ids[t+2]});
+    }
+    const auto* setTriangles=DoorSignature("Mesh","SetTriangles",{"System.Int32[]","System.Int32"});
+    for(int submesh=0;submesh<2;++submesh){const auto& part=submesh?cliffs:surface;Root array(api.array_new(game::FindClass("mscorlib.dll","System","Int32"),part.size()));std::memcpy(static_cast<char*>(array.Get())+0x20,part.data(),part.size()*sizeof(int));void* a[]{array.Get(),&submesh};Invoke(setTriangles,mesh.Get(),a);}
     Invoke(Method(mesh.Get(), "RecalculateNormals", 0), mesh.Get());
     Invoke(Method(mesh.Get(), "RecalculateTangents", 0), mesh.Get());
     Invoke(Method(mesh.Get(), "RecalculateBounds", 0), mesh.Get());
+    // the map's ground: the flat part alone, its cells cut along the outline so its edge is smooth
+    hallFlatVertices.clear(); hallFlatIndices.clear();
+    {
+        constexpr float kMapStep = 1.5f;
+        std::map<std::pair<int, int>, int> known;
+        const auto mapVertex = [&](const hideout::rules::Point& p) {
+            const std::pair<int, int> key{static_cast<int>(std::lround(p.x * 200)), static_cast<int>(std::lround(p.z * 200))};
+            const auto it = known.find(key);
+            if (it != known.end()) return it->second;
+            const int at = static_cast<int>(hallFlatVertices.size());
+            hallFlatVertices.push_back({p.x * hallRightX + p.z * hallUpX + kHallCentre.x, kHallCentre.y, p.x * hallRightZ + p.z * hallUpZ + kHallCentre.z});
+            known.emplace(key, at);
+            return at;
+        };
+        const int half = static_cast<int>(std::ceil((hideout::rules::MaxExtent(g.shape, g.size) + 3) / kMapStep));
+        for (int iz = -half; iz < half; ++iz)
+            for (int ix = -half; ix < half; ++ix) {
+                const hideout::rules::Point corner[4]{{ix * kMapStep, iz * kMapStep}, {(ix + 1) * kMapStep, iz * kMapStep}, {(ix + 1) * kMapStep, (iz + 1) * kMapStep}, {ix * kMapStep, (iz + 1) * kMapStep}};
+                float d[4];
+                for (int k = 0; k < 4; ++k) d[k] = hideout::rules::Distance(g.shape, g.size, corner[k].x, corner[k].z);
+                hideout::rules::Point polygon[8];
+                const int n = hideout::rules::ClipCell(corner, d, polygon);
+                for (int k = 1; k + 1 < n; ++k) {
+                    const int p0 = mapVertex(polygon[0]), p1 = mapVertex(polygon[k]), p2 = mapVertex(polygon[k + 1]);
+                    if (p0 == p1 || p1 == p2 || p0 == p2) continue;
+                    if (flip) hallFlatIndices.insert(hallFlatIndices.end(), {p0, p1, p2});
+                    else hallFlatIndices.insert(hallFlatIndices.end(), {p0, p2, p1});
+                }
+            }
+    }
+    hallMesh = std::make_unique<Root>(mesh.Get());  // a mesh is not freed with its object: the hall destroys it itself
     void* ground = NewGameObject("EP hall ground");
     Root parent(Invoke(Method(holder, "get_transform", 0), holder));
     Root tr(Invoke(Method(ground, "get_transform", 0), ground));
@@ -982,11 +1159,27 @@ void HallGround(void* holder, void* material) {
     void* m1[]{mesh.Get()}; Invoke(Method(filter, "set_sharedMesh", 1), filter, m1);
     Root rendererType(TypeObject("UnityEngine.CoreModule.dll", "UnityEngine", "MeshRenderer"));
     void* rt[]{rendererType.Get()}; void* renderer = Invoke(add, ground, rt);
-    void* m2[]{material}; Invoke(Method(renderer, "set_sharedMaterial", 1), renderer, m2);
+    hallGroundRenderer = std::make_unique<Root>(renderer);
+    Root materials(api.array_new(game::FindClass("UnityEngine.CoreModule.dll","UnityEngine","Material"),2));
+    void* cliffMaterial=hideout::CliffMaterial();if(!cliffMaterial)cliffMaterial=material;
+    const auto* setValue=DoorSignature("Array","SetValue",{"System.Object","System.Int32"},"System","mscorlib.dll");
+    for(int slot=0;slot<2;++slot){void* a[]{slot?cliffMaterial:material,&slot};Invoke(setValue,materials.Get(),a);}
+    void* m2[]{materials.Get()}; Invoke(Method(renderer, "set_sharedMaterials", 1), renderer, m2);
     Root colliderType(TypeObject("UnityEngine.PhysicsModule.dll", "UnityEngine", "MeshCollider"));
     void* ct[]{colliderType.Get()}; void* collider = Invoke(add, ground, ct);
     if (!collider) throw std::runtime_error("no collider");
     void* m3[]{mesh.Get()}; Invoke(Method(collider, "set_sharedMesh", 1), collider, m3);
+    // a light of its own, high above the middle: some grounds are dark under the Hub's sky
+    void* lamp = NewGameObject("EP hall light");
+    Root lampTr(Invoke(Method(lamp, "get_transform", 0), lamp));
+    Invoke(DoorSignature("Transform", "SetParent", {"UnityEngine.Transform"}), lampTr.Get(), pa);
+    DoorVec3 high{kHallCentre.x, kHallCentre.y + 45.f, kHallCentre.z}; void* lp[]{&high}; Invoke(Unity("Transform", "set_position", 1), lampTr.Get(), lp);
+    Root lightType(TypeObject("UnityEngine.CoreModule.dll", "UnityEngine", "Light"));
+    void* lt[]{lightType.Get()}; void* light = Invoke(add, lamp, lt);
+    hallLight = std::make_unique<Root>(light);
+    int point = 2; void* la[]{&point}; Invoke(Method(light, "set_type", 1), light, la);
+    float range = reach * 2.f + 60.f; void* lr[]{&range}; Invoke(Method(light, "set_range", 1), light, lr);
+    float strength = g.light; void* li[]{&strength}; Invoke(Method(light, "set_intensity", 1), light, li);
 }
 void HallNavMesh(void* holder) {
     void* carrier = NewGameObject("EP hall surface");
@@ -1000,65 +1193,96 @@ void HallNavMesh(void* holder) {
     if (!surface) throw std::runtime_error("no NavMeshSurface");
     int collect = 1; void* a1[]{&collect}; Invoke(Method(surface, "set_collectObjects", 1), surface, a1);  // Volume
     int physics = 1; void* a2[]{&physics}; Invoke(Method(surface, "set_useGeometry", 1), surface, a2);     // colliders
-    DoorVec3 s{kHallRadius * 2.6f, 30.f, kHallRadius * 2.6f}; void* a3[]{&s}; Invoke(Method(surface, "set_size", 1), surface, a3);
+    const auto g = hideout::Ground();
+    const float across = (hideout::rules::MaxExtent(g.shape, g.size) + 6) * 2;
+    DoorVec3 s{across, 30.f, across}; void* a3[]{&s}; Invoke(Method(surface, "set_size", 1), surface, a3);
     DoorVec3 zero{}; void* a4[]{&zero}; Invoke(Method(surface, "set_center", 1), surface, a4);
     Invoke(Method(surface, "BuildNavMesh", 0), surface);
+    hallSurface = std::make_unique<Root>(surface);
 }
 void BuildHall() {
     DestroyHall();
     const uint64_t started = GetTickCount64();
     HallReadCamera();
-    // the ground's material, and the parts' sources, while nothing of ours is in the scene
-    Root rendererType(TypeObject("UnityEngine.CoreModule.dll", "UnityEngine", "MeshRenderer"));
-    bool inactive = false; void* renderArgs[]{rendererType.Get(), &inactive};
-    Root renderers(Invoke(Unity("Object", "FindObjectsOfType", 2), nullptr, renderArgs));
-    void* material = nullptr;
-    for (uintptr_t i = 0, n = renderers.Get() ? Get<uintptr_t>(renderers.Get(), 0x18) : 0; i < n && !material; ++i) {
-        void* r = Get<void*>(renderers.Get(), 0x20 + 8 * i); if (!r) continue;
-        void* go = Invoke(Unity("Component", "get_gameObject", 0), r);
-        if (Text(Invoke(Unity("Object", "get_name", 0), go)) == kHallMaterialFrom) material = Invoke(Method(r, "get_sharedMaterial", 0), r);
-    }
+    void* material = hideout::GroundMaterial();
     if (!material) throw std::runtime_error("the Hub has no ground material");
-    Root transformType(TypeObject("UnityEngine.CoreModule.dll", "UnityEngine", "Transform"));
-    bool hiddenToo = true; void* transformArgs[]{transformType.Get(), &hiddenToo};
-    Root all(Invoke(Unity("Object", "FindObjectsOfType", 2), nullptr, transformArgs));
-    std::map<std::string, void*> sources;
-    for (const auto& part : kHallParts) sources.emplace(part.name, nullptr);
-    for (uintptr_t i = 0, n = all.Get() ? Get<uintptr_t>(all.Get(), 0x18) : 0; i < n; ++i) {
-        void* o = Get<void*>(all.Get(), 0x20 + 8 * i); if (!o) continue;
-        void* go = Invoke(Unity("Component", "get_gameObject", 0), o);
-        const std::string name = Text(Invoke(Unity("Object", "get_name", 0), go));
-        auto it = sources.find(name);
-        if (it == sources.end() || it->second) continue;
-        // a character is an object of its name inside another of the same name: the outer one has the body
-        void* parentTransform = Invoke(Unity("Transform", "get_parent", 0), o);
-        if (parentTransform && Text(Invoke(Unity("Object", "get_name", 0), Invoke(Unity("Component", "get_gameObject", 0), parentTransform))) == name) o = parentTransform;
-        it->second = o;
-    }
-    for (auto it = sources.begin(); it != sources.end();) it = it->second ? std::next(it) : sources.erase(it);
-    stationLooks.clear();
     void* holder = NewGameObject("EpochPact Boss Hall");
     hallRoot = std::make_unique<Root>(holder);
-    bool off = false; void* oa[]{&off}; Invoke(Method(holder, "SetActive", 1), holder, oa);
-    int placed = 0;
-    for (const auto& part : kHallParts) placed += HallAddPart(holder, sources, part);
-    bool on = true; void* na[]{&on}; Invoke(Method(holder, "SetActive", 1), holder, na);
+    hideout::Populate(holder);
     HallGround(holder, material);
     HallNavMesh(holder);
-    // walked around, but its collider must not catch the click that its door takes
-    for (auto& look : stationLooks) if (look && look->Get()) SetChildrenEnabled(look->Get(), "UnityEngine.PhysicsModule.dll", "Collider", false);
     DoorVec3 walk{}; if (!SampleWalkable(HallCentre(), 6.f, &walk)) throw std::runtime_error("the hall's middle is not walkable");
-    Log("boss hall: built in %llu ms, %d of %d parts", static_cast<unsigned long long>(GetTickCount64() - started), placed, int(std::size(kHallParts)));
+#ifdef EPOCHPACT_TESTING
+    ++hallBuildCount;
+#endif
+    Log("boss hall: built in %llu ms", static_cast<unsigned long long>(GetTickCount64() - started));
+}
+// A station's invisible click target follows the visible model's actual bounds.
+// Updating it does not replace any door or NPC instance.
+void* AlignStationProxy(void* root,void* listener,const hideout::StationBounds& b,void* box){
+    void* sender=Invoke(Unity("Component","get_gameObject",0),listener);
+    Root tr(Invoke(Unity("GameObject","get_transform",0),sender));bool no=false;
+    void* parent[]{root,&no};Invoke(DoorSignature("Transform","SetParent",{"UnityEngine.Transform","System.Boolean"}),tr.Get(),parent);
+    hideout::rules::Rotation identity{0,0,0,1};DoorVec3 unit{1,1,1},foot{b.x,HallGroundY(),b.z};
+    void* r[]{&identity},*u[]{&unit},*p[]{&foot};Invoke(Unity("Transform","set_rotation",1),tr.Get(),r);Invoke(Unity("Transform","set_localScale",1),tr.Get(),u);Invoke(Unity("Transform","set_position",1),tr.Get(),p);
+    if(!box){Root type(TypeObject("UnityEngine.PhysicsModule.dll","UnityEngine","BoxCollider"));void* a[]{type.Get()};box=Invoke(DoorSignature("GameObject","AddComponent",{"System.Type"}),sender,a);}
+    const auto scale=Value<DoorVec3>(Unity("Transform","get_lossyScale",0),tr.Get());
+    DoorVec3 centre{0,(b.y-foot.y)/std::max(.001f,std::abs(scale.y)),0};
+    DoorVec3 size{std::max(.35f,b.width)/std::max(.001f,std::abs(scale.x)),std::max(.35f,b.height)/std::max(.001f,std::abs(scale.y)),std::max(.35f,b.depth)/std::max(.001f,std::abs(scale.z))};
+    void* c[]{&centre},*z[]{&size};Invoke(game::FindMethod("UnityEngine.PhysicsModule.dll","UnityEngine","BoxCollider","set_center",1),box,c);Invoke(game::FindMethod("UnityEngine.PhysicsModule.dll","UnityEngine","BoxCollider","set_size",1),box,z);
+    *reinterpret_cast<bool*>(static_cast<char*>(listener)+Offset("WorldObjectClickListener","useOtherTransformForPathfinding"))=false;
+    return box;
+}
+bool SameStationBounds(const hideout::StationBounds& a,const hideout::StationBounds& b){
+    return a.x==b.x&&a.y==b.y&&a.z==b.z&&a.width==b.width&&a.height==b.height&&a.depth==b.depth;
+}
+bool SyncHallDoors(){
+    if(!HallAlive()||!DoorsAlive())return false;
+    const auto wanted=hideout::Doors();
+    if(doors.size()!=wanted.size()+1)return false;
+    std::set<int> actions;
+    // Validate membership and ownership before modifying any live transform.
+    for(const auto& s:wanted){
+        if(!actions.insert(s.action).second)return false;
+        const auto d=std::find_if(doors.begin(),doors.end(),[&](const Door& d){return d.action==s.action;});
+        if(d==doors.end()||!d->inHall||d->hasLook!=s.hasLook||!d->listener||!game::IsAlive(d->listener->Get()))return false;
+    }
+    if(std::none_of(doors.begin(),doors.end(),[](const Door& d){return d.action==kHallDoor&&!d.inHall;}))return false;
+    for(const auto& s:wanted){
+        auto& d=*std::find_if(doors.begin(),doors.end(),[&](const Door& d){return d.action==s.action;});
+        const auto at=HallPlace(s.right,s.up);
+        const bool moved=d.authoredX!=at.x||d.authoredZ!=at.z||d.yaw!=s.yaw||d.size!=s.size||d.lift!=s.lift;
+        Root tr(Invoke(Unity("GameObject","get_transform",0),d.object->Get()));
+        if(moved){
+            const auto p=rules::ResolveDoorPosition(true,s.hasLook,{at.x,HallGroundY(),at.z},{},false,s.lift);DoorVec3 position{p.x,p.y,p.z};void* a[]{&position};Invoke(Unity("Transform","set_position",1),tr.Get(),a);
+            const float f=s.hasLook?1:s.size;DoorVec3 scale{.55f*f,.55f*f,.55f*f};void* z[]{&scale};Invoke(Unity("Transform","set_localScale",1),tr.Get(),z);
+            auto q=hideout::rules::YawOnBase(s.yaw,{0,0,0,1});void* r[]{&q};Invoke(Unity("Transform","set_rotation",1),tr.Get(),r);
+            d.authoredX=at.x;d.authoredZ=at.z;d.yaw=s.yaw;d.size=s.size;d.lift=s.lift;
+#ifdef EPOCHPACT_TESTING
+            ++doorPoseUpdateCount;
+#endif
+        }
+        hideout::StationBounds b{};
+        if(s.hasLook&&hideout::GetStationBounds(s.action,b)&&(!d.stationBoundsKnown||moved||!SameStationBounds(d.stationBounds,b))){
+            void* box=AlignStationProxy(tr.Get(),d.listener->Get(),b,d.stationBox?d.stationBox->Get():nullptr);
+            if(!d.stationBox)d.stationBox=std::make_unique<Root>(box);d.stationBounds=b;d.stationBoundsKnown=true;
+            if(d.label){DoorVec3 offset{0,b.y+b.height/2-HallGroundY()+.5f,0};*reinterpret_cast<DoorVec3*>(static_cast<char*>(d.label->Get())+Offset("HoverTagOnMouseOver","offset"))=offset;}
+        }
+    }
+#ifdef EPOCHPACT_TESTING
+    ++doorSyncCount;
+#endif
+    return true;
 }
 // Copies of the Hub's Fall of the Outcasts rock (MonolithObject), smaller, without its quest pulses and map icon.
 void BuildDoors() {
+    if(SyncHallDoors())return;
     ClearDoors();
     bool hall = false;
     if (!hallBroken) {
         try { if (!HallAlive()) BuildHall(); hall = true; }
         catch (const std::exception& e) { hallBroken = true; Log("boss hall: could not be built, the doors stay in the Hub: %s", e.what()); try { DestroyHall(); } catch (...) {} }
     }
-    doorsExpected = hall ? 17 : 12;
     const auto* cls = game::FindClass("LE.dll", "", "OpenMonolithPanelInteraction");
     Root type(il2cpp::api().type_get_object(il2cpp::api().class_get_type(cls)));
     bool inactive = true; void* findArgs[]{type.Get(), &inactive};
@@ -1067,6 +1291,10 @@ void BuildDoors() {
     const auto n = rocks.Get() ? Get<uintptr_t>(rocks.Get(), 0x18) : 0;
     for (uintptr_t i = 0; i < n; ++i) {
         void* o = Get<void*>(rocks.Get(), 0x20 + 8 * i);
+        if(o){void* ancestor=Invoke(Unity("Component","get_transform",0),o);bool ours=false;
+            for(int depth=0;ancestor&&depth<32;++depth){void* go=Invoke(Unity("Component","get_gameObject",0),ancestor);const auto name=Text(Invoke(Unity("Object","get_name",0),go));
+                if(name.rfind("EP ",0)==0||name.rfind("EpochPact ",0)==0){ours=true;break;}ancestor=Invoke(Unity("Transform","get_parent",0),ancestor);}
+            if(ours)continue;}
         if (o && Get<uint8_t>(o, Offset("OpenMonolithPanelInteraction", "timelineID")) == 1 && !Get<bool>(o, Offset("OpenMonolithPanelInteraction", "isRestZoneRock")) && PlaceOf(o).z > 500) rock = o;
     }
     if (!rock) throw std::runtime_error("the Hub's rock was not found");
@@ -1082,35 +1310,48 @@ void BuildDoors() {
     const auto* add = DoorSignature("GameObject", "AddComponent", {"System.Type"});
     Root listenerType(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll", "", "WorldObjectClickListener"))));
     Root tagType(il2cpp::api().type_get_object(il2cpp::api().class_get_type(game::FindClass("LE.dll", "", "HoverTagOnMouseOver"))));
-    struct Spot { float x, z; int action; bool inHall; };
+    struct Spot { float x, z; int action; bool inHall; bool hasLook = false; float yaw=0,size=1,lift=0; };
     std::vector<Spot> spots;
     if (hall) {
         // two rows of five, the difficulty and the Rush between them, the way out behind them; the way in stands by the Hub's waypoint
-        const auto hallSpot = [&](float right, float up, int action) { const DoorVec3 at = HallPlace(right, up); spots.push_back({at.x, at.z, action, true}); };
-        for (int i = 0; i < 5; ++i) hallSpot(-22 + i * 11.f, 16, i + 1);
-        for (int i = 0; i < 5; ++i) hallSpot(-22 + i * 11.f, -12, i + 6);
-        hallSpot(-14, 2, kDifficultyDoor);
-        hallSpot(14, 2, kRushDoor);
-        spots.push_back({-7.5f, 1039, kHallDoor, false});
-        hallSpot(31, 2, kHubDoor);
-        hallSpot(-11, -27, kStashStation);
-        hallSpot(0, -27, kVendorStation);
-        hallSpot(11, -27, kCacheStation);
+        // the list is the player's; the way in stands by the Hub's waypoint
+        for (const auto& door : hideout::Doors()) {
+            const DoorVec3 at = HallPlace(door.right, door.up);
+            spots.push_back({at.x, at.z, door.action, true, door.hasLook,door.yaw,door.size,door.lift});
+        }
+        spots.insert(spots.begin() + std::min<size_t>(12, spots.size()), {-7.5f, 1039, kHallDoor, false, false});
     } else {
         spots = {{-20, 1046, 1, false}, {-15, 1046, 2, false}, {-10, 1046, 3, false}, {-5, 1046, 4, false}, {-20, 1033, 5, false}, {-15, 1033, 6, false}, {-10, 1033, 7, false}, {-5, 1033, 8, false},
                  {6, 1033, 9, false}, {11, 1033, 10, false}, {-25, 1039, kDifficultyDoor, false}, {-7.5f, 1039, kRushDoor, false}};
     }
+    doorsExpected = spots.size();
     std::unique_ptr<Root> hallParent;
     if (hall) hallParent = std::make_unique<Root>(Invoke(Method(hallRoot->Get(), "get_transform", 0), hallRoot->Get()));
     for (const auto& s : spots) {
         bool world = true;
         void* args[]{sourceObject, s.inHall ? hallParent->Get() : parent, &world};
         Root copy(Invoke(instantiate, nullptr, args));
+        void* cloneName=il2cpp::api().string_new("EP boss door");void* rename[]{cloneName};Invoke(Unity("Object","set_name",1),copy.Get(),rename);
         Root tr(Invoke(Method(copy.Get(), "get_transform", 0), copy.Get()));
-        DoorVec3 at{s.x, 2, s.z}, snapped{};
-        if (SampleWalkable(at, 8.f, &snapped)) at = snapped;
+        DoorVec3 authored{s.x,s.inHall?HallGroundY():2,s.z},snapped{};
+        const bool snappedToHub=!s.inHall&&SampleWalkable(authored,8.f,&snapped);
+        const auto p=rules::ResolveDoorPosition(s.inHall,s.hasLook,{authored.x,authored.y,authored.z},{snapped.x,snapped.y,snapped.z},snappedToHub,s.lift);
+        DoorVec3 at{p.x,p.y,p.z};
         void* place[]{&at}; Invoke(Unity("Transform", "set_position", 1), tr.Get(), place);
-        DoorVec3 scale{.55f, .55f, .55f}; void* sized[]{&scale}; Invoke(Unity("Transform", "set_localScale", 1), tr.Get(), sized);
+        const float factor=s.inHall && !s.hasLook?s.size:1;
+        DoorVec3 scale{.55f*factor, .55f*factor, .55f*factor}; void* sized[]{&scale}; Invoke(Unity("Transform", "set_localScale", 1), tr.Get(), sized);
+        if(s.inHall){
+            // The native map instance has a -90-degree animated root beneath
+            // a +90-degree import frame. Preserve the stone arch but freeze and
+            // stand its separate crystal assembly up in the same doorway.
+            SetChildrenEnabled(copy.Get(),"UnityEngine.AnimationModule.dll","Animator",false);
+            SetChildrenEnabled(copy.Get(),"UnityEngine.AnimationModule.dll","Animation",false);
+            void* path[]{il2cpp::api().string_new("Visuals/Monolith_Stone/Monolith_Stone_GEO/root")};
+            if(void* crystal=Invoke(find,tr.Get(),path)) {
+                hideout::rules::Rotation upright{1,0,0,0};void* rotation[]{&upright};Invoke(Unity("Transform","set_localRotation",1),crystal,rotation);
+            }
+            auto q=hideout::rules::YawOnBase(s.yaw,{0,0,0,1});void* r[]{&q};Invoke(Unity("Transform","set_rotation",1),tr.Get(),r);
+        }
         for (const char* child : {"Pulse Holder", "DMMap_WorldIcon - Waypoint"}) {
             void* name = il2cpp::api().string_new(child); void* fa[]{name};
             void* found = Invoke(find, tr.Get(), fa);
@@ -1119,21 +1360,39 @@ void BuildDoors() {
         bool inactiveToo = true; void* la[]{listenerType.Get(), &inactiveToo};
         void* listener = Invoke(componentIn, copy.Get(), la);
         if (!listener) throw std::runtime_error("the rock copy has no click listener");
-        if (s.action == kStashStation || s.action == kVendorStation) {
+        if (s.hasLook) {
             SetChildrenEnabled(copy.Get(), "UnityEngine.CoreModule.dll", "Renderer", false);
             SetChildrenEnabled(copy.Get(), "UnityEngine.CoreModule.dll", "Light", false);
+            SetChildrenEnabled(copy.Get(), "UnityEngine.PhysicsModule.dll", "Collider", false);
+            // A disabled renderer can be re-enabled by the copied rock's hover
+            // VFX. Deactivate its visual branch, leaving only the click logic.
+            void* path[]{il2cpp::api().string_new("Visuals")};
+            if(void* visual=Invoke(find,tr.Get(),path)){
+                bool no=false;void* a[]{&no};Invoke(Unity("GameObject","SetActive",1),Invoke(Unity("Component","get_gameObject",0),visual),a);
+            }
         }
         void* senderObject = Invoke(Unity("Component", "get_gameObject", 0), listener);
+        float labelHeight=3;void* stationBox=nullptr;hideout::StationBounds stationBounds{};bool stationBoundsKnown=false;
+        if(s.hasLook&&hideout::GetStationBounds(s.action,stationBounds)){
+            stationBox=AlignStationProxy(tr.Get(),listener,stationBounds,nullptr);stationBoundsKnown=true;
+            labelHeight=stationBounds.y+stationBounds.height/2-HallGroundY()+.5f;
+        }
         void* ta[]{tagType.Get()};
         void* tag = Invoke(add, senderObject, ta);
         Door door{std::make_unique<Root>(copy.Get()), std::make_unique<Root>(listener), tag ? std::make_unique<Root>(tag) : nullptr, s.action};
+        if(stationBox)door.stationBox=std::make_unique<Root>(stationBox);
+        door.authoredX=s.x;door.authoredZ=s.z;door.yaw=s.yaw;door.size=s.size;door.lift=s.lift;door.inHall=s.inHall;door.hasLook=s.hasLook;
+        door.stationBounds=stationBounds;door.stationBoundsKnown=stationBoundsKnown;
         if (tag) {
-            *reinterpret_cast<bool*>(static_cast<char*>(tag) + Offset("HoverTagOnMouseOver", "alwaysOn")) = true;
-            DoorVec3 offset{0, 3, 0}; *reinterpret_cast<DoorVec3*>(static_cast<char*>(tag) + Offset("HoverTagOnMouseOver", "offset")) = offset;
+            *reinterpret_cast<bool*>(static_cast<char*>(tag) + Offset("HoverTagOnMouseOver", "alwaysOn")) = !s.inHall || s.hasLook;
+            DoorVec3 offset{0, labelHeight, 0}; *reinterpret_cast<DoorVec3*>(static_cast<char*>(tag) + Offset("HoverTagOnMouseOver", "offset")) = offset;
         }
         doors.push_back(std::move(door));
     }
     RefreshDoorLabels();
+#ifdef EPOCHPACT_TESTING
+    ++doorBuildCount;
+#endif
     Log("boss doors: %zu doors in the Monolith Hub", doors.size());
 }
 // What a door borrows from a run. Kept in a file too, so a game closed during a boss gets its run back at the next start.
@@ -1178,23 +1437,33 @@ void RestoreBorrowed(const Context& c) {
     }
     if (changed) { SaveBorrowed(); Save(c); }
 }
-bool DoorClicked(void* listener) {
-    for (auto& d : doors) {
-        if (!d.listener || d.listener->Get() != listener) continue;
+void DoorClicked(Door& d,void* source,bool click) {
+        DWORD foregroundPid=0;GetWindowThreadProcessId(GetForegroundWindow(),&foregroundPid);
+        bool foreground=foregroundPid==GetCurrentProcessId();
+#ifdef EPOCHPACT_TESTING
+        foreground=foreground||testDoorForeground;
+#endif
+        const bool offline=game::IsOfflinePlay(),editing=hideout::Editing(),menu=ingame::view::WindowOpen();
+        bool local=false;
+        if(click&&source&&offline&&foreground&&!editing&&!menu){
+            void* actor=Invoke(m_actor);
+            local=actor&&source==Invoke(Unity("Component","get_gameObject",0),actor);
+        }
+        if(!rules::DoorInput(click,local,offline,foreground,editing,menu))return;
         const uint64_t clicked = GetTickCount64();
         const bool held = clicked - d.lastClick < kDoorHeldMs;
         d.lastClick = clicked;
-        if (held) return true;
-        if (d.action == kHallDoor) { hallMove = 1; return true; }
-        if (d.action == kHubDoor) { hallMove = 2; return true; }
-        if (d.action == kStashStation) { hallStation = "stash"; return true; }
-        if (d.action == kVendorStation) { hallStation = "vendor"; return true; }
-        if (d.action == kCacheStation) { hallStation = "cache"; return true; }
+        if (held) return;
+        if (d.action == kHallDoor) { QueueHallMove(Current(),1); return; }
+        if (d.action == kHubDoor) { QueueHallMove(Current(),2); return; }
+        if (d.action == kStashStation) { hallStation = "stash"; return; }
+        if (d.action == kVendorStation) { hallStation = "vendor"; return; }
+        if (d.action == kCacheStation) { hallStation = "cache"; return; }
         if (d.action == kDifficultyDoor) {
             if (!bossDifficulty) bossDifficulty = 1;
             else if (!bossHarbinger) bossHarbinger = true;
             else { bossDifficulty = 0; bossHarbinger = false; }
-            RefreshDoorLabels(); return true;
+            RefreshDoorLabels(); return;
         }
         if (d.action == kRushDoor) {
             if (rushDifficulty != bossDifficulty || rushHarbinger != bossHarbinger) rushAt = 1;
@@ -1204,14 +1473,17 @@ bool DoorClicked(void* listener) {
             rushOn = false; pendingBoss = d.action; pendingDifficulty = bossDifficulty; pendingHarbinger = bossHarbinger;
         }
         bossTravelAt = 0;
-        return true;
-    }
-    return false;
 }
 void ObjectClickDetour(void* self, void* source, bool flag, const il2cpp::Method* method) {
-    bool ours = false;
-    game::Guarded([&] { ours = DoorClicked(self); }, nullptr);
-    if (!ours) originalObjectClick(self, source, flag, method);
+    Door* ours=nullptr;
+    for(auto& d:doors)if(d.listener&&d.listener->Get()==self){ours=&d;break;}
+    if(!ours){originalObjectClick(self,source,flag,method);return;}
+    // Owned copies never fall through to the borrowed rock's interaction,
+    // including when a guard fails or the local actor is not ready.
+    game::Guarded([&] { DoorClicked(*ours,source,flag); }, nullptr);
+#ifdef EPOCHPACT_TESTING
+    if(ours)TraceDoorInput(self,flag);
+#endif
 }
 // The boss echo through the game's own start, whatever the timeline's lock and quest progress say.
 // The run as the game's start and its boss need it; its own values are borrowed. Returns the boss's quest echo.
@@ -1321,6 +1593,8 @@ void BossTick() {
     const auto c = Current();
     const bool inside = Value<bool>(m_inside, nullptr);
     const uint64_t now = GetTickCount64();
+    if(hallMove.direction&&!hallMove.Valid(c.id,c.scene,reinterpret_cast<uintptr_t>(c.actor),now))hallMove.Clear();
+    if(goToHall&&(c.id!=goToHallId||now>=goToHallUntil||(c.scene!=goToHallScene&&c.scene!="M_Rest"&&c.scene!="MonolithHub")))goToHall=false;
     const bool ready = AreaReady();
     if (!ready) { bossReadySince = 0; return; }
     if (!bossReadySince) bossReadySince = now;
@@ -1335,18 +1609,18 @@ void BossTick() {
         if (bossPortalLabelAt && now >= bossPortalLabelAt) { bossPortalLabelAt = ++bossPortalLabels < 4 ? now + 1000 : 0; LabelBossPortal(); }
         return;
     }
-    if (dead) return;
+    if (dead) {hallMove.Clear();goToHall=false;return;}
     if (!inside && bossTracked) {
         const bool killed = bossKilled || BossRunDone(c), portal = bossPortalUsed;
         bossTracked = false; bossPortalUsed = false; questWindowQuietUntil = now + 20000;
         if (bossDied) {
             if (rushOn) { rushOn = false; Log("boss doors: the rush stopped at boss %d", rushAt); }
-            goToHall = true;
+            QueueHallReturn(c);
         } else if (portal) {
             if (rushOn && killed && rushAt < 10) { ++rushAt; pendingBoss = rushAt; pendingDifficulty = rushDifficulty; pendingHarbinger = rushHarbinger; }
             else {
                 if (rushOn && killed) { rushAt = 1; Log("boss doors: the rush is complete"); }
-                rushOn = false; goToHall = true;
+                rushOn = false; QueueHallReturn(c);
             }
         } else {
             // a town portal: to town, nothing starts; the Rush door goes on from the next boss, or this one if it lives
@@ -1358,7 +1632,7 @@ void BossTick() {
     if (inside || now - bossReadySince < 1000) return;
     if (pendingBoss > 0) {
         if (c.scene == "M_Rest" || c.scene == "MonolithHub") {
-            const int t = pendingBoss; pendingBoss = -1; goToHall = false;
+            const int t = pendingBoss; pendingBoss = -1; goToHall = false;hallMove.Clear();
             StartBoss(c, t, pendingDifficulty, pendingHarbinger);
         } else if (!bossTravelAt || now - bossTravelAt > 20000) {
             if (commands::SubmitUi("bosstravel " + c.id + " M_Rest", [](const std::string&) {})) bossTravelAt = now;
@@ -1367,11 +1641,10 @@ void BossTick() {
     }
     if (goToHall && bossDoors.load()) {
         if (c.scene == "MonolithHub") {
-            goToHall = false;
-            const auto me = PlaceOf(c.actor);
             if (!DoorsAlive()) { BuildDoors(); doorLabelsAt = now + 1000; }
-            const DoorVec3 back = HallAlive() ? HallCentre() : kHubSpot;
-            if (std::abs(me.x - back.x) + std::abs(me.z - back.z) > 30) { DoorVec3 snapped{}; if (SampleWalkable(back, 6.f, &snapped)) Warp(c.actor, snapped); }
+            // Arrival requests are retained through the delayed nav bake. An
+            // unavailable hall is never replaced with an unrelated Hub warp.
+            QueueHallMove(c,1);goToHall=false;TryHallMove(c,now);
         } else if (!bossTravelAt || now - bossTravelAt > 20000) {
             if (commands::SubmitUi("bosstravel " + c.id + " MonolithHub:1", [](const std::string&) {})) bossTravelAt = now;
         }
@@ -1380,11 +1653,8 @@ void BossTick() {
     if (bossDoors.load() && c.scene == "MonolithHub") {
         if (!DoorsAlive()) { BuildDoors(); doorLabelsAt = now + 1000; }
         else if (doorLabelsAt && now >= doorLabelsAt) { doorLabelsAt = 0; RefreshDoorLabels(); }
-        if (hallMove) {
-            const DoorVec3 to = hallMove == 1 && HallAlive() ? HallCentre() : kHubSpot;
-            hallMove = 0;
-            DoorVec3 snapped{}; if (SampleWalkable(to, 6.f, &snapped)) Warp(c.actor, snapped);
-        }
+        if(hallMove.direction)TryHallMove(c,now);
+        SyncHallMap(PlaceOf(c.actor));
         if (!hallStation.empty()) {
             const std::string line = hallStation == "cache" ? "eternitycache " + c.id : "inventoryaction " + c.id + " " + hallStation;
             // the line is busy now and then: the click waits for the next tick
@@ -1433,6 +1703,42 @@ void BossFrame() {
     std::string why;
     if (!game::Guarded([] { BossTick(); }, &why) && !why.empty() && why != bossError) { bossError = why; ++bossFaults; Log("boss doors: %s", why.c_str()); }
 }
+void HallWorld(float right, float up, float* x, float* z) { const DoorVec3 at = HallPlace(right, up); *x = at.x; *z = at.z; }
+void HallLocal(float x, float z, float* right, float* up) {
+    const float dx = x - kHallCentre.x, dz = z - kHallCentre.z;
+    *right = dx * hallRightX + dz * hallRightZ; *up = dx * hallUpX + dz * hallUpZ;
+}
+float HallGroundY() { return kHallCentre.y; }
+bool HallIsUp() { return HallAlive(); }
+void* HallPreviewDoor() { for (const auto& d : doors) if (d.action > 0 && d.object && game::IsAlive(d.object->Get())) return d.object->Get(); return nullptr; }
+void* HallDoorVisual(int action) {for(const auto& d:doors)if(d.action==action&&d.object&&game::IsAlive(d.object->Get()))return d.object->Get();return nullptr;}
+void ReleaseHallRoots(){hallMove.Clear();goToHall=false;goToHallId.clear();goToHallScene.clear();goToHallUntil=0;doors.clear();hallRoot.reset();hallSurface.reset();hallGroundRenderer.reset();hallLight.reset();hallMesh.reset();hallMapInfo.reset();hallMapTexture.reset();hallMapFog.reset();hallMapHubInfo.reset();hallMapHubScene.reset();}
+void HallRebuildDoors() { if (HallAlive()) { BuildDoors(); doorLabelsAt = GetTickCount64() + 1000; } }
+void HallRebuildNavMesh() { if (hallSurface && hallSurface->Get() && game::IsAlive(hallSurface->Get())) Invoke(Method(hallSurface->Get(), "BuildNavMesh", 0), hallSurface->Get()); }
+// All of it again: a new ground. Whoever stands there is put in the middle of the new one.
+void HallRebuildAll() {
+    void* actor = Invoke(game::FindMethod("LE.dll", "", "PlayerFinder", "getPlayerActor", 0));
+    const bool inside = HallAlive() && actor && game::IsAlive(actor) && InHall(PlaceOf(actor));
+    ClearDoors(); DestroyHall();  // the next tick in the Hub builds it all again, and moves the player before anything else
+    if (inside) QueueHallMove(Current(),1);
+}
+void HallSetLight(float intensity) {
+    if (!hallLight || !hallLight->Get() || !game::IsAlive(hallLight->Get())) return;
+    void* a[]{&intensity}; Invoke(Method(hallLight->Get(), "set_intensity", 1), hallLight->Get(), a);
+}
+void HallSetGroundMaterial(void* material) {
+    if (!hallGroundRenderer || !hallGroundRenderer->Get() || !game::IsAlive(hallGroundRenderer->Get()) || !material) return;
+    Root materials(Invoke(Method(hallGroundRenderer->Get(),"get_sharedMaterials",0),hallGroundRenderer->Get()));
+    if(materials.Get() && Get<uintptr_t>(materials.Get(),0x18)>1){int slot=0;void* a[]{material,&slot};Invoke(DoorSignature("Array","SetValue",{"System.Object","System.Int32"},"System","mscorlib.dll"),materials.Get(),a);void* m[]{materials.Get()};Invoke(Method(hallGroundRenderer->Get(),"set_sharedMaterials",1),hallGroundRenderer->Get(),m);}
+    else {void* a[]{material}; Invoke(Method(hallGroundRenderer->Get(), "set_sharedMaterial", 1), hallGroundRenderer->Get(), a);}
+}
+void HallGoIn() {
+    const auto c=Current();
+    if(!bossDoors.load())throw std::runtime_error("Enable Boss doors before entering the hideout.");
+    if(bossTracked || pendingBoss>0)throw std::runtime_error("Finish the current boss encounter before entering the hideout.");
+    if(c.scene=="MonolithHub") {if(!HallAlive())BuildDoors();QueueHallMove(c,1);TryHallMove(c,GetTickCount64());}
+    else {QueueHallReturn(c);bossTravelAt=0;}
+}
 std::string BossDoors(bool on) {
     return Run([=]() -> std::string {
         if (!game::IsOfflinePlay()) throw std::runtime_error(game::GateText());
@@ -1454,7 +1760,7 @@ std::string BossDoors(bool on) {
                 void* actor = Invoke(game::FindMethod("LE.dll", "", "PlayerFinder", "getPlayerActor", 0));
                 if (actor && game::IsAlive(actor) && InHall(PlaceOf(actor))) { DoorVec3 snapped{}; if (SampleWalkable(kHubSpot, 6.f, &snapped)) Warp(actor, snapped); }
             }
-            ClearDoors(); DestroyHall(); hallMove = 0; rushOn = false; pendingBoss = -1; goToHall = false;
+            ClearDoors(); DestroyHall(); hallMove.Clear(); rushOn = false; pendingBoss = -1; goToHall = false;
             for (const auto& m : {m_objectClick, m_timelineUnlocked, m_unlockNotice, m_echoPortalUse, m_harbingerSetup, m_harbingerGuarantee, m_questWindow, m_questNotice})
                 if (hook::IsInstalled(m.code) && !hook::Remove(m.code, &why)) throw std::runtime_error(why);
         }
@@ -1492,6 +1798,20 @@ std::string BossStatus() {
 #ifdef EPOCHPACT_TESTING
 // Boss Rush research, test builds only.
 namespace {
+#include "hideout_ui_trace.inl"
+void TestDoorClick(void* listener,void* source,bool click,bool foreground=true){
+    const bool previous=testDoorForeground;testDoorForeground=foreground;
+    struct Restore {bool value;~Restore(){testDoorForeground=value;}} restore{previous};
+    void* args[]{source,&click};Invoke(Method(listener,"ObjectClick",2),listener,args);
+}
+void TraceDoorInput(void* listener,bool click){
+    if(!uiTraceOn)return;
+    for(const auto& d:doors)if(d.listener&&d.listener->Get()==listener){
+        DWORD pid=0;GetWindowThreadProcessId(GetForegroundWindow(),&pid);
+        const auto text="door "+std::to_string(d.action)+" click="+std::to_string(click)+" foreground="+std::to_string(pid==GetCurrentProcessId())+" LMB="+std::to_string((GetAsyncKeyState(VK_LBUTTON)&0x8000)!=0);
+        TraceMenu(text.c_str());break;
+    }
+}
 struct BossVec3 { float x, y, z; };
 const game::MethodRef BossStatic(const char* name, int n) { return game::FindMethod("LE.dll", "LE.Gameplay.Monolith", "MonolithGameplayManager", name, n); }
 const il2cpp::Method* BossSignature(const char* cls, const char* name, std::initializer_list<const char*> parameters) {
@@ -1527,6 +1847,60 @@ std::string BossTest(const std::string& id, const std::vector<std::string>& args
         if (args.empty()) throw std::runtime_error("use bosstest id info|hub|state|start t d|goto scene|portal");
         const std::string action = args[0];
         const auto c = Current(id);
+        if(action=="uitrace"){
+            if(c.name!="EpFeedbackTest")throw std::runtime_error("Disposable EpFeedbackTest only.");
+            return UiTrace(args.at(1));
+        }
+        if(action=="quit"){
+            if(c.name!="EpFeedbackTest")throw std::runtime_error("Disposable EpFeedbackTest only.");
+            ingame::view::After(250,[id]{
+                const auto current=Current(id);
+                if(current.name!="EpFeedbackTest")throw std::runtime_error("The disposable character changed before quit.");
+                int code=0;void* a[]{&code};Invoke(Unity("Application","Quit",1),nullptr,a);
+            });
+            return "{\"ok\":true,\"quitScheduled\":true}";
+        }
+        if(action=="halllayout"){
+            if(c.name!="EpFeedbackTest"||!HallAlive())throw std::runtime_error("Disposable EpFeedbackTest hideout only.");
+            const auto instance=[](void* o){return o?Value<int>(Unity("Object","GetInstanceID",0),o):0;};
+            std::ostringstream out;out<<"{\"ok\":true,\"hallInstance\":"<<instance(hallRoot->Get())<<",\"meshInstance\":"<<instance(hallMesh?hallMesh->Get():nullptr)<<",\"hallBuilds\":"<<hallBuildCount<<",\"doorBuilds\":"<<doorBuildCount<<",\"doorSyncs\":"<<doorSyncCount<<",\"doorPoseUpdates\":"<<doorPoseUpdateCount<<",\"movePending\":"<<hallMove.direction<<",\"doors\":[";bool first=true;
+            for(const auto& d:doors){if(!first)out<<',';first=false;const auto p=PlaceOf(d.listener->Get());Root tr(Invoke(Unity("GameObject","get_transform",0),d.object->Get()));const auto world=Value<DoorVec3>(Unity("Transform","get_position",0),tr.Get());float right=0,up=0;HallLocal(world.x,world.z,&right,&up);
+                out<<"{\"action\":"<<d.action<<",\"instance\":"<<instance(d.object->Get())<<",\"right\":"<<right<<",\"up\":"<<up<<",\"y\":"<<world.y<<",\"listenerX\":"<<p.x<<",\"listenerZ\":"<<p.z<<'}';}
+            return out.str()+"]}";
+        }
+        if(action=="stationhit"){
+            if(c.name!="EpFeedbackTest")throw std::runtime_error("Disposable EpFeedbackTest only.");
+            const int station=std::stoi(args.at(1));
+            if(station!=-4&&station!=-5&&station!=-6)throw std::runtime_error("Station fixture only.");
+            for(const auto& d:doors)if(d.action==station&&d.listener&&game::IsAlive(d.listener->Get())){
+                hideout::StationBounds visual{};if(!hideout::GetStationBounds(station,visual))throw std::runtime_error("Station model not loaded.");
+                Root type(TypeObject("UnityEngine.PhysicsModule.dll","UnityEngine","BoxCollider"));void* a[]{type.Get()};
+                void* box=Invoke(DoorSignature("Component","GetComponent",{"System.Type"}),d.listener->Get(),a);if(!box)throw std::runtime_error("Station has no aligned click box.");
+                struct Bounds{DoorVec3 centre,extents;};const auto b=Value<Bounds>(game::FindMethod("UnityEngine.PhysicsModule.dll","UnityEngine","Collider","get_bounds",0),box);
+                void* camera=Invoke(Unity("Camera","get_main",0));const auto origin=PlaceOf(camera);DoorVec3 direction{visual.x-origin.x,visual.y-origin.y,visual.z-origin.z};
+                const float length=std::sqrt(direction.x*direction.x+direction.y*direction.y+direction.z*direction.z);direction={direction.x/length,direction.y/length,direction.z/length};
+                struct Ray{DoorVec3 origin,direction;} ray{origin,direction};alignas(16) unsigned char hit[128]{};float maxDistance=length+5;void* ra[]{&ray,hit,&maxDistance};
+                const bool hits=Value<bool>(DoorSignature("Collider","Raycast",{"UnityEngine.Ray","UnityEngine.RaycastHit&","System.Single"},"UnityEngine","UnityEngine.PhysicsModule.dll"),box,ra);
+                float error=std::max({std::abs(b.centre.x-visual.x),std::abs(b.centre.y-visual.y),std::abs(b.centre.z-visual.z),std::abs(2*b.extents.x-visual.width),std::abs(2*b.extents.y-visual.height),std::abs(2*b.extents.z-visual.depth)});
+                if(args.size()>2&&args[2]=="click"){
+                    void* player=Invoke(Unity("Component","get_gameObject",0),c.actor);TestDoorClick(d.listener->Get(),player,true);
+                }
+                return "{\"ok\":true,\"rayHitsVisibleModel\":"+std::string(Boolean(hits))+",\"boundsError\":"+std::to_string(error)+"}";
+            }
+            throw std::runtime_error("No station listener.");
+        }
+        if(action=="doorpose") {
+            if(c.name!="EpFeedbackTest")throw std::runtime_error("Disposable EpFeedbackTest only.");
+            void* object=HallDoorVisual(std::stoi(args.at(1)));if(!object)throw std::runtime_error("No such hideout door.");
+            Root root(Invoke(Unity("GameObject","get_transform",0),object));
+            if(args.size()>2){void* fa[]{il2cpp::api().string_new(args.at(2).c_str())};void* tr=Invoke(DoorSignature("Transform","Find",{"System.String"}),root.Get(),fa);if(!tr)throw std::runtime_error("No such child.");
+                if(args.size()==6){DoorVec3 e{std::stof(args[3]),std::stof(args[4]),std::stof(args[5])};void* a[]{&e};Invoke(Unity("Transform","set_localEulerAngles",1),tr,a);}}
+            std::ostringstream out;out<<"{\"ok\":true,\"tree\":[";bool first=true;
+            const auto vec=[&](void* tr,const char* name){auto p=Value<DoorVec3>(Unity("Transform",name,0),tr);out<<'['<<p.x<<','<<p.y<<','<<p.z<<']';};
+            std::function<void(void*,std::string,int)> walk=[&](void* tr,std::string path,int depth){if(!first)out<<',';first=false;out<<"{\"path\":"<<Json(path)<<",\"localEuler\":";vec(tr,"get_localEulerAngles");out<<",\"worldEuler\":";vec(tr,"get_eulerAngles");out<<",\"localPosition\":";vec(tr,"get_localPosition");out<<",\"localScale\":";vec(tr,"get_localScale");out<<'}';
+                if(depth>=7)return;const int count=Value<int>(Unity("Transform","get_childCount",0),tr);for(int k=0;k<count&&k<40;++k){void* a[]{&k};void* child=Invoke(Unity("Transform","GetChild",1),tr,a);const auto name=Text(Invoke(Unity("Object","get_name",0),child));walk(child,path.empty()?name:path+"/"+name,depth+1);}};
+            walk(root.Get(),"",0);return out.str()+"]}";
+        }
         if (action == "state") return BossState(c);
         if (action == "info") {
             std::ostringstream out; out << "{\"ok\":true,\"scene\":" << Json(c.scene) << ",\"timelines\":["; bool first = true;
@@ -2329,8 +2703,11 @@ std::string BossTest(const std::string& id, const std::vector<std::string>& args
             const size_t index = std::stoul(args.at(1));
             if (index >= doors.size()) throw std::runtime_error("no such door");
             void* go = Invoke(game::FindMethod("UnityEngine.CoreModule.dll", "UnityEngine", "Component", "get_gameObject", 0), c.actor);
-            bool flag = false; void* a[]{go, &flag};
-            Invoke(Method(doors[index].listener->Get(), "ObjectClick", 2), doors[index].listener->Get(), a);
+            const std::string kind=args.size()>2?args[2]:"click";
+            if(kind!="click"&&kind!="nonclick"&&kind!="foreign"&&kind!="null"&&kind!="background")throw std::runtime_error("Unknown door input test.");
+            if(kind=="foreign")go=doors[index].object->Get();
+            if(kind=="null")go=nullptr;
+            TestDoorClick(doors[index].listener->Get(),go,kind!="nonclick",kind!="background");
             return "{\"ok\":true,\"pending\":" + std::to_string(pendingBoss) + ",\"rush\":" + std::string(Boolean(rushOn)) + ",\"difficulty\":" + std::to_string(bossDifficulty) + "}";
         }
         if (action == "suicide") {

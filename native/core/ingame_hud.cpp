@@ -318,16 +318,20 @@ void Load(Hud& h,bool isDamage,void* parent){
 }
 } // namespace
 void HudInit(void* parent,int width,int height){
+    (void)parent;
+    // Keep gameplay HUDs independent of the F6 window's canvas/lifetime.
+    // A window rebuild or recovery must not delete the Hideout entry button.
+    ReleaseHud(true);
     scale=std::clamp(height/900.f,.5f,2.f);screenWidth=width/scale;screenHeight=height/scale;
-    const auto root=New("EpochPact HUD",parent,0,0,0,0);hudParent.Set(root.rt);const auto canvas=AddCanvas(root.go);int overlay=0,order=29990;void* a[]{&overlay};void* b[]{&order};void* z[]{&scale};
+    const auto root=New("EpochPact HUD",nullptr,0,0,0,0);hudParent.Set(root.rt);void* keep[]{root.go};Invoke(U("Object","DontDestroyOnLoad",1),nullptr,keep);const auto canvas=AddCanvas(root.go);int overlay=0,order=29990;void* a[]{&overlay};void* b[]{&order};void* z[]{&scale};
     Invoke(Find("UnityEngine.UIModule.dll","UnityEngine","Canvas","set_renderMode",1),canvas,a);Invoke(Find("UnityEngine.UIModule.dll","UnityEngine","Canvas","set_sortingOrder",1),canvas,b);Invoke(Find("UnityEngine.UIModule.dll","UnityEngine","Canvas","set_scaleFactor",1),canvas,z);
-    Add(root.go,"UnityEngine.UI.dll","UnityEngine.UI","GraphicRaycaster");Load(damage,true,root.rt);Load(feed,false,root.rt);loaded=true;
+    Add(root.go,"UnityEngine.UI.dll","UnityEngine.UI","GraphicRaycaster");Load(damage,true,root.rt);Load(feed,false,root.rt);HideoutHudInit(root.rt,width,height);loaded=true;
 }
 bool HudActive(){return loaded&&(damage.open||feed.open);}
 bool HudShown(const std::string& name){return name=="damage"?damage.open:feed.open;}
 void ToggleHud(const std::string& name){auto& h=name=="damage"?damage:feed;if(h.open){HideHud(h);return;}h.open=true;h.dirty=true;h.nextRead=0;h.resumePending=h.damage&&On(h.optionsData["running"]);SavePlace(h);}
 void HudStep(bool blocked){if(!loaded)return;for(auto* h:{&damage,&feed}){if(h->dirty)Draw(*h);if(!h->open)continue;Input(*h,blocked);Poll(*h);if(h->dirty)Draw(*h);}}
-void ReleaseHud(){damage=Hud{};feed=Hud{};hudParent.Reset();iconTries.clear();affixTries.clear();affixes.clear();loaded=false;}
+void ReleaseHud(bool destroy){if(destroy&&hudParent&&game::IsAlive(hudParent.Get())){void* a[]{GameObjectOf(hudParent.Get())};Invoke(U("Object","Destroy",1),nullptr,a);}ReleaseHideoutHud();damage=Hud{};feed=Hud{};hudParent.Reset();iconTries.clear();affixTries.clear();affixes.clear();loaded=false;}
 std::string HudState(){
     J result=Object();for(const auto* h:{&damage,&feed}){J state=Object(),cells=List();Put(state,"open",Flag(h->open));Put(state,"fixture",Flag(h->fixture));Put(state,"style",h->optionsData["style"]);Put(state,"w",Number(h->w));Put(state,"h",Number(h->h));
         for(const auto& cell:h->cells){auto row=Object();Put(row,"source",Text(cell.source));Put(row,"field",Text(cell.field));Put(row,"element",Number(cell.element));Put(row,"text",Text(cell.shown));cells.items.push_back(row);}Put(state,"cells",cells);

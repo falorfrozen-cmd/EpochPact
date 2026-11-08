@@ -212,7 +212,10 @@ std::string Create(const char* trigger) {
         { std::lock_guard<std::mutex> hold(lastLock); lastFolder = Utf8(folder.wstring()); }
         ++created;
         // TextMeshPro reads a literal "\r" in a path as a line break: show it with "/".
-        Notify("EpochPact report saved", "EpochPact/reports/" + name);
+#ifdef EPOCHPACT_TESTING
+        if(std::string(trigger)!="qa-silent")
+#endif
+            Notify("EpochPact report saved", "EpochPact/reports/" + name);
         return "{\"ok\":true,\"folder\":" + Json(Utf8(folder.wstring())) + ",\"screenshot\":" + Json(screenshot) + "}";
     } catch (const std::exception& e) {
         return "{\"ok\":false,\"error\":" + Json(e.what()) + "}";

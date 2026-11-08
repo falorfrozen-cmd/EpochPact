@@ -51,6 +51,7 @@ constexpr int kReadyTicks = 2, kNoWindowTicks = 8;
 
 bool pagesOn = true;
 bool idolSlots = false;
+bool idolsAll = true;  // the idols of every idol page give their stats
 std::wstring Path() { return PluginDir() + L"auto-sort.txt"; }
 void Load() {
     std::ifstream in(Path());
@@ -60,6 +61,7 @@ void Load() {
         if (key == "inventory") inventoryOn = value != 0;
         else if (key == "pages") pagesOn = value != 0;
         else if (key == "idolslots") idolSlots = value != 0;
+        else if (key == "idolsall") idolsAll = value != 0;
         else if (key == "all") allTabs = value != 0;
         else if (key == "sellkeep" && value >= 0 && value <= 2) sellKeep = static_cast<int>(value);
         else if (key == "tab" && value >= 0 && value < 1000000 && tabs.size() < 1000) tabs.insert(static_cast<int>(value));
@@ -67,7 +69,7 @@ void Load() {
 }
 void Save() {
     std::ofstream out(Path(), std::ios::trunc);
-    out << "inventory " << (inventoryOn ? 1 : 0) << "\nall " << (allTabs ? 1 : 0) << "\nsellkeep " << sellKeep << "\npages " << (pagesOn ? 1 : 0) << "\nidolslots " << (idolSlots ? 1 : 0) << "\n";
+    out << "inventory " << (inventoryOn ? 1 : 0) << "\nall " << (allTabs ? 1 : 0) << "\nsellkeep " << sellKeep << "\npages " << (pagesOn ? 1 : 0) << "\nidolslots " << (idolSlots ? 1 : 0) << "\nidolsall " << (idolsAll ? 1 : 0) << "\n";
     for (int tab : tabs) out << "tab " << tab << "\n";
     if (!out) throw std::runtime_error("The automatic sorting settings could not be saved.");
 }
@@ -318,7 +320,7 @@ void Frame() {
 namespace {
 std::string State() {
     std::ostringstream out;
-    out << "{\"ok\":true,\"autosort\":" << Boolean(inventoryOn) << ",\"autosortAll\":" << Boolean(allTabs) << ",\"sellKeep\":" << sellKeep << ",\"pages\":" << Boolean(pagesOn) << ",\"idolSlots\":" << Boolean(idolSlots) << ",\"tabs\":[";
+    out << "{\"ok\":true,\"autosort\":" << Boolean(inventoryOn) << ",\"autosortAll\":" << Boolean(allTabs) << ",\"sellKeep\":" << sellKeep << ",\"pages\":" << Boolean(pagesOn) << ",\"idolSlots\":" << Boolean(idolSlots) << ",\"idolsAll\":" << Boolean(idolsAll) << ",\"tabs\":[";
     bool comma = false;
     for (int tab : tabs) { if (comma) out << ','; comma = true; out << tab; }
     out << "],\"inventorySorts\":" << inventorySorts << ",\"tabSorts\":" << tabSorts << ",\"lastSortedTab\":" << lastSortedTab
@@ -354,6 +356,7 @@ std::string Set(const std::string& key, int value) {
         else if (key == "sellkeep" && value >= 0 && value <= 2) sellKeep = value;
         else if (key == "pages" && (value == 0 || value == 1)) pagesOn = value == 1;
         else if (key == "idolslots" && (value == 0 || value == 1)) idolSlots = value == 1;
+        else if (key == "idolsall" && (value == 0 || value == 1)) idolsAll = value == 1;
         else throw std::runtime_error("use invset autosort|autosortall 0|1 or invset sellkeep 0|1|2");
         Save();
         // Switched on while the inventory or stash is open: sorted at the next check.
@@ -362,6 +365,7 @@ std::string Set(const std::string& key, int value) {
     });
 }
 bool PagesOn() { return pagesOn; }
+bool IdolPagesAll() { return pagesOn && idolsAll; }
 std::string SetTab(int tabId, bool on) {
     return Run([=] {
         if (tabId < 0 || tabId >= 1000000) throw std::runtime_error("use invsorttab <tab ID> 0|1");

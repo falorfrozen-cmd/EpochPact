@@ -265,7 +265,7 @@ class BridgeTests(unittest.TestCase):
             return json.dumps({'ok': True, 'backup': 'test-only-snapshot'})
         if command.startswith(('cof', 'stabilitymult', 'questskip', 'bossdoors', 'noblessing', 'autoshatter', 'itempages', 'loot', 'craft', 'map')):
             return json.dumps({'ok': True})
-        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','damageicon ','deathrecap','rageread','rageset ','invread','invset ','invsorttab ','summonread','inventoryread','inventoryaction ','eternitycache ','affixinfo ','transmog')):
+        if command.startswith(('qolread','qolset ','qolarea ','weaveraffixes ','weaverread','pickupradius','pickupinterval ','pickupnow','lootlog','mapset ','mapsettings','tierset ','tiercolor ','tierread','fontset ','fontread','effectsread','effectsset ','stashrule','report','damagesession','damageicon ','deathrecap','rageread','rageset ','ailmentread','ailmentset ','quadread','quadstash ','invread','invset ','invsorttab ','summonread','inventoryread','inventoryaction ','eternitycache ','affixinfo ','transmog')):
             return json.dumps({'ok':True,'player':dict(self.player),'settings':{},'summons':[],'radius':0})
         if command.startswith(('buildset ', 'buildread')):
             return json.dumps({'ok': True, 'settings': {}})

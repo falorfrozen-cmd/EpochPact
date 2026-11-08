@@ -1,0 +1,61 @@
+ad	right	up	lift	yaw	size	not
+Stash	-7	-8	0	0	1	Functional stash
+Annya the Blacksmith	0	-9	0	0	1	Functional vendor
+Cache_of_Eternity_01	7	-8	0	0	0.3	Functional Eternity Cache; explicit scale 0.3
+DOOR_RETURN	0	-16	0	60	1	Return to the Monolith Hub; protected exit
+DOOR_1	21.25	5.694	0	60	1	Boss 1
+DOOR_2	15.556	15.556	0	60	1	Boss 2
+DOOR_3	5.694	21.25	0	60	1	Boss 3
+DOOR_4	-5.694	21.25	0	60	1	Boss 4
+DOOR_5	-15.556	15.556	0	60	1	Boss 5
+DOOR_6	-21.25	5.694	0	60	1	Boss 6
+DOOR_7	-21.25	-5.694	0	60	1	Boss 7
+DOOR_8	-15.556	-15.556	0	60	1	Boss 8
+DOOR_9	-5.694	-21.25	0	60	1	Boss 9
+DOOR_10	5.694	-21.25	0	60	1	Boss 10
+DOOR_11	15.556	-15.556	0	60	1	Difficulty selector
+DOOR_12	21.25	-5.694	0	60	1	Boss Rush
+Floor_Stone_Circle	0	0	0.04	0	2.432951	Measured scale and horizontal footprint; native textured model; no effects assumed
+CouncilChamberFloor_Eterra_01	0	-1	0.07	0	2.72586	Measured scale and horizontal footprint; native textured model; no effects assumed
+Circle_Fountain	0	11	0	0	0.282986	Measured scale and horizontal footprint; native textured model; no effects assumed
+Garden_Amphitheater_Big__round_Half	-11	7	0	-40	1.009578	Measured scale and horizontal footprint; native textured model; no effects assumed
+Garden_Amphitheater_Big__round_Half	11	7	0	40	1.009578	Measured scale and horizontal footprint; native textured model; no effects assumed
+Garden_Pillar_Big	-10	17	0	0	0.8302	Measured scale and horizontal footprint; native textured model; no effects assumed
+Garden_Pillar_Big	10	17	0	0	0.8302	Measured scale and horizontal footprint; native textured model; no effects assumed
+Garden_Pillar_Big	-17	5	0	0	0.8302	Measured scale and horizontal footprint; native textured model; no effects assumed
+Garden_Pillar_Big	17	5	0	0	0.8302	Measured scale and horizontal footprint; native textured model; no effects assumed
+Garden_Pillar_Big	-16	-7	0	0	0.8302	Measured scale and horizontal footprint; native textured model; no effects assumed
+Garden_Pillar_Big	16	-7	0	0	0.8302	Measured scale and horizontal footprint; native textured model; no effects assumed
+H_Temple_Railings_01	-12	-10	0	-90	2.123333	Measured scale and horizontal footprint; native textured model; no effects assumed
+H_Temple_Railings_01	12	-10	0	90	2.123333	Measured scale and horizontal footprint; native textured model; no effects assumed
+H_Temple_Railings_01	-17	1	0	-90	2.123333	Measured scale and horizontal footprint; native textured model; no effects assumed
+H_Temple_Railings_01	17	1	0	90	2.123333	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Bush_010_a	-16	10	0.03	0	1.985199	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Bush_010_a	16	10	0.03	0	1.985199	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Bush_010_a	-11	-8	0.03	0	1.985199	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Bush_010_a	11	-8	0.03	0	1.985199	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Bush_010_a	-7	16	0.03	0	1.985199	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Bush_010_a	7	16	0.03	0	1.985199	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Bush_010_a	-17	-4	0.03	0	1.985199	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Bush_010_a	17	-4	0.03	0	1.985199	Measured scale and horizontal footprint; native textured model; no effects assumed
+Grass_Flower_PinkWhite_Clump	-14	7	0.03	0	0.811034	Measured scale and horizontal footprint; native textured model; no effects assumed
+Grass_Flower_PinkWhite_Clump	14	7	0.03	0	0.811034	Measured scale and horizontal footprint; native textured model; no effects assumed
+Grass_Flower_PinkWhite_Clump	-7	-12	0.03	0	0.811034	Measured scale and horizontal footprint; native textured model; no effects assumed
+Grass_Flower_PinkWhite_Clump	7	-12	0.03	0	0.811034	Measured scale and horizontal footprint; native textured model; no effects assumed
+Grass_Flower_PinkWhite_Clump	-14	-5	0.03	0	0.811034	Measured scale and horizontal footprint; native textured model; no effects assumed
+Grass_Flower_PinkWhite_Clump	14	-5	0.03	0	0.811034	Measured scale and horizontal footprint; native textured model; no effects assumed
+Grass_Flower_PinkWhite_Clump	-8	14	0.03	0	0.811034	Measured scale and horizontal footprint; native textured model; no effects assumed
+Grass_Flower_PinkWhite_Clump	8	14	0.03	0	0.811034	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 02	-12	-7	0	0	2.958491	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 02	12	-7	0	0	2.958491	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 02	-11	11	0	0	2.958491	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 02	11	11	0	0	2.958491	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 02	-4	-16	0	0	2.958491	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 02	4	-16	0	0	2.958491	Measured scale and horizontal footprint; native textured model; no effects assumed
+TOE_Railings_Turn_L1	-4	-17	0	0	1.308941	Measured scale and horizontal footprint; native textured model; no effects assumed
+TOE_Railings_Turn_L1	-4	18	0	0	1.308941	Measured scale and horizontal footprint; native textured model; no effects assumed
+TOE_Railings_Turn_L2	4	-17	0	0	1.41474	Measured scale and horizontal footprint; native textured model; no effects assumed
+TOE_Railings_Turn_L2	4	18	0	0	1.41474	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Statue_01a	0	20	0	0	3.762899	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Torch_01a	-5	9	0	0	1.405491	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Torch_01a	5	9	0	0	1.405491	Measured scale and horizontal footprint; native textured model; no effects assumed

@@ -49,7 +49,7 @@ if "%~1"=="loader" goto :done
 echo [2/3] core (EpochPact.Core.dll)
 rem EPOCHPACT_RESEARCH: the metadata dump, capture hooks and research commands (not for players).
 ml64 /nologo /c /Fo"%OUT%\stat_thunk.obj" "%HERE%core\stat_thunk.asm" || exit /b 1
-set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread lifecycle xp loot density items item_pages smart_loot crafting workshop map_view collection spawn_items player stat_editor progression monolith factions cof cof_tuning build_controls convenience inventory_tools rage weaver idols enchanter eternity_cache transmog unique_rolls item_tiers stash_rules fonts report effects ingame_panel ingame_assets ingame_ui ingame_i18n ingame_kit ingame_sections ingame_summons ingame_display ingame_inventory ingame_forms ingame_cof ingame_monolith ingame_craft ingame_workshop ingame_stats ingame_collection ingame_settings ingame_archive ingame_filter_io ingame_filter_view ingame_hud ingame_mirror ingame_wardrobe commands research"
+set "CORE_SRC=common il2cpp_api dumper core x64_decode hook game mainthread lifecycle xp loot density items item_pages smart_loot crafting workshop map_view collection spawn_items player stat_editor progression monolith hideout factions cof cof_tuning build_controls convenience inventory_tools quad_stash rage ailments weaver idols enchanter eternity_cache transmog unique_rolls item_tiers stash_rules fonts report effects ingame_panel ingame_assets ingame_ui ingame_i18n ingame_kit ingame_sections ingame_summons ingame_display ingame_inventory ingame_forms ingame_cof ingame_monolith ingame_hideout ingame_craft ingame_workshop ingame_stats ingame_collection ingame_settings ingame_archive ingame_filter_io ingame_filter_view ingame_hud ingame_mirror ingame_wardrobe commands research"
 set "CORE_CPP="
 set "CORE_OBJ="
 for %%f in (%CORE_SRC%) do call set "CORE_CPP=%%CORE_CPP%% "%CORE%\%%f.cpp""
@@ -98,6 +98,9 @@ cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\cof_test.exe" "%HERE%tests\cof_te
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\loot_crafting_test.exe" "%HERE%tests\loot_crafting_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\weaver_rules_test.exe" "%HERE%tests\weaver_rules_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\rage_rules_test.exe" "%HERE%tests\rage_rules_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\ailment_rules_test.exe" "%HERE%tests\ailment_rules_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\hideout_rules_test.exe" "%HERE%tests\hideout_rules_test.cpp" || exit /b 1
+cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\hideout_hud_rules_test.exe" "%HERE%tests\hideout_hud_rules_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\ingame_json_test.exe" "%HERE%tests\ingame_json_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\ingame_stats_test.exe" "%HERE%tests\ingame_stats_test.cpp" || exit /b 1
 cl %CFLAGS% /EHsc /Fo"%OUT%\tests\\" /Fe"%OUT%\ingame_browser_test.exe" "%HERE%tests\ingame_browser_test.cpp" || exit /b 1

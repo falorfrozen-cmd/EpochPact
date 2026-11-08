@@ -1,0 +1,76 @@
+{
+  "catalog": 6134,
+  "curatedModels": 57,
+  "designs": [
+    {
+      "id": "verdant-sanctum",
+      "shape": "round",
+      "size": 26,
+      "planning": {
+        "outsideCenters": 0,
+        "minimumDoorCenterDistance": 8.21,
+        "edgeNoiseAllowance": 1.5,
+        "minimumNominalCenterEdgeClearance": 2.053,
+        "colliderClearance": "Requires live renderer/collider and NavMesh measurements",
+        "bridgeWidth": null
+      },
+      "objects": 51
+    },
+    {
+      "id": "ember-foundry",
+      "shape": "hall",
+      "size": 26,
+      "planning": {
+        "outsideCenters": 0,
+        "minimumDoorCenterDistance": 9.0,
+        "edgeNoiseAllowance": 1.5,
+        "minimumNominalCenterEdgeClearance": 3.12,
+        "colliderClearance": "Requires live renderer/collider and NavMesh measurements",
+        "bridgeWidth": null
+      },
+      "objects": 44
+    },
+    {
+      "id": "tidebound-archive",
+      "shape": "islands",
+      "size": 26,
+      "planning": {
+        "outsideCenters": 0,
+        "minimumDoorCenterDistance": 8.246,
+        "edgeNoiseAllowance": 1.5,
+        "minimumNominalCenterEdgeClearance": 2.233,
+        "colliderClearance": "Requires live renderer/collider and NavMesh measurements",
+        "bridgeWidth": 6
+      },
+      "objects": 44
+    },
+    {
+      "id": "ossuary-court",
+      "shape": "cross",
+      "size": 38,
+      "planning": {
+        "outsideCenters": 0,
+        "minimumDoorCenterDistance": 11.314,
+        "edgeNoiseAllowance": 1.5,
+        "minimumNominalCenterEdgeClearance": 2.96,
+        "colliderClearance": "Requires live renderer/collider and NavMesh measurements",
+        "bridgeWidth": null
+      },
+      "objects": 44
+    },
+    {
+      "id": "astral-conservatory",
+      "shape": "square",
+      "size": 38,
+      "planning": {
+        "outsideCenters": 0,
+        "minimumDoorCenterDistance": 10.0,
+        "edgeNoiseAllowance": 1.5,
+        "minimumNominalCenterEdgeClearance": 5.2,
+        "colliderClearance": "Requires live renderer/collider and NavMesh measurements",
+        "bridgeWidth": null
+      },
+      "objects": 44
+    }
+  ]
+}

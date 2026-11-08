@@ -913,6 +913,33 @@
       "documentation": "docs/build-controls.md"
     },
     {
+      "id": "build_minionsnap",
+      "group": "summons",
+      "label": "Minions without acceleration",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "buildset minionsnap {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "buildset minionsnap 0",
+      "lifetime": "session",
+      "description": "Your minions, companions and other summons reach their full speed at once and stop at once, turning at once too, instead of speeding up and sliding to a stop. Fast minions then stay on their targets instead of running past them. The game's own values come back when it is off.",
+      "currentSource": "liveState.buildread.settings.minionsnap.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
       "id": "build_blessingoptions",
       "group": "monolith",
       "label": "Blessing choices",
@@ -1866,6 +1893,80 @@
       "documentation": "docs/player-conveniences.md"
     },
     {
+      "id": "ailment_read",
+      "group": "world",
+      "label": "Ailment settings",
+      "widget": "read",
+      "availability": "implemented",
+      "commandTemplate": "ailmentread",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [],
+      "default": null,
+      "resetCommand": null,
+      "lifetime": "read_only",
+      "description": "Read every ailment's stack cap and base duration, the game's own and the ones used now. Reading it does not change the game.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "ailment_stacks",
+      "group": "world",
+      "label": "Ailment stack cap",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "ailmentset stacks {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 1,
+          "maximum": 30
+        }
+      ],
+      "default": 1,
+      "resetCommand": "ailmentset stacks 1",
+      "lifetime": "session",
+      "description": "Multiplies the most stacks of every ailment you and your minions apply that has a hard cap: Time Rot's 12 becomes 24 at 2 and 360 at 30. Ailments without a cap stay without one. Enemies' ailments keep the game's values.",
+      "currentSource": "liveState.ailmentread.settings.stacks.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "ailment_duration",
+      "group": "world",
+      "label": "Ailment duration",
+      "widget": "number",
+      "availability": "implemented",
+      "commandTemplate": "ailmentset duration {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10
+        }
+      ],
+      "default": 1,
+      "resetCommand": "ailmentset duration 1",
+      "lifetime": "session",
+      "description": "Multiplies the base duration of every ailment you and your minions apply, your buffs included: Time Rot's 3 seconds become 4.5 at 1.5 and 15 at 5. Your own increased duration still adds on top. Enemies' ailments keep the game's values.",
+      "currentSource": "liveState.ailmentread.settings.duration.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
       "id": "death_recap_read",
       "group": "summons",
       "label": "Death recap",
@@ -2233,7 +2334,34 @@
       "default": 1,
       "resetCommand": "invset pages 1",
       "lifetime": "session",
-      "description": "Buttons 1 to 4 on the left of the items and 1 to 3 over the idols. Each page keeps its own items, or its own idols and altar; only the page shown counts for your character. When the inventory page shown is full, items you pick up go to the next page with room. Waiting pages are kept in a file for each character. An item on the cursor comes with you, so you can carry it to another page. Remembered by EpochPact.",
+      "description": "Buttons 1 to 4 on the left of the items and 1 to 3 over the idols. Each page keeps its own items, or its own idols and altar. Only the inventory page shown counts; every idol page counts while Every idol page counts is on. When the inventory page shown is full, items you pick up go to the next page with room. Waiting pages are kept in a file for each character. An item on the cursor comes with you, so you can carry it to another page. Remembered by EpochPact.",
+      "currentSource": null,
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/player-conveniences.md"
+    },
+    {
+      "id": "inventory_idolsall",
+      "group": "inventory",
+      "label": "Every idol page counts",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "invset idolsall {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 1,
+      "resetCommand": "invset idolsall 1",
+      "lifetime": "session",
+      "description": "The idols and altars on your other idol pages give their bonuses too, as if they were all equipped at once. Turn it off to have only the idol page shown count. Remembered by EpochPact.",
       "currentSource": null,
       "requirements": [
         "offline"
@@ -35302,7 +35430,7 @@
     ]
   },
   "counts": {
-    "controls": 233,
+    "controls": 238,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

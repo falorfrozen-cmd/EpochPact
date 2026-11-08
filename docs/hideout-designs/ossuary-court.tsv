@@ -1,0 +1,61 @@
+ad	right	up	lift	yaw	size	not
+Stash	-7	-9	0	0	1	Functional stash
+Annya the Blacksmith	0	-9	0	0	1	Functional vendor
+Cache_of_Eternity_01	7	-9	0	0	0.3	Functional Eternity Cache; explicit scale 0.3
+DOOR_RETURN	0	-13	0	60	1	Return to the Monolith Hub; protected exit
+DOOR_1	-28	7	0	60	1	Boss 1
+DOOR_2	-18	7	0	60	1	Boss 2
+DOOR_3	-8	7	0	60	1	Boss 3
+DOOR_4	8	7	0	60	1	Boss 4
+DOOR_5	18	7	0	60	1	Boss 5
+DOOR_6	28	7	0	60	1	Boss 6
+DOOR_7	-28	-2	0	60	1	Boss 7
+DOOR_8	-18	-2	0	60	1	Boss 8
+DOOR_9	-8	-2	0	60	1	Boss 9
+DOOR_10	8	-2	0	60	1	Boss 10
+DOOR_11	18	-2	0	60	1	Difficulty selector
+DOOR_12	28	-2	0	60	1	Boss Rush
+KV_Floor_02_I	-24	-5	-0.548	0	1.176	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Floor_02_I	-24	5	-0.548	0	1.176	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Floor_02_I	-12	-5	-0.548	0	1.176	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Floor_02_I	-12	5	-0.548	0	1.176	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Floor_02_I	0	-5	-0.548	0	1.176	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Floor_02_I	0	5	-0.548	0	1.176	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Floor_02_I	12	-5	-0.548	0	1.176	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Floor_02_I	12	5	-0.548	0	1.176	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Floor_02_I	24	-5	-0.548	0	1.176	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Floor_02_I	24	5	-0.548	0	1.176	Measured scale and horizontal footprint; native textured model; no effects assumed
+Client_Forge	0	8.5	0	0	1.271021	Measured scale and horizontal footprint; native textured model; no effects assumed
+Cemetery_Column	-30	12	0	0	1.296536	Measured scale and horizontal footprint; native textured model; no effects assumed
+Cemetery_Column	-18	12	0	0	1.296536	Measured scale and horizontal footprint; native textured model; no effects assumed
+Cemetery_Column	-6	12	0	0	1.296536	Measured scale and horizontal footprint; native textured model; no effects assumed
+Cemetery_Column	6	12	0	0	1.296536	Measured scale and horizontal footprint; native textured model; no effects assumed
+Cemetery_Column	18	12	0	0	1.296536	Measured scale and horizontal footprint; native textured model; no effects assumed
+Cemetery_Column	30	12	0	0	1.296536	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Wall_Ark_Long	-25	12.5	0	0	0.423221	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Wall_Ark_Long	-9	12.5	0	0	0.423221	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Wall_Ark_Long	9	12.5	0	0	0.423221	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Wall_Ark_Long	25	12.5	0	0	0.423221	Measured scale and horizontal footprint; native textured model; no effects assumed
+H_Temple_Railings_01	-22	-12	0	0	1.74154	Measured scale and horizontal footprint; native textured model; no effects assumed
+H_Temple_Railings_01	22	-12	0	0	1.74154	Measured scale and horizontal footprint; native textured model; no effects assumed
+H_Temple_Railings_01	-10	-12	0	0	1.74154	Measured scale and horizontal footprint; native textured model; no effects assumed
+H_Temple_Railings_01	10	-12	0	0	1.74154	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Urn_02a	-4	-11	0	0	1.513605	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Urn_02a	4	-11	0	0	1.513605	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Urn_02a	-14	0	0	0	1.513605	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Urn_02a	14	0	0	0	1.513605	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Urn_02a	-31	-9	0	0	1.513605	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Urn_02a	31	-9	0	0	1.513605	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Torch_01a	-24	11	0	0	1.405491	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Torch_01a	24	11	0	0	1.405491	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Torch_01a	-4	9	0	0	1.405491	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Torch_01a	4	9	0	0	1.405491	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Statue_01a	-34	4	0	0	3.762899	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Statue_01a	34	4	0	0	3.762899	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Statue_01a	-34	-6	0	0	3.762899	Measured scale and horizontal footprint; native textured model; no effects assumed
+SM_Statue_01a	34	-6	0	0	3.762899	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 02	-30	0	0	0	2.958491	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 02	30	0	0	0	2.958491	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 02	-12	-10	0	0	2.958491	Measured scale and horizontal footprint; native textured model; no effects assumed
+Eterra Vase 02	12	-10	0	0	2.958491	Measured scale and horizontal footprint; native textured model; no effects assumed
+KV_Small_Circle_Floor_01	0	8.5	0.065	0	1.074432	Measured scale and horizontal footprint; native textured model; no effects assumed

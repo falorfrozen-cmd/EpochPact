@@ -45,6 +45,68 @@ WebView2, MelonLoader or a separate EpochPact.Core.dll. Press **F6** in the game
 - Use either the in-game window or the desktop app, not both at once: both
   would apply your startup profile.
 
+## Your hideout
+
+Use **Go to hideout** on the Hideout page; it enables the hub and requests the
+normal Monolith Hub transition when needed. Inside, an
+**Edit Hideout** button appears above the skill bar. The small house emblem
+below the minimap also takes you directly to your hideout; it is disabled when
+you are already there and hidden while editing or using the main mod window.
+
+- **Templates**: inspect a thumbnail or hover for a larger actual model preview;
+  Apply asks before replacing the layout. Your saved layouts also have previews,
+  Rename and Delete controls. Overwriting an existing name asks for confirmation.
+- Five built-in architectural designs: **The Moonstone Court**, **The Verdant
+  Exedra**, **The Tideglass Terraces**, **The Sunforge Gallery**, and **The
+  Celestial Rotunda**. Each has 60 objects, a distinct architectural focus and
+  grouped services. Hover to inspect before applying. Updating the DLL does
+  not replace your current layout or personal saved templates.
+- Template and saved-layout previews render locally at 960x640; individual model
+  cards remain 480x320. Old thumbnail caches refresh automatically.
+- **Add objects** opens a separate **Hideout Builder** window. Use **Objects**
+  to search the game's 6,134 catalog entries, filter by category,
+  sort A–Z, Z–A or recently used and browse pages. Favorites and detailed
+  model-type filters help narrow the list. Hover to inspect before Add & Place.
+  The first preview may take a moment while the game loads that model. Ready
+  thumbnails are retained and cached locally for future sessions. **Add & place**
+  returns you to the world with a green placement preview. **Placed objects**
+  has Move, Delete, Restore and Unlock controls; **Back to editing** closes the
+  builder. Undo and Redo are available inside the builder too.
+- While editing, click an object to select it. A translucent green copy follows
+  your cursor; the original stays still until you click to place the copy.
+  Red means the complete selection does not fit or a walking route was blocked. Right-click cancels the
+  selected placement. Rotation, size and height buttons are also on the toolbar.
+  Q/E rotate left/right (15 degrees by default, configurable in Tools); holding a key repeats. Left/right arrows
+  also rotate, up/down arrows change size, Page Up/Page Down adjust
+  height, Delete removes the selection, and End finishes editing. Visible Delete,
+  Undo and Redo buttons are available. Ctrl+Z undoes; Ctrl+Y / Ctrl+Shift+Z redo
+  up to 50 completed edits in this game session. A new edit clears the redo branch.
+  The last completed layout is also retained for recovery after a restart.
+  Gameplay input is temporarily disabled during editing, so those keys do not
+  cast skills. Done/Cancel restores the previous input state; key bindings are
+  never rewritten. Q/E does not rotate while the F6 window is open.
+- **Tools** provides exact position, height, rotation and scale, grid snap,
+  floor-piece selection, duplication, alignment, grouping and locking.
+  Ctrl-click selects several objects (up to 32), Ctrl+D duplicates decoration,
+  Ctrl+G groups and Ctrl+Shift+G ungroups. Locked objects can be unlocked in
+  Placed objects. Explicitly grouped objects move together; Ungroup separates
+  them again. Stash, vendor and gates remain unique.
+- **Placed objects** gives direct selection when objects overlap. **Ground**
+  changes the outline, size and one of the twelve game materials. Every existing
+  model must fit a smaller ground; move edge objects inward first. A placement
+  that newly blocks a service/gate route is reverted before it is saved.
+- **Done** keeps the edit; **Cancel** restores the layout from the start of that
+  editing session. Ordinary object edits retain the unchanged floor and models;
+  changing the ground or replacing a template can rebuild the room. Save a named
+  template to keep several layouts.
+
+Layouts are local EpochPact settings, separate from character saves. The return
+gate is protected. Up to 400 objects can be placed. Decorative copies do not run
+their original gameplay scripts, animation, sound or particle effects. Some
+model-only entries use the game's stone material instead of a placeholder;
+their original level appearance is not guaranteed. The catalog is for Last Epoch
+1.5.4 and is checked against the installed game's bundle catalog.
+
 ## Uninstall
 
 Close the game normally and delete **the EpochPact version.dll** from the game
@@ -57,6 +119,9 @@ use the recovery backup or your own backup for that.
 - Offline only. EpochPact does nothing in online play.
 - Gamepad navigation is included but has not been tested with a physical
   controller yet.
+- Local Windows tests reproduced a Unity shutdown crash (`0xC0000005`), including
+  a control with EpochPact removed. This release does not fix that engine-side
+  shutdown failure. Include the crash log if it also happens on your computer.
 - runtime-manifest.json and SHA256SUMS.txt list the size and SHA-256 of every
   file in this package, so you can check your download.
 

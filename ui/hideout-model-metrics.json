@@ -1,0 +1,1234 @@
+{
+  "ok": true,
+  "models": [
+    {
+      "index": 107,
+      "name": "Astrolabe",
+      "width": 0.238281,
+      "height": 0.219727,
+      "depth": 0.179688
+    },
+    {
+      "index": 1141,
+      "name": "Eterra Vase 01",
+      "width": 0.722656,
+      "height": 0.710449,
+      "depth": 0.566406
+    },
+    {
+      "index": 1155,
+      "name": "Eterra_Statue_Model",
+      "width": 2.88672,
+      "height": 5.13867,
+      "depth": 3.25
+    },
+    {
+      "index": 1191,
+      "name": "fantasybench1",
+      "width": 3.51562,
+      "height": 1.35742,
+      "depth": 0.984375
+    },
+    {
+      "index": 1240,
+      "name": "Fern1Standard",
+      "width": 2.27344,
+      "height": 1.03076,
+      "depth": 2.07031
+    },
+    {
+      "index": 1300,
+      "name": "Floor_01_I_Ang_18",
+      "width": 11.9531,
+      "height": 0,
+      "depth": 10.25
+    },
+    {
+      "index": 1305,
+      "name": "Floor_Stone_4m",
+      "width": 4,
+      "height": 0.100098,
+      "depth": 4
+    },
+    {
+      "index": 1306,
+      "name": "Floor_Stone_Circle",
+      "width": 13.0664,
+      "height": 0,
+      "depth": 13.6953
+    },
+    {
+      "index": 1309,
+      "name": "Floor_Trim_01",
+      "width": 36.2656,
+      "height": 0.09375,
+      "depth": 47.5078
+    },
+    {
+      "index": 1319,
+      "name": "flower_daisy",
+      "width": 0.367188,
+      "height": 0.396973,
+      "depth": 0.417969
+    },
+    {
+      "index": 1389,
+      "name": "FurnaceCageGroupLow",
+      "width": 14.3301,
+      "height": 2.60547,
+      "depth": 13.0625
+    },
+    {
+      "index": 140,
+      "name": "Banner_02_Short",
+      "width": 6.46875,
+      "height": 0.370117,
+      "depth": 7.51953
+    },
+    {
+      "index": 1404,
+      "name": "Garden_Pillar_Big",
+      "width": 1.31641,
+      "height": 7.67285,
+      "depth": 1.31641
+    },
+    {
+      "index": 1414,
+      "name": "Garden_Wall_Straight_Arc_4m",
+      "width": 0.542969,
+      "height": 3.56836,
+      "depth": 3.99609
+    },
+    {
+      "index": 1419,
+      "name": "GardenRoadArch",
+      "width": 8.30859,
+      "height": 0.245605,
+      "depth": 8.30859
+    },
+    {
+      "index": 1438,
+      "name": "GearsWithChainLow",
+      "width": 4.62891,
+      "height": 4.63086,
+      "depth": 2.26953
+    },
+    {
+      "index": 1501,
+      "name": "Grass_Flower_PinkWhite_Clump",
+      "width": 1.8125,
+      "height": 0.998047,
+      "depth": 1.44141
+    },
+    {
+      "index": 1663,
+      "name": "Heorot_Statue_Model",
+      "width": 2.42578,
+      "height": 4.81885,
+      "depth": 3.17578
+    },
+    {
+      "index": 170,
+      "name": "Basalt_Pillars_WallSlope_Low",
+      "width": 14.9141,
+      "height": 10.5386,
+      "depth": 16.6992
+    },
+    {
+      "index": 1750,
+      "name": "IceCrystal",
+      "width": 0.871094,
+      "height": 0.945312,
+      "depth": 2.92578
+    },
+    {
+      "index": 1823,
+      "name": "ImpSet_Pillar_01",
+      "width": 1.40625,
+      "height": 5.16357,
+      "depth": 2.02344
+    },
+    {
+      "index": 1892,
+      "name": "IvyFlowering_E",
+      "width": 1.83203,
+      "height": 3.2251,
+      "depth": 0.769531
+    },
+    {
+      "index": 1983,
+      "name": "Lagon_Statue_Model",
+      "width": 3.62891,
+      "height": 4.75342,
+      "depth": 5.14062
+    },
+    {
+      "index": 2111,
+      "name": "Majasa_Sarcophagus_01",
+      "width": 3.69922,
+      "height": 5.24121,
+      "depth": 2.06836
+    },
+    {
+      "index": 2458,
+      "name": "Nagasa_Banner_01",
+      "width": 1.67969,
+      "height": 4.6897,
+      "depth": 0.203125
+    },
+    {
+      "index": 25,
+      "name": "ALC_Crystall_Ball",
+      "width": 0.421875,
+      "height": 0.421875,
+      "depth": 0.421875
+    },
+    {
+      "index": 2891,
+      "name": "Ribs",
+      "width": 2.13672,
+      "height": 1.63428,
+      "depth": 0.175781
+    },
+    {
+      "index": 294,
+      "name": "BlueCrystalVSPro",
+      "width": 0.871094,
+      "height": 0.945312,
+      "depth": 2.92578
+    },
+    {
+      "index": 3004,
+      "name": "Rug",
+      "width": 13.666,
+      "height": 0.25,
+      "depth": 5.93359
+    },
+    {
+      "index": 3115,
+      "name": "ScrollShelf",
+      "width": 1.16602,
+      "height": 2.50757,
+      "depth": 1.30469
+    },
+    {
+      "index": 3168,
+      "name": "Shelf_01",
+      "width": 0.53125,
+      "height": 1.71289,
+      "depth": 1.22656
+    },
+    {
+      "index": 3304,
+      "name": "SM_Bellows",
+      "width": 1.58594,
+      "height": 1.07715,
+      "depth": 0.605469
+    },
+    {
+      "index": 3364,
+      "name": "SM_Crane",
+      "width": 8.5,
+      "height": 8.51562,
+      "depth": 3.53906
+    },
+    {
+      "index": 3366,
+      "name": "SM_Crane_Base",
+      "width": 3.53906,
+      "height": 2.19336,
+      "depth": 3.53906
+    },
+    {
+      "index": 339,
+      "name": "Book_01",
+      "width": 0.207031,
+      "height": 0.0419922,
+      "depth": 0.285156
+    },
+    {
+      "index": 3416,
+      "name": "SM_Furnace",
+      "width": 4.55469,
+      "height": 5.36426,
+      "depth": 2.70703
+    },
+    {
+      "index": 343,
+      "name": "Books_Preset_01",
+      "width": 0.433594,
+      "height": 0.169922,
+      "depth": 0.417969
+    },
+    {
+      "index": 40,
+      "name": "AlderTreeVSPro",
+      "width": 0.878906,
+      "height": 2.40723,
+      "depth": 0.855469
+    },
+    {
+      "index": 428,
+      "name": "Broadleaf_Bush_M1",
+      "width": 6.14844,
+      "height": 2.94824,
+      "depth": 6.27734
+    },
+    {
+      "index": 549,
+      "name": "CATA_BonePileC",
+      "width": 2.81641,
+      "height": 0.961426,
+      "depth": 2.88867
+    },
+    {
+      "index": 562,
+      "name": "CATA_ModularPillar",
+      "width": 4.52734,
+      "height": 1,
+      "depth": 5.81055
+    },
+    {
+      "index": 564,
+      "name": "CATA_PillarABrokenA",
+      "width": 1.87891,
+      "height": 2.89648,
+      "depth": 1.88281
+    },
+    {
+      "index": 569,
+      "name": "CATA_RockA",
+      "width": 1.09375,
+      "height": 0.738281,
+      "depth": 1.52344
+    },
+    {
+      "index": 575,
+      "name": "CATA_SkullPileA",
+      "width": 0.570312,
+      "height": 0.480957,
+      "depth": 0.585938
+    },
+    {
+      "index": 5883,
+      "name": "WeaverAltar",
+      "width": 21.457,
+      "height": 7.17871,
+      "depth": 10.4414
+    },
+    {
+      "index": 61,
+      "name": "Amber_Rock",
+      "width": 1.48047,
+      "height": 0.647949,
+      "depth": 1.38281
+    },
+    {
+      "index": 615,
+      "name": "Cemetery_Column",
+      "width": 1.06641,
+      "height": 4.91309,
+      "depth": 1.14844
+    },
+    {
+      "index": 679,
+      "name": "Circle_Fountain_Damaged_Roses",
+      "width": 30.4453,
+      "height": 1.93994,
+      "depth": 29.9062
+    },
+    {
+      "index": 694,
+      "name": "Circle_Statue_Damaged_2",
+      "width": 27.8672,
+      "height": 2.50732,
+      "depth": 28.0859
+    },
+    {
+      "index": 734,
+      "name": "coffin",
+      "width": 3.82812,
+      "height": 5.72339,
+      "depth": 3.32031
+    },
+    {
+      "index": 76,
+      "name": "Anvil",
+      "width": 41.3438,
+      "height": 42.3647,
+      "depth": 90.4453
+    },
+    {
+      "index": 783,
+      "name": "Coral_16_G1_BlueVSPro",
+      "width": 2.77344,
+      "height": 2.02832,
+      "depth": 2.79297
+    },
+    {
+      "index": 788,
+      "name": "Coral_3_G3_BlueVSPro",
+      "width": 3.88672,
+      "height": 1.9751,
+      "depth": 4.29688
+    },
+    {
+      "index": 793,
+      "name": "Coral_RedFlower_01",
+      "width": 1.17188,
+      "height": 0.393555,
+      "depth": 1.26172
+    },
+    {
+      "index": 797,
+      "name": "CoralRock3NewLow",
+      "width": 2.44531,
+      "height": 1.01758,
+      "depth": 2.32422
+    },
+    {
+      "index": 870,
+      "name": "CrystalCluster",
+      "width": 6.73633,
+      "height": 7.22876,
+      "depth": 7.02344
+    },
+    {
+      "index": 94,
+      "name": "Arch_Big_01",
+      "width": 5.98438,
+      "height": 7.91455,
+      "depth": 2.05078
+    },
+    {
+      "index": 1304,
+      "name": "Floor_Mossy_Rock_Floor",
+      "width": 1,
+      "height": 0.0249023,
+      "depth": 1
+    },
+    {
+      "index": 1327,
+      "name": "FlowerPack1",
+      "width": 0.5,
+      "height": 0.646729,
+      "depth": 0.427734
+    },
+    {
+      "index": 1405,
+      "name": "Garden_Road_Round_1",
+      "width": 6.75,
+      "height": 0.0634766,
+      "depth": 6.76172
+    },
+    {
+      "index": 1406,
+      "name": "Garden_Road_Straight_1",
+      "width": 5,
+      "height": 0.0488281,
+      "depth": 3.69922
+    },
+    {
+      "index": 1416,
+      "name": "Garden_Wall_Straight_fountain_4m",
+      "width": 0.613281,
+      "height": 3.98828,
+      "depth": 4
+    },
+    {
+      "index": 1417,
+      "name": "GardenGroupBottom",
+      "width": 5.23828,
+      "height": 1.60693,
+      "depth": 7.60156
+    },
+    {
+      "index": 1418,
+      "name": "GardenGroupTop",
+      "width": 5.33789,
+      "height": 4.91846,
+      "depth": 7.63672
+    },
+    {
+      "index": 1420,
+      "name": "GardenRoots",
+      "width": 16.9102,
+      "height": 2.51904,
+      "depth": 7.02344
+    },
+    {
+      "index": 1425,
+      "name": "GardenVegetation",
+      "width": 17.1172,
+      "height": 3.15186,
+      "depth": 7.46094
+    },
+    {
+      "index": 1560,
+      "name": "GuardianTree",
+      "width": 14.0195,
+      "height": 12.7246,
+      "depth": 12.7852
+    },
+    {
+      "index": 1926,
+      "name": "JungleTreeGroup_Cave",
+      "width": 39.1953,
+      "height": 27.6316,
+      "depth": 40.3984
+    },
+    {
+      "index": 2440,
+      "name": "Mushrooms_Tree_1_Simple",
+      "width": 5.72266,
+      "height": 6.06909,
+      "depth": 4.79883
+    },
+    {
+      "index": 2442,
+      "name": "Mushrooms_Tree_2_Simple",
+      "width": 3.29492,
+      "height": 4.75024,
+      "depth": 4.38672
+    },
+    {
+      "index": 2474,
+      "name": "NewJungleTree",
+      "width": 13.8672,
+      "height": 16.3062,
+      "depth": 13.5156
+    },
+    {
+      "index": 2480,
+      "name": "Nordic Beach Rock Formation_vjikdh3cb",
+      "width": 6.93359,
+      "height": 1.06689,
+      "depth": 3.54297
+    },
+    {
+      "index": 2493,
+      "name": "Oasis_Hanging_Flower",
+      "width": 0.277344,
+      "height": 2.71973,
+      "depth": 0.566406
+    },
+    {
+      "index": 3213,
+      "name": "ShroomTreeVSPro",
+      "width": 13.0977,
+      "height": 25.6167,
+      "depth": 12.8438
+    },
+    {
+      "index": 3312,
+      "name": "SM_Bush_010_a",
+      "width": 1.08984,
+      "height": 1.48096,
+      "depth": 1.1875
+    },
+    {
+      "index": 3545,
+      "name": "SM_TreeRoots_04",
+      "width": 7.97266,
+      "height": 2.93359,
+      "depth": 8.83203
+    },
+    {
+      "index": 3674,
+      "name": "SpruceTreeRHEWP_A",
+      "width": 10.3125,
+      "height": 23.2119,
+      "depth": 10.5781
+    },
+    {
+      "index": 4121,
+      "name": "Tree1_Autumn_Faded_LEVegetation",
+      "width": 7.39844,
+      "height": 11.5957,
+      "depth": 7.32812
+    },
+    {
+      "index": 4128,
+      "name": "Tree_002_b_Bush02_WhiteBark",
+      "width": 2.55469,
+      "height": 2.0415,
+      "depth": 2.65234
+    },
+    {
+      "index": 4129,
+      "name": "Tree_002_c_BigTree",
+      "width": 5.42969,
+      "height": 5.06494,
+      "depth": 5.72266
+    },
+    {
+      "index": 4130,
+      "name": "Tree_002_d_Bush",
+      "width": 2.76953,
+      "height": 1.63037,
+      "depth": 2.47656
+    },
+    {
+      "index": 1143,
+      "name": "Eterra Vase 02",
+      "width": 0.828125,
+      "height": 0.447266,
+      "depth": 0.726562
+    },
+    {
+      "index": 1144,
+      "name": "Eterra Vase 03",
+      "width": 0.898438,
+      "height": 0.281738,
+      "depth": 0.726562
+    },
+    {
+      "index": 1145,
+      "name": "Eterra Vase 04",
+      "width": 0.636719,
+      "height": 0.955566,
+      "depth": 0.46875
+    },
+    {
+      "index": 1299,
+      "name": "Floor_01",
+      "width": 41.1641,
+      "height": 0.930176,
+      "depth": 41.1641
+    },
+    {
+      "index": 1353,
+      "name": "Fountain",
+      "width": 4.78906,
+      "height": 4.47168,
+      "depth": 4.78906
+    },
+    {
+      "index": 1354,
+      "name": "Fountain_Bazaar_Base",
+      "width": 5.98828,
+      "height": 0.703125,
+      "depth": 5.98828
+    },
+    {
+      "index": 1355,
+      "name": "Fountain_FBX",
+      "width": 4.88086,
+      "height": 2.68921,
+      "depth": 3.10156
+    },
+    {
+      "index": 1403,
+      "name": "Garden_Amphitheater_Big__round_Half",
+      "width": 7.76562,
+      "height": 5.72412,
+      "depth": 7.28906
+    },
+    {
+      "index": 1563,
+      "name": "H_Temple_Railings_01",
+      "width": 3,
+      "height": 1.06836,
+      "depth": 0.214844
+    },
+    {
+      "index": 1824,
+      "name": "ImpSet_PillarBase_01",
+      "width": 1.35938,
+      "height": 2.24707,
+      "depth": 2.01172
+    },
+    {
+      "index": 1828,
+      "name": "ImpSet_Railing_Bar",
+      "width": 0.695312,
+      "height": 0.158691,
+      "depth": 0.164062
+    },
+    {
+      "index": 192,
+      "name": "BazaarFloor",
+      "width": 20.4785,
+      "height": 0.0383301,
+      "depth": 22.9141
+    },
+    {
+      "index": 1937,
+      "name": "KV_Arc_Wall_01",
+      "width": 6.24219,
+      "height": 12.5747,
+      "depth": 0.101562
+    },
+    {
+      "index": 1942,
+      "name": "KV_Entrance_Stairs_01",
+      "width": 22.1094,
+      "height": 1.28174,
+      "depth": 8.30078
+    },
+    {
+      "index": 1944,
+      "name": "KV_Floor_01_I",
+      "width": 10,
+      "height": 0.5,
+      "depth": 10
+    },
+    {
+      "index": 1947,
+      "name": "KV_Floor_02_I",
+      "width": 10,
+      "height": 0.5,
+      "depth": 10
+    },
+    {
+      "index": 1949,
+      "name": "KV_Floor_Circle_01",
+      "width": 52.8555,
+      "height": 0.0146484,
+      "depth": 52.8555
+    },
+    {
+      "index": 1950,
+      "name": "KV_Pillar_Big_Base",
+      "width": 2.63281,
+      "height": 0.516113,
+      "depth": 2.60938
+    },
+    {
+      "index": 1951,
+      "name": "KV_Pillar_Big_Bottom",
+      "width": 2.63281,
+      "height": 10.2483,
+      "depth": 2.60938
+    },
+    {
+      "index": 1952,
+      "name": "KV_Pillar_Small_Single_Cap_01",
+      "width": 1.20703,
+      "height": 8.25,
+      "depth": 0.980469
+    },
+    {
+      "index": 1953,
+      "name": "KV_Pillar_Small_Single_Cap_01M",
+      "width": 1.20703,
+      "height": 8.25,
+      "depth": 0.980469
+    },
+    {
+      "index": 1954,
+      "name": "KV_Railing_10_Curve_30",
+      "width": 10.0078,
+      "height": 1.09717,
+      "depth": 1.11719
+    },
+    {
+      "index": 1955,
+      "name": "KV_Railing_Small_Curve_10",
+      "width": 3.03906,
+      "height": 1.09717,
+      "depth": 0.539062
+    },
+    {
+      "index": 1956,
+      "name": "KV_Railing_Small_Straight_01",
+      "width": 3,
+      "height": 1.09717,
+      "depth": 0.476562
+    },
+    {
+      "index": 1960,
+      "name": "KV_Small_Circle_Floor_01",
+      "width": 7.29688,
+      "height": 0,
+      "depth": 7.10547
+    },
+    {
+      "index": 1962,
+      "name": "KV_Stairs_01",
+      "width": 10.1797,
+      "height": 6.06396,
+      "depth": 10.1992
+    },
+    {
+      "index": 1965,
+      "name": "KV_Statue_01a",
+      "width": 1.67969,
+      "height": 5.11865,
+      "depth": 2.55078
+    },
+    {
+      "index": 1967,
+      "name": "KV_Vertical_Wall_01",
+      "width": 7,
+      "height": 12.0007,
+      "depth": 2.02344
+    },
+    {
+      "index": 1968,
+      "name": "KV_Wall_Ark_Long",
+      "width": 10,
+      "height": 10.2646,
+      "depth": 0.523438
+    },
+    {
+      "index": 1969,
+      "name": "KV_Wall_Circle_Third",
+      "width": 7.71484,
+      "height": 7.11328,
+      "depth": 4.45312
+    },
+    {
+      "index": 1970,
+      "name": "KV_Wall_Circle_Third_Inner",
+      "width": 7.28516,
+      "height": 6.52393,
+      "depth": 2.33594
+    },
+    {
+      "index": 1987,
+      "name": "LagonFloor_CirclePiece",
+      "width": 4.31641,
+      "height": 0.233887,
+      "depth": 1.62109
+    },
+    {
+      "index": 1993,
+      "name": "LagonFloor_Walkway",
+      "width": 3.92188,
+      "height": 0.204102,
+      "depth": 3.44141
+    },
+    {
+      "index": 1995,
+      "name": "LagonFountainLow",
+      "width": 5.82031,
+      "height": 3.73438,
+      "depth": 6.19922
+    },
+    {
+      "index": 1996,
+      "name": "LagonPillar_Thick",
+      "width": 3.03516,
+      "height": 7.64893,
+      "depth": 3.03516
+    },
+    {
+      "index": 1997,
+      "name": "LagonPillar_Thin",
+      "width": 1.35547,
+      "height": 8.84692,
+      "depth": 1.42969
+    },
+    {
+      "index": 1998,
+      "name": "LagonPillarC1Low",
+      "width": 3.19922,
+      "height": 4.72168,
+      "depth": 1.71094
+    },
+    {
+      "index": 2013,
+      "name": "Lantern_02",
+      "width": 0.257812,
+      "height": 0.603516,
+      "depth": 0.257812
+    },
+    {
+      "index": 2137,
+      "name": "MajSnakeFlowerStatueLow",
+      "width": 4.96875,
+      "height": 3.7854,
+      "depth": 3.85742
+    },
+    {
+      "index": 2460,
+      "name": "NagasaFountainStatue",
+      "width": 1.68555,
+      "height": 4.00513,
+      "depth": 1.5957
+    },
+    {
+      "index": 2462,
+      "name": "NagasaStatuePlain",
+      "width": 1.4375,
+      "height": 3.66064,
+      "depth": 1.37891
+    },
+    {
+      "index": 2768,
+      "name": "Prop_Majasa_Statue_Model",
+      "width": 2.52344,
+      "height": 4.03564,
+      "depth": 2.48438
+    },
+    {
+      "index": 2799,
+      "name": "Rahyeh_Statue_Model",
+      "width": 8.19531,
+      "height": 7.95508,
+      "depth": 5.64062
+    },
+    {
+      "index": 2852,
+      "name": "Rec_Rug",
+      "width": 5.11328,
+      "height": 0.335938,
+      "depth": 9.99609
+    },
+    {
+      "index": 3169,
+      "name": "Shelf_Preset_01",
+      "width": 0.589844,
+      "height": 1.30566,
+      "depth": 1.03516
+    },
+    {
+      "index": 3174,
+      "name": "Shelf_Tall",
+      "width": 0.84375,
+      "height": 3.62354,
+      "depth": 2.19531
+    },
+    {
+      "index": 33,
+      "name": "ALC_Table",
+      "width": 1.72656,
+      "height": 1.125,
+      "depth": 1.72656
+    },
+    {
+      "index": 3305,
+      "name": "SM_Bench_01",
+      "width": 1.125,
+      "height": 0.505859,
+      "depth": 0.441406
+    },
+    {
+      "index": 3322,
+      "name": "sm_Carpet_01",
+      "width": 1.54688,
+      "height": 0.0170898,
+      "depth": 2.625
+    },
+    {
+      "index": 3326,
+      "name": "sm_Carpet_06",
+      "width": 1.29688,
+      "height": 0.0361328,
+      "depth": 2.08984
+    },
+    {
+      "index": 3414,
+      "name": "sm_Fountain_Base_01_01",
+      "width": 3.03125,
+      "height": 4.22803,
+      "depth": 3.03125
+    },
+    {
+      "index": 3415,
+      "name": "sm_Fountain_Vase_01_01",
+      "width": 0.273438,
+      "height": 0.603027,
+      "depth": 0.269531
+    },
+    {
+      "index": 3417,
+      "name": "SM_Furnace_Edit",
+      "width": 12.8438,
+      "height": 0.400391,
+      "depth": 10.9727
+    },
+    {
+      "index": 3527,
+      "name": "SM_Statue_01a",
+      "width": 0.394531,
+      "height": 1.04175,
+      "depth": 0.40625
+    },
+    {
+      "index": 3532,
+      "name": "sm_Table_01",
+      "width": 1.63672,
+      "height": 1.11279,
+      "depth": 0.886719
+    },
+    {
+      "index": 3537,
+      "name": "SM_Torch_01a",
+      "width": 0.820312,
+      "height": 1.39453,
+      "depth": 0.789062
+    },
+    {
+      "index": 3546,
+      "name": "SM_Urn_01a",
+      "width": 0.359375,
+      "height": 0.477051,
+      "depth": 0.355469
+    },
+    {
+      "index": 3547,
+      "name": "SM_Urn_02a",
+      "width": 0.296875,
+      "height": 0.971191,
+      "depth": 0.546875
+    },
+    {
+      "index": 3548,
+      "name": "SM_Urn_04a",
+      "width": 0.25,
+      "height": 1.36401,
+      "depth": 0.257812
+    },
+    {
+      "index": 3549,
+      "name": "sm_Vase_01",
+      "width": 0.875,
+      "height": 0.840332,
+      "depth": 0.664062
+    },
+    {
+      "index": 3550,
+      "name": "sm_Vase_02",
+      "width": 0.707031,
+      "height": 0.863281,
+      "depth": 0.707031
+    },
+    {
+      "index": 3551,
+      "name": "sm_Vase_03",
+      "width": 0.433594,
+      "height": 0.806152,
+      "depth": 0.429688
+    },
+    {
+      "index": 3552,
+      "name": "sm_Vase_04",
+      "width": 0.507812,
+      "height": 0.809082,
+      "depth": 0.480469
+    },
+    {
+      "index": 3719,
+      "name": "Statue_Heroth_01",
+      "width": 3.90234,
+      "height": 7.85352,
+      "depth": 7.48828
+    },
+    {
+      "index": 3733,
+      "name": "stone_bench",
+      "width": 2.41797,
+      "height": 0.939453,
+      "depth": 0.722656
+    },
+    {
+      "index": 3931,
+      "name": "TOE_Floor_Cap_090",
+      "width": 13.0469,
+      "height": 1.3501,
+      "depth": 5.08594
+    },
+    {
+      "index": 3940,
+      "name": "TOE_Floor_Ring_090",
+      "width": 14.1719,
+      "height": 1.3501,
+      "depth": 11.9219
+    },
+    {
+      "index": 3999,
+      "name": "TOE_Railings_Turn_L1",
+      "width": 1.28125,
+      "height": 1.09131,
+      "depth": 2.24609
+    },
+    {
+      "index": 4000,
+      "name": "TOE_Railings_Turn_L2",
+      "width": 1.17969,
+      "height": 1.09131,
+      "depth": 2.07812
+    },
+    {
+      "index": 4002,
+      "name": "TOE_Statue_01",
+      "width": 3.75,
+      "height": 7.41943,
+      "depth": 2.47266
+    },
+    {
+      "index": 4003,
+      "name": "TOE_Statue_Pillar",
+      "width": 5.55859,
+      "height": 8.53174,
+      "depth": 3.19922
+    },
+    {
+      "index": 4012,
+      "name": "TOE_Walkway_Railing_Roots_TurnBig_Top",
+      "width": 9.74219,
+      "height": 3.61719,
+      "depth": 8.92969
+    },
+    {
+      "index": 509,
+      "name": "Candles_01",
+      "width": 0.289062,
+      "height": 0.309082,
+      "depth": 0.304688
+    },
+    {
+      "index": 551,
+      "name": "CATA_BrazierStanding",
+      "width": 1.5,
+      "height": 1.04248,
+      "depth": 1.5
+    },
+    {
+      "index": 5889,
+      "name": "WeaversFloor_Full",
+      "width": 64.4062,
+      "height": 2.64722,
+      "depth": 67
+    },
+    {
+      "index": 5943,
+      "name": "Welryn_Statue_01",
+      "width": 0.550781,
+      "height": 1.73975,
+      "depth": 0.457031
+    },
+    {
+      "index": 5956,
+      "name": "WelrynGardenStripLow",
+      "width": 1,
+      "height": 0.560059,
+      "depth": 7
+    },
+    {
+      "index": 616,
+      "name": "Cemetery_Column_2",
+      "width": 1.06641,
+      "height": 4.91309,
+      "depth": 2.25
+    },
+    {
+      "index": 617,
+      "name": "Cemetery_Column_3",
+      "width": 1.06641,
+      "height": 4.91309,
+      "depth": 3.25
+    },
+    {
+      "index": 618,
+      "name": "Cemetery_Column_Pillar",
+      "width": 1.14844,
+      "height": 4.91309,
+      "depth": 1.06641
+    },
+    {
+      "index": 622,
+      "name": "Cemetery_WallWithTrim",
+      "width": 2,
+      "height": 4.08105,
+      "depth": 2
+    },
+    {
+      "index": 677,
+      "name": "Circle_Fountain",
+      "width": 36.4648,
+      "height": 5.98047,
+      "depth": 38.0938
+    },
+    {
+      "index": 693,
+      "name": "Circle_Statue",
+      "width": 27.8906,
+      "height": 0.98584,
+      "depth": 27.8906
+    },
+    {
+      "index": 704,
+      "name": "Client_Forge",
+      "width": 5.01172,
+      "height": 3.32764,
+      "depth": 4.81641
+    },
+    {
+      "index": 825,
+      "name": "Council_Chamber_Floor_01",
+      "width": 37.2617,
+      "height": 7.3418,
+      "depth": 37.2617
+    },
+    {
+      "index": 826,
+      "name": "CouncilChamberFloor_Eterra_01",
+      "width": 9.70703,
+      "height": 0,
+      "depth": 9.70703
+    },
+    {
+      "index": 95,
+      "name": "Arch_Door_07",
+      "width": 4.49219,
+      "height": 5.69873,
+      "depth": 2.11719
+    },
+    {
+      "index": 2213,
+      "name": "monolith_LP1",
+      "width": 3.01953,
+      "height": 3.75537,
+      "depth": 1.59766
+    },
+    {
+      "index": 2214,
+      "name": "MonolithStone_animations",
+      "width": 3.90625,
+      "height": 3.81714,
+      "depth": 3.9082
+    },
+    {
+      "index": 3170,
+      "name": "Shelf_Preset_02",
+      "width": 0.53125,
+      "height": 1.71289,
+      "depth": 1.22656
+    },
+    {
+      "index": 3307,
+      "name": "SM_Book_2",
+      "width": 0.230469,
+      "height": 0.341309,
+      "depth": 0.0703125
+    },
+    {
+      "index": 340,
+      "name": "Book_02",
+      "width": 0.265625,
+      "height": 0.0708008,
+      "depth": 0.308594
+    },
+    {
+      "index": 3794,
+      "name": "Table_Preset_01",
+      "width": 1.1875,
+      "height": 0.669922,
+      "depth": 1.55859
+    },
+    {
+      "index": 99,
+      "name": "ArenaBlacksmith",
+      "width": 0.695312,
+      "height": 2.01709,
+      "depth": 0.636719
+    }
+  ],
+  "gameVersion": "1.5.4",
+  "catalogBundles": 26617,
+  "measuredOn": "2026-11-08",
+  "method": "Actual isolated native Unity renderer bounds; visual art review at Login. Does not establish live collider/NavMesh clearance."
+}
