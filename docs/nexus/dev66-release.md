@@ -50,3 +50,10 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
   - Ailment stack cap and duration for the ailments you and your minions apply.
   - Minions without acceleration.
 - Description (`description-dev66.bbcode`).
+
+## Published 2026-11-08 (owner: "eğer sen her şey test edildi diyorsan github + nexusmodsta yayınlayalım. Ama hideout sisteminin alpha olduğunu belirtelim")
+
+- GitHub: release `v0.1.2-dev.66` (Latest, not a prerelease) with both ZIPs; target and `main` = 3d5e3be (fast-forward from 68c1fb7).
+- VirusTotal (Chrome, fresh upload): version.dll 0/71. The InGame ZIP was not uploaded: VirusTotal asked for a CAPTCHA on the second upload; the ZIP holds the same version.dll (hash checked) and text files; Defender found nothing.
+- Nexus mod 44: main file "EpochPact - in-game edition (manual install)" updated to 0.1.2-dev.66 with the InGame ZIP (dev.55 archived), mod version 0.1.2-dev.66, the five changelog lines above, the file description above (217 of 255 characters); description = `description-dev66.bbcode` (hideout marked alpha). The public page shows the new version, description and main file.
+- Discord: the owner sends the announcement (given in chat).
