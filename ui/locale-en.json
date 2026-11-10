@@ -529,6 +529,10 @@
       "Minions without acceleration",
       "Your minions, companions and other summons reach their full speed at once and stop at once, turning at once too, instead of speeding up and sliding to a stop. Fast minions then stay on their targets instead of running past them. The game's own values come back when it is off."
     ],
+    "build_zerrickbody": [
+      "Rogue look: Zerrick",
+      "This Rogue wears the body of Zerrick, the campaign's male rogue, and speaks with a man's voice: his own combat lines, and the Sentinel's for what he never says (no mana, cannot equip, bags full). In play and on the character screen; each Rogue keeps its own choice, and the creation screen shows the game's Rogue. Display only: your items, stats and saves do not change. Your weapons stay in his hands; armour looks do not show on him."
+    ],
     "build_blessingoptions": [
       "Blessing choices",
       "Choose Normal, 3, 4 or 5 options for newly generated Monolith boss rewards. This does not change existing rewards."

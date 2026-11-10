@@ -35,6 +35,7 @@
 #include "inventory_tools.hpp"
 #include "rage.hpp"
 #include "ailments.hpp"
+#include "body_swap.hpp"
 #include "quad_stash.hpp"
 #include "weaver.hpp"
 #include "idols.hpp"
@@ -306,6 +307,7 @@ std::string Execute(const std::string& line) {
         if (args.size() == 1 && args[0] == "configlook") return quadstash::ConfigureLook();
         if (args.size() == 2 && args[0] == "shot") return quadstash::Shot(args[1]);
         if (args.size() == 2 && args[0] == "configcheck") return quadstash::ConfigureCheck(args[1][0] - '0');
+        if (args.size() == 2 && args[0] == "poison") return quadstash::Poison(args[1] == "1");
         if ((args.size() == 3 || args.size() == 4) && args[0] == "testmove") { try { return quadstash::TestMove(std::stoi(args[1]), std::stoi(args[2]), args.size() == 4 ? std::stoi(args[3]) : -1); } catch (const std::exception& e) { return "{\"ok\":false,\"error\":" + managed::Json(e.what()) + "}"; } }
 #endif
         if (args.size() == 2 && (args[1] == "0" || args[1] == "1")) {
@@ -316,6 +318,9 @@ std::string Execute(const std::string& line) {
         }
         return "{\"ok\":false,\"error\":\"use quadstash read or quadstash <tab index|shown> 0|1\"}";
     }
+#ifdef EPOCHPACT_TESTING
+    if (cmd == "bodyswap") return args.size() == 1 ? bodyswap::Command(args[0]) : "{\"ok\":false,\"error\":\"use bodyswap on|off|read|next\"}";
+#endif
     if (cmd == "ailmentread") return args.empty() ? ailments::Read() : "{\"ok\":false,\"error\":\"ailmentread expects no arguments\"}";
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
     if (cmd == "ailmenttest") {

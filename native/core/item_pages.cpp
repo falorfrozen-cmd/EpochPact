@@ -291,6 +291,14 @@ int Overflow(void* self, void* item) {
     if (book.pending) return 0;
     void* inventory = Containers(c, kInventory)[0];
     const V2 grid = Value<V2>(Method(inventory, "GetSize", 0), inventory), size = ItemSize(item);
+    // only a page with no room sends an item on: the game can refuse an item for other reasons, and then it stays where it is.
+    // FindEmptySpot(size, no search direction, no excluded space, no ignored entry) gives null when the page has no room.
+    {
+        alignas(8) unsigned char noDirection[16]{}, noExclusion[32]{};
+        V2 wanted = size;
+        void* fa[]{&wanted, noDirection, noExclusion, nullptr};
+        if (Invoke(Method(inventory, "FindEmptySpot", 4), inventory, fa)) return 0;
+    }
     const int current = book.current[kInventory];
     for (int step = 1; step < kPages; ++step) {
         const int page = (current - 1 + step) % kPages + 1;

@@ -311,6 +311,9 @@ void ApplyTab(int index, bool on);
 constexpr int kCompanions = 3;
 constexpr V2 kOffset[kCompanions + 1]{{0, 0}, {12, 0}, {0, 17}, {12, 17}};
 std::set<void*> companionContainers;
+// Held while they are in the set: a freed container's address could otherwise come back as another container (the
+// inventory), which would then refuse every item.
+std::vector<std::unique_ptr<Root>> companionRoots;
 uint64_t splits = 0, merges = 0, relocated = 0;
 
 void* NewList(void* like) {
@@ -354,9 +357,10 @@ std::vector<Group> Groups(const std::vector<void*>& tabs) {
 }
 void RememberCompanions(const std::vector<void*>& tabs, const std::vector<void*>& containers) {
     companionContainers.clear();
+    companionRoots.clear();
     for (const auto& [id, list] : companionsLoaded) {
         if (!quad.count(id)) continue;  // a tab made normal again: its companions are plain tabs
-        for (const auto& c : list) if (void* tab = TabWithId(tabs, c)) if (void* container = ContainerOf(containers, tab)) companionContainers.insert(container);
+        for (const auto& c : list) if (void* tab = TabWithId(tabs, c)) if (void* container = ContainerOf(containers, tab)) { companionRoots.push_back(std::make_unique<Root>(container)); companionContainers.insert(container); }
     }
 }
 // Before LoadItems: each quad tab's list with its companions' items moved back by their offset; the companions empty.
@@ -760,6 +764,7 @@ void Frame() {
         }, &why)) { ++faults; lastError = why; next = now + 5000; }
 }
 std::string Read() { return Run([] { return State(); }); }
+void ReleaseRoots() { companionContainers.clear(); companionRoots.clear(); }
 std::string Set(int index, bool on) {
     if (!ready) return "{\"ok\":false,\"error\":" + Json("Quad stash tabs are unavailable in this game build: " + lastError) + "}";
     return Run([=]() -> std::string { ApplyTab(index, on); return State(); });
@@ -936,6 +941,15 @@ std::string Shot(const std::string& path) {
         Root file(il2cpp::api().string_new(path.c_str())); int size = 1; void* a[]{file.Get(), &size};  // the build keeps only (string, int)
         Invoke(game::FindMethod("UnityEngine.ScreenCaptureModule.dll", "UnityEngine", "ScreenCapture", "CaptureScreenshot", 2), nullptr, a);
         return std::string("{\"ok\":true}");
+    });
+}
+std::string Poison(bool on) {
+    return Run([=]() -> std::string {
+        void* manager = Manager();
+        void* inventory = manager ? Get<void*>(manager, F("ItemContainersManager", "inventory")) : nullptr;
+        if (!inventory) throw std::runtime_error("no inventory");
+        if (on) companionContainers.insert(inventory); else companionContainers.erase(inventory);
+        return std::string("{\"ok\":true,\"poisoned\":") + Boolean(companionContainers.count(inventory) != 0) + "}";
     });
 }
 std::string TestMove(int x, int y, int number) {

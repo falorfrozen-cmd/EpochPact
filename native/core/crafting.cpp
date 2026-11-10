@@ -736,6 +736,14 @@ void* CustomItem(void* original,int templateId,const std::string& input,bool per
         uintptr_t length=8;for(void* mod:Entries(Get<void*>(entry.Get(),Offset("UniqueList.Entry","mods"))))if(mod&&Get<bool>(mod,Offset("UniqueItemMod","canRoll"))&&Get<uint8_t>(mod,Offset("UniqueItemMod","rollID"))>=length)throw std::runtime_error("template roll layout exceeds the native item format");
         Root rolls(il2cpp::api().array_new(game::FindClass("mscorlib.dll","System","Byte"),length));if(length)std::memset(static_cast<char*>(rolls.Get())+0x20,perfect?255:128,length);
         Assign(copy.Get(),"uniqueRolls",rolls.Get());
+        // A Unique's sealed corruption affix is its LAST affix (setValuesFromSerialisation: index count-1), not its first.
+        if(rarity==9&&Get<bool>(copy.Get(),Offset("ItemData","hasSealedAffixFromCorruption"))){
+            void* affixes=Get<void*>(copy.Get(),affixList);const auto sealedType=Offset("ItemAffix","sealedAffixType");const auto all=Entries(affixes);
+            for(size_t i=0;i<all.size();++i)if(all[i]&&Get<int>(all[i],sealedType)==3){
+                Root moved(all[i]);int at=static_cast<int>(i);void* remove[]{&at};Invoke(Method(affixes,"RemoveAt",1),affixes,remove);
+                void* add[]{moved.Get()};Invoke(Method(affixes,"Add",1),affixes,add);break;
+            }
+        }
     }
     Assign(copy.Get(),"uniqueID",&unique);Assign(copy.Get(),"rarity",&rarity);
     uint8_t zero=0;for(const char* field:{"legendaryPotential","weaversWill","weaversTouch"})Assign(copy.Get(),field,&zero);

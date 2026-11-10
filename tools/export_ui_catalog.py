@@ -98,6 +98,7 @@ def controls():
         ("companionextra", "summons", "Extra companions", 0, 10, 0, True, "Raise your companion limit by this many, for more kinds at once. For more of the same companion use Extra minions and companions per skill."),
         ("immortalminions", "summons", "Immortal minions", 0, 1, 0, True, "Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back."),
         ("minionsnap", "summons", "Minions without acceleration", 0, 1, 0, True, "Your minions, companions and other summons reach their full speed at once and stop at once, turning at once too, instead of speeding up and sliding to a stop. Fast minions then stay on their targets instead of running past them. The game's own values come back when it is off."),
+        ("zerrickbody", "equipment", "Rogue look: Zerrick", 0, 1, 0, True, "This Rogue wears the body of Zerrick, the campaign's male rogue, and speaks with a man's voice: his own combat lines, and the Sentinel's for what he never says (no mana, cannot equip, bags full). In play and on the character screen; each Rogue keeps its own choice, and the creation screen shows the game's Rogue. Display only: your items, stats and saves do not change. Your weapons stay in his hands; armour looks do not show on him."),
         ("blessingoptions", "monolith", "Blessing choices", 0, 5, 0, True, "Choose Normal, 3, 4 or 5 options for newly generated Monolith boss rewards. This does not change existing rewards."),
         ("blessingrolls", "monolith", "Maximum blessing rolls", 0, 1, 0, True, "Use the upper roll limit on newly generated boss blessing options. Existing blessings are kept."),
     ):
@@ -105,6 +106,7 @@ def controls():
             params=[parameter("value", "integer" if integer else "number", low, high)], default=default,
             reset="buildset "+key+" "+str(default), current="liveState.buildread.settings."+key+".value", doc="docs/build-controls.md")
         if key=="blessingoptions":items[-1]["parameters"][0]["choices"]=[0,3,4,5]
+        if key=="zerrickbody":items[-1]["lifetime"]="view"  # each Rogue keeps its own choice: profiles do not carry it
     add("qol_read", "world", "Convenience settings", "read", "qolread", "read_only", "Read the current world and display controls.")
     add("qol_arearadius","world","Interaction radius","number","qolarea radius {value}","session","How near a chest, shrine or portal must be before it is used: this many game units around it (3 is the earlier fixed distance). The height may differ by up to the same distance, at least 3, so objects on another floor stay out.",
         params=[parameter("value","number",1,30)],default=3,reset="qolarea radius 3",current="liveState.qolread.settings.arearadius.value",doc="docs/player-conveniences.md")

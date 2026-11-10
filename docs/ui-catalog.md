@@ -480,6 +480,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `build_companionextra` — Extra companions | `buildset companionextra {value}` | value: 0…10 | 0 | Oturum |
 | `build_immortalminions` — Immortal minions | `buildset immortalminions {value}` | value: 0…1 | 0 | Oturum |
 | `build_minionsnap` — Minions without acceleration | `buildset minionsnap {value}` | value: 0…1 | 0 | Oturum |
+| `build_zerrickbody` — Rogue look: Zerrick | `buildset zerrickbody {value}` | value: 0…1 | 0 | Görünüm |
 | `damage_session_read` — Damage session | `damagesession` | — | — | Okuma |
 | `damage_session` — Damage session control | `damagesession {action}` | action: start/stop/reset | — | Görünüm |
 | `damage_icon` — Damage window icon | `damageicon {key}` | key: single_token | — | Okuma |

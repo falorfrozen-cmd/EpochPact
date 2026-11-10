@@ -36,6 +36,7 @@ PAGES = [
 # What's New, newest first: (version, what changed, setting cards shown right there, pages for the rest).
 # A new release adds its row at the top, here and in app.js whatsNew. Only settings that apply at once.
 WHATS_NEW = [
+    ('v0.1.2-dev.67', "Rogue look: Zerrick, a man's body and voice for your Rogue, chosen for each character in Wardrobe. Custom Items: a corrupted affix on a Unique template. Picked-up items no longer get equipped or go to other pages after you switch characters.", ['build_zerrickbody'], ['wardrobe', 'crafting', 'inventory']),
     ('v0.1.2-dev.66', "Your own hideout (alpha): anything of the game placed where you want it, an editor, ready designs, templates and its own minimap. Quad stash tabs: four times the items, chosen in the game's Configure Tab window, safe without EpochPact. Every idol page counts. Ailment stack cap and duration for your own ailments. Minions without acceleration.", ['inventory_idolsall', 'ailment_stacks', 'ailment_duration', 'build_minionsnap'], ['hideout', 'inventory', 'combat', 'summons']),
     ('v0.1.2-dev.55', 'A Boss Hall of its own with boss doors and Boss Rush, with Empowered and Harbinger. Quest echo skip, no blessing window. Eternity Cache anywhere, with one affix choice per Legendary Potential. New affixes on Exalted items, Legendary Potential of your Uniques, corrupted affixes in Custom Items. Inventory and idol pages, all idol slots open, shatter what the filter hides. Loot Lizard and Nemesis chance, more companions, a Combat page. Works on Last Epoch 1.5.4.', ['monolith_bossdoors', 'monolith_questskip', 'monolith_noblessing', 'inventory_pages', 'inventory_idolslots', 'loot_autoshatter', 'rage_lizards', 'rage_nemesis'], ['monolith', 'crafting', 'inventory', 'combat']),
     ('v0.1.2-dev.54', "Campaign at your current level. Omen idols' affixes in Spawn Items.", [], ['campaign', 'crafting']),
@@ -205,7 +206,8 @@ def sections(page, controls, counts):
     if page == "equipment":
         return [native("cached_summary", read="buildread"), settings("Equipment rules", ["build_offhand", "build_fullsets", "build_primordials", "build_anylevel"])]
     if page == "wardrobe":
-        return [native("wardrobe", controls=["transmog_read", "transmog_set"])]
+        return [settings("Rogue look", ["build_zerrickbody"]),
+                native("wardrobe", controls=["transmog_read", "transmog_set"])]
     if page == "summons":
         return [native("summon_allies", controls=["summons_read"]),
                 settings("Summon lifetime", ["build_summonduration"]),

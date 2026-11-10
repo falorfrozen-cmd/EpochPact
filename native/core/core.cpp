@@ -34,6 +34,7 @@
 #include "unique_rolls.hpp"
 #include "rage.hpp"
 #include "ailments.hpp"
+#include "body_swap.hpp"
 #include "quad_stash.hpp"
 #include "item_tiers.hpp"
 #include "fonts.hpp"
@@ -138,6 +139,7 @@ void WorkerBody() {
     invtools::Init();
     rage::Init();
     ailments::Init();
+    bodyswap::Init();
     quadstash::Init();
     weaver::Init();
     idols::Init();
@@ -149,7 +151,7 @@ void WorkerBody() {
     report::Init();
     effects::Init();
     ingame::Init();
-    lifecycle::SetCleanup([]{rage::ReleaseRoots();ailments::ReleaseRoots();effects::ReleaseRoots();ingame::ReleaseRoots();convenience::ReleaseRoots();builds::ReleaseRoots();tiers::ReleaseRoots();fonts::ReleaseRoots();});
+    lifecycle::SetCleanup([]{rage::ReleaseRoots();ailments::ReleaseRoots();bodyswap::ReleaseRoots();quadstash::ReleaseRoots();effects::ReleaseRoots();ingame::ReleaseRoots();convenience::ReleaseRoots();builds::ReleaseRoots();tiers::ReleaseRoots();fonts::ReleaseRoots();});
     Log("ready: command channel at EpochPact\\ipc\\cmd.txt");
     // Detached until a command arrives: IL2CPP waits for attached threads when the game quits.
     if (void* self = a.thread_current()) a.thread_detach(self);

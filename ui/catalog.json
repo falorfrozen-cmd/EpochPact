@@ -940,6 +940,33 @@
       "documentation": "docs/build-controls.md"
     },
     {
+      "id": "build_zerrickbody",
+      "group": "equipment",
+      "label": "Rogue look: Zerrick",
+      "widget": "toggle",
+      "availability": "implemented",
+      "commandTemplate": "buildset zerrickbody {value}",
+      "pythonApi": null,
+      "responseFormat": "json",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "default": 0,
+      "resetCommand": "buildset zerrickbody 0",
+      "lifetime": "view",
+      "description": "This Rogue wears the body of Zerrick, the campaign's male rogue, and speaks with a man's voice: his own combat lines, and the Sentinel's for what he never says (no mana, cannot equip, bags full). In play and on the character screen; each Rogue keeps its own choice, and the creation screen shows the game's Rogue. Display only: your items, stats and saves do not change. Your weapons stay in his hands; armour looks do not show on him.",
+      "currentSource": "liveState.buildread.settings.zerrickbody.value",
+      "requirements": [
+        "offline"
+      ],
+      "documentation": "docs/build-controls.md"
+    },
+    {
       "id": "build_blessingoptions",
       "group": "monolith",
       "label": "Blessing choices",
@@ -35430,7 +35457,7 @@
     ]
   },
   "counts": {
-    "controls": 238,
+    "controls": 239,
     "properties": 134,
     "statAliases": 72,
     "sheetRows": 206,

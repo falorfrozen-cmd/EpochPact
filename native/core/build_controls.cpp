@@ -3,6 +3,7 @@
 #include "managed.hpp"
 #include "hook.hpp"
 #include "progression.hpp"
+#include "body_swap.hpp"
 #include <array>
 #include <atomic>
 #include <cstring>
@@ -25,9 +26,9 @@ Setting skillXp{"skillxp",1,100,1}, passive{"passivepoints",1,10,1}, skills{"ski
     freeSkills{"skillnodes",0,1,0,true}, freePassives{"passivenodes",0,1,0,true}, freeWeaver{"weavernodes",0,1,0,true},
     minionExtra{"minionextra",0,20,0,true}, companionExtra{"companionextra",0,10,0,true}, totemExtra{"totemextra",0,10,0,true},
     ballistaExtra{"ballistaextra",0,10,0,true}, forgedExtra{"forgedextra",0,20,0,true}, immortal{"immortalminions",0,1,0,true},
-    masterySkills{"masteryskills",0,1,0,true}, anyLevel{"anylevel",0,1,0,true}, snap{"minionsnap",0,1,0,true};
-std::array<Setting*,27> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&primordials,&freeSkills,&freePassives,&freeWeaver,
-    &minionExtra,&companionExtra,&totemExtra,&ballistaExtra,&forgedExtra,&immortal,&masterySkills,&anyLevel,&snap};
+    masterySkills{"masteryskills",0,1,0,true}, anyLevel{"anylevel",0,1,0,true}, snap{"minionsnap",0,1,0,true}, zerrick{"zerrickbody",0,1,0,true};
+std::array<Setting*,28> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&primordials,&freeSkills,&freePassives,&freeWeaver,
+    &minionExtra,&companionExtra,&totemExtra,&ballistaExtra,&forgedExtra,&immortal,&masterySkills,&anyLevel,&snap,&zerrick};
 game::MethodRef getActor, offline, xpRef, skillRef, passiveRef, weaverRef, zoomRef, projectileRef, blessingRef, populateRef, optionsRef;
 game::MethodRef summonRef, slotRef, alternateSlotRef, linkedRef, invalidRef, enforceRef, mainRestrictionRef, offRestrictionRef, equipRef;
 game::MethodRef constructionRef, drainRef, summonedTickRef;
@@ -800,7 +801,7 @@ Hook* For(const Setting& s) {
     return &blessingHook;
 }
 std::vector<Hook*> Hooks(const Setting& s) {
-    if(&s==&snap)return {};  // no hook: the agents are set in Frame
+    if(&s==&snap||&s==&zerrick)return {};  // no hook: the agents are set in Frame
     if(&s==&projectile||&s==&projectileFlat)return {&projectileHook,&constructionHook};
     if(&s==&summonDuration)return {&summonHook,&drainHook,&summonedTickHook};
     if(&s==&offhand)return {&slotHook,&alternateSlotHook,&linkedHook,&invalidHook,&enforceHook,&mainRestrictionHook,&offRestrictionHook};
@@ -928,6 +929,7 @@ void ReleaseRoots(){snapped.clear();componentTypes.clear();setEntries.clear();se
 #endif
 }
 void Frame(){
+    zerrick.value=bodyswap::Wanted()?1:0;  // the Wardrobe card shows the remembered choice
     static uint64_t next=0;const uint64_t now=GetTickCount64();
     if(now<next||(snap.value!=1&&snapped.empty()))return;
     next=now+500;
@@ -954,6 +956,7 @@ std::string Set(const std::string& key,double value) {
             if(s==&zoom || s==&angle){void* camera=game::StaticObject(game::FindStaticField("LE.dll","","CameraManager","instance"));if(camera)Invoke(zoomRef,camera);}
             if(s==&immortal)SetImmortal(value!=0);
             if(s==&snap)SnapAgents(value!=0);
+            if(s==&zerrick)bodyswap::Want(value!=0);
             if(s==&fullSets){void* manager=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));if(manager)ReconcileSets(Get<void*>(manager,Offset("ItemContainersManager","itemEquipManager")));}
             if(s==&primordials)RefreshPrimordials();
             if(s==&masterySkills)RecalculateKnown();

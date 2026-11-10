@@ -534,6 +534,7 @@ function showSettingHelp(id){
 }
 // Newest first; a new release adds its row at the top, here and in tools/ingame_pages.py WHATS_NEW.
 const whatsNew=[
+ {title:"v0.1.2-dev.67",ids:["build_zerrickbody"],text:"Rogue look: Zerrick, a man's body and voice for your Rogue, chosen for each character in Wardrobe. Custom Items: a corrupted affix on a Unique template. Picked-up items no longer get equipped or go to other pages after you switch characters.",links:["wardrobe", "crafting", "inventory"]},
  {title:"v0.1.2-dev.66",ids:["inventory_idolsall", "ailment_stacks", "ailment_duration", "build_minionsnap"],text:"Your own hideout (alpha): anything of the game placed where you want it, an editor, ready designs, templates and its own minimap. Quad stash tabs: four times the items, chosen in the game's Configure Tab window, safe without EpochPact. Every idol page counts. Ailment stack cap and duration for your own ailments. Minions without acceleration.",links:["hideout", "inventory", "combat", "summons"]},
  {title:"v0.1.2-dev.55",ids:["monolith_bossdoors", "monolith_questskip", "monolith_noblessing", "inventory_pages", "inventory_idolslots", "loot_autoshatter", "rage_lizards", "rage_nemesis"],text:"A Boss Hall of its own with boss doors and Boss Rush, with Empowered and Harbinger. Quest echo skip, no blessing window. Eternity Cache anywhere, with one affix choice per Legendary Potential. New affixes on Exalted items, Legendary Potential of your Uniques, corrupted affixes in Custom Items. Inventory and idol pages, all idol slots open, shatter what the filter hides. Loot Lizard and Nemesis chance, more companions, a Combat page. Works on Last Epoch 1.5.4.",links:["monolith", "crafting", "inventory", "combat"]},
  {title:"v0.1.2-dev.54",ids:[],text:"Campaign at your current level. Omen idols' affixes in Spawn Items.",links:["campaign", "crafting"]},
@@ -855,7 +856,7 @@ function renderPage(){
  }else if(page==="equipment"){
   content.innerHTML=cachedSummary("build_read")+settingPanel("Equipment rules",["offhand","fullsets","primordials","anylevel"].map(key=>controlById("build_"+key)));
  }else if(page==="wardrobe"){
-  content.innerHTML=looksPanel();
+  content.innerHTML=settingPanel("Rogue look",["build_zerrickbody"].map(controlById))+looksPanel();
  }else if(page==="hideout"){
   content.innerHTML=`<section class="panel"><h2>Your hideout</h2><p class="muted">The hideout is designed in the game: press F6 and open this page there. Turn on Boss doors in the Monolith page and go to the Monolith Hub first.</p></section>`;
  }else if(page==="combat"){

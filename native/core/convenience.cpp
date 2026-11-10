@@ -20,6 +20,7 @@
 #include "ingame_panel.hpp"
 #include "rage.hpp"
 #include "ailments.hpp"
+#include "body_swap.hpp"
 #include "quad_stash.hpp"
 #include "build_controls.hpp"
 #include <array>
@@ -1445,7 +1446,7 @@ void Frame(){
 #endif
     if(lifecycle::Stopping())return;
     effects::Frame();
-    rage::Frame();ailments::Frame();quadstash::Frame();builds::Frame();invtools::Frame();ingame::Frame();
+    rage::Frame();ailments::Frame();bodyswap::Frame();quadstash::Frame();builds::Frame();invtools::Frame();ingame::Frame();
     transmog::Frame();stashrules::Frame();monolith::BossFrame();hideout::Frame();crafting::AutoShatterFrame();itempages::Frame();
     if(pendingStashPanel.Get()&&!game::Guarded([]{RestoreStashTab();},nullptr)){pendingStashPanel.Reset();++stashRestoreFailures;}
     if(pendingLegacyStash.Get()&&!game::Guarded([]{RestoreLegacyStashTab();},nullptr)){pendingLegacyStash.Reset();++stashRestoreFailures;}

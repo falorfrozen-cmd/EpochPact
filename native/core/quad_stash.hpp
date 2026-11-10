@@ -9,6 +9,7 @@ namespace ep::quadstash {
 bool Init();
 void Frame();  // main thread
 std::string Read();
+void ReleaseRoots();  // before the core unloads
 // index: the tab's place in the stash, -1 for the tab shown now. Making a tab normal is refused while
 // anything lies outside 12 x 17.
 std::string Set(int index, bool on);
@@ -18,6 +19,7 @@ std::string TestMove(int x, int y, int number = -1);  // the first inventory ite
 std::string ConfigureOpen();
 std::string ConfigureLook();
 std::string ConfigureCheck(int value);
+std::string Poison(bool on);  // the inventory treated as a companion, as a reused address would
 std::string Shot(const std::string& path);  // a screenshot by the game, no notice  // 0|1 the check, 2 Confirm, 3 Cancel  // the first inventory item into the tab shown, at x, y
 #endif
 }  // namespace ep::quadstash
