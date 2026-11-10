@@ -47,3 +47,11 @@ Questions and reports: [Discord](https://discord.gg/q6aexZZSAf).
   - Custom Items: a corrupted affix on a Unique template works ("the game changed a sealed custom affix during round-trip" fixed).
   - Pickups after switching characters: items are no longer equipped by themselves or sent to other inventory pages.
 - Description (`description-dev67.bbcode`).
+
+## Published 2026-11-10 (owner: "evet yayınla Nexusmods ve githubda")
+
+- GitHub: release `v0.1.2-dev.67` (Latest, not a prerelease) with both ZIPs (asset digests match the table above); target and `main` = 10aeb2a (fast-forward from 88340ef).
+- Nexus mod 44: main file "EpochPact - in-game edition (manual install)" updated to 0.1.2-dev.67 with the InGame ZIP (dev.66 archived), mod version 0.1.2-dev.67 (from the file), the three changelog lines above, the file description above (246 of 255 characters); description = `description-dev67.bbcode`. The public page shows the new version, description, main file and changelog.
+- Release DLL on a Rogue clone (EpFeedbackTest, builds\shipping67b): quad stash ready, Zerrick setting present, F6 opened on Wardrobe, What's New (dev.67 row with the Zerrick card) and Crafting, no faults; real saves unchanged.
+- VirusTotal: not done (see above). Windows Defender: no threats.
+- Discord: the owner sends the announcement.
