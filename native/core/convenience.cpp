@@ -2897,6 +2897,19 @@ std::string Test(const std::string& id,const std::string& action){
         if(action=="taken-reset"){testTakenBy.clear();testTakenZero=0;}
         return out.str();
     }
+    if(action.rfind("player-hit-",0)==0){
+        // Disposable test character only: the character takes this much health damage directly (BaseHealth.HealthDamage),
+        // made damageable for this hit only (towns are not).
+        const float amount=std::stof(action.substr(11));if(!(amount>0&&amount<1e9f))throw std::runtime_error("Unsupported damage.");
+        void* health=Get<void*>(c.actor,F("Actor","health"));if(!health)throw std::runtime_error("Health unavailable.");Root healthPin(health);
+        const float before=Get<float>(health,F("BaseHealth","currentHealth"));const bool cannot=Value<bool>(Method(health,"CannotDie",0),health);
+        bool& damageable=*reinterpret_cast<bool*>(static_cast<char*>(health)+F("BaseHealth","damageable"));const bool wasDamageable=damageable;damageable=true;
+        float hit=amount;void* a[]{&hit};const float dealt=Value<float>(Method(health,"HealthDamage",1),health,a);
+        if(game::IsAlive(health))damageable=wasDamageable;
+        const float after=game::IsAlive(health)?Get<float>(health,F("BaseHealth","currentHealth")):-1.f;
+        return "{\"ok\":true,\"before\":"+std::to_string(before)+",\"after\":"+std::to_string(after)+",\"dealt\":"+std::to_string(dealt)+
+            ",\"cannotDie\":"+Boolean(cannot)+",\"cannotDieAfter\":"+Boolean(game::IsAlive(health)&&Value<bool>(Method(health,"CannotDie",0),health))+"}";
+    }
     if(action.rfind("minion-hit-",0)==0){
         // Disposable test character only: the first own summon takes this much health damage directly.
         const float amount=std::stof(action.substr(11));if(!(amount>0&&amount<1e9f))throw std::runtime_error("Unsupported damage.");

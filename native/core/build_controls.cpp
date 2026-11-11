@@ -26,9 +26,10 @@ Setting skillXp{"skillxp",1,100,1}, passive{"passivepoints",1,10,1}, skills{"ski
     freeSkills{"skillnodes",0,1,0,true}, freePassives{"passivenodes",0,1,0,true}, freeWeaver{"weavernodes",0,1,0,true},
     minionExtra{"minionextra",0,20,0,true}, companionExtra{"companionextra",0,10,0,true}, totemExtra{"totemextra",0,10,0,true},
     ballistaExtra{"ballistaextra",0,10,0,true}, forgedExtra{"forgedextra",0,20,0,true}, immortal{"immortalminions",0,1,0,true},
-    masterySkills{"masteryskills",0,1,0,true}, anyLevel{"anylevel",0,1,0,true}, snap{"minionsnap",0,1,0,true}, zerrick{"zerrickbody",0,1,0,true};
-std::array<Setting*,28> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&primordials,&freeSkills,&freePassives,&freeWeaver,
-    &minionExtra,&companionExtra,&totemExtra,&ballistaExtra,&forgedExtra,&immortal,&masterySkills,&anyLevel,&snap,&zerrick};
+    masterySkills{"masteryskills",0,1,0,true}, anyLevel{"anylevel",0,1,0,true}, snap{"minionsnap",0,1,0,true}, zerrick{"zerrickbody",0,1,0,true},
+    immortalPlayer{"immortalplayer",0,1,0,true};
+std::array<Setting*,29> settings{&skillXp,&passive,&skills,&weaver,&weaverFlat,&zoom,&angle,&projectile,&projectileFlat,&blessings,&perfectBlessings,&summonDuration,&offhand,&fullSets,&primordials,&freeSkills,&freePassives,&freeWeaver,
+    &minionExtra,&companionExtra,&totemExtra,&ballistaExtra,&forgedExtra,&immortal,&masterySkills,&anyLevel,&snap,&zerrick,&immortalPlayer};
 game::MethodRef getActor, offline, xpRef, skillRef, passiveRef, weaverRef, zoomRef, projectileRef, blessingRef, populateRef, optionsRef;
 game::MethodRef summonRef, slotRef, alternateSlotRef, linkedRef, invalidRef, enforceRef, mainRestrictionRef, offRestrictionRef, equipRef;
 game::MethodRef constructionRef, drainRef, summonedTickRef;
@@ -473,6 +474,29 @@ void SetImmortal(bool on){
         }
     }
 }
+// ---- The player cannot die: the same cannot-die source on the player's BaseHealth. Damage is taken as usual;
+// lethal damage leaves the player alive, at 1 health (Frame). A zone change makes a new actor: Frame gives it the source again.
+std::unique_ptr<Root> playerHealth;  // the player's BaseHealth given one cannot-die source by us
+void ReleasePlayerImmortal(){
+    if(playerHealth&&game::IsAlive(playerHealth->Get()))Checked([&]{void* health=playerHealth->Get();
+        float& current=*reinterpret_cast<float*>(static_cast<char*>(health)+F("BaseHealth","currentHealth"));if(current<1)current=1;
+        Invoke(Method(health,"RemoveSourceOfCannotDie",0),health);});
+    playerHealth.reset();
+}
+std::atomic<uint64_t> playerImmortalAdded{0};
+void SyncPlayerImmortal(){
+    void* health=nullptr;
+    if(immortalPlayer.value==1)if(void* actor=Actor())health=Get<void*>(actor,F("Actor","health"));  // Actor(): offline only
+    if(health&&!game::IsAlive(health))health=nullptr;
+    if(playerHealth&&playerHealth->Get()==health){
+        // Ours is still there unless the game cleared its sources.
+        if(Value<bool>(Method(health,"CannotDie",0),health))return;
+        playerHealth.reset();
+    }else ReleasePlayerImmortal();
+    if(!health)return;
+    Invoke(Method(health,"AddSourceOfCannotDie",0),health);
+    playerHealth=std::make_unique<Root>(health);++playerImmortalAdded;
+}
 // ---- Minions without acceleration. A summon's NavMeshAgent gets its acceleration once, when it is made
 // (EntityAdapter.adaptAfterStatsApplied: acceleration x (1 + increased movement speed)); speed gained later is not followed,
 // so a fast minion overshoots and slides past its target. With minionsnap the player's summons get an acceleration and
@@ -801,7 +825,7 @@ Hook* For(const Setting& s) {
     return &blessingHook;
 }
 std::vector<Hook*> Hooks(const Setting& s) {
-    if(&s==&snap||&s==&zerrick)return {};  // no hook: the agents are set in Frame
+    if(&s==&snap||&s==&zerrick||&s==&immortalPlayer)return {};  // no hook: set in Frame
     if(&s==&projectile||&s==&projectileFlat)return {&projectileHook,&constructionHook};
     if(&s==&summonDuration)return {&summonHook,&drainHook,&summonedTickHook};
     if(&s==&offhand)return {&slotHook,&alternateSlotHook,&linkedHook,&invalidHook,&enforceHook,&mainRestrictionHook,&offRestrictionHook};
@@ -840,7 +864,7 @@ std::string State() {
     for(auto* s:settings){bool available=true;for(auto* h:Hooks(*s))available=available && static_cast<bool>(*h->ref);if(comma)out<<',';comma=true;out<<Json(s->key)<<":{\"value\":"<<s->value<<",\"available\":"<<Boolean(available)<<'}';}
     out<<"},\"counters\":{\"masterySkillsAdded\":"<<masterySkillsAdded<<",\"levelAllowed\":"<<levelAllowed<<",\"skillXp\":"<<xpCalls<<",\"projectiles\":"<<projectileCalls<<",\"projectileRetrofits\":"<<retrofits<<",\"summonDecayTicks\":"<<drainCalls<<",\"lastProjectileNative\":"<<lastProjectileNative<<",\"lastProjectileTotal\":"<<lastProjectileTotal<<",\"blessings\":"<<blessingCalls<<",\"faults\":"<<faults<<'}';
     out<<",\"summons\":{\"limitsRaised\":"<<raisedSummons<<",\"companionLimitReads\":"<<raisedCompanionReads<<",\"immortal\":"<<immortalHealth.size()<<",\"snapped\":"<<snapped.size()<<",\"agents\":"<<[]{std::string s="[";Checked([&]{int n=0;for(void* actor:OwnedSummonActors()){if(n>=8)break;void* agent=Get<void*>(actor,F("Actor","navMeshAgent"));if(!agent||!game::IsAlive(agent))continue;
-            s+=std::string(n++?",":"")+"{\"acceleration\":"+std::to_string(Value<float>(Method(agent,"get_acceleration",0),agent))+",\"speed\":"+std::to_string(Value<float>(Method(agent,"get_speed",0),agent))+",\"angular\":"+std::to_string(Value<float>(Method(agent,"get_angularSpeed",0),agent))+"}";}});return s+"]";}()<<",\"immortalAdded\":"<<immortalAdded
+            s+=std::string(n++?",":"")+"{\"acceleration\":"+std::to_string(Value<float>(Method(agent,"get_acceleration",0),agent))+",\"speed\":"+std::to_string(Value<float>(Method(agent,"get_speed",0),agent))+",\"angular\":"+std::to_string(Value<float>(Method(agent,"get_angularSpeed",0),agent))+"}";}});return s+"]";}()<<",\"immortalAdded\":"<<immortalAdded<<",\"playerImmortal\":"<<Boolean(bool(playerHealth))<<",\"playerImmortalAdded\":"<<playerImmortalAdded
        <<",\"lastAbility\":"<<Json(lastSummonAbility)<<",\"lastKind\":"<<Json(lastSummonKind)<<",\"lastNative\":"<<lastSummonNative<<",\"lastLimit\":"<<lastSummonLimit<<'}';
     std::string worn;  // built whole: a failed read must not leave half an object in the reply
     Checked([&]{void* containers=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));if(!containers||!EquipManager())return;
@@ -923,14 +947,19 @@ bool Init() {
     } catch(const std::exception& e){Log("build controls unavailable: %s",e.what());return false;}
 }
 std::string Read(){return Run([]{return State();});}
-void ReleaseRoots(){snapped.clear();componentTypes.clear();setEntries.clear();setStatsOwner.Reset();immortalHealth.clear();
+void ReleaseRoots(){snapped.clear();componentTypes.clear();setEntries.clear();setStatsOwner.Reset();immortalHealth.clear();playerHealth.reset();
 #if defined(EPOCHPACT_RESEARCH) || defined(EPOCHPACT_TESTING)
     testConstructed.Reset();
 #endif
 }
 void Frame(){
     zerrick.value=bodyswap::Wanted()?1:0;  // the Wardrobe card shows the remembered choice
-    static uint64_t next=0;const uint64_t now=GetTickCount64();
+    static uint64_t next=0,nextPlayer=0;const uint64_t now=GetTickCount64();
+    if(now>=nextPlayer&&(immortalPlayer.value==1||playerHealth)){nextPlayer=now+200;Checked([&]{SyncPlayerImmortal();});}
+    // Lethal damage leaves the player at 0, where the game stops regeneration and EpochPact's own checks see a dead
+    // character: 1 health instead, every frame.
+    if(playerHealth)Checked([&]{void* health=playerHealth->Get();if(!game::IsAlive(health))return;
+        float& current=*reinterpret_cast<float*>(static_cast<char*>(health)+F("BaseHealth","currentHealth"));if(current<1)current=1;});
     if(now<next||(snap.value!=1&&snapped.empty()))return;
     next=now+500;
     if(!game::IsOfflinePlay()){Checked([&]{SnapAgents(false);});return;}
@@ -956,6 +985,7 @@ std::string Set(const std::string& key,double value) {
             if(s==&zoom || s==&angle){void* camera=game::StaticObject(game::FindStaticField("LE.dll","","CameraManager","instance"));if(camera)Invoke(zoomRef,camera);}
             if(s==&immortal)SetImmortal(value!=0);
             if(s==&snap)SnapAgents(value!=0);
+            if(s==&immortalPlayer)SyncPlayerImmortal();
             if(s==&zerrick)bodyswap::Want(value!=0);
             if(s==&fullSets){void* manager=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));if(manager)ReconcileSets(Get<void*>(manager,Offset("ItemContainersManager","itemEquipManager")));}
             if(s==&primordials)RefreshPrimordials();

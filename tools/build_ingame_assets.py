@@ -54,7 +54,7 @@ EXTRA_SOURCES = {
     "tier_rules": ("tierread", "rules"), "tier_rule_position": ("tierread", "rulePosition"), "tier_rule_parts": ("tierread", "ruleParts"),
     "tier_filter_colors": ("tierread", "filterColors"), "tier_name_colors": ("tierread", "nameColors"), "tier_special": ("tierread", "special"),
     "map_minimapsize": ("mapsettings", "minimapSize"), "map_minimapzoom": ("mapsettings", "minimapZoom"),
-    "map_minimapopacity": ("mapsettings", "minimapOpacity"),
+    "map_minimapopacity": ("mapsettings", "minimapOpacity"), "map_hideoutbutton": ("mapsettings", "hideoutButton"),
     "inventory_pages": ("invread", "pages"), "inventory_idolslots": ("invread", "idolSlots"), "inventory_idolsall": ("invread", "idolsAll"), "inventory_autosort": ("invread", "autosort"), "inventory_autosortall": ("invread", "autosortAll"), "inventory_sellkeep": ("invread", "sellKeep"),
 }
 # Reads whose results are JSON objects the panel can follow a path into.

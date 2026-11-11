@@ -97,6 +97,7 @@ def controls():
         ("forgedextra", "summons", "Extra forged weapons", 0, 20, 0, True, "Raise the forged weapon limit by this many."),
         ("companionextra", "summons", "Extra companions", 0, 10, 0, True, "Raise your companion limit by this many, for more kinds at once. For more of the same companion use Extra minions and companions per skill."),
         ("immortalminions", "summons", "Immortal minions", 0, 1, 0, True, "Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back."),
+        ("immortalplayer", "stats", "Cannot die", 0, 1, 0, True, "You take damage as usual, but lethal damage cannot kill you: your health stops at 1 and regenerates from there (the game's own cannot-die state, as for immortal minions). Offline play only."),
         ("minionsnap", "summons", "Minions without acceleration", 0, 1, 0, True, "Your minions, companions and other summons reach their full speed at once and stop at once, turning at once too, instead of speeding up and sliding to a stop. Fast minions then stay on their targets instead of running past them. The game's own values come back when it is off."),
         ("zerrickbody", "equipment", "Rogue look: Zerrick", 0, 1, 0, True, "This Rogue wears the body of Zerrick, the campaign's male rogue, and speaks with a man's voice: his own combat lines, and the Sentinel's for what he never says (no mana, cannot equip, bags full). In play and on the character screen; each Rogue keeps its own choice, and the creation screen shows the game's Rogue. Display only: your items, stats and saves do not change. Your weapons stay in his hands; armour looks do not show on him."),
         ("blessingoptions", "monolith", "Blessing choices", 0, 5, 0, True, "Choose Normal, 3, 4 or 5 options for newly generated Monolith boss rewards. This does not change existing rewards."),
@@ -458,6 +459,9 @@ def controls():
     add('map_minimapopacity',"display",'Minimap opacity',"number","mapset minimapopacity {value}","session",
         "Opacity of the corner minimap, its frame and icons. 0 keeps the game's own value.",
         params=[parameter("value","number",0,1)],default=0,reset="mapset minimapopacity 0",doc="docs/player-conveniences.md")
+    add('map_hideoutbutton',"display",'Hideout button under the minimap',"toggle","mapset hideoutbutton {value}","session",
+        "The small house button under the minimap that takes you to your hideout. It hides by itself while your inventory or another game window is open. Off: it is never shown, and F6 > Hideout still takes you there.",
+        params=[parameter("value","integer",0,1)],default=1,reset="mapset hideoutbutton 1",doc="docs/player-conveniences.md")
     add('tier_icons',"display",'Affix tiers on item icons',"toggle",'tierset icons {value}',"session",
         'Show each affix tier as coloured digits on inventory, stash and equipment icons (for example 7 6 5 4). Display only; items are unchanged.',
         params=[parameter("value","integer",0,1)],default=0,reset='tierset icons 0',doc="docs/player-conveniences.md")

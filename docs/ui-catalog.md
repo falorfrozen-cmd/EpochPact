@@ -479,6 +479,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `build_forgedextra` — Extra forged weapons | `buildset forgedextra {value}` | value: 0…20 | 0 | Oturum |
 | `build_companionextra` — Extra companions | `buildset companionextra {value}` | value: 0…10 | 0 | Oturum |
 | `build_immortalminions` — Immortal minions | `buildset immortalminions {value}` | value: 0…1 | 0 | Oturum |
+| `build_immortalplayer` — Cannot die | `buildset immortalplayer {value}` | value: 0…1 | 0 | Oturum |
 | `build_minionsnap` — Minions without acceleration | `buildset minionsnap {value}` | value: 0…1 | 0 | Oturum |
 | `build_zerrickbody` — Rogue look: Zerrick | `buildset zerrickbody {value}` | value: 0…1 | 0 | Görünüm |
 | `damage_session_read` — Damage session | `damagesession` | — | — | Okuma |
@@ -496,6 +497,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Extra forged weapons:** Raise the forged weapon limit by this many. Reset: `buildset forgedextra 0`.
 - **Extra companions:** Raise your companion limit by this many, for more kinds at once. For more of the same companion use Extra minions and companions per skill. Reset: `buildset companionextra 0`.
 - **Immortal minions:** Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back. Reset: `buildset immortalminions 0`.
+- **Cannot die:** You take damage as usual, but lethal damage cannot kill you: your health stops at 1 and regenerates from there (the game's own cannot-die state, as for immortal minions). Offline play only. Reset: `buildset immortalplayer 0`.
 - **Damage session:** Read the damage session: per ally type and your character, DPS over 10 s, 60 s, 10 min and 60 min, averages, totals and hits.
 - **Damage session control:** Start, stop or reset the damage session. Damage is only recorded while it runs; stopped values stay until reset.
 - **Damage window icon:** The game's own skill or class icon for one damage window source, as a small PNG. Reading it does not change the game.
@@ -519,6 +521,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 | `map_minimapsize` — Minimap size | `mapset minimapsize {value}` | value: 0.5…2.5 | 1 | Oturum |
 | `map_minimapzoom` — Minimap zoom | `mapset minimapzoom {value}` | value: 0.25…4 | 1 | Oturum |
 | `map_minimapopacity` — Minimap opacity | `mapset minimapopacity {value}` | value: 0…1 | 0 | Oturum |
+| `map_hideoutbutton` — Hideout button under the minimap | `mapset hideoutbutton {value}` | value: 0…1 | 1 | Oturum |
 | `tier_icons` — Affix tiers on item icons | `tierset icons {value}` | value: 0…1 | 0 | Oturum |
 | `tier_tooltips` — Tier tags in tooltips | `tierset tooltips {value}` | value: 0…1 | 0 | Oturum |
 | `tier_lines` — Colour affix lines by tier | `tierset lines {value}` | value: 0…1 | 0 | Oturum |
@@ -553,6 +556,7 @@ ID'leri kendi türüne aittir; ItemRarity ve ItemCreationRarityGroup numaraları
 - **Minimap size:** Scale the corner minimap, including its frame. 1 is the game's size. Reset: `mapset minimapsize 1`.
 - **Minimap zoom:** Below 1 zooms the corner minimap in, above 1 shows more of the area. 1 is the game's zoom. Reset: `mapset minimapzoom 1`.
 - **Minimap opacity:** Opacity of the corner minimap, its frame and icons. 0 keeps the game's own value. Reset: `mapset minimapopacity 0`.
+- **Hideout button under the minimap:** The small house button under the minimap that takes you to your hideout. It hides by itself while your inventory or another game window is open. Off: it is never shown, and F6 > Hideout still takes you there. Reset: `mapset hideoutbutton 1`.
 - **Overlay map opacity:** Opacity of the full-screen overlay map, beyond the game's slider range. 0 keeps your game setting. Reset: `mapset overlayopacity 0`.
 - **Overlay map zoom:** Below 1 zooms the overlay map in, above 1 shows more. Extends the game's overlay zoom limits. Reset: `mapset overlayzoom 1`.
 - **Affix tiers on item icons:** Show each affix tier as coloured digits on inventory, stash and equipment icons (for example 7 6 5 4). Display only; items are unchanged. Reset: `tierset icons 0`.

@@ -525,6 +525,10 @@
       "Immortal minions",
       "Your minions, companions, totems and ballistas cannot be killed by damage (the game's own cannot-die state): lethal damage leaves them at 0 health. They still end when their duration runs out or when they are unsummoned. Switching it off gives a minion at 0 health 1 health back."
     ],
+    "build_immortalplayer": [
+      "Cannot die",
+      "You take damage as usual, but lethal damage cannot kill you: your health stops at 1 and regenerates from there (the game's own cannot-die state, as for immortal minions). Offline play only."
+    ],
     "build_minionsnap": [
       "Minions without acceleration",
       "Your minions, companions and other summons reach their full speed at once and stop at once, turning at once too, instead of speeding up and sliding to a stop. Fast minions then stay on their targets instead of running past them. The game's own values come back when it is off."
@@ -784,6 +788,10 @@
     "map_minimapopacity": [
       "Minimap opacity",
       "Opacity of the corner minimap, its frame and icons. 0 keeps the game's own value."
+    ],
+    "map_hideoutbutton": [
+      "Hideout button under the minimap",
+      "The small house button under the minimap that takes you to your hideout. It hides by itself while your inventory or another game window is open. Off: it is never shown, and F6 > Hideout still takes you there."
     ],
     "tier_icons": [
       "Affix tiers on item icons",

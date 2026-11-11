@@ -36,6 +36,7 @@ PAGES = [
 # What's New, newest first: (version, what changed, setting cards shown right there, pages for the rest).
 # A new release adds its row at the top, here and in app.js whatsNew. Only settings that apply at once.
 WHATS_NEW = [
+    ('v0.1.2-dev.68', "Cannot die: you take damage as usual, but lethal damage cannot kill you (Combat page). The Hideout button under the minimap hides while your inventory or another game window is open, and can be turned off (Display page).", ['build_immortalplayer', 'map_hideoutbutton'], ['combat', 'display']),
     ('v0.1.2-dev.67', "Rogue look: Zerrick, a man's body and voice for your Rogue, chosen for each character in Wardrobe. Custom Items: a corrupted affix on a Unique template. Picked-up items no longer get equipped or go to other pages after you switch characters.", ['build_zerrickbody'], ['wardrobe', 'crafting', 'inventory']),
     ('v0.1.2-dev.66', "Your own hideout (alpha): anything of the game placed where you want it, an editor, ready designs, templates and its own minimap. Quad stash tabs: four times the items, chosen in the game's Configure Tab window, safe without EpochPact. Every idol page counts. Ailment stack cap and duration for your own ailments. Minions without acceleration.", ['inventory_idolsall', 'ailment_stacks', 'ailment_duration', 'build_minionsnap'], ['hideout', 'inventory', 'combat', 'summons']),
     ('v0.1.2-dev.55', 'A Boss Hall of its own with boss doors and Boss Rush, with Empowered and Harbinger. Quest echo skip, no blessing window. Eternity Cache anywhere, with one affix choice per Legendary Potential. New affixes on Exalted items, Legendary Potential of your Uniques, corrupted affixes in Custom Items. Inventory and idol pages, all idol slots open, shatter what the filter hides. Loot Lizard and Nemesis chance, more companions, a Combat page. Works on Last Epoch 1.5.4.', ['monolith_bossdoors', 'monolith_questskip', 'monolith_noblessing', 'inventory_pages', 'inventory_idolslots', 'loot_autoshatter', 'rage_lizards', 'rage_nemesis'], ['monolith', 'crafting', 'inventory', 'combat']),
@@ -182,7 +183,7 @@ def sections(page, controls, counts):
         return [settings("Buffs & debuffs in game", ["effects_enabled", "effects_player", "effects_target", "effects_descriptions", "effects_scale", "effects_rows"],
                          note=EFFECTS_NOTE),
                 settings("Camera", ["build_zoom", "build_cameraangle"]),
-                settings("Minimap", ["map_minimapsize", "map_minimapzoom", "map_minimapopacity"]),
+                settings("Minimap", ["map_minimapsize", "map_minimapzoom", "map_minimapopacity", "map_hideoutbutton"]),
                 settings("Item tiers", ["tier_icons", "tier_tooltips", "tier_lines", "tier_special", "tier_rules", "tier_rule_position", "tier_rule_parts"]),
                 native("tier_colours", controls=["tier_color", "tier_rule_color"]),
                 native("interface_font", controls=["font_family", "font_read"]),
@@ -217,6 +218,7 @@ def sections(page, controls, counts):
         return [native("hideout_main", read="hideoutread"), native("hideout_tabs"), native("hideout_templates", read="hideoutread",tab="templates"), native("hideout_ground", read="hideoutread",tab="ground"), native("hideout_add",tab="library"), native("hideout_results",tab="library"), native("hideout_items", read="hideoutread",tab="placed")]
     if page == "combat":
         return [native("damage_meter", controls=["damage_session", "damage_session_read"]),
+                settings("Survival", ["build_immortalplayer"]),
                 settings("Ailments", ["ailment_stacks", "ailment_duration"], text=AILMENT_TEXT),
                 settings("Death recap", ["death_recap"], text=DEATH_TEXT, head="tail", tail="death_recap",
                          tail_controls=["death_recap_read", "death_recap_clear"])]

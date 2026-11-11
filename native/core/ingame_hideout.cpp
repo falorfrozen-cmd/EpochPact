@@ -5,6 +5,7 @@
 #include "ingame_window.hpp"
 #include "hideout.hpp"
 #include "hideout_hud_rules.hpp"
+#include "map_view.hpp"
 #include <windows.h>
 #include <algorithm>
 #include <array>

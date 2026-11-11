@@ -3,7 +3,7 @@
 struct HideoutShortcut {
     Pin root,listener,frame,tip,tipText,map,camera,corners;
     hideout::hudrules::IconLayout layout;
-    bool visible=false,enabled=false,under=false,down=false,busy=false;
+    bool visible=false,enabled=false,under=false,down=false,busy=false,covered=false;
     uint64_t probeAt=0,busyAt=0,cooldownUntil=0,messageUntil=0;
     void* owner=nullptr;
     std::string message,playerId,error;
@@ -39,6 +39,15 @@ void ShortcutTravel(){
             if(!value["ok"].boolean)ShortcutMessage(PlayerError(value["error"].Str()));
         });
     });
+}
+// The inventory, character, skill and other windows on the right, and the large ones in the centre, lie over
+// the minimap corner; the shortcut's own canvas sorts above them, so it hides while one is open (UIBase.AnyPanelOpened).
+bool ShortcutCovered(){
+    static const il2cpp::Method* any=Find("LE.dll","","UIBase","AnyPanelOpened",1,false);
+    void* ui=game::StaticObject(game::FindStaticField("LE.dll","","UIBase","instance"));
+    if(!any||!ui||!game::IsAlive(ui))return false;
+    int mask=2|4;void* a[]{&mask};  // PanelsMask Center | Right
+    try{return managed::Value<bool>(any,ui,a);}catch(...){return false;}
 }
 void ShortcutStroke(void* parent,float x,float y,float endX,float endY,Color color,float thickness=1.8f){
     const float dx=endX-x,dy=endY-y;void* stroke=Solid(parent,"Hideout emblem",x,y,std::hypot(dx,dy),thickness,color);
@@ -131,7 +140,8 @@ void ShortcutFrame(){
     if(!shortcut.root||!game::IsAlive(shortcut.root.Get()))return;const auto now=GetTickCount64();
     if(shortcut.busy&&now-shortcut.busyAt>20000){shortcut.busy=false;ShortcutMessage("Hideout travel did not finish. Try again.");}
     if(now>=shortcut.probeAt)try{ShortcutProbe();}catch(const std::exception& e){shortcut.error=e.what();shortcut.layout={};shortcut.enabled=false;shortcut.map.Reset();shortcut.probeAt=now+1000;}
-    shortcut.visible=shortcut.layout.visible&&!WindowOpen()&&!hideout::Editing()&&Eligible();
+    shortcut.covered=shortcut.layout.visible&&ShortcutCovered();
+    shortcut.visible=shortcut.layout.visible&&!WindowOpen()&&!hideout::Editing()&&Eligible()&&mapview::HideoutButton()&&!shortcut.covered;
     SetActive(GameObjectOf(shortcut.root.Get()),shortcut.visible);
     if(shortcut.visible){
         Move(shortcut.root.Get(),shortcut.layout.icon.x,shortcut.layout.icon.y);
@@ -156,7 +166,7 @@ void ShortcutFrame(){
 }
 #ifdef EPOCHPACT_TESTING
 std::string ShortcutAudit(){
-    const auto r=shortcut.layout.icon,m=shortcut.minimapPixels;std::ostringstream out;out<<"{\"visible\":"<<managed::Boolean(shortcut.visible)<<",\"enabled\":"<<managed::Boolean(shortcut.enabled)<<",\"busy\":"<<managed::Boolean(shortcut.busy)<<",\"bound\":"<<managed::Boolean(bool(shortcut.map))<<",\"x\":"<<r.x<<",\"y\":"<<r.y<<",\"w\":"<<r.w<<",\"h\":"<<r.h<<",\"minimap\":["<<m.x<<','<<m.y<<','<<m.w<<','<<m.h<<"],\"error\":"<<managed::Json(shortcut.error)<<'}';return out.str();
+    const auto r=shortcut.layout.icon,m=shortcut.minimapPixels;std::ostringstream out;out<<"{\"visible\":"<<managed::Boolean(shortcut.visible)<<",\"enabled\":"<<managed::Boolean(shortcut.enabled)<<",\"busy\":"<<managed::Boolean(shortcut.busy)<<",\"covered\":"<<managed::Boolean(shortcut.covered)<<",\"turnedOn\":"<<managed::Boolean(mapview::HideoutButton())<<",\"bound\":"<<managed::Boolean(bool(shortcut.map))<<",\"x\":"<<r.x<<",\"y\":"<<r.y<<",\"w\":"<<r.w<<",\"h\":"<<r.h<<",\"minimap\":["<<m.x<<','<<m.y<<','<<m.w<<','<<m.h<<"],\"error\":"<<managed::Json(shortcut.error)<<'}';return out.str();
 }
 std::string ShortcutClickTest(){
     if(!shortcut.visible||!shortcut.enabled)throw std::runtime_error("The ready Hideout shortcut must be visible.");

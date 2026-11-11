@@ -71,6 +71,7 @@ Group canvasGroup;
 struct Tracker{std::unique_ptr<Root> transform;Vec3 local{0,0,0};};
 Tracker tracker;
 double minimapSize=1,minimapZoom=1,minimapOpacity=-1,overlayOpacity=-1,overlayZoom=1;
+std::atomic<bool> hideoutButton{true};  // the in-game UI's house button under the minimap (ingame_hideout_shortcut.inl)
 uint64_t mapApplies=0;
 size_t MF(const char* cls,const char* field,const char* ns=""){return Offset(cls,field,ns);}
 void* MapGlobal(){return game::StaticObject(game::FindStaticField("LE.dll","","DMMapGlobalConfigs","instance"));}
@@ -206,9 +207,9 @@ void ApplyMap(){
     ++mapApplies;
 }
 std::string MapState(){
-    char buffer[512];
-    std::snprintf(buffer,sizeof buffer,"{\"ok\":true,\"minimapSize\":%.3g,\"minimapZoom\":%.3g,\"minimapOpacity\":%.3g,\"overlayOpacity\":%.3g,\"overlayZoom\":%.3g,\"captured\":%s,\"applies\":%llu,\"original\":{\"minimapZoom\":%.4g,\"minimapOpacity\":%.4g,\"overlayZoom\":%.4g,\"overlayOpacity\":%.4g}}",
-        minimapSize,minimapZoom,minimapOpacity,overlayOpacity,overlayZoom,original.captured?"true":"false",static_cast<unsigned long long>(mapApplies),
+    char buffer[640];
+    std::snprintf(buffer,sizeof buffer,"{\"ok\":true,\"hideoutButton\":%s,\"minimapSize\":%.3g,\"minimapZoom\":%.3g,\"minimapOpacity\":%.3g,\"overlayOpacity\":%.3g,\"overlayZoom\":%.3g,\"captured\":%s,\"applies\":%llu,\"original\":{\"minimapZoom\":%.4g,\"minimapOpacity\":%.4g,\"overlayZoom\":%.4g,\"overlayOpacity\":%.4g}}",
+        hideoutButton?"true":"false",minimapSize,minimapZoom,minimapOpacity,overlayOpacity,overlayZoom,original.captured?"true":"false",static_cast<unsigned long long>(mapApplies),
         original.minimapZoom,original.minimapOpacity,original.fullZoom,original.fullOpacity);
     return buffer;
 }
@@ -245,12 +246,18 @@ bool Init() {
 }
 std::string Read(){return Run([]{return State();});}
 std::string SettingsRead(){return Run([]{return MapState();});}
+bool HideoutButton(){return hideoutButton;}
 std::string SetSetting(const std::string& key,double value){
     struct Range{const char* key;double* target;double low,high;};
     const Range ranges[]{{"minimapsize",&minimapSize,0.5,2.5},{"minimapzoom",&minimapZoom,0.25,4},{"minimapopacity",&minimapOpacity,0.05,1},
         {"overlayopacity",&overlayOpacity,0.05,1},{"overlayzoom",&overlayZoom,0.25,4}};
+    // Display only, read by the in-game UI each frame: no game object changes, so it needs no offline check.
+    if(key=="hideoutbutton"){
+        if(value!=0&&value!=1)return "{\"ok\":false,\"error\":\"use mapset hideoutbutton 0 or 1\"}";
+        hideoutButton=value==1;return Run([]{return MapState();});
+    }
     if(key=="reset")return Run([]{
-        minimapSize=1;minimapZoom=1;minimapOpacity=-1;overlayOpacity=-1;overlayZoom=1;
+        hideoutButton=true;minimapSize=1;minimapZoom=1;minimapOpacity=-1;overlayOpacity=-1;overlayZoom=1;
         if(original.captured&&MapGlobal()&&MapDmm())ApplyMap();
         if(ready)SyncLoadedHook();
         return MapState();});
@@ -259,7 +266,7 @@ std::string SetSetting(const std::string& key,double value){
     const bool neutral=opacity&&value<=0;  // 0 = the game's own opacity
     if(neutral)value=-1;
     if(!range||!std::isfinite(value)||(!neutral&&(value<range->low||value>range->high)))
-        return "{\"ok\":false,\"error\":\"use mapset minimapsize 0.5-2.5 | minimapzoom 0.25-4 | minimapopacity 0.05-1 | overlayopacity 0.05-1 | overlayzoom 0.25-4 | reset\"}";
+        return "{\"ok\":false,\"error\":\"use mapset minimapsize 0.5-2.5 | minimapzoom 0.25-4 | minimapopacity 0.05-1 | overlayopacity 0.05-1 | overlayzoom 0.25-4 | hideoutbutton 0-1 | reset\"}";
     return Run([=]{
         if(!game::IsOfflinePlay())throw std::runtime_error("Map settings work in offline play only.");
         (void)neutral;
