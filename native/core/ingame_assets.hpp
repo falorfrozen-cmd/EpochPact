@@ -32,6 +32,10 @@ void* RuntimeSprite(const std::string& key, std::string_view png = {});
 // Line metrics of a font, per point of size: line height, ascent and descent (descent < 0).
 // Adds characters to a face's atlas now (a few at a time, in the background).
 bool Warm(Face face, const std::string& characters);
+// Chinese: Microsoft YaHei becomes the fallback of the text faces (loaded only for Chinese); false without it.
+bool UseCjk();
+// Chinese characters go into the CJK fallback's atlas (Microsoft YaHei); false without it.
+bool WarmCjk(const std::string& characters);
 struct Metrics { float line = 1.2f, ascent = 0.95f, descent = -0.25f; };
 Metrics FontMetrics(Face face);
 

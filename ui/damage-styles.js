@@ -64,7 +64,7 @@
  // Numbers in the window's language (54,240 / 54.240 / 54 240). Below a million every digit;
  // from a million three significant digits (2.90M, 17.9M, 236M, 1.25B); short ones as 18.4k.
  function formatter(lang){
-  const locale=['tr','ru'].includes(lang)?lang:'en-US';
+  const locale=['tr','ru'].includes(lang)?lang:lang==='zh'?'zh-CN':'en-US';
   const fixed=[0,1,2].map(d=>new Intl.NumberFormat(locale,{minimumFractionDigits:d,maximumFractionDigits:d}));
   const whole=fixed[0];
   const bad=v=>v===null||v===undefined||!Number.isFinite(v);

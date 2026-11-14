@@ -147,7 +147,7 @@ float Paragraph(void* parent, const char* name, float x, float y, float w, const
 // -------------------------------------------------------------------------------- the words
 const json::Value& D();
 Color C(const char* token);  // a theme colour: "bg", "panel", "ink", "muted", "gold", "line", "accent", "glow", "soft"
-extern std::string language;  // "en", "tr", "ru"
+extern std::string language;  // "en", "tr", "ru", "zh"
 std::string Tr(const std::string& en);
 std::string Fmt(const std::string& templ, const std::vector<std::string>& args);
 std::string Num(double v);  // String(number) as JavaScript writes it

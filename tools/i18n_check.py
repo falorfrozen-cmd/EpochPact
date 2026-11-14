@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-LANGUAGES = ('tr', 'ru')
+LANGUAGES = ('tr', 'ru', 'zh')
 PLACEHOLDER = re.compile(r"\{\d+\}")
 
 

@@ -309,9 +309,9 @@ void LanguageSection(Section& s) {
     s.build = [](Section&, const Ctx& c) { return PanelBody(c, [](const Ctx& in, float y) {
         y = Heading(in, y, "Language");
         y += Muted(in.parent, kPanelPad, y, kPanelInner, Tr("The language of the EpochPact windows. Names that come from the game — items, affixes, stats, zones — stay as the game data writes them.")) + 14;
-        const std::vector<std::string> ids{"en", "tr", "ru"}; const auto current = Preference("epochpact.language").Str("en");
+        const std::vector<std::string> ids{"en", "tr", "ru", "zh"}; const auto current = Preference("epochpact.language").Str("en");
         const auto it = std::find(ids.begin(), ids.end(), current);
-        y += SelectField(in, kPanelPad, y, kPanelInner, Tr("Language"), {"English", "Türkçe", "Русский"}, static_cast<int>(it == ids.end() ? 0 : it - ids.begin()),
+        y += SelectField(in, kPanelPad, y, kPanelInner, Tr("Language"), {"English", "Türkçe", "Русский", "简体中文"}, static_cast<int>(it == ids.end() ? 0 : it - ids.begin()),
             [ids](int i) { if (Save("epochpact.language", Text(ids.at(i)))) ReloadWindow(); }, "language-select");
         return y;
     }); };

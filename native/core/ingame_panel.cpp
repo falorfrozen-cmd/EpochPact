@@ -2290,7 +2290,7 @@ void LoadPreferences() { preferences = ReadPreferencesFile(); }
 std::string ReadLanguage() {
     LoadPreferences();
     const JValue v = Preference("epochpact.language");
-    return v.IsString() && (v.text == "tr" || v.text == "ru") ? v.text : "en";
+    return v.IsString() && (v.text == "tr" || v.text == "ru" || v.text == "zh") ? v.text : "en";
 }
 // Closed, the window's canvas renders to display 8, which the game never uses: switching a canvas
 // off and on makes Unity batch every graphic again (a 15-30 ms frame), a display change does not.
@@ -2407,16 +2407,33 @@ void QueueAll() {
     // every glyph the window's texts use, into the fonts' atlases a few at a time
     {
         const std::string chars = D()["charset"][language].Str(D()["charset"]["en"].Str());
-        std::vector<std::string> chunks(1);
-        int count = 0;
+        std::vector<std::string> chunks(1), cjkChunks(1);
+        int count = 0, cjkCount = 0;
         for (size_t i = 0; i < chars.size();) {
             const unsigned char c = chars[i];
             const size_t n = c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : c >= 0xC0 ? 2 : 1;
-            if (count == 4) { chunks.emplace_back(); count = 0; }  // about 4 ms of glyph drawing a job
-            chunks.back() += chars.substr(i, n);
-            ++count;
+            // CJK and full-width punctuation (U+2E80 and up): none of the five faces has them
+            uint32_t cp = n == 1 ? c : n == 2 ? (c & 0x1Fu) : n == 3 ? (c & 0x0Fu) : (c & 0x07u);
+            for (size_t k = 1; k < n && i + k < chars.size(); ++k) cp = (cp << 6) | (static_cast<unsigned char>(chars[i + k]) & 0x3Fu);
+            const bool wide = cp >= 0x2E80;
+            auto& list = wide ? cjkChunks : chunks;
+            int& counter = wide ? cjkCount : count;
+            if (counter == 4) { list.emplace_back(); counter = 0; }  // about 4 ms of glyph drawing a job
+            list.back() += chars.substr(i, n);
+            ++counter;
             i += n;
         }
+        if (language == "zh")
+            jobs.push_back([] {
+                stage = "fonts: chinese";
+                assets::UseCjk();
+            });
+        for (const auto& chunk : cjkChunks)
+            if (!chunk.empty())
+                jobs.push_back([chunk] {
+                    stage = "fonts: glyphs";
+                    assets::WarmCjk(chunk);
+                });
         for (Face face : {Face::Body, Face::BodySemi, Face::BodyBold, Face::Serif, Face::SerifBold})
             for (const auto& chunk : chunks)
                 jobs.push_back([face, chunk] {

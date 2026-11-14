@@ -12,7 +12,7 @@
  const num=v=>{if(v===null||v===undefined||v===''||typeof v==='boolean')return null;const n=Number(v);return Number.isFinite(n)?n:null;};
  const text=(v,most=96)=>typeof v==='string'?v.slice(0,most):'';
  function formatter(lang){
-  const locale=['tr','ru'].includes(lang)?lang:'en-US';
+  const locale=['tr','ru'].includes(lang)?lang:lang==='zh'?'zh-CN':'en-US';
   const whole=new Intl.NumberFormat(locale,{maximumFractionDigits:0}),tenth=new Intl.NumberFormat(locale,{minimumFractionDigits:1,maximumFractionDigits:1});
   return {whole:v=>{const n=num(v);return n===null?'—':whole.format(n);},tenth:v=>{const n=num(v);return n===null?'—':tenth.format(n);}};
  }

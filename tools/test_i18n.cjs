@@ -92,7 +92,7 @@ test('the stored language is read safely',()=>{
  assert.equal(i18n.readLanguage(store('{bad')),'en');
 });
 
-for(const language of ['tr','ru']){
+for(const language of ['tr','ru','zh']){
  test(`${language}: every interface text is translated with the same placeholders`,()=>{
   const source=JSON.parse(fs.readFileSync(path.join(__dirname,'../ui/i18n-source.json'),'utf8'));
   const dictionary=JSON.parse(fs.readFileSync(path.join(__dirname,`../ui/i18n-${language}.json`),'utf8'));
@@ -101,7 +101,7 @@ for(const language of ['tr','ru']){
   assert.deepEqual(missing,[],'run py -3 tools/i18n_check.py');
   const wrong=source.filter(s=>marks(s)!==marks(dictionary[s]));
   assert.deepEqual(wrong,[]);
-  assert.deepEqual(Object.keys(i18n.languages),['en','tr','ru']);
+  assert.deepEqual(Object.keys(i18n.languages),['en','tr','ru','zh']);
  });
 }
 

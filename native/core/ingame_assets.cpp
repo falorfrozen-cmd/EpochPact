@@ -29,6 +29,8 @@ std::mutex pixelsLock;
 std::map<std::string, Pixels> pixels;   // decoded, waiting for the main thread
 std::map<std::string, game::Handle> sprites;
 game::Handle fonts[6];
+game::Handle cjk;  // Microsoft YaHei, the fallback of the text faces for Chinese
+bool cjkTried = false;
 Metrics metrics[6];
 bool metricsKnown[6] = {};
 
@@ -216,9 +218,8 @@ void* CreateFromFile(const std::string& path) {
                             {"System.String", "System.Int32", "System.Int32", "System.Int32", "UnityEngine.TextCore.LowLevel.GlyphRenderMode", "System.Int32", "System.Int32"}),
                   nullptr, a);
 }
-void* CreateFromSystem(const char* family, const char* styleName = "Regular") {
+void* CreateFromSystem(const char* family, const char* styleName = "Regular", int size = 90) {
     Root name(il2cpp::api().string_new(family)), style(il2cpp::api().string_new(styleName));
-    int size = 90;
     void* a[]{name.Get(), style.Get(), &size};
     return Invoke(Signature("Unity.TextMeshPro.dll", "TMPro", "TMP_FontAsset", "CreateFontAsset", {"System.String", "System.String", "System.Int32"}), nullptr, a);
 }
@@ -358,6 +359,29 @@ void Weight(void* asset, int index, void* typeface) {
     if (static_cast<uintptr_t>(index) >= length) return;
     *reinterpret_cast<void**>(static_cast<char*>(table) + 0x20 + index * 2 * sizeof(void*)) = typeface;
 }
+// Chinese: Microsoft YaHei from Windows, a fallback of every text face (none has those glyphs), sampled smaller
+// and spread over several atlases, as thousands of glyphs do not fit one. Optional: without it Chinese text
+// shows boxes and the rest of the window works. Tried once.
+void* CjkFont() {
+    if (void* f = cjk.Get()) return f;
+    if (cjkTried) return nullptr;
+    cjkTried = true;
+    try {
+        void* asset = CreateFromSystem("Microsoft YaHei", "Regular", 48);
+        if (!asset) return nullptr;
+        if (FaceName(asset).empty()) {
+            void* a[]{asset};
+            Invoke(Core("Object", "Destroy", {"UnityEngine.Object"}), nullptr, a);
+            return nullptr;
+        }
+        try { bool yes = true; void* a[]{&yes}; Invoke(Method(asset, "set_isMultiAtlasTexturesEnabled", 1), asset, a); } catch (const std::exception&) {}
+        KeepLoaded(asset);
+        cjk.Set(asset);
+        return asset;
+    } catch (const std::exception&) {
+        return nullptr;
+    }
+}
 // Kept only once complete: its face loaded and, for the text faces, the symbol fallback attached.
 // A font that is not ready is dropped and asked for again later.
 void* Font(Face face) {
@@ -380,6 +404,7 @@ void* Font(Face face) {
     }
     KeepLoaded(asset);
     if (face != Face::Symbol) AddFallback(asset, Font(Face::Symbol));
+    if (face != Face::Symbol) if (void* c = cjk.Get()) AddFallback(asset, c);  // only once Chinese was chosen (UseCjk)
     // <b> and font-weight 600: the faces the browser draws them with (TMP's own would leave Inter
     // for the game's fallback font)
     if (face == Face::Body) { Weight(asset, 6, Font(Face::BodySemi)); Weight(asset, 7, Font(Face::BodyBold)); }
@@ -406,6 +431,26 @@ bool Warm(Face face, const std::string& characters) {
     Invoke(add, font, a);
     return true;
 }
+bool UseCjk() {
+    if (cjk.Get()) return true;
+    void* c = CjkFont();
+    if (!c) return false;
+    // the text faces made before Chinese was chosen get it now; later ones in Font()
+    try {
+        for (Face face : {Face::Body, Face::BodySemi, Face::BodyBold, Face::Serif, Face::SerifBold})
+            if (void* f = fonts[static_cast<int>(face)].Get()) AddFallback(f, c);
+    } catch (const std::exception&) {}
+    return true;
+}
+bool WarmCjk(const std::string& characters) {
+    if (characters.empty() || !UseCjk()) return false;
+    void* font = cjk.Get();
+    Root text(il2cpp::api().string_new(characters.c_str()));
+    bool features = false;
+    void* a[]{text.Get(), &features};
+    Invoke(Signature("Unity.TextMeshPro.dll", "TMPro", "TMP_FontAsset", "TryAddCharacters", {"System.String", "System.Boolean"}), font, a);
+    return true;
+}
 bool FontsReady(std::string* why) {
     try {
         for (Face face : {Face::Symbol, Face::BodySemi, Face::BodyBold, Face::SerifBold, Face::Body, Face::Serif}) Font(face);
@@ -428,6 +473,11 @@ std::string FontReport() {
         const int fallbacks = list ? static_cast<int>(Entries(list).size()) : -1;
         out += "{\"face\":" + Json(FaceName(asset)) + ",\"fallbacks\":" + std::to_string(fallbacks) +
                ",\"gear\":" + Boolean(HasCharacter(asset, 0x2699, false)) + ",\"gearWithFallbacks\":" + Boolean(HasCharacter(asset, 0x2699, true)) + "}";
+    }
+    out += ",\"cjk\":" + Json(cjk.Get() ? FaceName(cjk.Get()) : std::string());
+    if (void* c = cjk.Get()) {
+        void* atlases = Invoke(Method(c, "get_atlasTextures", 0), c);
+        out += ",\"cjkAtlases\":" + std::to_string(atlases ? Get<uintptr_t>(atlases, 0x18) : 0) + ",\"cjkGlyph\":" + Boolean(HasCharacter(c, 0x4E2D, false));
     }
     return out + "}";
     } catch (const std::exception& e) {
@@ -457,6 +507,8 @@ Metrics FontMetrics(Face face) {
 void Release() {
     sprites.clear();
     for (auto& f : fonts) f.Reset();
+    cjk.Reset();
+    cjkTried = false;
 }
 
 std::string_view Bytes(const std::string& file) { return Raw(file); }

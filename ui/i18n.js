@@ -8,7 +8,7 @@
    data-no-translate (and their children) are left alone. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.EpochI18n=api;})(typeof window==='object'?window:globalThis,function(){
  'use strict';
- const languages={en:'English',tr:'Türkçe',ru:'Русский'};
+ const languages={en:'English',tr:'Türkçe',ru:'Русский',zh:'简体中文'};
  const storageKey='epochpact.language';
  const attributes=['title','placeholder','aria-label','alt'];
  const escape=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
