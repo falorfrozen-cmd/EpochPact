@@ -404,7 +404,8 @@ void* Font(Face face) {
     }
     KeepLoaded(asset);
     if (face != Face::Symbol) AddFallback(asset, Font(Face::Symbol));
-    if (face != Face::Symbol) if (void* c = cjk.Get()) AddFallback(asset, c);  // only once Chinese was chosen (UseCjk)
+    // every language: the language list and texts like What's New show 简体中文 in any language
+    if (face != Face::Symbol) if (void* c = CjkFont()) AddFallback(asset, c);
     // <b> and font-weight 600: the faces the browser draws them with (TMP's own would leave Inter
     // for the game's fallback font)
     if (face == Face::Body) { Weight(asset, 6, Font(Face::BodySemi)); Weight(asset, 7, Font(Face::BodyBold)); }
@@ -435,7 +436,7 @@ bool UseCjk() {
     if (cjk.Get()) return true;
     void* c = CjkFont();
     if (!c) return false;
-    // the text faces made before Chinese was chosen get it now; later ones in Font()
+    // faces made while the font could not be read yet get it now; later ones in Font()
     try {
         for (Face face : {Face::Body, Face::BodySemi, Face::BodyBold, Face::Serif, Face::SerifBold})
             if (void* f = fonts[static_cast<int>(face)].Get()) AddFallback(f, c);
