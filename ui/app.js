@@ -534,6 +534,7 @@ function showSettingHelp(id){
 }
 // Newest first; a new release adds its row at the top, here and in tools/ingame_pages.py WHATS_NEW.
 const whatsNew=[
+ {title:"v0.1.2-dev.70",ids:["build_skillpoints"],text:"Skill points: bonus points from the skill point multiplier are no longer taken back after you restart the game. The multiplier you last set is remembered (Skills page).",links:["skills"]},
  {title:"v0.1.2-dev.69",ids:[],text:"Simplified Chinese: EpochPact in 简体中文, in the desktop app and the F6 window (Settings page). Hideout editor and settings texts that were still in English are now translated into Turkish, Russian and Chinese.",links:["settings"]},
  {title:"v0.1.2-dev.68",ids:["build_immortalplayer", "map_hideoutbutton"],text:"Cannot die: you take damage as usual, but lethal damage cannot kill you (Combat page). The Hideout button under the minimap hides while your inventory or another game window is open, and can be turned off (Display page).",links:["combat", "display"]},
  {title:"v0.1.2-dev.67",ids:["build_zerrickbody"],text:"Rogue look: Zerrick, a man's body and voice for your Rogue, chosen for each character in Wardrobe. Custom Items: a corrupted affix on a Unique template. Picked-up items no longer get equipped or go to other pages after you switch characters.",links:["wardrobe", "crafting", "inventory"]},
