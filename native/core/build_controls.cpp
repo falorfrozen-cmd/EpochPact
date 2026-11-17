@@ -4,7 +4,10 @@
 #include "hook.hpp"
 #include "progression.hpp"
 #include "body_swap.hpp"
+#include "ingame_window.hpp"
 #include <array>
+#include <filesystem>
+#include <fstream>
 #include <atomic>
 #include <cstring>
 #include <memory>
@@ -53,6 +56,15 @@ std::atomic<int> lastProjectileNative{0},lastProjectileTotal{0};
 using XPFn=void(*)(void*,int,bool,M); XPFn originalXp=nullptr;
 using IntFn=int(*)(void*,M); IntFn originalSkill=nullptr, originalWeaver=nullptr;
 using UShortFn=uint16_t(*)(void*,M);UShortFn originalSkillUnspent=nullptr, originalPassiveUnspent=nullptr, originalWeaverUnspent=nullptr;
+// LocalTreeData.respecNodesFromSkillIfOverInvested: when a +skill bonus from gear drops (onStatsUpdate), the game takes
+// back skill points above the skill's maximum. After a restart the multiplier is set again only once the window's
+// startup profile runs, so bonus points spent with it were lost. The last multiplier set is remembered
+// (point-budgets.txt) and used for that check only while the setting is still 1 (clone-tested: 36 points kept; at 1, 18).
+using OverInvestFn=void(*)(void*,void*,uint8_t*,uint8_t*,M); OverInvestFn originalOverInvest=nullptr;
+game::MethodRef overInvestRef;
+double rememberedSkills=1;
+void* overInvestSkill=nullptr; double overInvestMultiplier=1;
+uint64_t overInvestChecks=0, overInvestKept=0;
 using VoidFn=void(*)(void*,M); VoidFn originalPassive=nullptr, originalZoom=nullptr;
 struct Vec3 {float x,y,z;};
 using ProjectileFn=int(*)(void*,const Vec3*,const Vec3*,M); ProjectileFn originalProjectile=nullptr;
@@ -252,8 +264,40 @@ void XpDetour(void* self,int amount,bool force,M method) {
 }
 int SkillDetour(void* self,M method) {
     const int natural=originalSkill(self,method); int out=natural;
+    if(self && self==overInvestSkill) return rules::Budget(natural,overInvestMultiplier);  // the refund check (OverInvestDetour)
     if(skills.value!=1) Checked([&]{if(OwnedSkill(self))out=rules::Budget(natural,skills.value);});
     return out;
+}
+std::filesystem::path BudgetFile() {
+    const auto root=ingame::view::PreferencesFolder();
+    if(root.empty())return {};
+#ifdef EPOCHPACT_TESTING
+    return root/L"point-budgets-test.txt";  // test games never touch the player's own
+#else
+    return root/L"point-budgets.txt";
+#endif
+}
+void LoadRemembered() {
+    rememberedSkills=1;
+    try{const auto path=BudgetFile();if(path.empty())return;std::ifstream in(path,std::ios::binary);std::string word;double value=1;
+        if(in>>word && word=="epochpact-points" && in>>word && in>>word && word=="skills" && in>>value && std::isfinite(value) && value>=skills.minimum && value<=skills.maximum)rememberedSkills=value;
+    }catch(...){}
+}
+void SaveRemembered(double value) {
+    if(value==rememberedSkills)return;
+    rememberedSkills=value;
+    try{const auto path=BudgetFile();if(path.empty())return;std::filesystem::create_directories(path.parent_path());
+        std::ofstream out(path,std::ios::binary|std::ios::trunc);out<<"epochpact-points 1\nskills "<<value<<'\n';}catch(...){}
+}
+void OverInvestDetour(void* self,void* tree,uint8_t* over,uint8_t* highest,M method) {
+    // Offline only, and only the multiplier the player last chose: points within that budget stay allocated.
+    // Nothing is granted here: unspent points still follow the current setting (SkillUnspentDetour).
+    const double current=skills.value; const double multiplier=current!=1?current:rememberedSkills;
+    void* const before=overInvestSkill; const double beforeMultiplier=overInvestMultiplier;
+    ++overInvestChecks;
+    if(multiplier>1 && tree && game::IsOfflinePlay()){overInvestSkill=tree;overInvestMultiplier=multiplier;++overInvestKept;}
+    struct Restore{void* s;double m;~Restore(){overInvestSkill=s;overInvestMultiplier=m;}} restore{before,beforeMultiplier};
+    originalOverInvest(self,tree,over,highest,method);
 }
 uint16_t SkillUnspentDetour(void* self,M method) {
     uint16_t result=originalSkillUnspent(self,method);
@@ -764,6 +808,7 @@ void OptionsDetour(void* self,uint8_t timeline,int difficulty,int count,M method
 Hook xpHook{&xpRef,reinterpret_cast<void*>(&XpDetour),reinterpret_cast<void**>(&originalXp)},
     skillHook{&skillRef,reinterpret_cast<void*>(&SkillDetour),reinterpret_cast<void**>(&originalSkill)},
     skillUnspentHook{&skillUnspentRef,reinterpret_cast<void*>(&SkillUnspentDetour),reinterpret_cast<void**>(&originalSkillUnspent)},
+    overInvestHook{&overInvestRef,reinterpret_cast<void*>(&OverInvestDetour),reinterpret_cast<void**>(&originalOverInvest)},
     passiveHook{&passiveRef,reinterpret_cast<void*>(&PassiveDetour),reinterpret_cast<void**>(&originalPassive)},
     weaverHook{&weaverRef,reinterpret_cast<void*>(&WeaverDetour),reinterpret_cast<void**>(&originalWeaver)},
     zoomHook{&zoomRef,reinterpret_cast<void*>(&ZoomDetour),reinterpret_cast<void**>(&originalZoom)},
@@ -862,7 +907,8 @@ void RefreshBudgets() {
 std::string State() {
     std::ostringstream out; out<<"{\"ok\":true,\"settings\":{"; bool comma=false;
     for(auto* s:settings){bool available=true;for(auto* h:Hooks(*s))available=available && static_cast<bool>(*h->ref);if(comma)out<<',';comma=true;out<<Json(s->key)<<":{\"value\":"<<s->value<<",\"available\":"<<Boolean(available)<<'}';}
-    out<<"},\"counters\":{\"masterySkillsAdded\":"<<masterySkillsAdded<<",\"levelAllowed\":"<<levelAllowed<<",\"skillXp\":"<<xpCalls<<",\"projectiles\":"<<projectileCalls<<",\"projectileRetrofits\":"<<retrofits<<",\"summonDecayTicks\":"<<drainCalls<<",\"lastProjectileNative\":"<<lastProjectileNative<<",\"lastProjectileTotal\":"<<lastProjectileTotal<<",\"blessings\":"<<blessingCalls<<",\"faults\":"<<faults<<'}';
+    out<<"},\"skillPointsRemembered\":"<<rememberedSkills<<",\"skillRefundGuard\":{\"hooked\":"<<Boolean(overInvestRef&&hook::IsInstalled(overInvestRef.code))<<",\"checks\":"<<overInvestChecks<<",\"protected\":"<<overInvestKept<<'}';
+    out<<",\"counters\":{\"masterySkillsAdded\":"<<masterySkillsAdded<<",\"levelAllowed\":"<<levelAllowed<<",\"skillXp\":"<<xpCalls<<",\"projectiles\":"<<projectileCalls<<",\"projectileRetrofits\":"<<retrofits<<",\"summonDecayTicks\":"<<drainCalls<<",\"lastProjectileNative\":"<<lastProjectileNative<<",\"lastProjectileTotal\":"<<lastProjectileTotal<<",\"blessings\":"<<blessingCalls<<",\"faults\":"<<faults<<'}';
     out<<",\"summons\":{\"limitsRaised\":"<<raisedSummons<<",\"companionLimitReads\":"<<raisedCompanionReads<<",\"immortal\":"<<immortalHealth.size()<<",\"snapped\":"<<snapped.size()<<",\"agents\":"<<[]{std::string s="[";Checked([&]{int n=0;for(void* actor:OwnedSummonActors()){if(n>=8)break;void* agent=Get<void*>(actor,F("Actor","navMeshAgent"));if(!agent||!game::IsAlive(agent))continue;
             s+=std::string(n++?",":"")+"{\"acceleration\":"+std::to_string(Value<float>(Method(agent,"get_acceleration",0),agent))+",\"speed\":"+std::to_string(Value<float>(Method(agent,"get_speed",0),agent))+",\"angular\":"+std::to_string(Value<float>(Method(agent,"get_angularSpeed",0),agent))+"}";}});return s+"]";}()<<",\"immortalAdded\":"<<immortalAdded<<",\"playerImmortal\":"<<Boolean(bool(playerHealth))<<",\"playerImmortalAdded\":"<<playerImmortalAdded
        <<",\"lastAbility\":"<<Json(lastSummonAbility)<<",\"lastKind\":"<<Json(lastSummonKind)<<",\"lastNative\":"<<lastSummonNative<<",\"lastLimit\":"<<lastSummonLimit<<'}';
@@ -943,6 +989,10 @@ bool Init() {
                 throw std::runtime_error("point-budget guards unavailable: "+why);
             }installed.push_back(entry);
         }
+        // Optional: without it the game may take back bonus skill points (see OverInvestDetour).
+        LoadRemembered();
+        overInvestRef=game::FindMethod("LE.dll","","LocalTreeData","respecNodesFromSkillIfOverInvested",3);
+        if(!overInvestRef||!hook::Install(overInvestRef.code,overInvestHook.detour,overInvestHook.original,&why))Log("skill point refund guard unavailable: %s",why.c_str());
         return getActor && offline;
     } catch(const std::exception& e){Log("build controls unavailable: %s",e.what());return false;}
 }
@@ -990,6 +1040,7 @@ std::string Set(const std::string& key,double value) {
             if(s==&fullSets){void* manager=game::StaticObject(game::FindStaticField("LE.dll","","ItemContainersManager","_instance"));if(manager)ReconcileSets(Get<void*>(manager,Offset("ItemContainersManager","itemEquipManager")));}
             if(s==&primordials)RefreshPrimordials();
             if(s==&masterySkills)RecalculateKnown();
+            if(s==&skills)SaveRemembered(value);
             for(auto* entry:hooks)if(!Needed(entry)&&hook::IsInstalled(entry->ref->code)&&!hook::Remove(entry->ref->code,&why))throw std::runtime_error("cannot restore feature hook: "+why);
         }catch(...){s->value=previous;Checked([&]{if(s==&passive||s==&skills||s==&weaver||s==&weaverFlat)RefreshBudgets();if(s==&immortal)SetImmortal(previous!=0);if(s==&primordials)RefreshPrimordials();if(s==&masterySkills)RecalculateKnown();});for(auto* back:fresh)if(!Needed(back))hook::Remove(back->ref->code,nullptr);throw;}
         return State();
@@ -1046,6 +1097,17 @@ std::string Test(const std::string& id,const std::string& action) {
         const auto name=Text(Get<void*>(character,Offset("CharacterData","<CharacterName>k__BackingField","LE.Data")));
         if(Text(Invoke(Method(character,"get_Id",0),character))!=id || (name!="EpFeatureTest"&&name!="EpFeedbackTest"&&name!="EpCraftTest"))throw std::runtime_error("feature tests require an isolated feature test clone");
         void* tree=Tree(actor);
+#ifdef EPOCHPACT_TESTING
+        // A game restart in one process: the multiplier back to 1 without changing the remembered one.
+        if(action=="skills-forget"){skills.value=1;return State();}
+        // The game's own over-invested check for every skill tree, as when a +skill bonus from gear drops.
+        if(action=="respec-overinvested"){Invoke(game::FindMethod("LE.dll","","LocalTreeData","respecNodesFromOverInvestedSkills",0),tree);return State();}
+        // A +skill bonus from gear on the first skill that then drops: the game's own path
+        // (setAdditionalMaxPointsFromStatsOnServerOrInSingleplayer) when the stats are calculated again.
+        if(action.rfind("gear-bonus-",0)==0){const auto entries=Entries(Get<void*>(tree,treeSkills));if(entries.empty()||!entries[0])throw std::runtime_error("no skill tree");
+            *reinterpret_cast<uint8_t*>(static_cast<char*>(entries[0])+skillAdditional)=static_cast<uint8_t>(std::stoi(action.substr(11)));return State();}
+        if(action=="stats-update"){Invoke(game::FindMethod("LE.dll","","LocalTreeData","onStatsUpdate",0),tree);return State();}
+#endif
         if(action.rfind("primordial-",0)==0){
             // Primordial items through the game's own methods: seal an inventory item's
             // first affix as primordial, quick-equip from the inventory (the game's
